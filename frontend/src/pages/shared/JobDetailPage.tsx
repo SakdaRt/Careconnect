@@ -1,0 +1,319 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { MainLayout } from '../../layouts';
+import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { JobPost } from '../../services/api';
+import { useAuth } from '../../contexts';
+import { appApi } from '../../services/appApi';
+
+function formatDateTimeRange(startIso: string, endIso: string) {
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const date = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const timeStart = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${timeStart} - ${timeEnd}`;
+}
+
+export default function JobDetailPage() {
+  const navigate = useNavigate();
+  const { id } = useParams();
+  const { user } = useAuth();
+  const hirerId = user?.id || 'demo-hirer';
+
+  const [job, setJob] = useState<JobPost | null>(null);
+  const [disputeInfo, setDisputeInfo] = useState<{ id: string; status?: string; reason?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const [cancelReasonDisplay, setCancelReasonDisplay] = useState('');
+
+  const load = useCallback(async () => {
+    if (!id) return;
+    setLoading(true);
+    try {
+      const res = await appApi.getJobById(id);
+      if (res.success && res.data?.job) {
+        setJob(res.data.job);
+        const dRes = await appApi.getDisputeByJob(id);
+        setDisputeInfo(
+          dRes.success && dRes.data?.dispute?.id
+            ? { id: dRes.data.dispute.id, status: dRes.data.dispute.status, reason: dRes.data.dispute.reason }
+            : null
+        );
+        const cancelRes = await appApi.getCancelReason(id);
+        setCancelReasonDisplay(cancelRes.success ? String((cancelRes.data as any)?.reason || '') : '');
+        return;
+      }
+      setJob(null);
+      setDisputeInfo(null);
+      setCancelReasonDisplay('');
+      toast.error(res.error || 'โหลดรายละเอียดงานไม่สำเร็จ');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const location = useMemo(() => {
+    if (!job) return '';
+    const parts = [job.address_line1, job.district, job.province].filter(Boolean);
+    return parts.join(', ');
+  }, [job]);
+
+  const handlePublish = async () => {
+    if (!job) return;
+    setActionLoading(true);
+    try {
+      const res = await appApi.publishJob(job.id, hirerId);
+      if (res.success) {
+        toast.success(appApi.isDemoToken() ? 'เผยแพร่งานแล้ว (เดโม)' : 'เผยแพร่งานแล้ว');
+        await load();
+        return;
+      }
+      const code = (res as any).code as string | undefined;
+      if (code === 'INSUFFICIENT_BALANCE' || String(res.error || '').includes('Insufficient')) {
+        toast.error('เงินในระบบไม่พอ กรุณาเติมเงินก่อนเผยแพร่');
+        return;
+      }
+      toast.error(res.error || 'ไม่สามารถเผยแพร่งานได้');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setCancelReason('');
+    setCancelOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!job) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      toast.error('กรุณากรอกเหตุผลที่ยกเลิกงาน');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await appApi.cancelJob(job.id, hirerId, reason);
+      if (res.success) {
+        toast.success('ยกเลิกงานแล้ว');
+        setCancelOpen(false);
+        setCancelReason('');
+        await load();
+        return;
+      }
+      toast.error(res.error || 'ไม่สามารถยกเลิกงานได้');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleOpenDispute = async () => {
+    if (!job) return;
+    setActionLoading(true);
+    try {
+      const existingRes = await appApi.getDisputeByJob(job.id);
+      if (existingRes.success && existingRes.data?.dispute?.id) {
+        navigate(`/dispute/${existingRes.data.dispute.id}`);
+        return;
+      }
+    } finally {
+      setActionLoading(false);
+    }
+    setDisputeReason('');
+    setDisputeOpen(true);
+  };
+
+  const handleConfirmDispute = async () => {
+    if (!job) return;
+    const reason = disputeReason.trim();
+    if (!reason) {
+      toast.error('กรุณากรอกเหตุผลที่เปิดข้อพิพาท');
+      return;
+    }
+    setActionLoading(true);
+    try {
+      const res = await appApi.createDispute(job.id, hirerId, reason);
+      if (!res.success || !res.data?.dispute?.id) {
+        toast.error(res.error || (appApi.isDemoToken() ? 'เปิดข้อพิพาทไม่สำเร็จ (เดโม)' : 'เปิดข้อพิพาทไม่สำเร็จ'));
+        return;
+      }
+      toast.success(appApi.isDemoToken() ? 'เปิดข้อพิพาทแล้ว (เดโม)' : 'เปิดข้อพิพาทแล้ว');
+      setDisputeOpen(false);
+      setDisputeReason('');
+      navigate(`/dispute/${res.data.dispute.id}`);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  return (
+    <MainLayout showBottomBar={false}>
+      <div className="max-w-3xl mx-auto px-4 py-6">
+        <div className="flex items-center justify-between gap-3 mb-6">
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            ย้อนกลับ
+          </Button>
+          <Link to="/hirer/home">
+            <Button variant="ghost">ไปงานของฉัน</Button>
+          </Link>
+        </div>
+
+        {loading ? (
+          <LoadingState message="กำลังโหลดรายละเอียดงาน..." />
+        ) : !job ? (
+          <Card className="p-6">
+            <p className="text-gray-700">ไม่พบงานนี้</p>
+          </Card>
+        ) : (
+          <Card className="p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
+                <div className="mt-2">
+                  <StatusBadge status={job.status as any} />
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-xl font-bold text-blue-600">{job.total_amount.toLocaleString()} บาท</div>
+                <div className="text-xs text-gray-500">
+                  {job.hourly_rate.toLocaleString()} บาท/ชม. × {job.total_hours} ชม.
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2 text-sm text-gray-700">
+              <div>
+                <span className="font-semibold">เวลา:</span> {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}
+              </div>
+              <div>
+                <span className="font-semibold">สถานที่:</span> {location || '-'}
+              </div>
+              <div>
+                <span className="font-semibold">ประเภทงาน:</span> {job.job_type}
+              </div>
+              <div>
+                <span className="font-semibold">ความเสี่ยง:</span> {job.risk_level}
+              </div>
+              <div>
+                <span className="font-semibold">รายละเอียด:</span>
+                <div className="mt-1 whitespace-pre-wrap text-gray-800">{job.description}</div>
+              </div>
+              {job.status === 'cancelled' && cancelReasonDisplay && (
+                <div className="text-red-700">
+                  <span className="font-semibold">เหตุผลยกเลิก:</span> {cancelReasonDisplay}
+                </div>
+              )}
+              {disputeInfo?.reason && (
+                <div className="text-orange-700">
+                  <span className="font-semibold">เหตุผลข้อพิพาท:</span> {disputeInfo.reason}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              {job.status === 'draft' && (
+                <Button variant="primary" loading={actionLoading} onClick={handlePublish}>
+                  เผยแพร่
+                </Button>
+              )}
+              {job.status !== 'cancelled' && job.status !== 'completed' && (
+                <Button variant="danger" loading={actionLoading} onClick={handleCancel}>
+                  ยกเลิกงาน
+                </Button>
+              )}
+              {disputeInfo?.id && (
+                <Button variant="outline" loading={actionLoading} onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
+                  ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
+                </Button>
+              )}
+              {job.status !== 'draft' && !!job.job_id && (
+                <Button variant="outline" loading={actionLoading} onClick={handleOpenDispute}>
+                  เปิดข้อพิพาท
+                </Button>
+              )}
+            </div>
+          </Card>
+        )}
+        <Modal
+          isOpen={cancelOpen}
+          onClose={() => setCancelOpen(false)}
+          title="ยกเลิกงาน"
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCancelOpen(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                กลับไป
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={actionLoading || !cancelReason.trim()}
+                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-red-600 hover:bg-red-700"
+              >
+                {actionLoading ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิก'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">เหตุผลที่ยกเลิกงาน</label>
+            <textarea
+              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="อธิบายเหตุผลในการยกเลิกงาน"
+            />
+          </div>
+        </Modal>
+        <Modal
+          isOpen={disputeOpen}
+          onClose={() => setDisputeOpen(false)}
+          title="เปิดข้อพิพาท"
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDisputeOpen(false)}
+                disabled={actionLoading}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                กลับไป
+              </button>
+              <button
+                onClick={handleConfirmDispute}
+                disabled={actionLoading || !disputeReason.trim()}
+                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
+              >
+                {actionLoading ? 'กำลังส่ง...' : 'ยืนยันเปิดข้อพิพาท'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">เหตุผลที่เปิดข้อพิพาท</label>
+            <textarea
+              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท"
+            />
+          </div>
+        </Modal>
+      </div>
+    </MainLayout>
+  );
+}
+

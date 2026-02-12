@@ -1,0 +1,17 @@
+ALTER TABLE patient_profiles
+  ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(255);
+
+ALTER TABLE patient_profiles
+  ADD COLUMN IF NOT EXISTS district VARCHAR(100);
+
+ALTER TABLE patient_profiles
+  ADD COLUMN IF NOT EXISTS province VARCHAR(100);
+
+ALTER TABLE patient_profiles
+  ADD COLUMN IF NOT EXISTS postal_code VARCHAR(10);
+
+ALTER TABLE patient_profiles
+  ADD COLUMN IF NOT EXISTS lat NUMERIC(10,7);
+
+ALTER TABLE patient_profiles
+  ADD COLUMN IF NOT EXISTS lng NUMERIC(10,7);

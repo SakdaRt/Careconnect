@@ -1,0 +1,207 @@
+# ============================================================================
+# Careconnect Docker Compose
+# Version: 1.0.0
+# Description: Complete development environment
+# ============================================================================
+
+name: careconnect
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: careconnect-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: careconnect
+      POSTGRES_USER: careconnect
+      POSTGRES_PASSWORD: careconnect_dev_password
+      POSTGRES_HOST_AUTH_METHOD: trust
+      TZ: Asia/Bangkok
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careconnect"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - careconnect-network
+
+  # ==========================================================================
+  # Backend API
+  # ==========================================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    image: careconnect-backend
+    container_name: careconnect-backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+
+      # Database
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: careconnect
+      DATABASE_USER: careconnect
+      DATABASE_PASSWORD: careconnect_dev_password
+
+      # JWT
+      JWT_SECRET: careconnect_jwt_secret_dev_only
+      JWT_EXPIRES_IN: 7d
+      JWT_REFRESH_EXPIRES_IN: 30d
+
+      # Mock Provider URLs
+      MOCK_PROVIDER_BASE_URL: http://mock-provider:4000
+      PAYMENT_PROVIDER: mock
+      SMS_PROVIDER: mock
+      KYC_PROVIDER: mock
+      BANK_TRANSFER_PROVIDER: mock
+
+      # Webhooks (backend receives from mock provider)
+      WEBHOOK_BASE_URL: http://backend:3000
+      WEBHOOK_SECRET: careconnect_webhook_secret_dev
+
+      # File Storage
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE_MB: 10
+
+      # Email (SendGrid or Resend - configure later)
+      EMAIL_PROVIDER: mock
+      EMAIL_FROM: noreply@careconnect.local
+
+      # Push Notifications (FCM - configure later)
+      PUSH_PROVIDER: mock
+
+      # Timezone
+      TZ: Asia/Bangkok
+
+      # Admin bootstrap
+      ADMIN_EMAIL: admin@careconnect.com
+      ADMIN_PASSWORD: Admin1234!
+
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+      - backend_node_modules:/app/node_modules
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mock-provider:
+        condition: service_started
+    networks:
+      - careconnect-network
+    command: npm run dev
+
+  # ==========================================================================
+  # Mock Provider Server
+  # ==========================================================================
+  mock-provider:
+    build:
+      context: ./mock-provider
+      dockerfile: Dockerfile.dev
+    image: careconnect-mock-provider
+    container_name: careconnect-mock-provider
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+
+      # Webhook target (mock provider sends to backend)
+      BACKEND_WEBHOOK_URL: http://backend:3000/api/webhooks
+      WEBHOOK_SECRET: careconnect_webhook_secret_dev
+
+      # Mock behavior settings
+      MOCK_PAYMENT_AUTO_SUCCESS: true
+      MOCK_PAYMENT_SUCCESS_DELAY_MS: 3000
+      MOCK_SMS_OTP_CODE: "123456"
+      MOCK_KYC_AUTO_APPROVE: true
+      MOCK_KYC_APPROVAL_DELAY_MS: 5000
+
+      # Timezone
+      TZ: Asia/Bangkok
+
+    ports:
+      - "4000:4000"
+    volumes:
+      - ./mock-provider:/app
+      - /app/node_modules
+    networks:
+      - careconnect-network
+    command: npm run dev
+
+  # ==========================================================================
+  # Frontend (React + Vite)
+  # ==========================================================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    image: careconnect-frontend
+    container_name: careconnect-frontend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      VITE_PUBLIC_HOST: localhost
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - careconnect-network
+    command: npm run dev -- --host 0.0.0.0
+
+  # ==========================================================================
+  # pgAdmin (Optional - for database management)
+  # ==========================================================================
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: careconnect-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@careconnect.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+      PGADMIN_LISTEN_PORT: 5050
+    ports:
+      - "5050:5050"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - careconnect-network
+
+# ============================================================================
+# Networks
+# ============================================================================
+networks:
+  careconnect-network:
+    driver: bridge
+
+# ============================================================================
+# Volumes
+# ============================================================================
+volumes:
+  postgres_data:
+    external: true
+    name: trae-ai_postgres_data
+  backend_node_modules:
+    driver: local
+  backend_uploads:
+    driver: local
+  pgadmin_data:
+    driver: local

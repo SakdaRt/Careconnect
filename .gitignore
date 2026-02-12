@@ -1,0 +1,119 @@
+# ============================================================================
+# Careconnect .gitignore
+# ============================================================================
+
+# Environment files (NEVER commit secrets!)
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Keep example only
+!.env.example
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*.swn
+*~
+.DS_Store
+
+# OS
+Thumbs.db
+Desktop.ini
+.AppleDouble
+.LSOverride
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Uploads (development)
+uploads/
+*/uploads/
+backend/uploads/
+
+# Database
+*.sqlite
+*.db
+*.db-journal
+
+# Docker volumes
+postgres_data/
+backend_uploads/
+pgadmin_data/
+
+# Certificates & Keys (NEVER commit!)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Secrets (NEVER commit!)
+secrets/
+.secrets/
+*.secret
+
+# macOS
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+ehthumbs.db
+ehthumbs_vista.db
+
+# Linux
+*~
+
+# Editor
+.history/
+*.sublime-project
+*.sublime-workspace
+
+# Python (if using Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Backup files
+*.backup
+*.bkp

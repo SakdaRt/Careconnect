@@ -1,0 +1,554 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
+import { ChatLayout } from '../../layouts';
+import { Button, Card, Input, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { ChatMessage, ChatThread, JobPost } from '../../services/api';
+import { appApi } from '../../services/appApi';
+import { useAuth } from '../../contexts';
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateTimeRange(startIso?: string | null, endIso?: string | null) {
+  if (!startIso || !endIso) return '-';
+  const start = new Date(startIso);
+  const end = new Date(endIso);
+  const date = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const timeStart = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+  return `${date} ${timeStart} - ${timeEnd}`;
+}
+
+const toRadians = (value: number) => (value * Math.PI) / 180;
+
+const getDistanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const earthRadius = 6371000;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return earthRadius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+};
+
+const formatDistance = (distance: number) => {
+  if (distance < 1000) return `${Math.round(distance)} ม.`;
+  return `${(distance / 1000).toFixed(2)} กม.`;
+};
+
+function getCurrentGps(): Promise<{ lat: number; lng: number; accuracy_m?: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('อุปกรณ์นี้ไม่รองรับการขอตำแหน่ง'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy_m: pos.coords.accuracy,
+        }),
+      (err) => reject(new Error(err.message || 'ไม่สามารถอ่านตำแหน่งได้')),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  });
+}
+
+export default function ChatRoomPage() {
+  const { jobId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [thread, setThread] = useState<ChatThread | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [job, setJob] = useState<JobPost | null>(null);
+  const [disputeInfo, setDisputeInfo] = useState<{ id: string; status?: string; reason?: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeReason, setDisputeReason] = useState('');
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const socketRef = useRef<Socket | null>(null);
+  const [cancelReasonDisplay, setCancelReasonDisplay] = useState<string>('');
+
+  const scrollToBottom = () => {
+    requestAnimationFrame(() => {
+      listRef.current?.scrollTo({ top: listRef.current.scrollHeight });
+    });
+  };
+
+  const load = useCallback(async () => {
+    if (!jobId) return;
+    setLoading(true);
+    try {
+      const jobRes = await appApi.getJobById(jobId);
+      const nextJob = jobRes.success ? jobRes.data?.job || null : null;
+      setJob(nextJob);
+      const dRes = await appApi.getDisputeByJob(jobId);
+      setDisputeInfo(
+        dRes.success && dRes.data?.dispute?.id
+          ? { id: dRes.data.dispute.id, status: dRes.data.dispute.status, reason: dRes.data.dispute.reason }
+          : null
+      );
+      const cancelRes = await appApi.getCancelReason(jobId);
+      setCancelReasonDisplay(cancelRes.success ? String((cancelRes.data as any)?.reason || '') : '');
+
+      const resPrimary = await appApi.getChatThread(jobId);
+      let nextThread = resPrimary.success ? resPrimary.data?.thread || null : null;
+      if (!nextThread) {
+        const fallbackId = (jobRes.success && jobRes.data?.job?.job_id) ? jobRes.data.job.job_id! : null;
+        if (fallbackId) {
+          const resFallback = await appApi.getChatThread(fallbackId);
+          nextThread = resFallback.success ? resFallback.data?.thread || null : null;
+        }
+        if (!nextThread) {
+          const created = await appApi.getOrCreateChatThread(fallbackId || jobId);
+          nextThread = created.success ? created.data?.thread || null : null;
+        }
+      }
+      setThread(nextThread);
+      if (!nextThread) {
+        setMessages([]);
+        return;
+      }
+      const msgs = await appApi.getChatMessages(nextThread.id, 50);
+      setMessages(msgs.success && msgs.data ? msgs.data.data || [] : []);
+    } finally {
+      setLoading(false);
+      scrollToBottom();
+    }
+  }, [jobId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    if (!thread || appApi.isDemoToken()) return;
+
+    const env = (import.meta as any).env as Record<string, string | undefined>;
+    const socketUrl = env.VITE_SOCKET_URL || window.location.origin;
+    const token = localStorage.getItem('careconnect_token');
+    if (!token || token === 'demo') return;
+
+    const socket = io(socketUrl, {
+      transports: ['websocket'],
+      auth: { token },
+    });
+    socketRef.current = socket;
+
+    const onError = (payload: any) => {
+      toast.error(payload?.message || 'เกิดข้อผิดพลาดของแชท');
+    };
+
+    socket.on('connect', () => {
+      socket.emit('thread:join', thread.id);
+    });
+
+    socket.on('message:new', (message: ChatMessage) => {
+      setMessages((prev) => [...prev, message]);
+      scrollToBottom();
+    });
+
+    socket.on('error', onError);
+
+    return () => {
+      try {
+        socket.emit('thread:leave', thread.id);
+      } catch {
+        // ignore
+      }
+      socket.off('message:new');
+      socket.off('error', onError);
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [thread]);
+
+  const handleSend = async () => {
+    const trimmed = text.trim();
+    if (!thread || !trimmed || !jobId) return;
+    setSending(true);
+    try {
+      const sender = { id: user?.id || 'demo-user', role: user?.role || 'user', name: user?.email || undefined };
+      const socket = socketRef.current;
+      if (socket?.connected && !appApi.isDemoToken()) {
+        socket.emit('message:send', { threadId: thread.id, type: 'text', content: trimmed });
+        setText('');
+        return;
+      }
+
+      const res = await appApi.sendMessage(thread.id, sender, trimmed, 'text');
+      if (!res.success || !res.data?.message) {
+        toast.error(res.error || 'ส่งข้อความไม่สำเร็จ');
+        return;
+      }
+      setMessages((prev) => [...prev, res.data!.message]);
+      setText('');
+      scrollToBottom();
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleCheckIn = async () => {
+    if (!jobId) return;
+    setActionLoading('checkin');
+    try {
+      const caregiverId = user?.id || 'demo-caregiver';
+      const gps = await getCurrentGps();
+      if (typeof job?.lat === 'number' && typeof job?.lng === 'number') {
+        const distance = getDistanceMeters(gps.lat, gps.lng, job.lat, job.lng);
+        const allowedRadius = Math.min(1000, typeof job.geofence_radius_m === 'number' ? job.geofence_radius_m : 1000);
+        if (distance > allowedRadius + (gps.accuracy_m || 0)) {
+          toast.error(`อยู่นอกระยะเช็คอิน (${formatDistance(distance)} > ${formatDistance(allowedRadius)})`);
+          return;
+        }
+        toast.success(`ระยะห่าง ${formatDistance(distance)} อยู่ในเกณฑ์เช็คอิน`);
+      }
+      const res = await appApi.checkIn(jobId, caregiverId, gps);
+      if (!res.success) {
+        toast.error(res.error || 'เช็คอินไม่สำเร็จ');
+        return;
+      }
+      toast.success('เช็คอินแล้ว');
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'เช็คอินไม่สำเร็จ');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCheckOut = async () => {
+    if (!jobId) return;
+    setActionLoading('checkout');
+    try {
+      const caregiverId = user?.id || 'demo-caregiver';
+      const gps = await getCurrentGps();
+      const res = await appApi.checkOut(jobId, caregiverId, gps);
+      if (!res.success) {
+        toast.error(res.error || 'เช็คเอาต์ไม่สำเร็จ');
+        return;
+      }
+      toast.success('เช็คเอาต์แล้ว');
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'เช็คเอาต์ไม่สำเร็จ');
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleCancelJob = () => {
+    setCancelReason('');
+    setCancelOpen(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!jobId) return;
+    const reason = cancelReason.trim();
+    if (!reason) {
+      toast.error('กรุณากรอกเหตุผลที่ยกเลิกงาน');
+      return;
+    }
+    setActionLoading('cancel');
+    try {
+      const hirerId = user?.id || 'demo-hirer';
+      const res = await appApi.cancelJob(jobId, hirerId, reason);
+      if (!res.success) {
+        toast.error(res.error || 'ยกเลิกไม่สำเร็จ');
+        return;
+      }
+      toast.success('ยกเลิกงานแล้ว');
+      setCancelOpen(false);
+      setCancelReason('');
+      await load();
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleOpenDispute = async () => {
+    if (!jobId) return;
+    setActionLoading('dispute');
+    try {
+      const existingRes = await appApi.getDisputeByJob(jobId);
+      if (existingRes.success && existingRes.data?.dispute?.id) {
+        navigate(`/dispute/${existingRes.data.dispute.id}`);
+        return;
+      }
+    } finally {
+      setActionLoading(null);
+    }
+    setDisputeReason('');
+    setDisputeOpen(true);
+  };
+
+  const handleConfirmDispute = async () => {
+    if (!jobId) return;
+    const reason = disputeReason.trim();
+    if (!reason) {
+      toast.error('กรุณากรอกเหตุผลที่เปิดข้อพิพาท');
+      return;
+    }
+    setActionLoading('dispute');
+    try {
+      const openedBy = user?.id || 'demo-hirer';
+      const res = await appApi.createDispute(jobId, openedBy, reason);
+      if (!res.success || !res.data?.dispute?.id) {
+        toast.error(res.error || 'เปิดข้อพิพาทไม่สำเร็จ');
+        return;
+      }
+      toast.success('เปิดข้อพิพาทแล้ว');
+      setDisputeOpen(false);
+      setDisputeReason('');
+      navigate(`/dispute/${res.data.dispute.id}`);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const grouped = useMemo(() => messages, [messages]);
+  const jobInstanceStatus = (job as any)?.job_status as string | undefined;
+  const jobStatus = jobInstanceStatus || job?.status;
+  const patientDisplayName = (job as any)?.patient_display_name as string | undefined;
+  const caregiverName = (job as any)?.caregiver_name as string | undefined;
+  const hirerName = (job as any)?.hirer_name as string | undefined;
+  const location = [job?.address_line1, job?.district, job?.province].filter(Boolean).join(', ');
+  const canCheckIn = user?.role === 'caregiver' && jobInstanceStatus === 'assigned';
+  const canCheckOut = user?.role === 'caregiver' && jobInstanceStatus === 'in_progress';
+
+  if (!jobId) {
+    return (
+      <ChatLayout>
+        <Card className="p-6">
+          <p className="text-gray-700">ไม่พบรหัสงาน</p>
+        </Card>
+      </ChatLayout>
+    );
+  }
+
+  return (
+    <ChatLayout>
+      <div className="max-w-3xl mx-auto px-4 py-4">
+        {loading ? (
+          <LoadingState message="กำลังโหลดแชท..." />
+        ) : !thread ? (
+          <Card className="p-6">
+            <p className="text-gray-700">ยังไม่มีห้องแชทสำหรับงานนี้</p>
+            <p className="text-sm text-gray-500 mt-2">งานต้องถูก “รับงาน” ก่อนถึงจะเริ่มแชทได้</p>
+          </Card>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <Card className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-sm text-gray-500">งาน</div>
+                  <div className="text-lg font-semibold text-gray-900 line-clamp-1">{job?.title || 'Job'}</div>
+                  <div className="text-xs text-gray-600 mt-1">
+                    {patientDisplayName ? `ผู้รับการดูแล: ${patientDisplayName}` : hirerName ? `ผู้ว่าจ้าง: ${hirerName}` : ''}
+                    {caregiverName ? ` • ผู้ดูแล: ${caregiverName}` : ''}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-1">{formatDateTimeRange(job?.scheduled_start_at, job?.scheduled_end_at)}</div>
+                  <div className="text-xs text-gray-600 mt-1">{location || '-'}</div>
+                  {jobStatus === 'cancelled' && cancelReasonDisplay && (
+                    <div className="text-xs text-red-700 mt-2">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
+                  )}
+                  {disputeInfo?.reason && (
+                    <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
+                  )}
+                  <div className="text-[11px] text-gray-500 mt-2 font-mono break-all">job: {jobId}</div>
+                  {job?.id && <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">job_post: {job.id}</div>}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {jobStatus && <StatusBadge status={jobStatus as any} />}
+                  {disputeInfo?.id && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/dispute/${disputeInfo.id}`)}
+                    >
+                      ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!job}
+                    loading={actionLoading === 'cancel'}
+                    onClick={handleCancelJob}
+                  >
+                    ยกเลิกงาน
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={!job}
+                    loading={actionLoading === 'dispute'}
+                    onClick={handleOpenDispute}
+                  >
+                    เปิดข้อพิพาท
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            {user?.role === 'caregiver' && (
+              <Card className="p-3">
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!canCheckIn}
+                    loading={actionLoading === 'checkin'}
+                    onClick={handleCheckIn}
+                  >
+                    เช็คอิน
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    disabled={!canCheckOut}
+                    loading={actionLoading === 'checkout'}
+                    onClick={handleCheckOut}
+                  >
+                    เช็คเอาต์
+                  </Button>
+                </div>
+                <div className="text-xs text-gray-500 mt-2">
+                  {jobInstanceStatus ? `สถานะงาน: ${jobInstanceStatus}` : 'สถานะงาน: -'}
+                </div>
+              </Card>
+            )}
+
+            <div
+              ref={listRef}
+              className="bg-white border border-gray-200 rounded-lg h-[60vh] overflow-y-auto p-4 space-y-3"
+            >
+              {grouped.length === 0 ? (
+                <div className="text-center text-sm text-gray-500">ยังไม่มีข้อความ</div>
+              ) : (
+                grouped.map((m) => {
+                  const isMine = !!user?.id && m.sender_id === user.id;
+                  const bubble =
+                    m.sender_id === null
+                      ? 'bg-gray-100 text-gray-800'
+                      : isMine
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-200 text-gray-900';
+                  const align = m.sender_id === null ? 'justify-center' : isMine ? 'justify-end' : 'justify-start';
+                  return (
+                    <div key={m.id} className={`flex ${align}`}>
+                      <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${bubble}`}>
+                        {m.sender_id !== null && !isMine && (
+                          <div className="text-[11px] opacity-80 mb-1">{m.sender_name || 'ผู้ใช้'}</div>
+                        )}
+                        <div className="text-sm whitespace-pre-wrap break-words">{m.content}</div>
+                        <div className="text-[11px] opacity-70 mt-1 text-right">{formatTime(m.created_at)}</div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <Input
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="พิมพ์ข้อความ..."
+                fullWidth
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+              />
+              <Button variant="primary" loading={sending} onClick={handleSend}>
+                ส่ง
+              </Button>
+            </div>
+          </div>
+        )}
+        <Modal
+          isOpen={cancelOpen}
+          onClose={() => setCancelOpen(false)}
+          title="ยกเลิกงาน"
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setCancelOpen(false)}
+                disabled={actionLoading === 'cancel'}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                กลับไป
+              </button>
+              <button
+                onClick={handleConfirmCancel}
+                disabled={actionLoading === 'cancel' || !cancelReason.trim()}
+                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-red-600 hover:bg-red-700"
+              >
+                {actionLoading === 'cancel' ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิก'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">เหตุผลที่ยกเลิกงาน</label>
+            <textarea
+              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              placeholder="อธิบายเหตุผลในการยกเลิกงาน"
+            />
+          </div>
+        </Modal>
+        <Modal
+          isOpen={disputeOpen}
+          onClose={() => setDisputeOpen(false)}
+          title="เปิดข้อพิพาท"
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setDisputeOpen(false)}
+                disabled={actionLoading === 'dispute'}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                กลับไป
+              </button>
+              <button
+                onClick={handleConfirmDispute}
+                disabled={actionLoading === 'dispute' || !disputeReason.trim()}
+                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
+              >
+                {actionLoading === 'dispute' ? 'กำลังส่ง...' : 'ยืนยันเปิดข้อพิพาท'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-semibold text-gray-700">เหตุผลที่เปิดข้อพิพาท</label>
+            <textarea
+              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
+              value={disputeReason}
+              onChange={(e) => setDisputeReason(e.target.value)}
+              placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท"
+            />
+          </div>
+        </Modal>
+      </div>
+    </ChatLayout>
+  );
+}
+
