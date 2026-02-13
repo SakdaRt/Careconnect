@@ -3,21 +3,86 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
- * Valid job status transitions
- * draft → posted → assigned → in_progress → completed
- *                     ↓           ↓            ↓
- *                 cancelled   cancelled    cancelled
- *                     ↓
- *                 expired
+ * Job State Machine
+ * Defines valid status transitions and transition logic
+ */
+const JOB_STATES = {
+  DRAFT: 'draft',
+  POSTED: 'posted', 
+  ASSIGNED: 'assigned',
+  IN_PROGRESS: 'in_progress',
+  COMPLETED: 'completed',
+  CANCELLED: 'cancelled',
+  EXPIRED: 'expired'
+};
+
+/**
+ * Valid state transitions
+ * Format: FROM_STATE: [TO_STATE, TO_STATE, ...]
  */
 const VALID_TRANSITIONS = {
-  draft: ['posted'],
-  posted: ['assigned', 'cancelled', 'expired'],
-  assigned: ['in_progress', 'cancelled'],
-  in_progress: ['completed', 'cancelled'],
-  completed: [],
-  cancelled: [],
-  expired: [],
+  [JOB_STATES.DRAFT]: [JOB_STATES.POSTED],
+  [JOB_STATES.POSTED]: [JOB_STATES.ASSIGNED, JOB_STATES.CANCELLED, JOB_STATES.EXPIRED],
+  [JOB_STATES.ASSIGNED]: [JOB_STATES.IN_PROGRESS, JOB_STATES.CANCELLED],
+  [JOB_STATES.IN_PROGRESS]: [JOB_STATES.COMPLETED, JOB_STATES.CANCELLED],
+  [JOB_STATES.COMPLETED]: [], // Terminal state
+  [JOB_STATES.CANCELLED]: [], // Terminal state
+  [JOB_STATES.EXPIRED]: [] // Terminal state
+};
+
+/**
+ * Check if a transition is valid
+ * @param {string} fromState - Current state
+ * @param {string} toState - Target state
+ * @returns {boolean} - True if transition is valid
+ */
+const isValidTransition = (fromState, toState) => {
+  if (fromState === toState) return false; // No self-transitions
+  return VALID_TRANSITIONS[fromState]?.includes(toState) || false;
+};
+
+/**
+ * Job State Transition Error
+ */
+class InvalidTransitionError extends Error {
+  constructor(fromState, toState, jobId = null) {
+    super(`Invalid job status transition: ${fromState} → ${toState}${jobId ? ` for job ${jobId}` : ''}`);
+    this.name = 'InvalidTransitionError';
+    this.fromState = fromState;
+    this.toState = toState;
+    this.jobId = jobId;
+    this.status = 400;
+  }
+}
+
+/**
+ * Log state transition to audit trail
+ * @param {string} jobId - Job ID
+ * @param {string} fromState - Previous state
+ * @param {string} toState - New state
+ * @param {string} userId - User who made the change
+ * @param {object} metadata - Additional transition data
+ */
+const logTransition = async (jobId, fromState, toState, userId, metadata = {}) => {
+  try {
+    await query(
+      `INSERT INTO audit_logs (id, entity_type, entity_id, action, old_values, new_values, user_id, metadata, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
+      [
+        uuidv4(),
+        'job',
+        jobId,
+        'status_transition',
+        JSON.stringify({ status: fromState }),
+        JSON.stringify({ status: toState }),
+        userId,
+        JSON.stringify(metadata)
+      ]
+    );
+  } catch (error) {
+    console.error('[Job Model] Failed to log transition:', error);
+    // Don't throw - logging failure shouldn't break the transition
+  }
 };
 
 const toRadians = (value) => (value * Math.PI) / 180;
@@ -127,31 +192,89 @@ class Job extends BaseModel {
   }
 
   /**
+   * Execute a state transition with validation and logging
+   * @param {string} jobId - Job ID
+   * @param {string} toState - Target state
+   * @param {string} userId - User making the change
+   * @param {object} metadata - Additional transition data
+   * @param {function} transitionFn - Function to execute the transition
+   * @returns {object} - Updated job data
+   */
+  async executeTransition(jobId, toState, userId, metadata = {}, transitionFn) {
+    // Get current job state
+    const currentJob = await this.findById(jobId);
+    if (!currentJob) {
+      throw new Error('Job not found');
+    }
+
+    const fromState = currentJob.status;
+
+    // Validate transition
+    if (!isValidTransition(fromState, toState)) {
+      throw new InvalidTransitionError(fromState, toState, jobId);
+    }
+
+    // Check for idempotency (already in target state)
+    if (fromState === toState) {
+      return currentJob; // Return existing data
+    }
+
+    try {
+      // Execute the transition within a transaction
+      const result = await transaction(async (client) => {
+        // Execute the specific transition logic
+        const updatedJob = await transitionFn(client, currentJob);
+        
+        // Log the transition
+        await logTransition(jobId, fromState, toState, userId, {
+          ...metadata,
+          transition_time: new Date().toISOString()
+        });
+
+        return updatedJob;
+      });
+
+      return result;
+    } catch (error) {
+      console.error(`[Job Model] Transition ${fromState} → ${toState} failed:`, error);
+      throw error;
+    }
+  }
+
+  /**
    * Publish job post (draft → posted)
    * @param {string} jobPostId - Job post ID
    * @param {string} hirerId - Hirer ID for ownership check
    * @returns {object} - Updated job post
    */
   async publishJobPost(jobPostId, hirerId) {
-    const jobPost = await this.findById(jobPostId);
+    return await this.executeTransition(
+      jobPostId,
+      JOB_STATES.POSTED,
+      hirerId,
+      { action: 'publish_job' },
+      async (client, currentJob) => {
+        // Authorization check
+        if (currentJob.hirer_id !== hirerId) {
+          throw new Error('Not authorized to publish this job');
+        }
 
-    if (!jobPost) {
-      throw new Error('Job post not found');
-    }
+        // Execute the update
+        const result = await client.query(
+          `UPDATE job_posts 
+           SET status = $1, posted_at = NOW(), updated_at = NOW() 
+           WHERE id = $2 AND status = $3
+           RETURNING *`,
+          [JOB_STATES.POSTED, jobPostId, JOB_STATES.DRAFT]
+        );
 
-    if (jobPost.hirer_id !== hirerId) {
-      throw new Error('Not authorized to publish this job');
-    }
+        if (result.rows.length === 0) {
+          throw new InvalidTransitionError(JOB_STATES.DRAFT, JOB_STATES.POSTED, jobPostId);
+        }
 
-    if (jobPost.status !== 'draft') {
-      throw new Error(`Cannot publish job in status: ${jobPost.status}`);
-    }
-
-    return await this.updateById(jobPostId, {
-      status: 'posted',
-      posted_at: new Date(),
-      updated_at: new Date(),
-    });
+        return result.rows[0];
+      }
+    );
   }
 
   /**
@@ -380,45 +503,24 @@ class Job extends BaseModel {
    * @returns {object} - Updated job
    */
   async checkIn(jobId, caregiverId, gpsData = {}) {
-    // Try to find by jobs.id first, then by job_posts.id
-    let job = await query(
+    // Get job data for validation
+    const jobQuery = await query(
       `SELECT j.*, ja.caregiver_id, jp.lat, jp.lng, jp.geofence_radius_m
        FROM jobs j
        JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
        JOIN job_posts jp ON jp.id = j.job_post_id
-       WHERE j.id = $1`,
-      [jobId]
+       WHERE j.id = $1 OR jp.id = $1`,
+      [jobId, jobId]
     );
 
-    if (!job.rows[0]) {
-      // Try by job_posts.id
-      job = await query(
-        `SELECT j.*, ja.caregiver_id, jp.lat, jp.lng, jp.geofence_radius_m
-         FROM jobs j
-         JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
-         JOIN job_posts jp ON jp.id = j.job_post_id
-         WHERE jp.id = $1`,
-        [jobId]
-      );
-    }
-
-    if (!job.rows[0]) {
+    if (!jobQuery.rows[0]) {
       throw new Error('Job not found');
     }
 
-    // Use actual job id for subsequent operations
-    const actualJobId = job.rows[0].id;
+    const jobData = jobQuery.rows[0];
+    const actualJobId = jobData.id;
 
-    const jobData = job.rows[0];
-
-    if (jobData.caregiver_id !== caregiverId) {
-      throw new Error('Not authorized to check in to this job');
-    }
-
-    if (jobData.status !== 'assigned') {
-      throw new Error(`Cannot check in to job in status: ${jobData.status}`);
-    }
-
+    // Validate GPS data if provided
     let gps = null;
     if (gpsData && gpsData.lat !== undefined && gpsData.lng !== undefined) {
       const lat = Number(gpsData.lat);
@@ -437,6 +539,7 @@ class Job extends BaseModel {
           : null,
       };
 
+      // Validate geofence
       const jobLat = Number(jobData.lat);
       const jobLng = Number(jobData.lng);
       const radiusRaw = Number(jobData.geofence_radius_m);
@@ -453,30 +556,41 @@ class Job extends BaseModel {
       }
     }
 
-    await transaction(async (client) => {
-      // Update job status
-      await client.query(
-        `UPDATE jobs SET status = 'in_progress', started_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [actualJobId]
-      );
+    return await this.executeTransition(
+      actualJobId,
+      JOB_STATES.IN_PROGRESS,
+      caregiverId,
+      { action: 'check_in', gps_data: gps },
+      async (client, currentJob) => {
+        // Authorization check
+        if (currentJob.caregiver_id !== caregiverId) {
+          throw new Error('Not authorized to check in to this job');
+        }
 
-      // Update assignment
-      await client.query(
-        `UPDATE job_assignments SET start_confirmed_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
-        [actualJobId]
-      );
-
-      // Record GPS event
-      if (gps) {
+        // Execute the transition
         await client.query(
-          `INSERT INTO job_gps_events (id, job_id, caregiver_id, event_type, lat, lng, accuracy_m, confidence_score, created_at)
-           VALUES ($1, $2, $3, 'check_in', $4, $5, $6, $7, NOW())`,
-          [uuidv4(), actualJobId, caregiverId, gps.lat, gps.lng, gps.accuracy_m || 10.0, gps.confidence_score]
+          `UPDATE jobs SET status = $1, started_at = NOW(), updated_at = NOW() WHERE id = $2 AND status = $3`,
+          [JOB_STATES.IN_PROGRESS, actualJobId, JOB_STATES.ASSIGNED]
         );
-      }
-    });
 
-    return await this.getJobInstanceById(actualJobId);
+        // Update assignment
+        await client.query(
+          `UPDATE job_assignments SET start_confirmed_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
+          [actualJobId]
+        );
+
+        // Record GPS event
+        if (gps) {
+          await client.query(
+            `INSERT INTO job_gps_events (id, job_id, caregiver_id, event_type, lat, lng, accuracy_m, confidence_score, created_at)
+             VALUES ($1, $2, $3, 'check_in', $4, $5, $6, $7, NOW())`,
+            [uuidv4(), actualJobId, caregiverId, gps.lat, gps.lng, gps.accuracy_m || 10.0, gps.confidence_score]
+          );
+        }
+
+        return await this.getJobInstanceById(actualJobId);
+      }
+    );
   }
 
   /**
@@ -486,326 +600,250 @@ class Job extends BaseModel {
    * @param {object} gpsData - GPS coordinates
    * @returns {object} - Updated job
    */
+  /**
+   * Check out from job (in_progress → completed)
+   * @param {string} jobId - Job ID
+   * @param {string} caregiverId - Caregiver ID
+   * @param {object} gpsData - GPS coordinates
+   * @returns {object} - Updated job
+   */
   async checkOut(jobId, caregiverId, gpsData = {}) {
-    // Try to find by jobs.id first
-    let job = await query(
+    // Get job data for validation
+    const jobQuery = await query(
       `SELECT j.*, ja.caregiver_id
        FROM jobs j
        JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
-       WHERE j.id = $1`,
-      [jobId]
+       WHERE j.id = $1 OR j.job_post_id = $1`,
+      [jobId, jobId]
     );
 
-    // If not found, try by job_posts.id
-    if (!job.rows[0]) {
-      job = await query(
-        `SELECT j.*, ja.caregiver_id
-         FROM jobs j
-         JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
-         WHERE j.job_post_id = $1`,
-        [jobId]
-      );
-    }
-
-    if (!job.rows[0]) {
+    if (!jobQuery.rows[0]) {
       throw new Error('Job not found');
     }
 
-    const jobData = job.rows[0];
+    const jobData = jobQuery.rows[0];
     const actualJobId = jobData.id;
 
-    if (jobData.caregiver_id !== caregiverId) {
-      throw new Error('Not authorized to check out from this job');
-    }
+    return await this.executeTransition(
+      actualJobId,
+      JOB_STATES.COMPLETED,
+      caregiverId,
+      { action: 'check_out', gps_data: gpsData },
+      async (client, currentJob) => {
+        // Authorization check
+        if (currentJob.caregiver_id !== caregiverId) {
+          throw new Error('Not authorized to check out from this job');
+        }
 
-    if (jobData.status !== 'in_progress') {
-      throw new Error(`Cannot check out from job in status: ${jobData.status}`);
-    }
-
-    await transaction(async (client) => {
-      // Update job status
-      await client.query(
-        `UPDATE jobs SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [actualJobId]
-      );
-
-      // Update job post status
-      await client.query(
-        `UPDATE job_posts SET status = 'completed', updated_at = NOW() WHERE id = $1`,
-        [jobData.job_post_id]
-      );
-
-      // Update assignment
-      await client.query(
-        `UPDATE job_assignments SET status = 'completed', end_confirmed_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
-        [actualJobId]
-      );
-
-      // Record GPS event
-      if (gpsData.lat && gpsData.lng) {
+        // Execute the transition
         await client.query(
-          `INSERT INTO job_gps_events (id, job_id, caregiver_id, event_type, lat, lng, accuracy_m, confidence_score, created_at)
-           VALUES ($1, $2, $3, 'check_out', $4, $5, $6, $7, NOW())`,
-          [uuidv4(), actualJobId, caregiverId, gpsData.lat, gpsData.lng, gpsData.accuracy_m || 10.0, gpsData.confidence_score || null]
+          `UPDATE jobs SET status = $1, completed_at = NOW(), updated_at = NOW() WHERE id = $2 AND status = $3`,
+          [JOB_STATES.COMPLETED, actualJobId, JOB_STATES.IN_PROGRESS]
         );
-      }
 
-      const jobPostResult = await client.query(
-        `SELECT total_amount, platform_fee_amount FROM job_posts WHERE id = $1 FOR UPDATE`,
-        [jobData.job_post_id]
-      );
-
-      if (jobPostResult.rows.length === 0) {
-        throw new Error('Job post not found');
-      }
-
-      const jobPost = jobPostResult.rows[0];
-
-      const escrowWalletResult = await client.query(
-        `SELECT * FROM wallets WHERE job_id = $1 AND wallet_type = 'escrow' FOR UPDATE`,
-        [actualJobId]
-      );
-
-      if (escrowWalletResult.rows.length === 0) {
-        throw new Error('Escrow wallet not found');
-      }
-
-      const escrowWallet = escrowWalletResult.rows[0];
-      const totalAmount = parseInt(jobPost.total_amount);
-      const platformFee = parseInt(jobPost.platform_fee_amount);
-      const caregiverPayment = totalAmount;
-      const escrowHeld = parseInt(escrowWallet.held_balance);
-
-      if (escrowHeld < caregiverPayment + platformFee) {
-        throw new Error('Insufficient escrow balance for settlement');
-      }
-
-      let caregiverWalletResult = await client.query(
-        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'caregiver' FOR UPDATE`,
-        [caregiverId]
-      );
-
-      if (caregiverWalletResult.rows.length === 0) {
-        const caregiverWalletId = uuidv4();
+        // Update job post status
         await client.query(
-          `INSERT INTO wallets (id, user_id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
-           VALUES ($1, $2, 'caregiver', 0, 0, 'THB', NOW(), NOW())`,
-          [caregiverWalletId, caregiverId]
-        );
-        caregiverWalletResult = await client.query(
-          `SELECT * FROM wallets WHERE id = $1`,
-          [caregiverWalletId]
-        );
-      }
-
-      const caregiverWallet = caregiverWalletResult.rows[0];
-
-      let platformWalletResult = await client.query(
-        `SELECT * FROM wallets WHERE wallet_type = 'platform' AND user_id IS NULL FOR UPDATE`
-      );
-
-      if (platformWalletResult.rows.length === 0) {
-        const platformWalletId = uuidv4();
-        await client.query(
-          `INSERT INTO wallets (id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
-           VALUES ($1, 'platform', 0, 0, 'THB', NOW(), NOW())`,
-          [platformWalletId]
-        );
-        platformWalletResult = await client.query(
-          `SELECT * FROM wallets WHERE id = $1`,
-          [platformWalletId]
-        );
-      }
-
-      const platformWallet = platformWalletResult.rows[0];
-
-      await client.query(
-        `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
-        [caregiverPayment, escrowWallet.id]
-      );
-
-      await client.query(
-        `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
-        [caregiverPayment, caregiverWallet.id]
-      );
-
-      await client.query(
-        `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-         VALUES ($1, $2, $3, $4, 'release', 'job', $5, 'Payment for completed job', NOW())`,
-        [uuidv4(), escrowWallet.id, caregiverWallet.id, caregiverPayment, actualJobId]
-      );
-
-      await client.query(
-        `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
-        [platformFee, escrowWallet.id]
-      );
-
-      await client.query(
-        `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
-        [platformFee, platformWallet.id]
-      );
-
-      await client.query(
-        `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-         VALUES ($1, $2, $3, $4, 'debit', 'fee', $5, 'Platform service fee', NOW())`,
-        [uuidv4(), escrowWallet.id, platformWallet.id, platformFee, actualJobId]
-      );
-
-      const threadResult = await client.query(
-        `SELECT id FROM chat_threads WHERE job_id = $1 LIMIT 1`,
-        [actualJobId]
-      );
-
-      if (threadResult.rows.length > 0) {
-        await client.query(
-          `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
-           VALUES ($1, $2, NULL, 'system', 'Job completed. Payment has been released to caregiver.', true, NOW())`,
-          [uuidv4(), threadResult.rows[0].id]
-        );
-      }
-    });
-
-    return await this.getJobInstanceById(actualJobId);
-  }
-
-  /**
-   * Cancel job
-   * @param {string} jobPostId - Job post ID
-   * @param {string} userId - User ID (hirer or caregiver)
-   * @param {string} reason - Cancellation reason
-   * @returns {object} - Updated job
-   */
-  async cancelJob(jobPostId, userId, _reason) {
-    const jobPost = await this.getJobWithDetails(jobPostId);
-
-    if (!jobPost) {
-      throw new Error('Job not found');
-    }
-
-    // Check authorization
-    const isHirer = jobPost.hirer_id === userId;
-    const isCaregiver = jobPost.caregiver_id === userId;
-
-    if (!isHirer && !isCaregiver) {
-      throw new Error('Not authorized to cancel this job');
-    }
-
-    // Check if can be cancelled
-    const cancellableStatuses = ['posted', 'assigned', 'in_progress'];
-    const currentStatus = jobPost.job_status || jobPost.status;
-
-    if (!cancellableStatuses.includes(currentStatus)) {
-      throw new Error(`Cannot cancel job in status: ${currentStatus}`);
-    }
-
-    await transaction(async (client) => {
-      // Update job post status
-      await client.query(
-        `UPDATE job_posts SET status = 'cancelled', closed_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [jobPostId]
-      );
-
-      // If job instance exists, update it too
-      if (jobPost.job_id) {
-        await client.query(
-          `UPDATE jobs SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = $1`,
-          [jobPost.job_id]
+          `UPDATE job_posts SET status = $1, updated_at = NOW() WHERE id = $2`,
+          [JOB_STATES.COMPLETED, currentJob.job_post_id]
         );
 
         // Update assignment
         await client.query(
-          `UPDATE job_assignments SET status = 'cancelled', updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
-          [jobPost.job_id]
+          `UPDATE job_assignments SET status = 'completed', end_confirmed_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
+          [actualJobId]
         );
+
+        // Record GPS event
+        if (gpsData.lat && gpsData.lng) {
+          await client.query(
+            `INSERT INTO job_gps_events (id, job_id, caregiver_id, event_type, lat, lng, accuracy_m, confidence_score, created_at)
+             VALUES ($1, $2, $3, 'check_out', $4, $5, $6, $7, NOW())`,
+            [uuidv4(), actualJobId, caregiverId, gpsData.lat, gpsData.lng, gpsData.accuracy_m || 10.0, gpsData.confidence_score || null]
+          );
+        }
+
+        // Process payment settlement
+        const jobPostResult = await client.query(
+          `SELECT total_amount, platform_fee_amount FROM job_posts WHERE id = $1 FOR UPDATE`,
+          [currentJob.job_post_id]
+        );
+
+        if (jobPostResult.rows.length === 0) {
+          throw new Error('Job post not found');
+        }
+
+        const jobPost = jobPostResult.rows[0];
+
+        const escrowWalletResult = await client.query(
+          `SELECT * FROM wallets WHERE job_id = $1 AND wallet_type = 'escrow' FOR UPDATE`,
+          [actualJobId]
+        );
+
+        if (escrowWalletResult.rows.length === 0) {
+          throw new Error('Escrow wallet not found');
+        }
+
+        const escrowWallet = escrowWalletResult.rows[0];
+        const totalAmount = parseInt(jobPost.total_amount);
+        const platformFee = parseInt(jobPost.platform_fee_amount);
+        const caregiverPayment = totalAmount;
+        const escrowHeld = parseInt(escrowWallet.held_balance);
+
+        if (escrowHeld < caregiverPayment + platformFee) {
+          throw new Error('Insufficient escrow balance for settlement');
+        }
+
+        let caregiverWalletResult = await client.query(
+          `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'caregiver' FOR UPDATE`,
+          [caregiverId]
+        );
+
+        if (caregiverWalletResult.rows.length === 0) {
+          // Create caregiver wallet if it doesn't exist
+          await client.query(
+            `INSERT INTO wallets (id, user_id, wallet_type, available_balance, held_balance, created_at, updated_at)
+             VALUES ($1, $2, 'caregiver', 0, 0, NOW(), NOW())`,
+            [uuidv4(), caregiverId]
+          );
+          caregiverWalletResult = await client.query(
+            `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'caregiver' FOR UPDATE`,
+            [caregiverId]
+          );
+        }
+
+        const caregiverWallet = caregiverWalletResult.rows[0];
+
+        // Update escrow wallet (release held balance)
+        await client.query(
+          `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
+          [caregiverPayment + platformFee, escrowWallet.id]
+        );
+
+        // Update caregiver wallet (add available balance)
+        await client.query(
+          `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
+          [caregiverPayment, caregiverWallet.id]
+        );
+
+        // Create ledger transactions
+        await client.query(
+          `INSERT INTO ledger_transactions (id, wallet_id, transaction_type, reference_type, reference_id, amount, metadata, created_at)
+           VALUES ($1, $2, 'release', 'job', $3, $4, $5, NOW())`,
+          [
+            uuidv4(),
+            escrowWallet.id,
+            actualJobId,
+            caregiverPayment + platformFee,
+            JSON.stringify({ action: 'job_completion', caregiver_id: caregiverId })
+          ]
+        );
+
+        await client.query(
+          `INSERT INTO ledger_transactions (id, wallet_id, transaction_type, reference_type, reference_id, amount, metadata, created_at)
+           VALUES ($1, $2, 'credit', 'job', $3, $4, $5, NOW())`,
+          [
+            uuidv4(),
+            caregiverWallet.id,
+            actualJobId,
+            caregiverPayment,
+            JSON.stringify({ action: 'job_completion', job_post_id: currentJob.job_post_id })
+          ]
+        );
+
+        return await this.getJobInstanceById(actualJobId);
       }
-
-      // TODO: Handle financial implications (refund, penalty)
-    });
-
-    return await this.findById(jobPostId);
+    );
   }
 
   /**
-   * Get job instance by ID
+   * Cancel job (various states → cancelled)
    * @param {string} jobId - Job ID
-   * @returns {object|null} - Job instance
+   * @param {string} userId - User ID requesting cancellation
+   * @param {string} reason - Cancellation reason
+   * @returns {object} - Updated job
    */
-  async getJobInstanceById(jobId) {
-    const result = await query(
-      `SELECT j.*, jp.title, jp.description, jp.hourly_rate, jp.total_hours, jp.total_amount,
-              jp.address_line1, jp.district, jp.province, jp.lat, jp.lng, jp.geofence_radius_m,
-              ja.caregiver_id, cp.display_name as caregiver_name
-       FROM jobs j
-       JOIN job_posts jp ON jp.id = j.job_post_id
-       LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
-       LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
-       WHERE j.id = $1`,
-      [jobId]
+  async cancelJob(jobId, userId, reason = '') {
+    return await this.executeTransition(
+      jobId,
+      JOB_STATES.CANCELLED,
+      userId,
+      { action: 'cancel_job', reason },
+      async (client, currentJob) => {
+        // Authorization check (hirer can cancel their own jobs)
+        if (currentJob.hirer_id !== userId) {
+          // Check if user is admin
+          const userResult = await client.query(
+            `SELECT role FROM users WHERE id = $1`,
+            [userId]
+          );
+          if (userResult.rows.length === 0 || userResult.rows[0].role !== 'admin') {
+            throw new Error('Not authorized to cancel this job');
+          }
+        }
+
+        // Only allow cancellation from certain states
+        const cancellableStates = [JOB_STATES.POSTED, JOB_STATES.ASSIGNED, JOB_STATES.IN_PROGRESS];
+        if (!cancellableStates.includes(currentJob.status)) {
+          throw new InvalidTransitionError(currentJob.status, JOB_STATES.CANCELLED, jobId);
+        }
+
+        // Update job status
+        await client.query(
+          `UPDATE jobs SET status = $1, cancelled_at = NOW(), updated_at = NOW() WHERE id = $2`,
+          [JOB_STATES.CANCELLED, jobId]
+        );
+
+        // Update job post status
+        await client.query(
+          `UPDATE job_posts SET status = $1, updated_at = NOW() WHERE id = $2`,
+          [JOB_STATES.CANCELLED, currentJob.job_post_id || jobId]
+        );
+
+        // Update assignment if exists
+        await client.query(
+          `UPDATE job_assignments SET status = 'cancelled', updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
+          [jobId]
+        );
+
+        // TODO: Handle refund logic based on cancellation policy and state
+        // This should release escrow funds according to business rules
+
+        return await this.getJobInstanceById(jobId);
+      }
     );
-    return result.rows[0] || null;
   }
 
   /**
-   * Get caregiver's assigned jobs
-   * @param {string} caregiverId - Caregiver ID
-   * @param {object} options - Filter options
-   * @returns {object} - Paginated jobs
+   * Get valid transitions for a given state
+   * @param {string} currentState - Current state
+   * @returns {array} - Array of valid target states
    */
-  async getCaregiverJobs(caregiverId, options = {}) {
-    const { status, page = 1, limit = 20 } = options;
-
-    let whereClause = 'ja.caregiver_id = $1';
-    const values = [caregiverId];
-    let paramIndex = 2;
-
-    if (status) {
-      whereClause += ` AND j.status = $${paramIndex++}`;
-      values.push(status);
-    }
-
-    const offset = (page - 1) * limit;
-
-    const result = await query(
-      `SELECT j.*, jp.title, jp.description, jp.hourly_rate, jp.total_amount,
-              jp.scheduled_start_at, jp.scheduled_end_at,
-              jp.address_line1, jp.district, jp.province, jp.lat, jp.lng, jp.geofence_radius_m
-       FROM jobs j
-       JOIN job_posts jp ON jp.id = j.job_post_id
-       JOIN job_assignments ja ON ja.job_id = j.id
-       WHERE ${whereClause}
-       ORDER BY j.created_at DESC
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...values, limit, offset]
-    );
-
-    const countResult = await query(
-      `SELECT COUNT(*) as total
-       FROM jobs j
-       JOIN job_assignments ja ON ja.job_id = j.id
-       WHERE ${whereClause}`,
-      values.slice(0, status ? 2 : 1)
-    );
-
-    const total = parseInt(countResult.rows[0].total, 10);
-
-    return {
-      data: result.rows,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
+  getValidTransitions(currentState) {
+    return VALID_TRANSITIONS[currentState] || [];
   }
 
   /**
-   * Check if status transition is valid
-   * @param {string} fromStatus - Current status
-   * @param {string} toStatus - Target status
-   * @returns {boolean} - True if valid
+   * Check if transition is valid
+   * @param {string} fromState - Current state
+   * @param {string} toState - Target state
+   * @returns {boolean} - True if transition is valid
    */
-  isValidTransition(fromStatus, toStatus) {
-    return VALID_TRANSITIONS[fromStatus]?.includes(toStatus) || false;
+  isValidTransition(fromState, toState) {
+    return isValidTransition(fromState, toState);
+  }
+
+  /**
+   * Get all job states
+   * @returns {object} - All job states constants
+   */
+  getJobStates() {
+    return JOB_STATES;
+  }
+
+  // Export the error class for use in controllers
+  static get InvalidTransitionError() {
+    return InvalidTransitionError;
   }
 }
 
-export default new Job();
+export default Job;

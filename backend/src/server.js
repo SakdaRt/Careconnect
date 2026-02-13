@@ -18,6 +18,7 @@ import otpRoutes from './routes/otpRoutes.js';
 import careRecipientRoutes from './routes/careRecipientRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import kycRoutes from './routes/kycRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
 import { initChatSocket } from './sockets/chatSocket.js';
 
 // Load environment variables
@@ -114,6 +115,7 @@ app.use('/api/otp', otpRoutes);
 app.use('/api/care-recipients', careRecipientRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/kyc', kycRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Initialize Socket.IO chat handlers
 initChatSocket(io);

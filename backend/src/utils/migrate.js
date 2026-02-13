@@ -16,11 +16,12 @@ async function getDatabaseUrl() {
 
 async function main() {
   const { Client } = await import('pg');
+  const isStatus = process.argv.includes('--status');
 
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = path.dirname(__filename);
   const schemaPath = path.resolve(__dirname, '../../..', 'database', 'schema.sql');
-  const migrationsDir = path.resolve(__dirname, '../../..', 'database', 'migrations');
+  const migrationsDir = path.resolve(process.cwd(), 'database', 'migrations');
 
   const connectionString = await getDatabaseUrl();
 
@@ -28,16 +29,10 @@ async function main() {
   await client.connect();
 
   try {
-    const migrationsOnly = String(process.env.MIGRATIONS_ONLY || '').toLowerCase() === 'true';
-    if (!migrationsOnly) {
-      const schemaSql = await fs.readFile(schemaPath, 'utf8');
-      await client.query(schemaSql);
-      process.stdout.write('[migrate] Applied schema.sql successfully\n');
-    }
-
+    // Create schema_migrations table if it doesn't exist
     await client.query(
       `CREATE TABLE IF NOT EXISTS schema_migrations (
-         id VARCHAR(255) PRIMARY KEY,
+         filename TEXT PRIMARY KEY, 
          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
        )`
     );
@@ -56,21 +51,38 @@ async function main() {
       return;
     }
 
-    const appliedRes = await client.query(`SELECT id FROM schema_migrations`);
-    const applied = new Set(appliedRes.rows.map((r) => r.id));
+    const appliedRes = await client.query(`SELECT filename FROM schema_migrations`);
+    const applied = new Set(appliedRes.rows.map((r) => r.filename));
+
+    if (isStatus) {
+      process.stdout.write('[migrate] Migration status:\n');
+      for (const file of migrationFiles) {
+        const status = applied.has(file) ? '✓ applied' : '○ pending';
+        process.stdout.write(`  ${status} ${file}\n`);
+      }
+      return;
+    }
 
     for (const file of migrationFiles) {
-      if (applied.has(file)) continue;
+      if (applied.has(file)) {
+        process.stdout.write(`[migrate] skipped ${file} (already applied)\n`);
+        continue;
+      }
+      
       const fullPath = path.join(migrationsDir, file);
       const sql = await fs.readFile(fullPath, 'utf8');
+      
+      process.stdout.write(`[migrate] applying ${file} ... `);
+      
       await client.query('BEGIN');
       try {
         await client.query(sql);
-        await client.query(`INSERT INTO schema_migrations (id) VALUES ($1)`, [file]);
+        await client.query(`INSERT INTO schema_migrations (filename) VALUES ($1)`, [file]);
         await client.query('COMMIT');
-        process.stdout.write(`[migrate] Applied migration ${file}\n`);
+        process.stdout.write('done\n');
       } catch (error) {
         await client.query('ROLLBACK');
+        process.stdout.write('failed\n');
         throw error;
       }
     }

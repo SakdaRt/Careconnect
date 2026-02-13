@@ -10,7 +10,8 @@
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --passWithNoTests",
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.js",
-    "migrate": "node src/utils/migrate.js"
+    "migrate": "node src/utils/migrate.js",
+    "migrate:status": "node src/utils/migrate.js --status"
   },
   "keywords": ["careconnect", "healthcare", "backend"],
   "author": "Careconnect Team",

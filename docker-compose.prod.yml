@@ -20,6 +20,27 @@ services:
     networks:
       - careconnect-network
 
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: careconnect-backend
+    container_name: careconnect-migrate
+    environment:
+      NODE_ENV: production
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${POSTGRES_DB:-careconnect}
+      DATABASE_USER: ${POSTGRES_USER:-careconnect}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - careconnect-network
+    command: npm run migrate
+    profiles: ["migrate"]
+
   backend:
     build:
       context: ./backend

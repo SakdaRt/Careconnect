@@ -813,6 +813,31 @@ class ApiClient {
       data: { message: raw.message as ChatMessage },
     } as ApiResponse<{ message: ChatMessage }>;
   }
+
+  // Payment API methods
+  async getPayments(options?: { status?: string; page?: number; limit?: number; sort_by?: string; sort_order?: 'ASC' | 'DESC' }) {
+    const params = new URLSearchParams();
+    if (options?.status) params.append('status', options.status);
+    if (options?.page) params.append('page', options.page.toString());
+    if (options?.limit) params.append('limit', options.limit.toString());
+    if (options?.sort_by) params.append('sort_by', options.sort_by);
+    if (options?.sort_order) params.append('sort_order', options.sort_order);
+    
+    const queryString = params.toString();
+    const url = `/api/payments${queryString ? `?${queryString}` : ''}`;
+    
+    return await this.request<any>(url);
+  }
+
+  async getPaymentById(paymentId: string) {
+    return await this.request<any>(`/api/payments/${paymentId}`);
+  }
+
+  async simulatePayment(paymentId: string) {
+    return await this.request<any>(`/api/payments/${paymentId}/simulate`, {
+      method: 'POST',
+    });
+  }
 }
 
 // Types
@@ -1107,6 +1132,27 @@ export interface Transaction {
   description: string | null;
   metadata: any;
   created_at: string;
+}
+
+export interface Payment {
+  id: string;
+  payer_user_id: string;
+  payee_user_id: string;
+  job_id?: string | null;
+  amount: number; // THB
+  fee_amount: number; // THB
+  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
+  payment_method: string;
+  provider_payment_id?: string | null;
+  metadata?: any;
+  created_at: string;
+  updated_at: string;
+  processed_at?: string | null;
+  payer_name?: string;
+  payee_name?: string;
+  ledger_transaction_type?: string;
+  ledger_amount?: number;
+  ledger_metadata?: any;
 }
 
 export interface JobPost {

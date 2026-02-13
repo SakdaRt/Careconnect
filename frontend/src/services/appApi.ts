@@ -4,6 +4,7 @@ import api, {
   JobPost,
   KycStatus,
   Paginated,
+  Payment,
   TopupIntent,
   WalletBalance,
   WithdrawalRequest,
@@ -445,4 +446,21 @@ export const appApi = {
     if (!updated) return { success: false, error: 'Care recipient not found' };
     return ok(updated);
   },
-};
+
+  // Payment API methods
+  async getPayments(options?: { status?: string; page?: number; limit?: number; sort_by?: string; sort_order?: 'ASC' | 'DESC' }) {
+    if (!isDemoToken()) return api.getPayments(options);
+    const page = options?.page || 1;
+    const limit = options?.limit || 20;
+    return ok(toPaginated([] as any[], page, limit));
+  },
+
+  async getPaymentById(paymentId: string) {
+    if (!isDemoToken()) return api.getPaymentById(paymentId);
+    return { success: false, error: 'Payment not found in demo' };
+  },
+
+  async simulatePayment(paymentId: string) {
+    if (!isDemoToken()) return api.simulatePayment(paymentId);
+    return { success: false, error: 'Payment simulation not available in demo' };
+  },

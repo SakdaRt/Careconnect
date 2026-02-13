@@ -12,6 +12,67 @@ import {
   getJobStats as getJobStatsService,
 } from '../services/jobService.js';
 import { ApiError } from '../utils/errors.js';
+import Job from '../models/Job.js';
+
+// Get the InvalidTransitionError class
+const InvalidTransitionError = Job.InvalidTransitionError;
+
+/**
+ * Handle job-related errors with proper HTTP status codes
+ * @param {Error} error - The error to handle
+ * @param {object} res - Express response object
+ * @param {string} operation - Operation description for logging
+ */
+const handleJobError = (error, res, operation) => {
+  console.error(`[Job Controller] ${operation} error:`, error);
+
+  if (error instanceof ApiError) {
+    return res.status(error.status || 500).json({
+      error: error.status >= 500 ? 'Server error' : 'Bad request',
+      message: error.message,
+      code: error.code,
+      details: error.details || null,
+    });
+  }
+
+  if (error instanceof InvalidTransitionError) {
+    return res.status(error.status || 400).json({
+      error: 'Invalid state transition',
+      message: error.message,
+      details: {
+        from_state: error.fromState,
+        to_state: error.toState,
+        job_id: error.jobId,
+      },
+    });
+  }
+
+  if (error.message.includes('not found')) {
+    return res.status(404).json({
+      error: 'Not found',
+      message: error.message,
+    });
+  }
+
+  if (error.message.includes('Only hirers') || error.message.includes('not active') || error.message.includes('Not authorized')) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: error.message,
+    });
+  }
+
+  if (error.message.includes('Missing') || error.message.includes('Invalid') || error.message.includes('must') || error.message.includes('GPS')) {
+    return res.status(400).json({
+      error: 'Validation error',
+      message: error.message,
+    });
+  }
+
+  res.status(500).json({
+    error: 'Server error',
+    message: `Failed to ${operation}`,
+  });
+};
 
 /**
  * Job Controller
@@ -36,42 +97,7 @@ export const createJob = async (req, res) => {
       data: { job },
     });
   } catch (error) {
-    console.error('[Job Controller] Create job error:', error);
-
-    if (error instanceof ApiError) {
-      return res.status(error.status || 500).json({
-        error: error.status >= 500 ? 'Server error' : 'Bad request',
-        message: error.message,
-        code: error.code,
-        details: error.details || null,
-      });
-    }
-
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        error: 'Not found',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Only hirers') || error.message.includes('not active')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Missing') || error.message.includes('Invalid') || error.message.includes('must')) {
-      return res.status(400).json({
-        error: 'Validation error',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to create job',
-    });
+    handleJobError(error, res, 'create job');
   }
 };
 
@@ -93,42 +119,7 @@ export const publishJob = async (req, res) => {
       data: { job },
     });
   } catch (error) {
-    console.error('[Job Controller] Publish job error:', error);
-
-    if (error instanceof ApiError) {
-      return res.status(error.status || 500).json({
-        error: error.status >= 500 ? 'Server error' : 'Bad request',
-        message: error.message,
-        code: error.code,
-        details: error.details || null,
-      });
-    }
-
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        error: 'Not found',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Not authorized')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Cannot publish') || error.message.includes('Insufficient')) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to publish job',
-    });
+    handleJobError(error, res, 'publish job');
   }
 };
 
@@ -366,33 +357,7 @@ export const checkIn = async (req, res) => {
       data: { job: result },
     });
   } catch (error) {
-    console.error('[Job Controller] Check in error:', error);
-
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        error: 'Not found',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Not authorized')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Cannot check in')) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to check in',
-    });
+    handleJobError(error, res, 'check in');
   }
 };
 
@@ -416,33 +381,7 @@ export const checkOut = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error('[Job Controller] Check out error:', error);
-
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        error: 'Not found',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Not authorized')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Cannot check out')) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to check out',
-    });
+    handleJobError(error, res, 'check out');
   }
 };
 
@@ -472,33 +411,7 @@ export const cancelJob = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error('[Job Controller] Cancel job error:', error);
-
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        error: 'Not found',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Not authorized')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Cannot cancel')) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to cancel job',
-    });
+    handleJobError(error, res, 'cancel job');
   }
 };
 
