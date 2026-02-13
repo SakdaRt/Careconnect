@@ -104,6 +104,7 @@ export default function CareRecipientFormPage() {
   const [data, setData] = useState<CareRecipient | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     patient_display_name: '',
+    address_line1: '',
   });
 
   const [form, setForm] = useState({
@@ -202,6 +203,16 @@ export default function CareRecipientFormPage() {
     if (!displayName) {
       setFieldErrors((prev) => ({ ...prev, patient_display_name: 'กรุณากรอกชื่อที่ใช้แสดง' }));
       toast.error('กรุณากรอกชื่อที่ใช้แสดง');
+      return;
+    }
+    if (!form.address_line1.trim()) {
+      setFieldErrors((prev) => ({ ...prev, address_line1: 'กรุณากรอกที่อยู่ผู้รับการดูแล' }));
+      toast.error('กรุณากรอกที่อยู่ผู้รับการดูแล');
+      return;
+    }
+    if (typeof form.lat !== 'number' || typeof form.lng !== 'number') {
+      setFieldErrors((prev) => ({ ...prev, address_line1: 'กรุณาเลือกที่อยู่จาก Google Maps' }));
+      toast.error('กรุณาเลือกที่อยู่จาก Google Maps');
       return;
     }
     if (!birthYearValue || calculatedAge === null || !calculatedAgeBand) {
@@ -324,12 +335,14 @@ export default function CareRecipientFormPage() {
                   value={form.address_line1}
                   placeholder="ค้นหาที่อยู่ด้วย Google Maps"
                   disabled={saving}
+                  error={fieldErrors.address_line1}
                   showMap
                   lat={form.lat}
                   lng={form.lng}
                   onChange={(next) => {
                     const nextLat = typeof next.lat === 'number' ? next.lat : undefined;
                     const nextLng = typeof next.lng === 'number' ? next.lng : undefined;
+                    setFieldErrors((prev) => ({ ...prev, address_line1: '' }));
                     setForm((prev) => ({
                       ...prev,
                       address_line1: next.address_line1 || '',

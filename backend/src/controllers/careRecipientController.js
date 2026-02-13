@@ -14,6 +14,15 @@ const uniq = (arr) => {
   return out.length ? out : null;
 };
 
+const normalizeLatLng = (row) => {
+  if (!row) return row;
+  const latValue = row.lat;
+  const lngValue = row.lng;
+  const lat = Number.isFinite(Number(latValue)) ? Number(latValue) : null;
+  const lng = Number.isFinite(Number(lngValue)) ? Number(lngValue) : null;
+  return { ...row, lat, lng };
+};
+
 const validatePatientProfilePayload = (payload) => {
   const ageBands = new Set(['0_12', '13_17', '18_59', '60_74', '75_89', '90_plus']);
   const genders = new Set(['female', 'male', 'other']);
@@ -111,7 +120,16 @@ const validatePatientProfilePayload = (payload) => {
 const listCareRecipients = async (req, res) => {
   const hirerId = req.userId;
   const rows = await PatientProfile.findAll({ hirer_id: hirerId, is_active: true });
-  res.json({ success: true, data: rows });
+  const normalized = rows.map(normalizeLatLng);
+  const invalid = normalized.filter((row) => !row.address_line1 || !Number.isFinite(Number(row.lat)) || !Number.isFinite(Number(row.lng)));
+  if (invalid.length) {
+    console.error('[Care Recipient] Missing address for active profiles', {
+      hirerId,
+      count: invalid.length,
+      ids: invalid.map((row) => row.id),
+    });
+  }
+  res.json({ success: true, data: normalized });
 };
 
 const getCareRecipient = async (req, res) => {
@@ -121,7 +139,7 @@ const getCareRecipient = async (req, res) => {
   if (!profile || profile.is_active === false) {
     return res.status(404).json({ success: false, error: 'Care recipient not found' });
   }
-  res.json({ success: true, data: profile });
+  res.json({ success: true, data: normalizeLatLng(profile) });
 };
 
 const createCareRecipient = async (req, res) => {
@@ -151,6 +169,12 @@ const createCareRecipient = async (req, res) => {
 
     if (!patient_display_name || !String(patient_display_name).trim()) {
       return res.status(400).json({ success: false, error: 'patient_display_name is required' });
+    }
+    if (!address_line1 || !String(address_line1).trim()) {
+      return res.status(400).json({ success: false, error: 'address_line1 is required' });
+    }
+    if (!Number.isFinite(Number(lat)) || !Number.isFinite(Number(lng))) {
+      return res.status(400).json({ success: false, error: 'lat/lng is required' });
     }
 
     const validationErrors = validatePatientProfilePayload(req.body || {});
@@ -183,7 +207,7 @@ const createCareRecipient = async (req, res) => {
       updated_at: new Date(),
     });
 
-    res.status(201).json({ success: true, data: created });
+    res.status(201).json({ success: true, data: normalizeLatLng(created) });
   } catch (error) {
     console.error('[Care Recipient] Create error:', error);
     res.status(500).json({ success: false, error: 'Failed to create care recipient' });
@@ -246,9 +270,19 @@ const updateCareRecipient = async (req, res) => {
     if (validationErrors.length) {
       return res.status(400).json({ success: false, error: validationErrors.join(', ') });
     }
+    const nextAddressLine1 =
+      'address_line1' in patch ? patch.address_line1 : existing.address_line1;
+    const nextLat = 'lat' in patch ? patch.lat : existing.lat;
+    const nextLng = 'lng' in patch ? patch.lng : existing.lng;
+    if (!nextAddressLine1 || !String(nextAddressLine1).trim()) {
+      return res.status(400).json({ success: false, error: 'address_line1 is required' });
+    }
+    if (!Number.isFinite(Number(nextLat)) || !Number.isFinite(Number(nextLng))) {
+      return res.status(400).json({ success: false, error: 'lat/lng is required' });
+    }
 
     const updated = await PatientProfile.updateById(id, { ...patch, updated_at: new Date() });
-    res.json({ success: true, data: updated });
+    res.json({ success: true, data: normalizeLatLng(updated) });
   } catch (error) {
     console.error('[Care Recipient] Update error:', error);
     res.status(500).json({ success: false, error: 'Failed to update care recipient' });

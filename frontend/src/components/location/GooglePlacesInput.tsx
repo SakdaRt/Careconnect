@@ -79,10 +79,12 @@ export function GooglePlacesInput({
   const markerRef = useRef<any>(null);
   const geocoderRef = useRef<any>(null);
   const latestLatLngRef = useRef<{ lat: number; lng: number } | null>(null);
-  const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const rawApiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const apiKey = rawApiKey?.trim();
+  const isKeyConfigured = !!apiKey && apiKey !== 'your_actual_api_key_here';
 
   useEffect(() => {
-    if (!apiKey) return;
+    if (!isKeyConfigured || !apiKey) return;
     const scriptId = 'google-maps-script';
     if (!document.getElementById(scriptId)) {
       const script = document.createElement('script');
@@ -217,7 +219,7 @@ export function GooglePlacesInput({
     return () => {
       clearInterval(id);
     };
-  }, [apiKey, onChange, showMap, lat, lng]);
+  }, [apiKey, isKeyConfigured, onChange, showMap, lat, lng]);
 
   useEffect(() => {
     if (!showMap) return;
@@ -242,10 +244,10 @@ export function GooglePlacesInput({
         className={`w-full px-4 py-2 border rounded-lg bg-white ${error ? 'border-red-500' : 'border-gray-300'}`}
       />
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
-      {!apiKey ? (
+      {!isKeyConfigured ? (
         <div className="text-xs text-gray-500">ตั้งค่า VITE_GOOGLE_MAPS_API_KEY ในไฟล์ .env.local เพื่อเปิดใช้ Google Places</div>
       ) : null}
-      {apiKey && showMap ? (
+      {isKeyConfigured && showMap ? (
         <div className="w-full h-64 rounded-lg border border-gray-200" ref={mapRef} />
       ) : null}
     </div>

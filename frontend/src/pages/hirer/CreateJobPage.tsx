@@ -105,6 +105,8 @@ export default function CreateJobPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [highlightTask, setHighlightTask] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [useSavedAddress, setUseSavedAddress] = useState(false);
+  const [savedAddressError, setSavedAddressError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     title: '',
@@ -132,6 +134,23 @@ export default function CreateJobPage() {
     if (!careRecipientId) return null;
     return careRecipients.find((p) => p.id === careRecipientId) || null;
   }, [careRecipientId, careRecipients]);
+
+  const savedAddress = useMemo(() => {
+    if (!selectedCareRecipient) return null;
+    const address_line1 = selectedCareRecipient.address_line1?.trim() || '';
+    const district = selectedCareRecipient.district || '';
+    const province = selectedCareRecipient.province || '';
+    const postal_code = selectedCareRecipient.postal_code || '';
+    const latValue = (selectedCareRecipient as any).lat;
+    const lngValue = (selectedCareRecipient as any).lng;
+    const hasLat = latValue !== null && latValue !== undefined && Number.isFinite(Number(latValue));
+    const hasLng = lngValue !== null && lngValue !== undefined && Number.isFinite(Number(lngValue));
+    const lat = hasLat ? Number(latValue) : undefined;
+    const lng = hasLng ? Number(lngValue) : undefined;
+    const hasSavedAddress = !!address_line1;
+    const hasCoords = hasLat && hasLng;
+    return { hasSavedAddress, hasCoords, address_line1, district, province, postal_code, lat, lng };
+  }, [selectedCareRecipient]);
 
   const suggestions = useMemo(() => {
     const needs = new Set((((selectedCareRecipient as any)?.care_needs_flags || []) as string[]) || []);
@@ -258,21 +277,33 @@ export default function CreateJobPage() {
   }, [form.hourly_rate, form.total_hours]);
 
   useEffect(() => {
-    if (!selectedCareRecipient) return;
-    const hasLocation =
-      !!selectedCareRecipient.address_line1 ||
-      typeof selectedCareRecipient.lat === 'number' ||
-      typeof selectedCareRecipient.lng === 'number';
-    if (!hasLocation) return;
+    if (!useSavedAddress) return;
+    if (!savedAddress || !savedAddress.hasSavedAddress) {
+      setUseSavedAddress(false);
+      setSavedAddressError('ไม่พบข้อมูลที่อยู่ของผู้รับการดูแล');
+      console.warn('[CreateJobPage] Missing saved address for selected care recipient', {
+        careRecipientId,
+      });
+      return;
+    }
+    if (!savedAddress.hasCoords) {
+      setSavedAddressError('ที่อยู่เดิมยังไม่มีพิกัด กรุณาปักหมุดเพื่อบันทึกพิกัด');
+    } else {
+      setSavedAddressError(null);
+    }
     setForm((prev) => ({
       ...prev,
-      address_line1: selectedCareRecipient.address_line1 || '',
-      district: selectedCareRecipient.district || '',
-      province: selectedCareRecipient.province || prev.province,
-      postal_code: selectedCareRecipient.postal_code || '',
-      lat: typeof selectedCareRecipient.lat === 'number' ? selectedCareRecipient.lat : prev.lat,
-      lng: typeof selectedCareRecipient.lng === 'number' ? selectedCareRecipient.lng : prev.lng,
+      address_line1: savedAddress.address_line1,
+      district: savedAddress.district,
+      province: savedAddress.province || prev.province,
+      postal_code: savedAddress.postal_code,
+      lat: savedAddress.lat,
+      lng: savedAddress.lng,
     }));
+  }, [useSavedAddress, savedAddress, careRecipientId]);
+
+  useEffect(() => {
+    setSavedAddressError(null);
   }, [selectedCareRecipient?.id]);
 
   const toCreatePayload = (): CreateJobData => {
@@ -870,30 +901,71 @@ export default function CreateJobPage() {
               id="section-job_location"
               className={cn(errorSection === 'job_location' ? 'border border-red-400 bg-red-50 rounded-lg p-3' : undefined, 'space-y-3')}
             >
+              <div className="flex flex-col gap-1">
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4"
+                    checked={useSavedAddress}
+                    disabled={!selectedCareRecipient}
+                    onChange={(e) => {
+                      const checked = e.target.checked;
+                      setErrorSection(null);
+                      setErrorMessage(null);
+                      if (!checked) {
+                        setUseSavedAddress(false);
+                        return;
+                      }
+                      if (!savedAddress?.hasSavedAddress) {
+                        setSavedAddressError('ไม่พบข้อมูลที่อยู่ของผู้รับการดูแล');
+                        console.warn('[CreateJobPage] Missing saved address for selected care recipient', {
+                          careRecipientId,
+                        });
+                        setUseSavedAddress(false);
+                        return;
+                      }
+                      if (!savedAddress.hasCoords) {
+                        setSavedAddressError('ที่อยู่เดิมยังไม่มีพิกัด กรุณาปักหมุดเพื่อบันทึกพิกัด');
+                        toast.error('ไม่พบพิกัดของที่อยู่เดิม กรุณาปักหมุดเพื่อบันทึกพิกัด');
+                      } else {
+                        setSavedAddressError(null);
+                      }
+                      setFieldErrors((prev) => ({ ...prev, address_line1: '' }));
+                      setUseSavedAddress(true);
+                    }}
+                  />
+                  ใช้ที่อยู่เดิมของผู้รับการดูแล
+                </label>
+                {savedAddressError ? <div className="text-sm text-red-600">{savedAddressError}</div> : null}
+              </div>
               <GooglePlacesInput
                 label="ที่อยู่"
                 value={form.address_line1}
                 placeholder="ค้นหาที่อยู่ด้วย Google Maps"
-                disabled={loading}
+                disabled={loading || useSavedAddress}
                 error={fieldErrors.address_line1}
-                showMap
+                showMap={!useSavedAddress || !savedAddress?.hasCoords}
                 lat={form.lat}
                 lng={form.lng}
                 onChange={(next) => {
+                  if (useSavedAddress && savedAddress?.hasCoords) return;
                   const nextLat = typeof next.lat === 'number' ? next.lat : undefined;
                   const nextLng = typeof next.lng === 'number' ? next.lng : undefined;
                   setErrorSection(null);
                   setErrorMessage(null);
+                  if (typeof nextLat === 'number' && typeof nextLng === 'number') {
+                    setSavedAddressError(null);
+                  }
                   setFieldErrors((prev) => ({ ...prev, address_line1: '' }));
-                  setForm({
-                    ...form,
+                  setForm((prev) => ({
+                    ...prev,
                     address_line1: next.address_line1 || '',
                     district: next.district || '',
-                    province: next.province || form.province,
+                    province: next.province || prev.province,
                     postal_code: next.postal_code || '',
                     lat: nextLat,
                     lng: nextLng,
-                  });
+                  }));
                 }}
               />
 
@@ -901,12 +973,14 @@ export default function CreateJobPage() {
                 <Input
                   label="เขต/อำเภอ"
                   value={form.district}
+                  disabled={useSavedAddress}
                   onChange={(e) => setForm({ ...form, district: e.target.value })}
                   placeholder="เช่น วัฒนา"
                 />
                 <Input
                   label="จังหวัด"
                   value={form.province}
+                  disabled={useSavedAddress}
                   onChange={(e) => setForm({ ...form, province: e.target.value })}
                   placeholder="เช่น Bangkok"
                 />
