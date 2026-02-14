@@ -30,6 +30,28 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
+  private toOptionalNumber(value: unknown): number | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  private normalizeCareRecipient(input: any): CareRecipient {
+    if (!input || typeof input !== 'object') return input as CareRecipient;
+    return {
+      ...input,
+      lat: this.toOptionalNumber(input.lat),
+      lng: this.toOptionalNumber(input.lng),
+    } as CareRecipient;
+  }
+
   private getAuthToken(): string | null {
     return localStorage.getItem('careconnect_token');
   }
@@ -637,25 +659,29 @@ class ApiClient {
   async getCareRecipients() {
     const raw: any = await this.request<any>('/api/care-recipients');
     if (!raw.success) return raw as ApiResponse<CareRecipient[]>;
-    return { success: true, data: raw.data || [] } as ApiResponse<CareRecipient[]>;
+    const list = Array.isArray(raw.data) ? raw.data.map((item: any) => this.normalizeCareRecipient(item)) : [];
+    return { success: true, data: list } as ApiResponse<CareRecipient[]>;
   }
 
   async getCareRecipient(id: string) {
     const raw: any = await this.request<any>(`/api/care-recipients/${id}`);
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
-    return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+    const data = raw.data ? this.normalizeCareRecipient(raw.data) : raw.data;
+    return { success: true, data } as ApiResponse<CareRecipient>;
   }
 
   async createCareRecipient(input: Omit<CareRecipient, 'id' | 'hirer_id' | 'is_active' | 'created_at' | 'updated_at'>) {
     const raw: any = await this.request<any>('/api/care-recipients', { method: 'POST', body: input });
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
-    return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+    const data = raw.data ? this.normalizeCareRecipient(raw.data) : raw.data;
+    return { success: true, data } as ApiResponse<CareRecipient>;
   }
 
   async updateCareRecipient(id: string, input: Partial<Omit<CareRecipient, 'id' | 'hirer_id' | 'is_active' | 'created_at' | 'updated_at'>>) {
     const raw: any = await this.request<any>(`/api/care-recipients/${id}`, { method: 'PUT', body: input });
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
-    return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+    const data = raw.data ? this.normalizeCareRecipient(raw.data) : raw.data;
+    return { success: true, data } as ApiResponse<CareRecipient>;
   }
 
   async deactivateCareRecipient(id: string) {
