@@ -73,7 +73,6 @@ export function GooglePlacesInput({
   lng,
   showMap,
   onFormUpdate,
-  hasLocationData,
 }: {
   label?: string;
   placeholder?: string;
@@ -312,9 +311,26 @@ export function GooglePlacesInput({
           value={value}
           onChange={(e) => onChange({ address_line1: e.target.value })}
           placeholder={placeholder || 'ค้นหาที่อยู่ด้วย Google Maps'}
-          disabled={disabled || (typeof lat === 'number' && typeof lng === 'number')}
-          className={`flex-1 min-w-0 px-4 py-2 border rounded-lg ${(typeof lat === 'number' && typeof lng === 'number') ? 'bg-gray-100 border-gray-400' : 'bg-white'} ${error ? 'border-red-500' : 'border-gray-300'}`}
+          disabled={disabled}
+          className={`flex-1 min-w-0 px-4 py-2 border rounded-lg bg-white ${error ? 'border-red-500' : 'border-gray-300'}`}
         />
+        {typeof lat === 'number' && typeof lng === 'number' && !disabled && (
+          <button
+            type="button"
+            onClick={() => {
+              onChange({ address_line1: '', lat: null, lng: null, district: null, province: null, postal_code: null });
+              latestLatLngRef.current = null;
+              if (markerRef.current) markerRef.current.setMap(null);
+            }}
+            className="flex items-center gap-1 px-2.5 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap flex-shrink-0"
+            title="ล้างตำแหน่ง"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+            <span className="hidden sm:inline">ล้าง</span>
+          </button>
+        )}
         {apiKey && !disabled && (
           <button
             type="button"
@@ -338,6 +354,12 @@ export function GooglePlacesInput({
           </button>
         )}
       </div>
+      {typeof lat === 'number' && typeof lng === 'number' && (
+        <div className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1 flex items-center gap-1">
+          <svg className="w-3 h-3 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5" /></svg>
+          พิกัดถูกตั้งแล้ว ({lat.toFixed(4)}, {lng.toFixed(4)}) — แก้ไขที่อยู่ได้ หรือกด "ล้าง" เพื่อเลือกใหม่
+        </div>
+      )}
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       {!apiKey ? (
         <div className="text-xs text-gray-500">ตั้งค่า VITE_GOOGLE_MAPS_API_KEY ในไฟล์ .env.local เพื่อเปิดใช้ Google Places</div>

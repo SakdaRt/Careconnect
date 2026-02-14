@@ -374,9 +374,11 @@ export const router = createBrowserRouter([
   {
     path: '/jobs/:id',
     element: (
-      <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-        <JobDetailPage />
-      </Suspense>
+      <RequireAuth>
+        <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+          <JobDetailPage />
+        </Suspense>
+      </RequireAuth>
     ),
   },
   { path: '/jobs/:id/cancel', element: <CancelJobPage /> },

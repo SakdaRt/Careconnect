@@ -105,6 +105,7 @@ export default function CreateJobPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [highlightTask, setHighlightTask] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -568,20 +569,6 @@ export default function CreateJobPage() {
                 {fieldErrors.description && <div className="text-sm text-red-600">{fieldErrors.description}</div>}
               </div>
 
-              <div className="mt-3">
-                <Input
-                  label="ระบุผู้ดูแล (User ID)"
-                  value={form.preferred_caregiver_id}
-                  error={fieldErrors.preferred_caregiver_id}
-                  onChange={(e) => {
-                    setErrorSection(null);
-                    setErrorMessage(null);
-                    setFieldErrors((prev) => ({ ...prev, preferred_caregiver_id: '' }));
-                    setForm({ ...form, preferred_caregiver_id: e.target.value });
-                  }}
-                  placeholder="เว้นว่างหากเปิดรับทุกคน"
-                />
-              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
                 <div className="flex flex-col gap-1">
@@ -737,6 +724,19 @@ export default function CreateJobPage() {
               </div>
             </Card>
 
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced(!showAdvanced)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors rounded-lg"
+              >
+                <span>ตั้งค่าขั้นสูง (ทักษะ, อุปกรณ์, ข้อควรระวัง, ระบุผู้ดูแล)</span>
+                <svg className={cn('w-5 h-5 transition-transform', showAdvanced && 'rotate-180')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+            </div>
+
+            {showAdvanced && (
+              <>
             <div id="section-job_requirements" />
             <Card className={cn(errorSection === 'job_requirements' ? 'border-red-400 bg-red-50' : undefined)}>
               <div className="text-sm font-semibold text-gray-900 mb-3">ทักษะที่ต้องมี (ช่วยคัดผู้ดูแล)</div>
@@ -830,6 +830,25 @@ export default function CreateJobPage() {
                 })}
               </div>
             </Card>
+
+            <Card>
+              <div className="text-sm font-semibold text-gray-900 mb-3">ระบุผู้ดูแลที่ต้องการ</div>
+              <Input
+                label="User ID ของผู้ดูแล"
+                value={form.preferred_caregiver_id}
+                error={fieldErrors.preferred_caregiver_id}
+                onChange={(e) => {
+                  setErrorSection(null);
+                  setErrorMessage(null);
+                  setFieldErrors((prev) => ({ ...prev, preferred_caregiver_id: '' }));
+                  setForm({ ...form, preferred_caregiver_id: e.target.value });
+                }}
+                placeholder="เว้นว่างหากเปิดรับทุกคน"
+              />
+              <div className="text-xs text-gray-500 mt-1">ถ้าต้องการให้ผู้ดูแลคนเดิมรับงาน ให้ใส่ User ID ที่ได้จากระบบ</div>
+            </Card>
+              </>
+            )}
 
             <div id="section-job_schedule" />
             <Card className={cn(errorSection === 'job_schedule' ? 'border-red-400 bg-red-50' : undefined)}>

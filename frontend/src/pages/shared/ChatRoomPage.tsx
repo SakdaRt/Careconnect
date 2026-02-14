@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { ChatLayout } from '../../layouts';
-import { Button, Card, Input, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { Button, Card, Input, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
 import { ChatMessage, ChatThread, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -71,9 +71,7 @@ export default function ChatRoomPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [text, setText] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
   const [disputeOpen, setDisputeOpen] = useState(false);
-  const [disputeReason, setDisputeReason] = useState('');
   const listRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState<string>('');
@@ -248,17 +246,11 @@ export default function ChatRoomPage() {
   };
 
   const handleCancelJob = () => {
-    setCancelReason('');
     setCancelOpen(true);
   };
 
-  const handleConfirmCancel = async () => {
+  const handleConfirmCancel = async (reason: string) => {
     if (!jobId) return;
-    const reason = cancelReason.trim();
-    if (!reason) {
-      toast.error('กรุณากรอกเหตุผลที่ยกเลิกงาน');
-      return;
-    }
     setActionLoading('cancel');
     try {
       const hirerId = user?.id || 'demo-hirer';
@@ -269,7 +261,6 @@ export default function ChatRoomPage() {
       }
       toast.success('ยกเลิกงานแล้ว');
       setCancelOpen(false);
-      setCancelReason('');
       await load();
     } finally {
       setActionLoading(null);
@@ -288,17 +279,11 @@ export default function ChatRoomPage() {
     } finally {
       setActionLoading(null);
     }
-    setDisputeReason('');
     setDisputeOpen(true);
   };
 
-  const handleConfirmDispute = async () => {
+  const handleConfirmDispute = async (reason: string) => {
     if (!jobId) return;
-    const reason = disputeReason.trim();
-    if (!reason) {
-      toast.error('กรุณากรอกเหตุผลที่เปิดข้อพิพาท');
-      return;
-    }
     setActionLoading('dispute');
     try {
       const openedBy = user?.id || 'demo-hirer';
@@ -309,7 +294,6 @@ export default function ChatRoomPage() {
       }
       toast.success('เปิดข้อพิพาทแล้ว');
       setDisputeOpen(false);
-      setDisputeReason('');
       navigate(`/dispute/${res.data.dispute.id}`);
     } finally {
       setActionLoading(null);
@@ -468,74 +452,30 @@ export default function ChatRoomPage() {
             </div>
           </div>
         )}
-        <Modal
+        <ReasonModal
           isOpen={cancelOpen}
           onClose={() => setCancelOpen(false)}
+          onConfirm={handleConfirmCancel}
           title="ยกเลิกงาน"
-          size="sm"
-          footer={
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setCancelOpen(false)}
-                disabled={actionLoading === 'cancel'}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                กลับไป
-              </button>
-              <button
-                onClick={handleConfirmCancel}
-                disabled={actionLoading === 'cancel' || !cancelReason.trim()}
-                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-red-600 hover:bg-red-700"
-              >
-                {actionLoading === 'cancel' ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิก'}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่ยกเลิกงาน</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="อธิบายเหตุผลในการยกเลิกงาน"
-            />
-          </div>
-        </Modal>
-        <Modal
+          description="กรุณาอธิบายเหตุผลที่ต้องการยกเลิกงาน เพื่อให้อีกฝ่ายเข้าใจ"
+          placeholder="อธิบายเหตุผลในการยกเลิกงาน..."
+          confirmText="ยืนยันยกเลิก"
+          variant="danger"
+          loading={actionLoading === 'cancel'}
+          minLength={10}
+        />
+        <ReasonModal
           isOpen={disputeOpen}
           onClose={() => setDisputeOpen(false)}
+          onConfirm={handleConfirmDispute}
           title="เปิดข้อพิพาท"
-          size="sm"
-          footer={
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDisputeOpen(false)}
-                disabled={actionLoading === 'dispute'}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                กลับไป
-              </button>
-              <button
-                onClick={handleConfirmDispute}
-                disabled={actionLoading === 'dispute' || !disputeReason.trim()}
-                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
-              >
-                {actionLoading === 'dispute' ? 'กำลังส่ง...' : 'ยืนยันเปิดข้อพิพาท'}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่เปิดข้อพิพาท</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-              value={disputeReason}
-              onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท"
-            />
-          </div>
-        </Modal>
+          description="กรุณาอธิบายปัญหาที่เกิดขึ้นอย่างละเอียด เพื่อให้แอดมินพิจารณาได้ถูกต้อง"
+          placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท..."
+          confirmText="ยืนยันเปิดข้อพิพาท"
+          variant="warning"
+          loading={actionLoading === 'dispute'}
+          minLength={10}
+        />
       </div>
     </ChatLayout>
   );

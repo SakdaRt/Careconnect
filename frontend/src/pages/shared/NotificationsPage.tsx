@@ -13,7 +13,13 @@ function formatDate(iso: string) {
 }
 
 function getNotificationLink(n: AppNotification): string | null {
-  if (n.reference_type === 'job' && n.reference_id) {
+  if (!n.reference_id) return null;
+  if (n.reference_type === 'dispute') return `/dispute/${n.reference_id}`;
+  if (n.reference_type === 'job') {
+    const t = (n.title || '').toLowerCase();
+    const b = (n.body || '').toLowerCase();
+    if (t.includes('ข้อพิพาท') || b.includes('dispute')) return `/dispute/${n.reference_id}`;
+    if (t.includes('ยกเลิก') || t.includes('เผยแพร่') || t.includes('สร้าง') || b.includes('draft')) return `/jobs/${n.reference_id}`;
     return `/chat/${n.reference_id}`;
   }
   return null;

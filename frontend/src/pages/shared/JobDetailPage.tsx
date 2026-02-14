@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MessageCircle, User as UserIcon, FileText, ExternalLink } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
 import { JobPost, CaregiverDocument } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -17,6 +17,15 @@ function formatDateTimeRange(startIso: string, endIso: string) {
   return `${date} ${timeStart} - ${timeEnd}`;
 }
 
+const JOB_TYPE_LABEL: Record<string, string> = {
+  companionship: 'เพื่อนคุย / ดูแลทั่วไป',
+  personal_care: 'ช่วยเหลือตัวเอง / อาบน้ำแต่งตัว',
+  medical_monitoring: 'ดูแลการกินยา / วัดสัญญาณชีพ',
+  dementia_care: 'ดูแลผู้ป่วยสมองเสื่อม',
+  post_surgery: 'ดูแลหลังผ่าตัด',
+  emergency: 'เร่งด่วน',
+};
+
 export default function JobDetailPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -28,9 +37,7 @@ export default function JobDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
   const [disputeOpen, setDisputeOpen] = useState(false);
-  const [disputeReason, setDisputeReason] = useState('');
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState('');
   const [caregiverDocs, setCaregiverDocs] = useState<CaregiverDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
@@ -104,24 +111,17 @@ export default function JobDetailPage() {
   };
 
   const handleCancel = async () => {
-    setCancelReason('');
     setCancelOpen(true);
   };
 
-  const handleConfirmCancel = async () => {
+  const handleConfirmCancel = async (reason: string) => {
     if (!job) return;
-    const reason = cancelReason.trim();
-    if (!reason) {
-      toast.error('กรุณากรอกเหตุผลที่ยกเลิกงาน');
-      return;
-    }
     setActionLoading(true);
     try {
       const res = await appApi.cancelJob(job.id, hirerId, reason);
       if (res.success) {
         toast.success('ยกเลิกงานแล้ว');
         setCancelOpen(false);
-        setCancelReason('');
         await load();
         return;
       }
@@ -143,17 +143,11 @@ export default function JobDetailPage() {
     } finally {
       setActionLoading(false);
     }
-    setDisputeReason('');
     setDisputeOpen(true);
   };
 
-  const handleConfirmDispute = async () => {
+  const handleConfirmDispute = async (reason: string) => {
     if (!job) return;
-    const reason = disputeReason.trim();
-    if (!reason) {
-      toast.error('กรุณากรอกเหตุผลที่เปิดข้อพิพาท');
-      return;
-    }
     setActionLoading(true);
     try {
       const res = await appApi.createDispute(job.id, hirerId, reason);
@@ -163,7 +157,6 @@ export default function JobDetailPage() {
       }
       toast.success('เปิดข้อพิพาทแล้ว');
       setDisputeOpen(false);
-      setDisputeReason('');
       navigate(`/dispute/${res.data.dispute.id}`);
     } finally {
       setActionLoading(false);
@@ -213,7 +206,7 @@ export default function JobDetailPage() {
                 <span className="font-semibold">สถานที่:</span> {location || '-'}
               </div>
               <div>
-                <span className="font-semibold">ประเภทงาน:</span> {job.job_type}
+                <span className="font-semibold">ประเภทงาน:</span> {JOB_TYPE_LABEL[job.job_type] || job.job_type}
               </div>
               <div>
                 <span className="font-semibold">ความเสี่ยง:</span> {job.risk_level === 'high_risk' ? 'สูง' : 'ต่ำ'}
@@ -322,74 +315,30 @@ export default function JobDetailPage() {
             </div>
           </Card>
         )}
-        <Modal
+        <ReasonModal
           isOpen={cancelOpen}
           onClose={() => setCancelOpen(false)}
+          onConfirm={handleConfirmCancel}
           title="ยกเลิกงาน"
-          size="sm"
-          footer={
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setCancelOpen(false)}
-                disabled={actionLoading}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                กลับไป
-              </button>
-              <button
-                onClick={handleConfirmCancel}
-                disabled={actionLoading || !cancelReason.trim()}
-                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-red-600 hover:bg-red-700"
-              >
-                {actionLoading ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิก'}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่ยกเลิกงาน</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="อธิบายเหตุผลในการยกเลิกงาน"
-            />
-          </div>
-        </Modal>
-        <Modal
+          description="กรุณาอธิบายเหตุผลที่ต้องการยกเลิกงาน เพื่อให้อีกฝ่ายเข้าใจ"
+          placeholder="อธิบายเหตุผลในการยกเลิกงาน..."
+          confirmText="ยืนยันยกเลิก"
+          variant="danger"
+          loading={actionLoading}
+          minLength={10}
+        />
+        <ReasonModal
           isOpen={disputeOpen}
           onClose={() => setDisputeOpen(false)}
+          onConfirm={handleConfirmDispute}
           title="เปิดข้อพิพาท"
-          size="sm"
-          footer={
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDisputeOpen(false)}
-                disabled={actionLoading}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                กลับไป
-              </button>
-              <button
-                onClick={handleConfirmDispute}
-                disabled={actionLoading || !disputeReason.trim()}
-                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
-              >
-                {actionLoading ? 'กำลังส่ง...' : 'ยืนยันเปิดข้อพิพาท'}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่เปิดข้อพิพาท</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-              value={disputeReason}
-              onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท"
-            />
-          </div>
-        </Modal>
+          description="กรุณาอธิบายปัญหาที่เกิดขึ้นอย่างละเอียด เพื่อให้แอดมินพิจารณาได้ถูกต้อง"
+          placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท..."
+          confirmText="ยืนยันเปิดข้อพิพาท"
+          variant="warning"
+          loading={actionLoading}
+          minLength={10}
+        />
       </div>
     </MainLayout>
   );

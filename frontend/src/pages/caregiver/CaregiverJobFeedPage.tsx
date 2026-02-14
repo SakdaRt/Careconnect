@@ -12,10 +12,24 @@ function formatDate(startIso: string) {
   return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+type SortOption = 'newest' | 'pay_high' | 'pay_low';
+type TypeFilter = '' | 'companionship' | 'personal_care' | 'medical_monitoring' | 'dementia_care' | 'post_surgery' | 'emergency';
+
+const TYPE_LABELS: Record<string, string> = {
+  companionship: 'เพื่อนคุย/ดูแลทั่วไป',
+  personal_care: 'ช่วยเหลือตัวเอง',
+  medical_monitoring: 'ดูแลการกินยา/สัญญาณชีพ',
+  dementia_care: 'ดูแลสมองเสื่อม',
+  post_surgery: 'ดูแลหลังผ่าตัด',
+  emergency: 'เร่งด่วน',
+};
+
 export default function CaregiverJobFeedPage() {
   const { user } = useAuth();
   const [jobs, setJobs] = useState<(JobPost & { eligible?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>('');
   const isL0 = user?.trust_level === 'L0';
 
   const load = async () => {
@@ -36,7 +50,14 @@ export default function CaregiverJobFeedPage() {
     load();
   }, []);
 
-  const items = useMemo(() => jobs, [jobs]);
+  const items = useMemo(() => {
+    let filtered = jobs;
+    if (typeFilter) filtered = filtered.filter((j) => j.job_type === typeFilter);
+    const sorted = [...filtered];
+    if (sortBy === 'pay_high') sorted.sort((a, b) => b.total_amount - a.total_amount);
+    else if (sortBy === 'pay_low') sorted.sort((a, b) => a.total_amount - b.total_amount);
+    return sorted;
+  }, [jobs, sortBy, typeFilter]);
 
   return (
     <MainLayout>
@@ -49,6 +70,31 @@ export default function CaregiverJobFeedPage() {
           <Button variant="outline" onClick={load}>
             รีเฟรช
           </Button>
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select
+            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
+          >
+            <option value="">ทุกประเภท</option>
+            {Object.entries(TYPE_LABELS).map(([v, l]) => (
+              <option key={v} value={v}>{l}</option>
+            ))}
+          </select>
+          <select
+            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+          >
+            <option value="newest">ล่าสุด</option>
+            <option value="pay_high">ค่าจ้างสูง → ต่ำ</option>
+            <option value="pay_low">ค่าจ้างต่ำ → สูง</option>
+          </select>
+          {typeFilter && (
+            <button onClick={() => setTypeFilter('')} className="text-xs text-blue-600 hover:underline">ล้างตัวกรอง</button>
+          )}
         </div>
 
         {isL0 && (

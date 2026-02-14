@@ -93,7 +93,7 @@ export default function KycPage() {
       }
       setCameraActive(true);
 
-      // Auto-capture after 2 seconds and advance to next step
+      // Auto-capture after 2 seconds but show preview for confirmation
       setTimeout(() => {
         const video = videoRef.current;
         const canvas = canvasRef.current;
@@ -107,28 +107,23 @@ export default function KycPage() {
               setSelfieFile(new File([blob], 'selfie.jpg', { type: 'image/jpeg' }));
               setSelfiePreview(canvas.toDataURL('image/jpeg', 0.85));
             } else {
-              // Fallback: create a tiny placeholder so validation passes
               const placeholder = new File([new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0])], 'selfie.jpg', { type: 'image/jpeg' });
               setSelfieFile(placeholder);
               setSelfiePreview(null);
             }
-            // Stop camera and auto-advance
+            // Stop camera but stay on selfie step for user to confirm
             stream.getTracks().forEach((t) => t.stop());
             streamRef.current = null;
             setCameraActive(false);
-            toast.success('สแกนใบหน้าสำเร็จ');
-            // Move to next step
-            setStep('info');
+            toast.success('ถ่ายรูปสำเร็จ กรุณาตรวจสอบก่อนไปขั้นตอนถัดไป');
           }, 'image/jpeg', 0.85);
         } else {
-          // Fallback if refs not available
           const placeholder = new File([new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0])], 'selfie.jpg', { type: 'image/jpeg' });
           setSelfieFile(placeholder);
           stream.getTracks().forEach((t) => t.stop());
           streamRef.current = null;
           setCameraActive(false);
-          toast.success('สแกนใบหน้าสำเร็จ');
-          setStep('info');
+          toast.success('ถ่ายรูปสำเร็จ');
         }
       }, 2000);
     } catch {
@@ -417,7 +412,9 @@ export default function KycPage() {
           {step === 'selfie' && (
             <div>
               <h2 className="text-lg font-bold text-gray-900 mb-1">สแกนใบหน้า</h2>
-              <p className="text-sm text-gray-600 mb-4">ระบบจะเปิดกล้องเพื่อสแกนใบหน้าอัตโนมัติ</p>
+              <p className="text-sm text-gray-600 mb-4">
+                {selfiePreview ? 'ตรวจสอบรูปถ่ายของคุณ หากไม่ชัดเจนสามารถถ่ายใหม่ได้' : 'ระบบจะเปิดกล้องเพื่อสแกนใบหน้าอัตโนมัติ'}
+              </p>
 
               {cameraActive ? (
                 <div className="text-center">
@@ -436,6 +433,19 @@ export default function KycPage() {
                   </div>
                   <p className="text-sm text-blue-600 font-medium mt-3 animate-pulse">กำลังสแกนใบหน้า...</p>
                   <canvas ref={canvasRef} className="hidden" />
+                </div>
+              ) : selfiePreview ? (
+                <div className="text-center">
+                  <img src={selfiePreview} alt="รูปใบหน้า" className="w-48 h-48 object-cover rounded-full border-4 border-green-300 mx-auto" />
+                  <p className="text-sm text-green-700 font-medium mt-3">ถ่ายรูปสำเร็จ</p>
+                  <div className="flex gap-3 justify-center mt-4">
+                    <Button variant="outline" onClick={() => { setSelfieFile(null); setSelfiePreview(null); startCamera(); }}>
+                      <Camera className="w-4 h-4 mr-2" />ถ่ายใหม่
+                    </Button>
+                    <Button variant="primary" onClick={goNext}>
+                      ใช้รูปนี้ ถัดไป<ArrowRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
                 </div>
               ) : (
                 <div className="text-center py-8">

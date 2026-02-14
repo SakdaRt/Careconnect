@@ -17,6 +17,9 @@ export type { AvatarProps, AvatarSize } from './Avatar';
 export { Modal, ConfirmModal } from './Modal';
 export type { ModalProps, ConfirmModalProps } from './Modal';
 
+export { ReasonModal } from './ReasonModal';
+export type { ReasonModalProps } from './ReasonModal';
+
 export { Tabs, TabPanel } from './Tabs';
 export type { TabsProps, Tab, TabPanelProps } from './Tabs';
 

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -123,10 +123,8 @@ export default function HirerHomePage() {
   const [jobs, setJobs] = useState<JobPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [disputeOpen, setDisputeOpen] = useState(false);
-  const [disputeReason, setDisputeReason] = useState('');
   const [disputeJobId, setDisputeJobId] = useState<string | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
-  const [cancelReason, setCancelReason] = useState('');
   const [cancelJobId, setCancelJobId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [showKycPrompt, setShowKycPrompt] = useState(false);
@@ -196,24 +194,17 @@ export default function HirerHomePage() {
       return;
     }
     setActionLoadingId(null);
-    setDisputeReason('');
     setDisputeJobId(jobPostId);
     setDisputeOpen(true);
   };
 
   const handleOpenCancel = (jobPostId: string) => {
-    setCancelReason('');
     setCancelJobId(jobPostId);
     setCancelOpen(true);
   };
 
-  const handleConfirmCancel = async () => {
+  const handleConfirmCancel = async (reason: string) => {
     if (!cancelJobId) return;
-    const reason = cancelReason.trim();
-    if (!reason) {
-      toast.error('กรุณากรอกเหตุผลที่ยกเลิกงาน');
-      return;
-    }
     setActionLoadingId(cancelJobId);
     try {
       const res = await appApi.cancelJob(cancelJobId, hirerId, reason);
@@ -223,7 +214,6 @@ export default function HirerHomePage() {
       }
       toast.success('ยกเลิกงานแล้ว');
       setCancelOpen(false);
-      setCancelReason('');
       setCancelJobId(null);
       await loadJobs();
     } finally {
@@ -231,13 +221,8 @@ export default function HirerHomePage() {
     }
   };
 
-  const handleConfirmDispute = async () => {
+  const handleConfirmDispute = async (reason: string) => {
     if (!disputeJobId) return;
-    const reason = disputeReason.trim();
-    if (!reason) {
-      toast.error('กรุณากรอกเหตุผลที่เปิดข้อพิพาท');
-      return;
-    }
     setActionLoadingId(disputeJobId);
     try {
       const res = await appApi.createDispute(disputeJobId, hirerId, reason);
@@ -247,7 +232,6 @@ export default function HirerHomePage() {
       }
       toast.success('เปิดข้อพิพาทแล้ว');
       setDisputeOpen(false);
-      setDisputeReason('');
       setDisputeJobId(null);
       navigate(`/dispute/${res.data.dispute.id}`);
     } finally {
@@ -331,74 +315,30 @@ export default function HirerHomePage() {
             ))}
           </div>
         )}
-        <Modal
+        <ReasonModal
           isOpen={disputeOpen}
           onClose={() => setDisputeOpen(false)}
+          onConfirm={handleConfirmDispute}
           title="เปิดข้อพิพาท"
-          size="sm"
-          footer={
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDisputeOpen(false)}
-                disabled={!!actionLoadingId}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                กลับไป
-              </button>
-              <button
-                onClick={handleConfirmDispute}
-                disabled={!!actionLoadingId || !disputeReason.trim()}
-                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-blue-600 hover:bg-blue-700"
-              >
-                {actionLoadingId ? 'กำลังส่ง...' : 'ยืนยันเปิดข้อพิพาท'}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่เปิดข้อพิพาท</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-              value={disputeReason}
-              onChange={(e) => setDisputeReason(e.target.value)}
-              placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท"
-            />
-          </div>
-        </Modal>
-        <Modal
+          description="กรุณาอธิบายปัญหาที่เกิดขึ้นอย่างละเอียด เพื่อให้แอดมินพิจารณาได้ถูกต้อง"
+          placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท..."
+          confirmText="ยืนยันเปิดข้อพิพาท"
+          variant="warning"
+          loading={!!actionLoadingId}
+          minLength={10}
+        />
+        <ReasonModal
           isOpen={cancelOpen}
           onClose={() => setCancelOpen(false)}
+          onConfirm={handleConfirmCancel}
           title="ยกเลิกงาน"
-          size="sm"
-          footer={
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setCancelOpen(false)}
-                disabled={!!actionLoadingId}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-              >
-                กลับไป
-              </button>
-              <button
-                onClick={handleConfirmCancel}
-                disabled={!!actionLoadingId || !cancelReason.trim()}
-                className="px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50 bg-red-600 hover:bg-red-700"
-              >
-                {actionLoadingId ? 'กำลังยกเลิก...' : 'ยืนยันยกเลิก'}
-              </button>
-            </div>
-          }
-        >
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่ยกเลิกงาน</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="อธิบายเหตุผลในการยกเลิกงาน"
-            />
-          </div>
-        </Modal>
+          description="กรุณาอธิบายเหตุผลที่ต้องการยกเลิกงาน เพื่อให้อีกฝ่ายเข้าใจ"
+          placeholder="อธิบายเหตุผลในการยกเลิกงาน..."
+          confirmText="ยืนยันยกเลิก"
+          variant="danger"
+          loading={!!actionLoadingId}
+          minLength={10}
+        />
       </div>
     </MainLayout>
   );
