@@ -253,4 +253,21 @@ export const appApi = {
   async simulatePayment(paymentId: string) {
     return api.simulatePayment(paymentId);
   },
+
+  async searchCaregivers(params: { q?: string; page?: number; limit?: number; skills?: string; trust_level?: string }) {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set('q', params.q);
+    if (params.page) qs.set('page', String(params.page));
+    if (params.limit) qs.set('limit', String(params.limit));
+    if (params.skills) qs.set('skills', params.skills);
+    if (params.trust_level) qs.set('trust_level', params.trust_level);
+    return api.request<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(`/api/caregivers/search?${qs.toString()}`);
+  },
+
+  async assignCaregiverToJob(jobPostId: string, caregiverId: string) {
+    return api.request<{ message: string }>('/api/caregivers/assign', {
+      method: 'POST',
+      body: { job_post_id: jobPostId, caregiver_id: caregiverId },
+    });
+  },
 };

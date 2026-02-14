@@ -100,8 +100,13 @@ export default function JobDetailPage() {
         return;
       }
       const code = (res as any).code as string | undefined;
-      if (code === 'INSUFFICIENT_BALANCE' || String(res.error || '').includes('Insufficient')) {
+      const errMsg = String(res.error || '');
+      if (code === 'INSUFFICIENT_BALANCE' || errMsg.includes('Insufficient')) {
         toast.error('เงินในระบบไม่พอ กรุณาเติมเงินก่อนเผยแพร่');
+        return;
+      }
+      if (code === 'POLICY_VIOLATION' || code === 'INSUFFICIENT_TRUST_LEVEL' || errMsg.includes('trust') || errMsg.includes('Trust') || errMsg.includes('L1')) {
+        toast.error('กรุณายืนยันตัวตนก่อนเผยแพร่งาน — ไปที่ เมนู > ยืนยันตัวตน');
         return;
       }
       toast.error(res.error || 'ไม่สามารถเผยแพร่งานได้');

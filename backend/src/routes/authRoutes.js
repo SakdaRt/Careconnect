@@ -175,7 +175,7 @@ router.get('/profile', requireAuth, requirePolicy('auth:profile:view'), getMyPro
  */
 router.put('/profile', requireAuth, requirePolicy('auth:profile:update'), validateBody(authSchemas.updateProfile), updateMyProfile);
 
-router.post('/phone', requireAuth, requirePolicy('auth:phone'), validateBody(authSchemas.sendOTP), updatePhoneNumber);
+router.post('/phone', requireAuth, requirePolicy('auth:phone'), validateBody(updatePhoneSchema), updatePhoneNumber);
 
 router.post('/email', requireAuth, requirePolicy('auth:email'), validateBody(Joi.object({ email: Joi.string().email().required() })), updateEmailAddress);
 

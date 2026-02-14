@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-react';
+import { MessageCircle, ShieldCheck, User as UserIcon, PlusCircle, Users, Wallet } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -248,13 +248,28 @@ export default function HirerHomePage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
-            <p className="text-sm text-gray-600">สร้างงานเป็นแบบร่าง แล้วค่อยกดเผยแพร่</p>
-          </div>
-          <Link to="/hirer/create-job">
-            <Button variant="primary">สร้างงานใหม่</Button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
+          <p className="text-sm text-gray-600">จัดการงานทั้งหมดของคุณ</p>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-4 gap-2 mb-5">
+          <Link to="/hirer/create-job" className="flex flex-col items-center gap-1.5 p-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors text-center">
+            <PlusCircle className="w-6 h-6 text-blue-600" />
+            <span className="text-xs font-medium text-blue-700">สร้างงาน</span>
+          </Link>
+          <Link to="/hirer/search-caregivers" className="flex flex-col items-center gap-1.5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl hover:bg-emerald-100 transition-colors text-center">
+            <Users className="w-6 h-6 text-emerald-600" />
+            <span className="text-xs font-medium text-emerald-700">ค้นหาผู้ดูแล</span>
+          </Link>
+          <Link to="/hirer/care-recipients" className="flex flex-col items-center gap-1.5 p-3 bg-purple-50 border border-purple-200 rounded-xl hover:bg-purple-100 transition-colors text-center">
+            <UserIcon className="w-6 h-6 text-purple-600" />
+            <span className="text-xs font-medium text-purple-700">ผู้รับการดูแล</span>
+          </Link>
+          <Link to="/hirer/wallet" className="flex flex-col items-center gap-1.5 p-3 bg-amber-50 border border-amber-200 rounded-xl hover:bg-amber-100 transition-colors text-center">
+            <Wallet className="w-6 h-6 text-amber-600" />
+            <span className="text-xs font-medium text-amber-700">กระเป๋าเงิน</span>
           </Link>
         </div>
 

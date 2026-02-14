@@ -1,21 +1,8 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Bell, User, Settings, LogOut, Menu, ShieldCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
-import { cn } from '../../contexts/ThemeContext';
-
-const HIRER_NAV = [
-  { to: '/hirer/home', label: 'งานของฉัน' },
-  { to: '/hirer/create-job', label: 'สร้างงาน' },
-  { to: '/hirer/care-recipients', label: 'ผู้รับการดูแล' },
-  { to: '/hirer/wallet', label: 'กระเป๋าเงิน' },
-];
-const CAREGIVER_NAV = [
-  { to: '/caregiver/jobs/feed', label: 'ค้นหางาน' },
-  { to: '/caregiver/jobs/my-jobs', label: 'งานของฉัน' },
-  { to: '/caregiver/wallet', label: 'กระเป๋าเงิน' },
-];
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
@@ -40,11 +27,8 @@ function trustLevelStyle(level: string) {
 
 export function TopBar() {
   const { user, logout } = useAuth();
-  const location = useLocation();
   const [showMenu, setShowMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const navLinks = user?.role === 'hirer' ? HIRER_NAV : user?.role === 'caregiver' ? CAREGIVER_NAV : [];
-  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   const fetchUnread = useCallback(async () => {
     if (!user) { setUnreadCount(0); return; }
@@ -70,26 +54,6 @@ export function TopBar() {
           <Link to="/" className="flex items-center">
             <span className="text-xl font-bold text-blue-600">Careconnect</span>
           </Link>
-
-          {/* Desktop nav links */}
-          {navLinks.length > 0 && (
-            <nav className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
-                    isActive(link.to)
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-          )}
 
           {/* Right side - Notifications and Menu */}
           <div className="flex items-center gap-4">
@@ -149,6 +113,38 @@ export function TopBar() {
                       <User className="w-5 h-5" />
                       <span>โปรไฟล์</span>
                     </Link>
+
+                    {user.role === 'hirer' && (
+                      <>
+                        <Link
+                          to="/hirer/care-recipients"
+                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => setShowMenu(false)}
+                        >
+                          <Users className="w-5 h-5" />
+                          <span>ผู้รับการดูแล</span>
+                        </Link>
+                        <Link
+                          to="/hirer/wallet"
+                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                          onClick={() => setShowMenu(false)}
+                        >
+                          <Wallet className="w-5 h-5" />
+                          <span>กระเป๋าเงิน</span>
+                        </Link>
+                      </>
+                    )}
+
+                    {user.role === 'caregiver' && (
+                      <Link
+                        to="/caregiver/wallet"
+                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <Wallet className="w-5 h-5" />
+                        <span>กระเป๋าเงิน</span>
+                      </Link>
+                    )}
 
                     {user.role !== 'admin' && (
                       <Link

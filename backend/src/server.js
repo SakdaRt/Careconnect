@@ -22,6 +22,7 @@ import kycRoutes from './routes/kycRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import caregiverDocumentRoutes from './routes/caregiverDocumentRoutes.js';
+import caregiverSearchRoutes from './routes/caregiverSearchRoutes.js';
 import { initChatSocket } from './sockets/chatSocket.js';
 
 // Load environment variables
@@ -121,6 +122,7 @@ app.use('/api/kyc', kycRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/caregiver-documents', caregiverDocumentRoutes);
+app.use('/api/caregivers', caregiverSearchRoutes);
 
 // Static file serving for uploads
 const uploadDir = process.env.UPLOAD_DIR || '/app/uploads';
