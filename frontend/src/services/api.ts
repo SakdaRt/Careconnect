@@ -25,10 +25,31 @@ interface RequestOptions {
 
 class ApiClient {
   private baseUrl: string;
-  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+  }
+
+  private toOptionalNumber(value: unknown): number | null | undefined {
+    if (value === undefined) return undefined;
+    if (value === null) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return null;
+      const parsed = Number(trimmed);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+  }
+
+  private normalizeCareRecipient(input: any): CareRecipient {
+    if (!input || typeof input !== 'object') return input as CareRecipient;
+    return {
+      ...input,
+      lat: this.toOptionalNumber(input.lat),
+      lng: this.toOptionalNumber(input.lng),
+    } as CareRecipient;
   }
 
   private getAuthToken(): string | null {
@@ -43,66 +64,11 @@ class ApiClient {
     localStorage.setItem('careconnect_refresh_token', token);
   }
 
-  private getRefreshToken(): string | null {
-    return localStorage.getItem('careconnect_refresh_token');
-  }
-
   clearTokens(): void {
     localStorage.removeItem('careconnect_token');
     localStorage.removeItem('careconnect_refresh_token');
     localStorage.removeItem('careconnect_user');
   }
-
-  /**
-   * Attempt to refresh the access token using the stored refresh token.
-   * Returns true if refresh succeeded, false otherwise.
-   * Uses a lock so parallel callers share a single refresh request.
-   */
-  private async attemptRefresh(): Promise<boolean> {
-    if (this.refreshPromise) return this.refreshPromise;
-
-    this.refreshPromise = (async () => {
-      const rt = this.getRefreshToken();
-      if (!rt) return false;
-
-      try {
-        const res = await fetch(`${this.baseUrl}/api/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: rt }),
-        });
-        if (!res.ok) return false;
-
-        const data = await res.json();
-        if (data.success && data.data?.accessToken) {
-          this.setAuthToken(data.data.accessToken);
-          if (data.data.refreshToken) {
-            this.setRefreshToken(data.data.refreshToken);
-          }
-          return true;
-        }
-        return false;
-      } catch {
-        return false;
-      }
-    })();
-
-    try {
-      return await this.refreshPromise;
-    } finally {
-      this.refreshPromise = null;
-    }
-  }
-
-  /** Endpoints that must never trigger a token refresh (prevents infinite loops) */
-  private static NO_REFRESH_ENDPOINTS = [
-    '/api/auth/login/email',
-    '/api/auth/login/phone',
-    '/api/auth/register/guest',
-    '/api/auth/register/member',
-    '/api/auth/refresh',
-    '/api/auth/logout',
-  ];
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const { method = 'GET', body, headers = {}, requireAuth = true } = options;
@@ -137,21 +103,6 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        // 401 auto-refresh: attempt ONCE, then retry the original request
-        if (
-          response.status === 401 &&
-          requireAuth &&
-          !(options as any)._retried &&
-          !ApiClient.NO_REFRESH_ENDPOINTS.includes(endpoint)
-        ) {
-          const refreshed = await this.attemptRefresh();
-          if (refreshed) {
-            return this.request<T>(endpoint, { ...options, _retried: true } as any);
-          }
-          // Refresh failed — clear everything
-          this.clearTokens();
-        }
-
         const errorMessage =
           typeof parsed === 'object' && parsed
             ? ((parsed as any).message || (parsed as any).error || 'Request failed')
@@ -178,45 +129,6 @@ class ApiClient {
         success: false,
         error: error instanceof Error ? error.message : 'Network error',
       };
-    }
-  }
-
-  /** Send a FormData request (for file uploads). Does NOT set Content-Type — browser adds multipart boundary. */
-  async requestFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
-    const requestHeaders: Record<string, string> = {};
-    const token = this.getAuthToken();
-    if (token) requestHeaders['Authorization'] = `Bearer ${token}`;
-
-    try {
-      const response = await fetch(`${this.baseUrl}${endpoint}`, {
-        method: 'POST',
-        headers: requestHeaders,
-        body: formData,
-      });
-
-      const rawText = await response.text();
-      let parsed: unknown = null;
-      if (rawText) {
-        try { parsed = JSON.parse(rawText); } catch { parsed = rawText; }
-      }
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          const refreshed = await this.attemptRefresh();
-          if (refreshed) return this.requestFormData<T>(endpoint, formData);
-          this.clearTokens();
-        }
-        const errorMessage =
-          typeof parsed === 'object' && parsed
-            ? ((parsed as any).message || (parsed as any).error || 'Request failed')
-            : rawText || 'Request failed';
-        return { success: false, error: errorMessage, code: typeof parsed === 'object' && parsed ? (parsed as any).code : undefined };
-      }
-
-      if (typeof parsed === 'object' && parsed && 'success' in (parsed as any)) return parsed as ApiResponse<T>;
-      return { success: true, data: parsed as T };
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : 'Network error' };
     }
   }
 
@@ -744,74 +656,38 @@ class ApiClient {
     });
   }
 
-  async submitKyc(formData: FormData) {
-    return this.requestFormData<{ kyc: KycStatus }>('/api/kyc/submit', formData);
-  }
-
-  // Caregiver documents (certifications)
-  async getMyCaregiverDocuments() {
-    return this.request<CaregiverDocument[]>('/api/caregiver-documents');
-  }
-
-  async uploadCaregiverDocument(formData: FormData) {
-    return this.requestFormData<CaregiverDocument>('/api/caregiver-documents', formData);
-  }
-
-  async deleteCaregiverDocument(docId: string) {
-    return this.request<{ id: string }>(`/api/caregiver-documents/${docId}`, { method: 'DELETE' });
-  }
-
-  async getCaregiverDocumentsByCaregiver(caregiverId: string) {
-    return this.request<CaregiverDocument[]>(`/api/caregiver-documents/by-caregiver/${caregiverId}`);
-  }
-
   async getCareRecipients() {
     const raw: any = await this.request<any>('/api/care-recipients');
     if (!raw.success) return raw as ApiResponse<CareRecipient[]>;
-    return { success: true, data: raw.data || [] } as ApiResponse<CareRecipient[]>;
+    const list = Array.isArray(raw.data) ? raw.data.map((item: any) => this.normalizeCareRecipient(item)) : [];
+    return { success: true, data: list } as ApiResponse<CareRecipient[]>;
   }
 
   async getCareRecipient(id: string) {
     const raw: any = await this.request<any>(`/api/care-recipients/${id}`);
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
-    return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+    const data = raw.data ? this.normalizeCareRecipient(raw.data) : raw.data;
+    return { success: true, data } as ApiResponse<CareRecipient>;
   }
 
   async createCareRecipient(input: Omit<CareRecipient, 'id' | 'hirer_id' | 'is_active' | 'created_at' | 'updated_at'>) {
     const raw: any = await this.request<any>('/api/care-recipients', { method: 'POST', body: input });
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
-    return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+    const data = raw.data ? this.normalizeCareRecipient(raw.data) : raw.data;
+    return { success: true, data } as ApiResponse<CareRecipient>;
   }
 
   async updateCareRecipient(id: string, input: Partial<Omit<CareRecipient, 'id' | 'hirer_id' | 'is_active' | 'created_at' | 'updated_at'>>) {
     const raw: any = await this.request<any>(`/api/care-recipients/${id}`, { method: 'PUT', body: input });
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
-    return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+    const data = raw.data ? this.normalizeCareRecipient(raw.data) : raw.data;
+    return { success: true, data } as ApiResponse<CareRecipient>;
   }
 
   async deactivateCareRecipient(id: string) {
     const raw: any = await this.request<any>(`/api/care-recipients/${id}`, { method: 'DELETE' });
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
     return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
-  }
-
-  // Notification endpoints
-  async getNotifications(page = 1, limit = 20, unreadOnly = false) {
-    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
-    if (unreadOnly) params.append('unread_only', 'true');
-    return this.request<{ data: AppNotification[]; total: number; unreadCount: number; page: number; limit: number; totalPages: number }>(`/api/notifications?${params}`);
-  }
-
-  async getUnreadNotificationCount() {
-    return this.request<{ count: number }>('/api/notifications/unread-count');
-  }
-
-  async markNotificationAsRead(notificationId: string) {
-    return this.request<{ notification: AppNotification }>(`/api/notifications/${notificationId}/read`, { method: 'PATCH' });
-  }
-
-  async markAllNotificationsAsRead() {
-    return this.request<void>('/api/notifications/read-all', { method: 'PATCH' });
   }
 
   // Job endpoints
@@ -962,31 +838,6 @@ class ApiClient {
       success: true,
       data: { message: raw.message as ChatMessage },
     } as ApiResponse<{ message: ChatMessage }>;
-  }
-
-  // Payment API methods
-  async getPayments(options?: { status?: string; page?: number; limit?: number; sort_by?: string; sort_order?: 'ASC' | 'DESC' }) {
-    const params = new URLSearchParams();
-    if (options?.status) params.append('status', options.status);
-    if (options?.page) params.append('page', options.page.toString());
-    if (options?.limit) params.append('limit', options.limit.toString());
-    if (options?.sort_by) params.append('sort_by', options.sort_by);
-    if (options?.sort_order) params.append('sort_order', options.sort_order);
-    
-    const queryString = params.toString();
-    const url = `/api/payments${queryString ? `?${queryString}` : ''}`;
-    
-    return await this.request<any>(url);
-  }
-
-  async getPaymentById(paymentId: string) {
-    return await this.request<any>(`/api/payments/${paymentId}`);
-  }
-
-  async simulatePayment(paymentId: string) {
-    return await this.request<any>(`/api/payments/${paymentId}/simulate`, {
-      method: 'POST',
-    });
   }
 }
 
@@ -1284,27 +1135,6 @@ export interface Transaction {
   created_at: string;
 }
 
-export interface Payment {
-  id: string;
-  payer_user_id: string;
-  payee_user_id: string;
-  job_id?: string | null;
-  amount: number; // THB
-  fee_amount: number; // THB
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
-  payment_method: string;
-  provider_payment_id?: string | null;
-  metadata?: any;
-  created_at: string;
-  updated_at: string;
-  processed_at?: string | null;
-  payer_name?: string;
-  payee_name?: string;
-  ledger_transaction_type?: string;
-  ledger_amount?: number;
-  ledger_metadata?: any;
-}
-
 export interface JobPost {
   id: string;
   hirer_id: string;
@@ -1376,23 +1206,6 @@ export interface KycStatus {
   created_at: string;
   updated_at: string;
   expires_at: string | null;
-}
-
-export interface CaregiverDocument {
-  id: string;
-  user_id: string;
-  document_type: string;
-  title: string;
-  description: string | null;
-  issuer: string | null;
-  issued_date: string | null;
-  expiry_date: string | null;
-  file_path: string;
-  file_name: string;
-  file_size: number;
-  mime_type: string | null;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface CaregiverAssignedJob {
@@ -1474,21 +1287,6 @@ export interface Pagination {
   page: number;
   limit: number;
   totalPages: number;
-}
-
-export interface AppNotification {
-  id: string;
-  user_id: string;
-  channel: string;
-  template_key: string;
-  title: string;
-  body: string;
-  data: Record<string, any> | null;
-  reference_type: string | null;
-  reference_id: string | null;
-  status: string;
-  read_at: string | null;
-  created_at: string;
 }
 
 // Export singleton instance
