@@ -914,6 +914,99 @@ class ApiClient {
       data: { message: raw.message as ChatMessage },
     } as ApiResponse<{ message: ChatMessage }>;
   }
+
+  // Token refresh
+  static readonly NO_REFRESH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
+
+  private async attemptRefresh(): Promise<boolean> {
+    const refreshToken = localStorage.getItem('careconnect_refresh_token');
+    if (!refreshToken) return false;
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      if (data.success && data.accessToken) {
+        localStorage.setItem('careconnect_token', data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem('careconnect_refresh_token', data.refreshToken);
+        }
+        return true;
+      }
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+    }
+
+    return false;
+  }
+
+  // KYC
+  async submitKyc(formData: FormData) {
+    return this.requestFormData<{ kyc: KycStatus }>('/api/kyc/submit', formData);
+  }
+
+  // Notifications
+  async getNotifications(page: number = 1, limit: number = 50, unreadOnly: boolean = false) {
+    const params = new URLSearchParams();
+    params.append('page', page.toString());
+    params.append('limit', limit.toString());
+    if (unreadOnly) params.append('unread_only', 'true');
+    
+    return this.request<{ data: AppNotification[]; unreadCount?: number; pagination: Pagination }>(`/api/notifications?${params}`);
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request(`/api/notifications/${notificationId}/read`, { method: 'PATCH' });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request('/api/notifications/read-all', { method: 'PATCH' });
+  }
+
+  // Payments
+  async getPayments(options?: { page?: number; limit?: number; status?: string }) {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', String(options.page));
+    if (options?.limit) params.append('limit', String(options.limit));
+    if (options?.status) params.append('status', options.status);
+    
+    return this.request<{ payments: any[]; pagination: Pagination }>(`/api/payments?${params}`);
+  }
+
+  async getPaymentById(paymentId: string) {
+    return this.request<{ payment: any }>(`/api/payments/${paymentId}`);
+  }
+
+  async simulatePayment(paymentId: string) {
+    return this.request<{ payment: any }>(`/api/payments/${paymentId}/simulate`, { method: 'POST' });
+  }
+
+  // Caregiver Documents
+  async getMyCaregiverDocuments() {
+    return this.request<{ documents: any[] }>('/api/caregiver-documents');
+  }
+
+  async uploadCaregiverDocument(formData: FormData) {
+    return this.requestFormData<{ document: any }>('/api/caregiver-documents', formData);
+  }
+
+  async deleteCaregiverDocument(docId: string) {
+    return this.request(`/api/caregiver-documents/${docId}`, { method: 'DELETE' });
+  }
+
+  async getCaregiverDocumentsByCaregiver(caregiverId: string) {
+    return this.request<{ documents: any[] }>(`/api/caregiver-documents/by-caregiver/${caregiverId}`);
+  }
 }
 
 // Types
@@ -1355,6 +1448,43 @@ export interface ChatMessage {
   sender_name?: string | null;
   sender_role?: string | null;
   created_at: string;
+}
+
+export interface CaregiverDocument {
+  id: string;
+  caregiver_id: string;
+  document_type: string;
+  file_key: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  status: 'pending' | 'approved' | 'rejected';
+  verified_at?: string | null;
+  rejection_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  title?: string;
+  issuer?: string;
+  issued_date?: string;
+  expiry_date?: string;
+  description?: string;
+  file_path?: string;
+}
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  type: string;
+  title: string;
+  message: string;
+  body?: string;
+  data?: any;
+  is_read: boolean;
+  status?: 'read' | 'unread';
+  reference_id?: string;
+  reference_type?: string;
+  created_at: string;
+  read_at?: string | null;
 }
 
 export interface Pagination {
