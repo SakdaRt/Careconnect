@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 type AddressResult = {
   address_line1: string;
@@ -52,6 +52,16 @@ type GoogleMapsLike = {
 
 const getGoogle = () => (window as unknown as { google?: GoogleMapsLike }).google || null;
 
+const parseComponents = (comps: Array<{ long_name: string; short_name: string; types: string[] }>) => {
+  const find = (type: string) => comps.find((c) => c.types.includes(type))?.long_name || null;
+  const district =
+    find('administrative_area_level_2') || find('locality') || find('sublocality') || find('political');
+  const province =
+    find('administrative_area_level_1') || find('region') || find('political') || find('country');
+  const postal_code = find('postal_code');
+  return { district, province, postal_code };
+};
+
 export function GooglePlacesInput({
   label,
   placeholder,
@@ -84,6 +94,7 @@ export function GooglePlacesInput({
   const geocoderRef = useRef<any>(null);
   const latestLatLngRef = useRef<{ lat: number; lng: number } | null>(null);
   const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const [locating, setLocating] = useState(false);
 
   useEffect(() => {
     if (!apiKey) return;
@@ -95,15 +106,6 @@ export function GooglePlacesInput({
       script.async = true;
       document.head.appendChild(script);
     }
-    const parseComponents = (comps: Array<{ long_name: string; short_name: string; types: string[] }>) => {
-      const find = (type: string) => comps.find((c) => c.types.includes(type))?.long_name || null;
-      const district =
-        find('administrative_area_level_2') || find('locality') || find('sublocality') || find('political');
-      const province =
-        find('administrative_area_level_1') || find('region') || find('political') || find('country');
-      const postal_code = find('postal_code');
-      return { district, province, postal_code };
-    };
 
     const applyLatLng = (nextLat: number, nextLng: number, zoom?: number) => {
       latestLatLngRef.current = { lat: nextLat, lng: nextLng };
@@ -237,18 +239,105 @@ export function GooglePlacesInput({
     mapInstanceRef.current.setZoom(16);
   }, [lat, lng, showMap]);
 
+  const useMyLocation = () => {
+    if (!navigator.geolocation) return;
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const myLat = pos.coords.latitude;
+        const myLng = pos.coords.longitude;
+
+        // Update map + marker immediately
+        latestLatLngRef.current = { lat: myLat, lng: myLng };
+        if (mapInstanceRef.current && markerRef.current) {
+          markerRef.current.setPosition({ lat: myLat, lng: myLng });
+          mapInstanceRef.current.setCenter({ lat: myLat, lng: myLng });
+          mapInstanceRef.current.setZoom(16);
+        }
+
+        // Reverse geocode
+        const g = getGoogle();
+        const maps = g?.maps as any;
+        if (maps?.Geocoder) {
+          if (!geocoderRef.current) geocoderRef.current = new maps.Geocoder();
+          geocoderRef.current.geocode(
+            { location: { lat: myLat, lng: myLng } },
+            (
+              results: Array<{
+                formatted_address?: string;
+                address_components?: Array<{ long_name: string; short_name: string; types: string[] }>;
+              }> | null,
+              status: string
+            ) => {
+              setLocating(false);
+              if (status === 'OK' && results && results[0]) {
+                const comps = (results[0].address_components || []) as Array<{
+                  long_name: string;
+                  short_name: string;
+                  types: string[];
+                }>;
+                const { district, province, postal_code } = parseComponents(comps);
+                onChange({
+                  address_line1: results[0].formatted_address || '',
+                  district,
+                  province,
+                  postal_code,
+                  lat: myLat,
+                  lng: myLng,
+                });
+              } else {
+                onChange({ address_line1: `${myLat.toFixed(6)}, ${myLng.toFixed(6)}`, lat: myLat, lng: myLng });
+              }
+            }
+          );
+        } else {
+          setLocating(false);
+          onChange({ address_line1: `${myLat.toFixed(6)}, ${myLng.toFixed(6)}`, lat: myLat, lng: myLng });
+        }
+      },
+      () => {
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
   return (
     <div className="flex flex-col gap-1">
       {label ? <label className="text-sm font-semibold text-gray-700">{label}</label> : null}
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(e) => onChange({ address_line1: e.target.value })}
-        placeholder={placeholder || 'ค้นหาที่อยู่ด้วย Google Maps'}
-        disabled={disabled || (typeof lat === 'number' && typeof lng === 'number')}
-        className={`w-full px-4 py-2 border rounded-lg ${(typeof lat === 'number' && typeof lng === 'number') ? 'bg-gray-100 border-gray-400' : 'bg-white'} ${error ? 'border-red-500' : 'border-gray-300'}`}
-      />
+      <div className="flex gap-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => onChange({ address_line1: e.target.value })}
+          placeholder={placeholder || 'ค้นหาที่อยู่ด้วย Google Maps'}
+          disabled={disabled || (typeof lat === 'number' && typeof lng === 'number')}
+          className={`flex-1 min-w-0 px-4 py-2 border rounded-lg ${(typeof lat === 'number' && typeof lng === 'number') ? 'bg-gray-100 border-gray-400' : 'bg-white'} ${error ? 'border-red-500' : 'border-gray-300'}`}
+        />
+        {apiKey && !disabled && (
+          <button
+            type="button"
+            onClick={useMyLocation}
+            disabled={locating}
+            className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 whitespace-nowrap flex-shrink-0"
+            title="ใช้ตำแหน่งปัจจุบัน"
+          >
+            {locating ? (
+              <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" className="opacity-25" />
+                <path d="M4 12a8 8 0 018-8" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="opacity-75" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              </svg>
+            )}
+            <span className="hidden sm:inline">{locating ? 'กำลังค้นหา...' : 'ตำแหน่งปัจจุบัน'}</span>
+          </button>
+        )}
+      </div>
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       {!apiKey ? (
         <div className="text-xs text-gray-500">ตั้งค่า VITE_GOOGLE_MAPS_API_KEY ในไฟล์ .env.local เพื่อเปิดใช้ Google Places</div>
