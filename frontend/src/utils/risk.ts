@@ -10,6 +10,21 @@ export type JobType =
 
 export type RiskLevel = 'low_risk' | 'high_risk';
 
+const HIGH_RISK_TASK_REASON_LABELS = {
+  tube_feeding: 'งานมีการให้อาหารทางสาย',
+  medication_administration: 'งานมีการช่วยให้ยาตามแผนแพทย์',
+  wound_dressing: 'งานมีการทำแผล',
+  catheter_care: 'งานมีการดูแลสายสวน',
+  oxygen_monitoring: 'งานมีการดูแล/เฝ้าระวังออกซิเจน',
+  dementia_supervision: 'งานมีการดูแลใกล้ชิดผู้ป่วยสับสน/หลงเดิน',
+} as const;
+
+type HighRiskTaskValue = keyof typeof HIGH_RISK_TASK_REASON_LABELS;
+
+const HIGH_RISK_TASK_KEYS = Object.keys(HIGH_RISK_TASK_REASON_LABELS) as HighRiskTaskValue[];
+
+export const HIGH_RISK_TASK_VALUES: ReadonlySet<string> = new Set<string>(HIGH_RISK_TASK_KEYS);
+
 export function computeRiskLevel({
   jobType,
   careRecipient,
@@ -51,12 +66,9 @@ export function computeRiskLevel({
   if (behaviors.has('wandering') && (behaviors.has('fall_risk') || cognitive === 'dementia' || cognitive === 'delirium')) {
     add('มีพฤติกรรมหลงเดินร่วมกับปัจจัยเสี่ยง');
   }
-  if (tasks.has('tube_feeding')) add('งานมีการให้อาหารทางสาย');
-  if (tasks.has('medication_administration')) add('งานมีการช่วยให้ยาตามแผนแพทย์');
-  if (tasks.has('wound_dressing')) add('งานมีการทำแผล');
-  if (tasks.has('catheter_care')) add('งานมีการดูแลสายสวน');
-  if (tasks.has('oxygen_monitoring')) add('งานมีการดูแล/เฝ้าระวังออกซิเจน');
-  if (tasks.has('dementia_supervision')) add('งานมีการดูแลใกล้ชิดผู้ป่วยสับสน/หลงเดิน');
+  for (const task of HIGH_RISK_TASK_KEYS) {
+    if (tasks.has(task)) add(HIGH_RISK_TASK_REASON_LABELS[task]);
+  }
 
   if (reasons.length > 0) {
     return {

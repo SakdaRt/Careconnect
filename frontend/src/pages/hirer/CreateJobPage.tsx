@@ -8,7 +8,7 @@ import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 import { cn } from '../../contexts/ThemeContext';
-import { computeRiskLevel } from '../../utils/risk';
+import { computeRiskLevel, HIGH_RISK_TASK_VALUES } from '../../utils/risk';
 
 type JobType =
   | 'companionship'
@@ -135,6 +135,10 @@ export default function CreateJobPage() {
   const [highlightTask, setHighlightTask] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [taskPanelsOpen, setTaskPanelsOpen] = useState<{ high: boolean; low: boolean }>({
+    high: true,
+    low: true,
+  });
 
   const [form, setForm] = useState({
     title: '',
@@ -291,6 +295,31 @@ export default function CreateJobPage() {
     const hours = Number(form.total_hours) || 0;
     return Math.round(hourly * hours);
   }, [form.hourly_rate, form.total_hours]);
+
+  const taskOptionsByRisk = useMemo(() => {
+    const high = JOB_TASK_OPTIONS.filter((opt) => HIGH_RISK_TASK_VALUES.has(opt.v));
+    const low = JOB_TASK_OPTIONS.filter((opt) => !HIGH_RISK_TASK_VALUES.has(opt.v));
+    return { high, low };
+  }, []);
+
+  const selectedTaskCountByRisk = useMemo(() => {
+    const high = form.job_tasks_flags.filter((task) => HIGH_RISK_TASK_VALUES.has(task)).length;
+    const low = form.job_tasks_flags.filter((task) => !HIGH_RISK_TASK_VALUES.has(task)).length;
+    return { high, low };
+  }, [form.job_tasks_flags]);
+
+  const toggleJobTask = (taskValue: string) => {
+    setErrorSection(null);
+    setErrorMessage(null);
+    setHighlightTask(null);
+    setFieldErrors((prev) => ({ ...prev, job_tasks_flags: '' }));
+    setForm((prev) => {
+      const next = new Set(prev.job_tasks_flags);
+      if (next.has(taskValue)) next.delete(taskValue);
+      else next.add(taskValue);
+      return { ...prev, job_tasks_flags: Array.from(next) };
+    });
+  };
 
   useEffect(() => {
     if (!selectedCareRecipient) return;
@@ -479,28 +508,29 @@ export default function CreateJobPage() {
 
   const applySuggestions = () => {
     if (!suggestions) return;
-    const nextTasks = new Set(form.job_tasks_flags);
-    for (const v of suggestions.tasks) nextTasks.add(v);
-    const nextPrecautions = new Set(form.precautions_flags);
-    for (const v of suggestions.precautions) nextPrecautions.add(v);
-    const nextSkills = new Set(form.required_skills_flags);
-    for (const v of suggestions.skills) nextSkills.add(v);
-    const nextEquipment = new Set(form.equipment_available_flags);
-    for (const v of suggestions.equipment || []) nextEquipment.add(v);
-    setForm({
-      ...form,
-      job_tasks_flags: Array.from(nextTasks),
-      precautions_flags: Array.from(nextPrecautions),
-      required_skills_flags: Array.from(nextSkills),
-      equipment_available_flags: Array.from(nextEquipment),
-    });
+    setErrorSection(null);
+    setErrorMessage(null);
+    setHighlightTask(null);
+    setFieldErrors((prev) => ({ ...prev, job_tasks_flags: '' }));
+    setForm((prev) => ({
+      ...prev,
+      job_tasks_flags: [...suggestions.tasks],
+      precautions_flags: [...suggestions.precautions],
+      required_skills_flags: [...suggestions.skills],
+      equipment_available_flags: [...(suggestions.equipment || [])],
+    }));
     toast.success('นำคำแนะนำมาใช้แล้ว');
   };
 
   return (
     <MainLayout showBottomBar={false}>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">สร้างงานใหม่</h1>
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <h1 className="text-2xl font-bold text-gray-900">สร้างงานใหม่</h1>
+          <Button variant="outline" onClick={() => navigate(-1)} disabled={loading}>
+            ย้อนกลับ
+          </Button>
+        </div>
         <p className="text-sm text-gray-600 mb-6">สร้างเป็นแบบร่างก่อน แล้วค่อยเผยแพร่ในหน้า “งานของฉัน”</p>
 
         <Card className="p-6">
@@ -563,6 +593,39 @@ export default function CreateJobPage() {
                 </div>
               </Card>
             )}
+
+            <div id="section-job_schedule" />
+            <Card className={cn(errorSection === 'job_schedule' ? 'border-red-400 bg-red-50' : undefined)}>
+              <div className="text-sm font-semibold text-gray-900 mb-3">วันและเวลา</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input
+                  label="เริ่มงาน"
+                  type="datetime-local"
+                  value={form.scheduled_start_at}
+                  error={fieldErrors.scheduled_start_at}
+                  onChange={(e) => {
+                    setErrorSection(null);
+                    setErrorMessage(null);
+                    setFieldErrors((prev) => ({ ...prev, scheduled_start_at: '' }));
+                    setForm({ ...form, scheduled_start_at: e.target.value });
+                  }}
+                  required
+                />
+                <Input
+                  label="สิ้นสุด"
+                  type="datetime-local"
+                  value={form.scheduled_end_at}
+                  error={fieldErrors.scheduled_end_at}
+                  onChange={(e) => {
+                    setErrorSection(null);
+                    setErrorMessage(null);
+                    setFieldErrors((prev) => ({ ...prev, scheduled_end_at: '' }));
+                    setForm({ ...form, scheduled_end_at: e.target.value });
+                  }}
+                  required
+                />
+              </div>
+            </Card>
 
             <Card
               id="section-job_basic"
@@ -720,39 +783,76 @@ export default function CreateJobPage() {
             >
               <div className="text-sm font-semibold text-gray-900 mb-3">งานที่ต้องทำ (เลือกได้หลายข้อ)</div>
               {fieldErrors.job_tasks_flags && <div className="text-sm text-red-700 mb-2">{fieldErrors.job_tasks_flags}</div>}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {JOB_TASK_OPTIONS.map((opt) => {
-                  const checked = form.job_tasks_flags.includes(opt.v);
-                  return (
-                    <label
-                      key={opt.v}
-                      className={cn(
-                        'flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer',
-                        highlightTask === opt.v
-                          ? 'border-red-500 bg-red-50'
-                          : checked
-                            ? 'border-blue-500 bg-blue-50'
-                            : 'border-gray-300 bg-white'
-                      )}
+              <div className="space-y-3">
+                {[
+                  {
+                    key: 'high' as const,
+                    title: 'ความเสี่ยงสูง',
+                    subtitle: 'ต้องใช้ทักษะหรือความระมัดระวังมาก',
+                    options: taskOptionsByRisk.high,
+                    selectedCount: selectedTaskCountByRisk.high,
+                    open: taskPanelsOpen.high,
+                    panelClass: 'border-red-200 bg-red-50/40',
+                  },
+                  {
+                    key: 'low' as const,
+                    title: 'ความเสี่ยงต่ำ',
+                    subtitle: 'งานดูแลทั่วไป',
+                    options: taskOptionsByRisk.low,
+                    selectedCount: selectedTaskCountByRisk.low,
+                    open: taskPanelsOpen.low,
+                    panelClass: 'border-emerald-200 bg-emerald-50/40',
+                  },
+                ].map((group) => (
+                  <div key={group.key} className={cn('border rounded-lg overflow-hidden', group.panelClass)}>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTaskPanelsOpen((prev) => ({
+                          ...prev,
+                          [group.key]: !prev[group.key],
+                        }))
+                      }
+                      className="w-full px-4 py-3 flex items-center justify-between gap-3 text-left"
                     >
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={() => {
-                          setErrorSection(null);
-                          setErrorMessage(null);
-                          setHighlightTask(null);
-                          setFieldErrors((prev) => ({ ...prev, job_tasks_flags: '' }));
-                          const next = new Set(form.job_tasks_flags);
-                          if (next.has(opt.v)) next.delete(opt.v);
-                          else next.add(opt.v);
-                          setForm({ ...form, job_tasks_flags: Array.from(next) });
-                        }}
-                      />
-                      <span className="text-sm text-gray-900">{opt.label}</span>
-                    </label>
-                  );
-                })}
+                      <div>
+                        <div className="text-sm font-semibold text-gray-900">{group.title}</div>
+                        <div className="text-xs text-gray-600 mt-0.5">{group.subtitle} • เลือกแล้ว {group.selectedCount}</div>
+                      </div>
+                      <span className="text-xs text-gray-600">{group.open ? 'ซ่อน' : 'กดเพื่อขยาย'}</span>
+                    </button>
+
+                    {group.open && (
+                      <div className="px-4 pb-4 border-t border-white/70">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">
+                          {group.options.map((opt) => {
+                            const checked = form.job_tasks_flags.includes(opt.v);
+                            return (
+                              <label
+                                key={opt.v}
+                                className={cn(
+                                  'flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer',
+                                  highlightTask === opt.v
+                                    ? 'border-red-500 bg-red-50'
+                                    : checked
+                                      ? 'border-blue-500 bg-blue-50'
+                                      : 'border-gray-300 bg-white'
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleJobTask(opt.v)}
+                                />
+                                <span className="text-sm text-gray-900">{opt.label}</span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
               <div className="text-xs text-gray-600 mt-2">
                 ระบบจะตรวจสอบความสอดคล้องกับข้อมูลผู้ป่วยก่อนบันทึก และคำนวณความเสี่ยงอัตโนมัติ
@@ -885,39 +985,6 @@ export default function CreateJobPage() {
               </>
             )}
 
-            <div id="section-job_schedule" />
-            <Card className={cn(errorSection === 'job_schedule' ? 'border-red-400 bg-red-50' : undefined)}>
-              <div className="text-sm font-semibold text-gray-900 mb-3">วันและเวลา</div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="เริ่มงาน"
-                  type="datetime-local"
-                  value={form.scheduled_start_at}
-                  error={fieldErrors.scheduled_start_at}
-                  onChange={(e) => {
-                    setErrorSection(null);
-                    setErrorMessage(null);
-                    setFieldErrors((prev) => ({ ...prev, scheduled_start_at: '' }));
-                    setForm({ ...form, scheduled_start_at: e.target.value });
-                  }}
-                  required
-                />
-                <Input
-                  label="สิ้นสุด"
-                  type="datetime-local"
-                  value={form.scheduled_end_at}
-                  error={fieldErrors.scheduled_end_at}
-                  onChange={(e) => {
-                    setErrorSection(null);
-                    setErrorMessage(null);
-                    setFieldErrors((prev) => ({ ...prev, scheduled_end_at: '' }));
-                    setForm({ ...form, scheduled_end_at: e.target.value });
-                  }}
-                  required
-                />
-              </div>
-            </Card>
-
             <div
               id="section-job_location"
               className={cn(errorSection === 'job_location' ? 'border border-red-400 bg-red-50 rounded-lg p-3' : undefined, 'space-y-3')}
@@ -1021,10 +1088,7 @@ export default function CreateJobPage() {
               </p>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <Button variant="outline" fullWidth onClick={() => navigate(-1)} disabled={loading}>
-                ย้อนกลับ
-              </Button>
+            <div className="pt-2">
               <Button variant="primary" fullWidth loading={loading} onClick={openReview}>
                 รีวิวก่อนบันทึก
               </Button>
