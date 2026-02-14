@@ -58,7 +58,7 @@ export default function LoginPhonePage() {
       toast.success('เข้าสู่ระบบสำเร็จ');
 
       const state = location.state as { from?: string } | null;
-      const destination = user.role === 'admin' ? '/admin/dashboard' : '/register/role';
+      const destination = user.role === 'admin' ? '/admin/dashboard' : '/select-role';
       setTimeout(() => {
         navigate(destination, {
           replace: true,
@@ -125,15 +125,6 @@ export default function LoginPhonePage() {
           </Link>
         </div>
 
-        {/* Demo Credentials */}
-        <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-sm text-yellow-800 font-semibold mb-2">🔒 ทดสอบระบบ (Demo):</p>
-          <p className="text-xs text-yellow-700">
-            Phone: +66812345678 (ผู้ดูแล)
-            <br />
-            Password: อะไรก็ได้ (ยาวกว่า 6 ตัว)
-          </p>
-        </div>
       </div>
     </AuthLayout>
   );

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
 import { Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput } from '../../components/ui';
@@ -15,6 +16,10 @@ function roleLabel(role: string) {
 
 export default function ProfilePage() {
   const { user, updateUser, refreshUser, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const profileRequired = !!(location.state as any)?.profileRequired;
+  const returnTo = (location.state as any)?.from as string | undefined;
   const [profileRole, setProfileRole] = useState<'hirer' | 'caregiver' | 'admin'>('hirer');
   const [hirerForm, setHirerForm] = useState({
     display_name: '',
@@ -23,6 +28,8 @@ export default function ProfilePage() {
     district: '',
     province: '',
     postal_code: '',
+    lat: null as number | null,
+    lng: null as number | null,
   });
   const [caregiverForm, setCaregiverForm] = useState({
     display_name: '',
@@ -284,6 +291,8 @@ export default function ProfilePage() {
       district: profile?.district || '',
       province: profile?.province || '',
       postal_code: profile?.postal_code || '',
+      lat: (profile as any)?.lat ?? null,
+      lng: (profile as any)?.lng ?? null,
     });
   }, []);
 
@@ -364,6 +373,9 @@ export default function ProfilePage() {
         applyProfile('hirer', res.data.profile);
         updateUser({ name: displayName });
         toast.success('บันทึกแล้ว');
+        if (profileRequired && returnTo) {
+          navigate(returnTo, { replace: true });
+        }
         return;
       }
 
@@ -394,6 +406,9 @@ export default function ProfilePage() {
       applyProfile('caregiver', res.data.profile);
       updateUser({ name: displayName });
       toast.success('บันทึกแล้ว');
+      if (profileRequired && returnTo) {
+        navigate(returnTo, { replace: true });
+      }
     } finally {
       setSaving(false);
     }
@@ -417,6 +432,13 @@ export default function ProfilePage() {
           </Button>
         </div>
 
+        {profileRequired && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="text-sm font-semibold text-amber-800">กรุณาตั้งชื่อที่ใช้แสดงก่อนเริ่มใช้งาน</div>
+            <div className="text-xs text-amber-700 mt-1">ชื่อที่ใช้แสดงจะแสดงให้ผู้ใช้อื่นเห็นแทนอีเมลหรือเบอร์โทร เพื่อความปลอดภัยของคุณ</div>
+          </div>
+        )}
+
         {!user ? (
           <Card className="p-6">
             <div className="text-sm text-gray-700">กรุณาเข้าสู่ระบบก่อน</div>
@@ -430,7 +452,7 @@ export default function ProfilePage() {
               ) : (
                 <div className="space-y-4">
                   {profileRole === 'hirer' ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                       <Input
                         label="ชื่อที่ใช้แสดง"
                         value={hirerForm.display_name}
@@ -439,9 +461,12 @@ export default function ProfilePage() {
                         required
                       />
                       <GooglePlacesInput
-                        label="ที่อยู่บรรทัด 1"
+                        label="ที่อยู่"
                         value={hirerForm.address_line1}
                         placeholder="ค้นหาที่อยู่ด้วย Google Maps"
+                        showMap
+                        lat={hirerForm.lat}
+                        lng={hirerForm.lng}
                         onChange={(next) =>
                           setHirerForm({
                             ...hirerForm,
@@ -449,6 +474,8 @@ export default function ProfilePage() {
                             district: next.district || hirerForm.district,
                             province: next.province || hirerForm.province,
                             postal_code: next.postal_code || hirerForm.postal_code,
+                            lat: typeof next.lat === 'number' ? next.lat : hirerForm.lat,
+                            lng: typeof next.lng === 'number' ? next.lng : hirerForm.lng,
                           })
                         }
                       />
@@ -458,24 +485,26 @@ export default function ProfilePage() {
                         onChange={(e) => setHirerForm({ ...hirerForm, address_line2: e.target.value })}
                         placeholder="อาคาร/ชั้น/ห้อง"
                       />
-                      <Input
-                        label="เขต/อำเภอ"
-                        value={hirerForm.district}
-                        onChange={(e) => setHirerForm({ ...hirerForm, district: e.target.value })}
-                        placeholder="เขต/อำเภอ"
-                      />
-                      <Input
-                        label="จังหวัด"
-                        value={hirerForm.province}
-                        onChange={(e) => setHirerForm({ ...hirerForm, province: e.target.value })}
-                        placeholder="จังหวัด"
-                      />
-                      <Input
-                        label="รหัสไปรษณีย์"
-                        value={hirerForm.postal_code}
-                        onChange={(e) => setHirerForm({ ...hirerForm, postal_code: e.target.value })}
-                        placeholder="รหัสไปรษณีย์"
-                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <Input
+                          label="เขต/อำเภอ"
+                          value={hirerForm.district}
+                          onChange={(e) => setHirerForm({ ...hirerForm, district: e.target.value })}
+                          placeholder="เขต/อำเภอ"
+                        />
+                        <Input
+                          label="จังหวัด"
+                          value={hirerForm.province}
+                          onChange={(e) => setHirerForm({ ...hirerForm, province: e.target.value })}
+                          placeholder="จังหวัด"
+                        />
+                        <Input
+                          label="รหัสไปรษณีย์"
+                          value={hirerForm.postal_code}
+                          onChange={(e) => setHirerForm({ ...hirerForm, postal_code: e.target.value })}
+                          placeholder="รหัสไปรษณีย์"
+                        />
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">

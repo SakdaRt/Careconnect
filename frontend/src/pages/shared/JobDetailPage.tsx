@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { MessageCircle, User as UserIcon } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -74,7 +75,7 @@ export default function JobDetailPage() {
     try {
       const res = await appApi.publishJob(job.id, hirerId);
       if (res.success) {
-        toast.success(appApi.isDemoToken() ? 'เผยแพร่งานแล้ว (เดโม)' : 'เผยแพร่งานแล้ว');
+        toast.success('เผยแพร่งานแล้ว');
         await load();
         return;
       }
@@ -144,10 +145,10 @@ export default function JobDetailPage() {
     try {
       const res = await appApi.createDispute(job.id, hirerId, reason);
       if (!res.success || !res.data?.dispute?.id) {
-        toast.error(res.error || (appApi.isDemoToken() ? 'เปิดข้อพิพาทไม่สำเร็จ (เดโม)' : 'เปิดข้อพิพาทไม่สำเร็จ'));
+        toast.error(res.error || 'เปิดข้อพิพาทไม่สำเร็จ');
         return;
       }
-      toast.success(appApi.isDemoToken() ? 'เปิดข้อพิพาทแล้ว (เดโม)' : 'เปิดข้อพิพาทแล้ว');
+      toast.success('เปิดข้อพิพาทแล้ว');
       setDisputeOpen(false);
       setDisputeReason('');
       navigate(`/dispute/${res.data.dispute.id}`);
@@ -202,7 +203,7 @@ export default function JobDetailPage() {
                 <span className="font-semibold">ประเภทงาน:</span> {job.job_type}
               </div>
               <div>
-                <span className="font-semibold">ความเสี่ยง:</span> {job.risk_level}
+                <span className="font-semibold">ความเสี่ยง:</span> {job.risk_level === 'high_risk' ? 'สูง' : 'ต่ำ'}
               </div>
               <div>
                 <span className="font-semibold">รายละเอียด:</span>
@@ -220,7 +221,34 @@ export default function JobDetailPage() {
               )}
             </div>
 
-            <div className="mt-6 flex flex-wrap gap-2">
+            {(job as any).caregiver_name && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
+              <div className="mt-5 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+                <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">ผู้ดูแลที่รับงาน</div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                    <UserIcon className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-900">{(job as any).caregiver_name}</div>
+                    <div className="text-xs text-gray-600">
+                      {(job as any).job_status === 'assigned' && 'รอเช็คอิน'}
+                      {(job as any).job_status === 'in_progress' && 'กำลังดูแล'}
+                      {(job as any).job_status === 'completed' && 'เสร็จสิ้น'}
+                    </div>
+                  </div>
+                  {job.job_id && (
+                    <Link to={`/chat/${job.job_id}`}>
+                      <Button variant="primary" size="sm">
+                        <MessageCircle className="w-4 h-4 mr-1" />
+                        เปิดแชท
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-6 flex flex-wrap gap-2 pt-4 border-t border-gray-100">
               {job.status === 'draft' && (
                 <Button variant="primary" loading={actionLoading} onClick={handlePublish}>
                   เผยแพร่
@@ -236,7 +264,7 @@ export default function JobDetailPage() {
                   ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
                 </Button>
               )}
-              {job.status !== 'draft' && !!job.job_id && (
+              {!disputeInfo?.id && job.job_id && job.status !== 'draft' && job.status !== 'cancelled' && job.status !== 'completed' && (
                 <Button variant="outline" loading={actionLoading} onClick={handleOpenDispute}>
                   เปิดข้อพิพาท
                 </Button>

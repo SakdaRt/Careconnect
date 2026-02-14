@@ -212,38 +212,41 @@ class WalletService {
     // Map payment method to provider method
     const providerMethod = paymentMethod === 'promptpay' ? 'dynamic_qr' : 'payment_link';
 
-    // Create top-up intent
-    const topupId = uuidv4();
-    const result = await query(
-      `INSERT INTO topup_intents (id, user_id, amount, currency, method, provider_name, status, created_at, updated_at, expires_at)
-       VALUES ($1, $2, $3, 'THB', $4, 'mock', 'pending', NOW(), NOW(), NOW() + INTERVAL '30 minutes')
-       RETURNING *`,
-      [topupId, userId, amount, providerMethod]
-    );
+    // Wrap intent creation + provider call in a transaction so a provider
+    // failure rolls back the orphaned topup_intent row.
+    return await transaction(async (client) => {
+      const topupId = uuidv4();
+      const result = await client.query(
+        `INSERT INTO topup_intents (id, user_id, amount, currency, method, provider_name, status, created_at, updated_at, expires_at)
+         VALUES ($1, $2, $3, 'THB', $4, 'mock', 'pending', NOW(), NOW(), NOW() + INTERVAL '30 minutes')
+         RETURNING *`,
+        [topupId, userId, amount, providerMethod]
+      );
 
-    const topupIntent = result.rows[0];
+      const topupIntent = result.rows[0];
 
-    // Call mock payment provider to initiate payment
-    const paymentResponse = await this.initiatePaymentWithProvider({
-      ...topupIntent,
-      wallet_id: wallet.id,
+      // Call mock payment provider to initiate payment
+      const paymentResponse = await this.initiatePaymentWithProvider({
+        ...topupIntent,
+        wallet_id: wallet.id,
+      });
+
+      // Update with provider reference
+      await client.query(
+        `UPDATE topup_intents SET provider_payment_id = $1, payment_link_url = $2, qr_payload = $3, updated_at = NOW() WHERE id = $4`,
+        [paymentResponse.reference_id, paymentResponse.payment_url, paymentResponse.qr_code, topupId]
+      );
+
+      return {
+        topup_id: topupId,
+        amount,
+        payment_method: paymentMethod,
+        status: 'pending',
+        payment_url: paymentResponse.payment_url,
+        qr_code: paymentResponse.qr_code,
+        expires_at: topupIntent.expires_at,
+      };
     });
-
-    // Update with provider reference
-    await query(
-      `UPDATE topup_intents SET provider_payment_id = $1, payment_link_url = $2, qr_payload = $3, updated_at = NOW() WHERE id = $4`,
-      [paymentResponse.reference_id, paymentResponse.payment_url, paymentResponse.qr_code, topupId]
-    );
-
-    return {
-      topup_id: topupId,
-      amount,
-      payment_method: paymentMethod,
-      status: 'pending',
-      payment_url: paymentResponse.payment_url,
-      qr_code: paymentResponse.qr_code,
-      expires_at: topupIntent.expires_at,
-    };
   }
 
   /**
@@ -408,7 +411,7 @@ class WalletService {
       throw { status: 403, message: 'Only caregivers can withdraw funds' };
     }
 
-    // Check trust level (must be L3)
+    // Check trust level (must be L2+)
     const userResult = await query(`SELECT trust_level FROM users WHERE id = $1`, [userId]);
     if (userResult.rows.length === 0) {
       throw { status: 404, message: 'User not found' };
@@ -424,18 +427,7 @@ class WalletService {
       throw { status: 400, message: 'Minimum withdrawal amount is 500 THB' };
     }
 
-    // Get wallet and check balance
-    const wallet = await Wallet.getWalletByUser(userId, 'caregiver');
-    if (!wallet) {
-      throw { status: 404, message: 'Wallet not found' };
-    }
-
-    const balance = await Wallet.getBalance(wallet.id);
-    if (balance.available_balance < amount) {
-      throw { status: 400, message: `Insufficient balance. Available: ${balance.available_balance} THB` };
-    }
-
-    // Verify bank account exists and belongs to user
+    // Verify bank account exists and belongs to user (read-only, safe outside txn)
     const bankResult = await query(
       `SELECT * FROM bank_accounts WHERE id = $1 AND user_id = $2 AND is_verified = true`,
       [bankAccountId, userId]
@@ -459,16 +451,38 @@ class WalletService {
       throw { status: 400, message: 'Bank account name must match your profile name' };
     }
 
-    // Create withdrawal request
+    // All money operations inside a single transaction with row-level lock
     return await transaction(async (client) => {
-      const withdrawalId = uuidv4();
+      // Lock wallet row to prevent concurrent withdrawals from racing
+      const walletResult = await client.query(
+        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'caregiver' FOR UPDATE`,
+        [userId]
+      );
 
-      // Hold funds
-      await client.query(
+      if (walletResult.rows.length === 0) {
+        throw { status: 404, message: 'Wallet not found' };
+      }
+
+      const wallet = walletResult.rows[0];
+      const availableBalance = parseInt(wallet.available_balance);
+
+      if (availableBalance < amount) {
+        throw { status: 400, message: `Insufficient balance. Available: ${availableBalance} THB` };
+      }
+
+      // Atomic hold: deduct available, add to held — with WHERE guard as final safety net
+      const holdResult = await client.query(
         `UPDATE wallets SET available_balance = available_balance - $1, held_balance = held_balance + $1, updated_at = NOW()
-         WHERE id = $2 AND available_balance >= $1`,
+         WHERE id = $2 AND available_balance >= $1
+         RETURNING *`,
         [amount, wallet.id]
       );
+
+      if (holdResult.rows.length === 0) {
+        throw { status: 400, message: 'Insufficient balance (concurrent modification)' };
+      }
+
+      const withdrawalId = uuidv4();
 
       // Create withdrawal request (status is 'queued' per enum)
       await client.query(

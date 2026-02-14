@@ -19,6 +19,7 @@ import careRecipientRoutes from './routes/careRecipientRoutes.js';
 import disputeRoutes from './routes/disputeRoutes.js';
 import kycRoutes from './routes/kycRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
 import { initChatSocket } from './sockets/chatSocket.js';
 
 // Load environment variables
@@ -116,25 +117,23 @@ app.use('/api/care-recipients', careRecipientRoutes);
 app.use('/api/disputes', disputeRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Initialize Socket.IO chat handlers
 initChatSocket(io);
 
 // Error handling middleware
-app.use((err, req, res, _next) => {
-  console.error('[Error]', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal Server Error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
-  });
-});
+import { errorHandler, NotFoundError } from './utils/errors.js';
+
+app.use(errorHandler);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
+  const error = new NotFoundError('The requested resource was not found', {
     path: req.path,
+    method: req.method
   });
+  res.status(error.status).json(error.toJSON());
 });
 
 // Test database connection before starting server
@@ -202,5 +201,8 @@ process.on('SIGINT', async () => {
     process.exit(0);
   });
 });
+
+// Export server for testing
+export default server;
 
 export { app, io };

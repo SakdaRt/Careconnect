@@ -106,7 +106,7 @@ export default function CaregiverMyJobsPage() {
         toast.error(res.error || 'เช็คอินไม่สำเร็จ');
         return;
       }
-      toast.success(appApi.isDemoToken() ? 'เช็คอินแล้ว (เดโม)' : 'เช็คอินแล้ว');
+      toast.success('เช็คอินแล้ว');
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'เช็คอินไม่สำเร็จ');
@@ -124,7 +124,7 @@ export default function CaregiverMyJobsPage() {
         toast.error(res.error || 'เช็คเอาต์ไม่สำเร็จ');
         return;
       }
-      toast.success(appApi.isDemoToken() ? 'เช็คเอาต์แล้ว (เดโม)' : 'เช็คเอาต์แล้ว');
+      toast.success('เช็คเอาต์แล้ว');
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'เช็คเอาต์ไม่สำเร็จ');
@@ -160,10 +160,10 @@ export default function CaregiverMyJobsPage() {
     try {
       const res = await appApi.createDispute(disputeJobId, caregiverId, reason);
       if (!res.success || !res.data?.dispute?.id) {
-        toast.error(res.error || (appApi.isDemoToken() ? 'เปิดข้อพิพาทไม่สำเร็จ (เดโม)' : 'เปิดข้อพิพาทไม่สำเร็จ'));
+        toast.error(res.error || 'เปิดข้อพิพาทไม่สำเร็จ');
         return;
       }
-      toast.success(appApi.isDemoToken() ? 'เปิดข้อพิพาทแล้ว (เดโม)' : 'เปิดข้อพิพาทแล้ว');
+      toast.success('เปิดข้อพิพาทแล้ว');
       setDisputeOpen(false);
       setDisputeReason('');
       setDisputeJobId(null);

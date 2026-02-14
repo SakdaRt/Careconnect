@@ -4,6 +4,7 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { computeRiskLevel } from '../utils/risk.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
+import { notifyJobAccepted, notifyCheckIn, notifyCheckOut, notifyJobCancelled } from './notificationService.js';
 
 /**
  * Job Service
@@ -231,6 +232,11 @@ export const createJob = async (hirerId, jobData) => {
 
   const computed = computeRiskLevel({ jobType: jobData.job_type, patientProfile, jobTasksFlags: job_tasks_flags });
 
+  // Auto-set min_trust_level based on risk:
+  //   high_risk → L2 (KYC verified + certifications required)
+  //   low_risk  → L1 (phone verified)
+  const min_trust_level = computed.risk_level === 'high_risk' ? 'L2' : 'L1';
+
   // Create job post
   const jobPost = await Job.createJobPost({
     hirer_id: hirerId,
@@ -240,6 +246,7 @@ export const createJob = async (hirerId, jobData) => {
     equipment_available_flags,
     precautions_flags,
     preferred_caregiver_id,
+    min_trust_level,
     risk_level: computed.risk_level,
     risk_reason_codes: computed.reason_codes,
     risk_reason_detail: computed.detail,
@@ -267,14 +274,20 @@ export const publishJob = async (hirerId, jobPostId) => {
       throw new Error('Not authorized to publish this job');
     }
 
-    // Trust-based restriction: L0 hirer cannot publish high-risk jobs
+    // Trust-based restriction for publishing:
+    //   low_risk  → hirer must be L1+ (phone verified)
+    //   high_risk → hirer must be L2+ (KYC verified)
+    const TRUST_ORDER = ['L0', 'L1', 'L2', 'L3'];
     const hirerResult = await query(`SELECT trust_level FROM users WHERE id = $1`, [hirerId]);
     const hirerTrust = hirerResult.rows[0]?.trust_level || 'L0';
-    if (hirerTrust === 'L0' && jobPost.risk_level === 'high_risk') {
-      throw new ValidationError('L0 hirer cannot publish high-risk jobs', {
-        code: 'HIRER_TRUST_RESTRICTION',
-        section: 'job_risk',
-      });
+    const hirerTrustIdx = TRUST_ORDER.indexOf(hirerTrust);
+    const requiredLevel = jobPost.risk_level === 'high_risk' ? 'L2' : 'L1';
+    const requiredIdx = TRUST_ORDER.indexOf(requiredLevel);
+    if (hirerTrustIdx < requiredIdx) {
+      throw new ValidationError(
+        `Trust level ${requiredLevel} required to publish ${jobPost.risk_level} jobs. Your level: ${hirerTrust}`,
+        { code: 'HIRER_TRUST_RESTRICTION', section: 'job_risk' }
+      );
     }
 
     // Check wallet balance for job cost + platform fee
@@ -357,18 +370,25 @@ export const getJobFeed = async (caregiverId, options = {}) => {
   // Get jobs matching caregiver's trust level
   const jobs = await Job.getJobFeed(options);
 
-  // Filter by trust level requirement
-  const filteredJobs = jobs.data.filter(job => {
-    if (job.preferred_caregiver_id && job.preferred_caregiver_id !== caregiverId) {
-      return false;
-    }
-    return meetsRequiredTrustLevel(caregiver.trust_level, job.min_trust_level);
-  });
+  // Mark each job with eligibility based on trust level
+  // Caregivers can see all posted jobs but only accept ones they're eligible for
+  const enrichedJobs = jobs.data
+    .filter(job => {
+      // Hide jobs reserved for a different caregiver
+      if (job.preferred_caregiver_id && job.preferred_caregiver_id !== caregiverId) {
+        return false;
+      }
+      return true;
+    })
+    .map(job => ({
+      ...job,
+      eligible: meetsRequiredTrustLevel(caregiver.trust_level, job.min_trust_level),
+    }));
 
   return {
     ...jobs,
-    data: filteredJobs,
-    total: filteredJobs.length,
+    data: enrichedJobs,
+    total: enrichedJobs.length,
   };
 };
 
@@ -648,6 +668,18 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       [uuidv4(), threadId]
     );
 
+    // Notify hirer that caregiver accepted the job
+    try {
+      const cgProfile = await client.query(
+        `SELECT display_name FROM caregiver_profiles WHERE user_id = $1 LIMIT 1`,
+        [caregiverId]
+      );
+      const cgName = cgProfile.rows[0]?.display_name || caregiver.email || 'ผู้ดูแล';
+      await notifyJobAccepted(jobPost.hirer_id, jobPost.title, cgName, jobId);
+    } catch (e) {
+      console.error('Failed to send job_accepted notification:', e.message);
+    }
+
     return {
       job_id: jobId,
       job_post_id: jobPostId,
@@ -667,7 +699,28 @@ export const acceptJob = async (jobPostId, caregiverId) => {
  * @returns {object} - Updated job
  */
 export const checkIn = async (jobId, caregiverId, gpsData = {}) => {
-  return await Job.checkIn(jobId, caregiverId, gpsData);
+  const result = await Job.checkIn(jobId, caregiverId, gpsData);
+
+  // Notify hirer about check-in
+  try {
+    const jobInfo = await query(
+      `SELECT jp.title, jp.hirer_id, cp.display_name as caregiver_name
+       FROM jobs j
+       JOIN job_posts jp ON jp.id = j.job_post_id
+       LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+       WHERE j.id = $1`,
+      [jobId]
+    );
+    if (jobInfo.rows[0]) {
+      const { hirer_id, title, caregiver_name } = jobInfo.rows[0];
+      await notifyCheckIn(hirer_id, title, caregiver_name || 'ผู้ดูแล', jobId);
+    }
+  } catch (e) {
+    console.error('Failed to send check_in notification:', e.message);
+  }
+
+  return result;
 };
 
 /**
@@ -880,6 +933,17 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
          VALUES ($1, $2, NULL, 'system', 'Job completed. Payment has been released to caregiver.', true, NOW())`,
         [uuidv4(), threadResult.rows[0].id]
       );
+    }
+
+    // Notify hirer about checkout/completion
+    try {
+      const jpRes = await client.query(`SELECT title, hirer_id FROM job_posts WHERE id = $1`, [job.job_post_id]);
+      const cgRes = await client.query(`SELECT display_name FROM caregiver_profiles WHERE user_id = $1 LIMIT 1`, [caregiverId]);
+      if (jpRes.rows[0]) {
+        await notifyCheckOut(jpRes.rows[0].hirer_id, jpRes.rows[0].title, cgRes.rows[0]?.display_name || 'ผู้ดูแล', actualJobId);
+      }
+    } catch (e) {
+      console.error('Failed to send check_out notification:', e.message);
     }
 
     return {

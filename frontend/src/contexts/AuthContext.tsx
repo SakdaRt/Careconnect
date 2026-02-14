@@ -18,7 +18,6 @@ interface AuthContextType {
   loginWithPhone: (phone: string, password: string) => Promise<User>;
   registerGuest: (email: string, password: string, role: UserRole) => Promise<void>;
   registerMember: (phone: string, password: string, role: UserRole) => Promise<void>;
-  loginAsDemo: (role: Exclude<UserRole, 'admin'>) => void;
   logout: () => void;
   setActiveRole: (role: UserRole | null) => void;
   updateUser: (updates: Partial<User>) => void;
@@ -156,45 +155,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loginAsDemo = (role: Exclude<UserRole, 'admin'>) => {
-    const demoUser: User = {
-      id: crypto.randomUUID(),
-      email: role === 'hirer' ? 'hirer_demo@careconnect.local' : 'caregiver_demo@careconnect.local',
-      phone_number: null,
-      account_type: 'guest',
-      role,
-      status: 'active',
-      trust_level: 'L1',
-      trust_score: 0,
-      is_email_verified: true,
-      is_phone_verified: true,
-      completed_jobs_count: 0,
-      first_job_waiver_used: false,
-      policy_acceptances: {
-        [role]: {
-          policy_accepted_at: new Date().toISOString(),
-          version_policy_accepted: 'demo',
-        },
-      },
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-
-    localStorage.setItem('careconnect_token', 'demo');
-    localStorage.setItem('careconnect_refresh_token', 'demo');
-    localStorage.setItem('careconnect_user', JSON.stringify(demoUser));
-    localStorage.setItem('careconnect_active_role', role);
-    setUser(demoUser);
-    setActiveRole(role);
-  };
-
   const logout = async () => {
     try {
       await api.logout();
     } catch (error) {
       console.error('Logout error:', error);
     }
-    localStorage.removeItem('careconnect_user');
+    // Always clear tokens locally regardless of api.logout() result
+    api.clearTokens();
     setUser(null);
     setActiveRole(null);
   };
@@ -228,7 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loginWithPhone,
         registerGuest,
         registerMember,
-        loginAsDemo,
         logout,
         setActiveRole,
         updateUser,

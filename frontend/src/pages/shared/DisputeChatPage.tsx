@@ -5,6 +5,7 @@ import { MainLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState } from '../../components/ui';
 import { DisputeMessage } from '../../services/api';
 import { appApi } from '../../services/appApi';
+import { useAuth } from '../../contexts';
 
 function formatDateTime(iso?: string | null) {
   if (!iso) return '-';
@@ -28,6 +29,7 @@ function DisputeStatusBadge({ status }: { status: string }) {
 export default function DisputeChatPage() {
   const navigate = useNavigate();
   const { disputeId } = useParams();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [dispute, setDispute] = useState<any>(null);
   const [messages, setMessages] = useState<DisputeMessage[]>([]);
@@ -67,7 +69,7 @@ export default function DisputeChatPage() {
   const requestClose = async () => {
     if (!disputeId) return;
     const reason = window.prompt('เหตุผลที่ขอปิดข้อพิพาท (ถ้ามี)');
-    const actorId = localStorage.getItem('careconnect_demo_user_id') || 'demo-user';
+    const actorId = user?.id || 'demo-user';
     const res = await appApi.requestDisputeClose(disputeId, { id: actorId }, reason || undefined);
     if (!res.success) {
       toast.error(res.error || 'ส่งคำขอปิดไม่สำเร็จ');
@@ -88,9 +90,8 @@ export default function DisputeChatPage() {
     setSending(true);
     try {
       const sender = {
-        id: localStorage.getItem('careconnect_demo_user_id') || 'demo-hirer',
-        role: localStorage.getItem('careconnect_demo_user_role') || 'hirer',
-        email: localStorage.getItem('careconnect_demo_user_email') || undefined,
+        id: user?.id || '',
+        role: user?.role || 'hirer',
       };
       const res = await appApi.postDisputeMessage(disputeId, sender, content);
       if (!res.success || !res.data?.message) {
@@ -141,9 +142,6 @@ export default function DisputeChatPage() {
                   settlement • refund:{Number(dispute.settlement_refund_amount || 0).toLocaleString()} • payout:{Number(dispute.settlement_payout_amount || 0).toLocaleString()}
                 </div>
               )}
-              <div className="text-[11px] text-gray-500 mt-2 font-mono break-all">dispute: {dispute.id}</div>
-              <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">job_post: {dispute.job_post_id}</div>
-              {dispute.job_id && <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">job: {dispute.job_id}</div>}
               <div className="flex flex-wrap gap-2 mt-3">
                 <Link to={`/jobs/${dispute.job_post_id}`} target="_blank">
                   <Button variant="outline" size="sm">เปิดงาน</Button>
@@ -168,7 +166,7 @@ export default function DisputeChatPage() {
                   {messages.map((m) => (
                     <div key={m.id} className="border border-gray-200 rounded-lg p-3">
                       <div className="text-xs text-gray-500">
-                        {m.is_system_message ? 'system' : m.sender_email || m.sender_role || 'user'} • {formatDateTime(m.created_at)}
+                        {m.is_system_message ? 'ระบบ' : m.sender_role === 'hirer' ? 'ผู้ว่าจ้าง' : m.sender_role === 'caregiver' ? 'ผู้ดูแล' : m.sender_role === 'admin' ? 'แอดมิน' : 'ผู้ใช้'} • {formatDateTime(m.created_at)}
                       </div>
                       <div className="text-sm text-gray-800 mt-1 whitespace-pre-wrap">{m.content || ''}</div>
                     </div>

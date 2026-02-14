@@ -1,5 +1,4 @@
 import express from 'express';
-import Joi from 'joi';
 import {
   registerGuest,
   registerMember,
@@ -16,20 +15,11 @@ import {
   logout,
 } from '../controllers/authController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
+import { validateBody, authSchemas, commonSchemas } from '../utils/validation.js';
+import { authLimiter } from '../utils/rateLimiter.js';
+import Joi from 'joi';
 
 const router = express.Router();
-
-const validateBody = (schema) => (req, res, next) => {
-  const { error, value } = schema.validate(req.body, { abortEarly: false });
-  if (error) {
-    return res.status(400).json({
-      error: 'Validation error',
-      message: error.details.map((detail) => detail.message).join(', '),
-    });
-  }
-  req.body = value;
-  return next();
-};
 
 const normalizePhoneNumber = (value) => {
   if (!value) return null;
@@ -130,35 +120,35 @@ const updateRoleSchema = Joi.object({
  * POST /api/auth/register/guest
  * Body: { email, password, role }
  */
-router.post('/register/guest', validateBody(registerGuestSchema), registerGuest);
+router.post('/register/guest', authLimiter, validateBody(authSchemas.registerGuest), registerGuest);
 
 /**
  * Register member user (phone + password)
  * POST /api/auth/register/member
  * Body: { phone_number, password, role, email? }
  */
-router.post('/register/member', validateBody(registerMemberSchema), registerMember);
+router.post('/register/member', authLimiter, validateBody(registerMemberSchema), registerMember);
 
 /**
  * Login with email
  * POST /api/auth/login/email
  * Body: { email, password }
  */
-router.post('/login/email', validateBody(loginEmailSchema), loginWithEmail);
+router.post('/login/email', authLimiter, validateBody(authSchemas.login), loginWithEmail);
 
 /**
  * Login with phone number
  * POST /api/auth/login/phone
  * Body: { phone_number, password }
  */
-router.post('/login/phone', validateBody(loginPhoneSchema), loginWithPhone);
+router.post('/login/phone', authLimiter, validateBody(loginPhoneSchema), loginWithPhone);
 
 /**
  * Refresh access token
  * POST /api/auth/refresh
  * Body: { refreshToken }
  */
-router.post('/refresh', validateBody(refreshSchema), refreshToken);
+router.post('/refresh', authLimiter, validateBody(authSchemas.refreshToken), refreshToken);
 
 // ============================================================================
 // Protected Routes (Authentication required)
@@ -183,12 +173,15 @@ router.get('/profile', requireAuth, requirePolicy('auth:profile:view'), getMyPro
  * PUT /api/auth/profile
  * Headers: Authorization: Bearer <token>
  */
-router.put('/profile', requireAuth, requirePolicy('auth:profile:update'), validateBody(profileSchema), updateMyProfile);
+router.put('/profile', requireAuth, requirePolicy('auth:profile:update'), validateBody(authSchemas.updateProfile), updateMyProfile);
 
-router.post('/phone', requireAuth, requirePolicy('auth:phone'), validateBody(updatePhoneSchema), updatePhoneNumber);
-router.post('/email', requireAuth, requirePolicy('auth:email'), validateBody(updateEmailSchema), updateEmailAddress);
-router.post('/policy/accept', requireAuth, requirePolicy('auth:policy'), validateBody(policyConsentSchema), acceptPolicyConsent);
-router.post('/role', requireAuth, requirePolicy('auth:role'), validateBody(updateRoleSchema), updateRole);
+router.post('/phone', requireAuth, requirePolicy('auth:phone'), validateBody(authSchemas.sendOTP), updatePhoneNumber);
+
+router.post('/email', requireAuth, requirePolicy('auth:email'), validateBody(Joi.object({ email: Joi.string().email().required() })), updateEmailAddress);
+
+router.post('/policy/accept', requireAuth, requirePolicy('auth:policy'), validateBody(Joi.object({ role: Joi.string().valid('hirer', 'caregiver').required(), version_policy_accepted: Joi.string().required() })), acceptPolicyConsent);
+
+router.post('/role', requireAuth, requirePolicy('auth:role'), validateBody(Joi.object({ role: commonSchemas.role.required() })), updateRole);
 
 /**
  * Logout (client-side token removal)

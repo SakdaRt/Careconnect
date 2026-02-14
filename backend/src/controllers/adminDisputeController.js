@@ -2,6 +2,18 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { settleDispute } from '../services/disputeService.js';
 
+const logAdminAction = async (adminUserId, action, details = {}) => {
+  try {
+    await query(
+      `INSERT INTO audit_events (id, user_id, event_type, action, details, created_at)
+       VALUES ($1, $2, 'admin_action', $3, $4, NOW())`,
+      [uuidv4(), adminUserId, action, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('[Admin Audit] Failed to log action:', err);
+  }
+};
+
 const parseIntOr = (value, fallback) => {
   const num = Number.parseInt(String(value || ''), 10);
   return Number.isFinite(num) ? num : fallback;
@@ -214,6 +226,13 @@ export const updateDispute = async (req, res) => {
       return res.status(404).json({ error: 'Not Found', message: 'Dispute not found' });
     }
 
+    await logAdminAction(req.userId, 'dispute:update', {
+      dispute_id: id,
+      status: req.body?.status || null,
+      assign_to_me: req.body?.assign_to_me || false,
+      has_note: !!req.body?.note,
+    });
+
     res.json({ success: true, message: 'Dispute updated', data: { dispute: result } });
   } catch (error) {
     console.error('[Admin Disputes] Update dispute error:', error);
@@ -230,6 +249,15 @@ export const settle = async (req, res) => {
     const idempotency_key = req.body?.idempotency_key;
 
     const result = await settleDispute(id, req.userId, { refund_amount, payout_amount, resolution, idempotency_key });
+
+    await logAdminAction(req.userId, 'dispute:settle', {
+      dispute_id: id,
+      refund_amount,
+      payout_amount,
+      has_resolution: !!resolution,
+      idempotency_key: idempotency_key || null,
+    });
+
     res.json({
       success: true,
       message: 'Dispute settled',

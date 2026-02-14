@@ -1,5 +1,6 @@
 import { verifyToken, getUserByToken } from '../services/authService.js';
 import { query } from '../utils/db.js';
+import { UnauthorizedError, ForbiddenError } from '../utils/errors.js';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -37,20 +38,16 @@ export const requireAuth = async (req, res, next) => {
     const token = extractToken(req);
 
     if (!token) {
-      return res.status(401).json({
-        error: 'Authentication required',
-        message: 'No token provided',
-      });
+      const error = new UnauthorizedError('Authentication required');
+      return res.status(error.status).json(error.toJSON());
     }
 
     // Verify token
     try {
       verifyToken(token);
     } catch (error) {
-      return res.status(401).json({
-        error: 'Invalid token',
-        message: error.message,
-      });
+      const authError = new UnauthorizedError('Invalid authentication token', { code: 'INVALID_TOKEN' });
+      return res.status(authError.status).json(authError.toJSON());
     }
 
     // Get user from token
@@ -66,17 +63,14 @@ export const requireAuth = async (req, res, next) => {
 
       next();
     } catch (error) {
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: error.message,
-      });
+      const authError = new UnauthorizedError('Authentication failed');
+      return res.status(authError.status).json(authError.toJSON());
     }
   } catch (error) {
     console.error('[Auth Middleware Error]', error);
-    return res.status(500).json({
-      error: 'Server error',
-      message: 'Authentication check failed',
-    });
+    const { ApiError } = await import('../utils/errors.js');
+    const serverError = new ApiError('Authentication check failed', { status: 500, code: 'INTERNAL_SERVER_ERROR' });
+    return res.status(serverError.status).json(serverError.toJSON());
   }
 };
 
@@ -126,19 +120,17 @@ export const requireRole = (allowedRoles) => {
 
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        error: 'Authentication required',
-        message: 'Please log in to access this resource',
-      });
+      const error = new UnauthorizedError('Authentication required');
+      return res.status(error.status).json(error.toJSON());
     }
 
     if (!roles.includes(req.userRole)) {
-      return res.status(403).json({
-        error: 'Access denied',
-        message: `This resource requires ${roles.join(' or ')} role`,
+      const error = new ForbiddenError('Access denied', {
         requiredRoles: roles,
         userRole: req.userRole,
+        reason: `This resource requires ${roles.join(' or ')} role`
       });
+      return res.status(error.status).json(error.toJSON());
     }
 
     next();
@@ -159,21 +151,19 @@ export const requireTrustLevel = (minTrustLevel) => {
 
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        error: 'Authentication required',
-        message: 'Please log in to access this resource',
-      });
+      const error = new UnauthorizedError('Authentication required');
+      return res.status(error.status).json(error.toJSON());
     }
 
     const userTrustIndex = trustLevelOrder.indexOf(req.userTrustLevel);
 
     if (userTrustIndex < requiredIndex) {
-      return res.status(403).json({
-        error: 'Insufficient trust level',
-        message: `This resource requires trust level ${minTrustLevel} or higher`,
+      const error = new ForbiddenError('Insufficient trust level', {
         requiredLevel: minTrustLevel,
         currentLevel: req.userTrustLevel,
+        reason: `This resource requires trust level ${minTrustLevel} or higher`
       });
+      return res.status(error.status).json(error.toJSON());
     }
 
     next();
@@ -214,7 +204,7 @@ export const can = (user, action) => {
   }
   if (action === 'job:publish') {
     if (role !== 'hirer') return { allowed: false, reason: 'Hirer role required' };
-    return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
+    return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required to publish jobs' };
   }
   if (action === 'job:my-jobs') {
     if (role !== 'hirer') return { allowed: false, reason: 'Hirer role required' };
@@ -222,7 +212,7 @@ export const can = (user, action) => {
   }
   if (action === 'job:feed') {
     if (role !== 'caregiver') return { allowed: false, reason: 'Caregiver role required' };
-    return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required' };
+    return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   }
   if (action === 'job:assigned') {
     if (role !== 'caregiver') return { allowed: false, reason: 'Caregiver role required' };
@@ -289,10 +279,8 @@ export const can = (user, action) => {
 export const requirePolicy = (action) => {
   return async (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({
-        error: 'Authentication required',
-        message: 'Please log in to access this resource',
-      });
+      const error = new UnauthorizedError('Authentication required');
+      return res.status(error.status).json(error.toJSON());
     }
 
     const result = can(req.user, action);
@@ -319,13 +307,12 @@ export const requirePolicy = (action) => {
         console.error('[Policy] Failed to write audit log:', error);
       }
 
-      return res.status(403).json({
-        error: 'Access denied',
-        message: result.reason || 'Insufficient permissions',
+      const error = new ForbiddenError(result.reason || 'Insufficient permissions', {
         action,
         trust_level: req.user.trust_level,
         role: req.user.role,
       });
+      return res.status(error.status).json(error.toJSON());
     }
 
     return next();

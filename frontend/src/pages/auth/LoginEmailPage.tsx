@@ -47,7 +47,7 @@ export default function LoginEmailPage() {
       toast.success('เข้าสู่ระบบสำเร็จ');
 
       const state = location.state as { from?: string } | null;
-      const destination = user.role === 'admin' ? '/admin/dashboard' : '/register/role';
+      const destination = user.role === 'admin' ? '/admin/dashboard' : '/select-role';
       setTimeout(() => {
         navigate(destination, {
           replace: true,

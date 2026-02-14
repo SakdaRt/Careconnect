@@ -62,6 +62,8 @@ export function GooglePlacesInput({
   lat,
   lng,
   showMap,
+  onFormUpdate,
+  hasLocationData,
 }: {
   label?: string;
   placeholder?: string;
@@ -72,6 +74,8 @@ export function GooglePlacesInput({
   lat?: number | null;
   lng?: number | null;
   showMap?: boolean;
+  onFormUpdate?: (data: Partial<AddressResult>) => void;
+  hasLocationData?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
@@ -130,14 +134,18 @@ export function GooglePlacesInput({
         if (typeof lat === 'number' && typeof lng === 'number') {
           applyLatLng(lat, lng, 16);
         }
-        onChange({
+        const result = {
           address_line1: place.formatted_address || inputRef.current?.value || '',
           district,
           province,
           postal_code,
           lat,
           lng,
-        });
+        };
+        onChange(result);
+        if (onFormUpdate) {
+          onFormUpdate(result);
+        }
       });
       if (showMap && mapRef.current && maps.Map && !mapInstanceRef.current) {
         const fallback = { lat: 13.7563, lng: 100.5018 };
@@ -238,8 +246,8 @@ export function GooglePlacesInput({
         value={value}
         onChange={(e) => onChange({ address_line1: e.target.value })}
         placeholder={placeholder || 'ค้นหาที่อยู่ด้วย Google Maps'}
-        disabled={disabled}
-        className={`w-full px-4 py-2 border rounded-lg bg-white ${error ? 'border-red-500' : 'border-gray-300'}`}
+        disabled={disabled || (typeof lat === 'number' && typeof lng === 'number')}
+        className={`w-full px-4 py-2 border rounded-lg ${(typeof lat === 'number' && typeof lng === 'number') ? 'bg-gray-100 border-gray-400' : 'bg-white'} ${error ? 'border-red-500' : 'border-gray-300'}`}
       />
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       {!apiKey ? (

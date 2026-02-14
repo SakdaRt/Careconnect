@@ -12,10 +12,7 @@ import {
   getJobStats as getJobStatsService,
 } from '../services/jobService.js';
 import { ApiError } from '../utils/errors.js';
-import Job from '../models/Job.js';
-
-// Get the InvalidTransitionError class
-const InvalidTransitionError = Job.InvalidTransitionError;
+import Job, { InvalidTransitionError } from '../models/Job.js';
 
 /**
  * Handle job-related errors with proper HTTP status codes
@@ -54,16 +51,22 @@ const handleJobError = (error, res, operation) => {
     });
   }
 
-  if (error.message.includes('Only hirers') || error.message.includes('not active') || error.message.includes('Not authorized')) {
+  if (error.message.includes('Only hirers') || error.message.includes('Only caregivers') ||
+      error.message.includes('not active') || error.message.includes('Not authorized') ||
+      error.message.includes('Insufficient trust')) {
     return res.status(403).json({
       error: 'Forbidden',
       message: error.message,
     });
   }
 
-  if (error.message.includes('Missing') || error.message.includes('Invalid') || error.message.includes('must') || error.message.includes('GPS')) {
+  if (error.message.includes('Missing') || error.message.includes('Invalid') ||
+      error.message.includes('must') || error.message.includes('GPS') ||
+      error.message.includes('Cannot accept') || error.message.includes('Cannot check') ||
+      error.message.includes('Cannot cancel') || error.message.includes('already has') ||
+      error.message.includes('already assigned') || error.message.includes('Insufficient balance')) {
     return res.status(400).json({
-      error: 'Validation error',
+      error: 'Bad request',
       message: error.message,
     });
   }
@@ -196,6 +199,14 @@ export const getHirerJobs = async (req, res) => {
   } catch (error) {
     console.error('[Job Controller] Get hirer jobs error:', error);
 
+    // If table doesn't exist or query fails, return empty result
+    if (error.code === '42P01') {
+      return res.status(200).json({
+        success: true,
+        data: { data: [], total: 0, page: 1, limit: 20, totalPages: 0 },
+      });
+    }
+
     res.status(500).json({
       error: 'Server error',
       message: 'Failed to get jobs',
@@ -293,47 +304,7 @@ export const acceptJob = async (req, res) => {
       data: result,
     });
   } catch (error) {
-    console.error('[Job Controller] Accept job error:', error);
-
-    if (error instanceof ApiError) {
-      return res.status(error.status || 500).json({
-        error: error.status >= 500 ? 'Server error' : 'Bad request',
-        message: error.message,
-        code: error.code,
-        details: error.details || null,
-      });
-    }
-
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        error: 'Not found',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Only caregivers') || error.message.includes('Insufficient trust')) {
-      return res.status(403).json({
-        error: 'Forbidden',
-        message: error.message,
-      });
-    }
-
-    if (
-      error.message.includes('Cannot accept') ||
-      error.message.includes('already has') ||
-      error.message.includes('already assigned') ||
-      error.message.includes('Insufficient balance')
-    ) {
-      return res.status(400).json({
-        error: 'Bad request',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to accept job',
-    });
+    handleJobError(error, res, 'accept job');
   }
 };
 

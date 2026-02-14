@@ -1,50 +1,10 @@
 import express from 'express';
-import Joi from 'joi';
 import walletController from '../controllers/walletController.js';
 import { requireAuth, requireRole, requirePolicy } from '../middleware/auth.js';
+import { validateBody, validateQuery, validateParams, walletSchemas, commonSchemas } from '../utils/validation.js';
+import Joi from 'joi';
 
 const router = express.Router();
-
-const validateBody = (schema) => (req, res, next) => {
-  const { error, value } = schema.validate(req.body, { abortEarly: false });
-  if (error) {
-    return res.status(400).json({
-      error: 'Validation error',
-      message: error.details.map((detail) => detail.message).join(', '),
-    });
-  }
-  req.body = value;
-  return next();
-};
-
-const addBankAccountSchema = Joi.object({
-  bank_code: Joi.string().trim().min(1).required(),
-  bank_name: Joi.string().allow('', null),
-  account_number: Joi.string().trim().min(4).required(),
-  account_name: Joi.string().trim().min(1).required(),
-  set_primary: Joi.boolean(),
-}).unknown(true);
-
-const topupSchema = Joi.object({
-  amount: Joi.number().positive().required(),
-  payment_method: Joi.string().valid('promptpay', 'card', 'bank_transfer'),
-}).unknown(true);
-
-const withdrawSchema = Joi.object({
-  amount: Joi.number().positive().required(),
-  bank_account_id: Joi.string().guid({ version: ['uuidv4', 'uuidv5'] }).required(),
-}).unknown(true);
-
-const adminAddFundsSchema = Joi.object({
-  user_id: Joi.string().guid({ version: ['uuidv4', 'uuidv5'] }).required(),
-  role: Joi.string().valid('hirer', 'caregiver').required(),
-  amount: Joi.number().positive().required(),
-  reason: Joi.string().allow('', null),
-}).unknown(true);
-
-const adminRejectSchema = Joi.object({
-  reason: Joi.string().allow('', null),
-}).unknown(true);
 
 /**
  * Wallet Routes
@@ -66,9 +26,14 @@ router.get('/balance', requireAuth, requirePolicy('wallet:balance'), walletContr
  * Get transaction history
  * GET /api/wallet/transactions
  * Headers: Authorization: Bearer <token>
- * Query: { page?, limit? }
+ * Query: { page?, limit?, transaction_type?, start_date?, end_date? }
  */
-router.get('/transactions', requireAuth, requirePolicy('wallet:transactions'), walletController.getTransactions);
+router.get('/transactions', 
+  requireAuth, 
+  requirePolicy('wallet:transactions'), 
+  validateQuery(walletSchemas.walletQuery), 
+  walletController.getTransactions
+);
 
 /**
  * Get bank accounts (caregiver)
@@ -80,7 +45,12 @@ router.get('/bank-accounts', requireAuth, requirePolicy('wallet:bank-accounts'),
  * Add bank account (caregiver)
  * POST /api/wallet/bank-accounts
  */
-router.post('/bank-accounts', requireAuth, requirePolicy('wallet:bank-add'), validateBody(addBankAccountSchema), walletController.addBankAccount);
+router.post('/bank-accounts', 
+  requireAuth, 
+  requirePolicy('wallet:bank-add'), 
+  validateBody(walletSchemas.addBankAccount), 
+  walletController.addBankAccount
+);
 
 /**
  * Get pending top-ups
@@ -93,16 +63,26 @@ router.get('/topup/pending', requireAuth, requirePolicy('wallet:topup:pending'),
  * Initiate top-up
  * POST /api/wallet/topup
  * Headers: Authorization: Bearer <token>
- * Body: { amount, payment_method? }
+ * Body: { amount, payment_method }
  */
-router.post('/topup', requireAuth, requirePolicy('wallet:topup'), validateBody(topupSchema), walletController.initiateTopup);
+router.post('/topup', 
+  requireAuth, 
+  requirePolicy('wallet:topup'), 
+  validateBody(walletSchemas.topup), 
+  walletController.initiateTopup
+);
 
 /**
  * Get top-up status
  * GET /api/wallet/topup/:topupId
  * Headers: Authorization: Bearer <token>
  */
-router.get('/topup/:topupId', requireAuth, requirePolicy('wallet:topup:status'), walletController.getTopupStatus);
+router.get('/topup/:topupId', 
+  requireAuth, 
+  requirePolicy('wallet:topup:status'),
+  validateParams(Joi.object({ topupId: commonSchemas.uuid })),
+  walletController.getTopupStatus
+);
 
 /**
  * Get withdrawal requests
@@ -110,7 +90,12 @@ router.get('/topup/:topupId', requireAuth, requirePolicy('wallet:topup:status'),
  * Headers: Authorization: Bearer <token>
  * Query: { page?, limit?, status? }
  */
-router.get('/withdrawals', requireAuth, requirePolicy('wallet:withdrawals'), walletController.getWithdrawals);
+router.get('/withdrawals', 
+  requireAuth, 
+  requirePolicy('wallet:withdrawals'),
+  validateQuery(walletSchemas.walletQuery),
+  walletController.getWithdrawals
+);
 
 /**
  * Initiate withdrawal (caregiver only)
@@ -118,14 +103,24 @@ router.get('/withdrawals', requireAuth, requirePolicy('wallet:withdrawals'), wal
  * Headers: Authorization: Bearer <token>
  * Body: { amount, bank_account_id }
  */
-router.post('/withdraw', requireAuth, requirePolicy('wallet:withdraw'), validateBody(withdrawSchema), walletController.initiateWithdrawal);
+router.post('/withdraw', 
+  requireAuth, 
+  requirePolicy('wallet:withdraw'), 
+  validateBody(walletSchemas.withdraw), 
+  walletController.initiateWithdrawal
+);
 
 /**
  * Cancel withdrawal
  * POST /api/wallet/withdrawals/:withdrawalId/cancel
  * Headers: Authorization: Bearer <token>
  */
-router.post('/withdrawals/:withdrawalId/cancel', requireAuth, requirePolicy('wallet:withdraw:cancel'), walletController.cancelWithdrawal);
+router.post('/withdrawals/:withdrawalId/cancel', 
+  requireAuth, 
+  requirePolicy('wallet:withdraw:cancel'),
+  validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  walletController.cancelWithdrawal
+);
 
 // ============================================================================
 // Admin Routes
@@ -142,14 +137,49 @@ router.get('/admin/stats', requireAuth, requireRole('admin'), walletController.g
  * Add funds directly (admin/testing)
  * POST /api/wallet/admin/add-funds
  * Headers: Authorization: Bearer <token>
- * Body: { user_id, role, amount, reason? }
+ * Body: { user_id, amount, transaction_type, description }
  */
-router.post('/admin/add-funds', requireAuth, requireRole('admin'), validateBody(adminAddFundsSchema), walletController.addFunds);
+router.post('/admin/add-funds', 
+  requireAuth, 
+  requireRole('admin'), 
+  validateBody(walletSchemas.adminAddFunds), 
+  walletController.addFunds
+);
 
-router.get('/admin/withdrawals', requireAuth, requireRole('admin'), walletController.adminGetWithdrawals);
-router.post('/admin/withdrawals/:withdrawalId/review', requireAuth, requireRole('admin'), walletController.adminReviewWithdrawal);
-router.post('/admin/withdrawals/:withdrawalId/approve', requireAuth, requireRole('admin'), walletController.adminApproveWithdrawal);
-router.post('/admin/withdrawals/:withdrawalId/reject', requireAuth, requireRole('admin'), validateBody(adminRejectSchema), walletController.adminRejectWithdrawal);
-router.post('/admin/withdrawals/:withdrawalId/mark-paid', requireAuth, requireRole('admin'), walletController.adminMarkWithdrawalPaid);
+router.get('/admin/withdrawals', 
+  requireAuth, 
+  requireRole('admin'), 
+  validateQuery(walletSchemas.walletQuery),
+  walletController.adminGetWithdrawals
+);
+
+router.post('/admin/withdrawals/:withdrawalId/review', 
+  requireAuth, 
+  requireRole('admin'),
+  validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  walletController.adminReviewWithdrawal
+);
+
+router.post('/admin/withdrawals/:withdrawalId/approve', 
+  requireAuth, 
+  requireRole('admin'),
+  validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  walletController.adminApproveWithdrawal
+);
+
+router.post('/admin/withdrawals/:withdrawalId/reject', 
+  requireAuth, 
+  requireRole('admin'), 
+  validateBody(walletSchemas.adminReject),
+  validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  walletController.adminRejectWithdrawal
+);
+
+router.post('/admin/withdrawals/:withdrawalId/mark-paid', 
+  requireAuth, 
+  requireRole('admin'),
+  validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  walletController.adminMarkWithdrawalPaid
+);
 
 export default router;

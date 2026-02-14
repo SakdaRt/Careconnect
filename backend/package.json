@@ -9,9 +9,12 @@
     "dev": "nodemon src/server.js",
     "test": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js --coverage --passWithNoTests",
     "test:watch": "jest --watch",
+    "test:integration": "jest tests/integration --verbose",
+    "test:smoke": "jest tests/integration --testNamePattern='Tier-0' --verbose",
     "lint": "eslint src/**/*.js",
-    "migrate": "node src/utils/migrate.js",
-    "migrate:status": "node src/utils/migrate.js --status"
+    "migrate": "node scripts/migrate.js migrate",
+    "migrate:status": "node scripts/migrate.js status",
+    "migrate:bootstrap": "node scripts/migrate.js bootstrap"
   },
   "keywords": ["careconnect", "healthcare", "backend"],
   "author": "Careconnect Team",

@@ -27,15 +27,15 @@ CREATE TABLE IF NOT EXISTS payments (
     processed_at TIMESTAMP WITH TIME ZONE
 );
 
--- Create indexes for performance
-CREATE INDEX idx_payments_payer_user_id ON payments(payer_user_id);
-CREATE INDEX idx_payments_payee_user_id ON payments(payee_user_id);
-CREATE INDEX idx_payments_status ON payments(status);
-CREATE INDEX idx_payments_created_at ON payments(created_at DESC);
-CREATE INDEX idx_payments_job_id ON payments(job_id);
+-- Create indexes for performance (idempotent)
+CREATE INDEX IF NOT EXISTS idx_payments_payer_user_id ON payments(payer_user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_payee_user_id ON payments(payee_user_id);
+CREATE INDEX IF NOT EXISTS idx_payments_status ON payments(status);
+CREATE INDEX IF NOT EXISTS idx_payments_created_at ON payments(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_payments_job_id ON payments(job_id);
 
 -- Create composite index for user payment queries
-CREATE INDEX idx_payments_user_access ON payments(payer_user_id, payee_user_id, status);
+CREATE INDEX IF NOT EXISTS idx_payments_user_access ON payments(payer_user_id, payee_user_id, status);
 
 -- Add comments for documentation
 COMMENT ON TABLE payments IS 'Payment records for UI display and simulation - actual money movement via wallet/ledger system';

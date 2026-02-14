@@ -1,12 +1,8 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Mail, Phone } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button } from '../../components/ui';
-import { useAuth } from '../../contexts';
-
 export default function LoginEntryPage() {
-  const navigate = useNavigate();
-  const { loginAsDemo } = useAuth();
 
   return (
     <AuthLayout>
@@ -42,34 +38,6 @@ export default function LoginEntryPage() {
           <Link to="/forgot-password" className="text-blue-600 hover:text-blue-700 text-sm">
             ลืมรหัสผ่าน?
           </Link>
-        </div>
-
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-sm text-gray-600 text-center mb-4">หรือเข้าใช้งานแบบเดโม</p>
-          <div className="grid grid-cols-1 gap-4">
-            <Button
-              variant="outline"
-              size="lg"
-              fullWidth
-              onClick={() => {
-                loginAsDemo('hirer');
-                navigate('/hirer/home');
-              }}
-            >
-              เข้าเดโม (ผู้ว่าจ้าง)
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              fullWidth
-              onClick={() => {
-                loginAsDemo('caregiver');
-                navigate('/caregiver/jobs/feed');
-              }}
-            >
-              เข้าเดโม (ผู้ดูแล)
-            </Button>
-          </div>
         </div>
 
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">

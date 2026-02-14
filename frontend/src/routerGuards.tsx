@@ -46,7 +46,7 @@ export function RequireRole({
   if (!user) return <Navigate to="/login" replace />;
 
   if (user.role !== 'admin' && !activeRole) {
-    return <Navigate to="/register/role" replace state={{ mode: 'login', from: location.pathname }} />;
+    return <Navigate to="/select-role" replace state={{ mode: 'login', from: location.pathname }} />;
   }
 
   const resolvedRole: UserRole = user.role === 'admin' ? 'admin' : activeRole!;
@@ -89,6 +89,41 @@ export function RequirePolicy({ children }: { children: ReactNode }) {
         to="/register/consent"
         replace
         state={{ role: resolvedRole, from: location.pathname, mode: 'login' }}
+      />
+    );
+  }
+
+  return <>{children}</>;
+}
+
+/**
+ * Require user to have a display_name set.
+ * Redirects to /profile with a state flag if missing.
+ */
+export function RequireProfile({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const location = useLocation();
+
+  if (isLoading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        <LoadingState message="กำลังตรวจสอบโปรไฟล์..." />
+      </div>
+    );
+  }
+
+  if (!user) return <Navigate to="/login" replace />;
+
+  // Admin users don't need a profile
+  if (user.role === 'admin') return <>{children}</>;
+
+  // If user has no name or name is empty, redirect to profile setup
+  if (!user.name || user.name.trim().length === 0) {
+    return (
+      <Navigate
+        to="/profile"
+        replace
+        state={{ profileRequired: true, from: location.pathname }}
       />
     );
   }

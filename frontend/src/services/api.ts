@@ -25,6 +25,7 @@ interface RequestOptions {
 
 class ApiClient {
   private baseUrl: string;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -42,11 +43,66 @@ class ApiClient {
     localStorage.setItem('careconnect_refresh_token', token);
   }
 
+  private getRefreshToken(): string | null {
+    return localStorage.getItem('careconnect_refresh_token');
+  }
+
   clearTokens(): void {
     localStorage.removeItem('careconnect_token');
     localStorage.removeItem('careconnect_refresh_token');
     localStorage.removeItem('careconnect_user');
   }
+
+  /**
+   * Attempt to refresh the access token using the stored refresh token.
+   * Returns true if refresh succeeded, false otherwise.
+   * Uses a lock so parallel callers share a single refresh request.
+   */
+  private async attemptRefresh(): Promise<boolean> {
+    if (this.refreshPromise) return this.refreshPromise;
+
+    this.refreshPromise = (async () => {
+      const rt = this.getRefreshToken();
+      if (!rt) return false;
+
+      try {
+        const res = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: rt }),
+        });
+        if (!res.ok) return false;
+
+        const data = await res.json();
+        if (data.success && data.data?.accessToken) {
+          this.setAuthToken(data.data.accessToken);
+          if (data.data.refreshToken) {
+            this.setRefreshToken(data.data.refreshToken);
+          }
+          return true;
+        }
+        return false;
+      } catch {
+        return false;
+      }
+    })();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
+  }
+
+  /** Endpoints that must never trigger a token refresh (prevents infinite loops) */
+  private static NO_REFRESH_ENDPOINTS = [
+    '/api/auth/login/email',
+    '/api/auth/login/phone',
+    '/api/auth/register/guest',
+    '/api/auth/register/member',
+    '/api/auth/refresh',
+    '/api/auth/logout',
+  ];
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const { method = 'GET', body, headers = {}, requireAuth = true } = options;
@@ -81,6 +137,21 @@ class ApiClient {
       }
 
       if (!response.ok) {
+        // 401 auto-refresh: attempt ONCE, then retry the original request
+        if (
+          response.status === 401 &&
+          requireAuth &&
+          !(options as any)._retried &&
+          !ApiClient.NO_REFRESH_ENDPOINTS.includes(endpoint)
+        ) {
+          const refreshed = await this.attemptRefresh();
+          if (refreshed) {
+            return this.request<T>(endpoint, { ...options, _retried: true } as any);
+          }
+          // Refresh failed — clear everything
+          this.clearTokens();
+        }
+
         const errorMessage =
           typeof parsed === 'object' && parsed
             ? ((parsed as any).message || (parsed as any).error || 'Request failed')
@@ -662,6 +733,25 @@ class ApiClient {
     const raw: any = await this.request<any>(`/api/care-recipients/${id}`, { method: 'DELETE' });
     if (!raw.success) return raw as ApiResponse<CareRecipient>;
     return { success: true, data: raw.data } as ApiResponse<CareRecipient>;
+  }
+
+  // Notification endpoints
+  async getNotifications(page = 1, limit = 20, unreadOnly = false) {
+    const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (unreadOnly) params.append('unread_only', 'true');
+    return this.request<{ data: AppNotification[]; total: number; unreadCount: number; page: number; limit: number; totalPages: number }>(`/api/notifications?${params}`);
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request<{ notification: AppNotification }>(`/api/notifications/${notificationId}/read`, { method: 'PATCH' });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request<void>('/api/notifications/read-all', { method: 'PATCH' });
   }
 
   // Job endpoints
@@ -1307,6 +1397,21 @@ export interface Pagination {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  channel: string;
+  template_key: string;
+  title: string;
+  body: string;
+  data: Record<string, any> | null;
+  reference_type: string | null;
+  reference_id: string | null;
+  status: string;
+  read_at: string | null;
+  created_at: string;
 }
 
 // Export singleton instance

@@ -36,7 +36,6 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('../services/appApi', () => ({
   appApi: {
-    isDemoToken: () => true,
     getJobById: (...args: any[]) => mockGetJobById(...args),
     getDisputeByJob: (...args: any[]) => mockGetDisputeByJob(...args),
     getChatThread: (...args: any[]) => mockGetChatThread(...args),

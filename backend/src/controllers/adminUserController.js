@@ -1,5 +1,18 @@
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
+import { v4 as uuidv4 } from 'uuid';
+
+const logAdminAction = async (adminUserId, action, details = {}) => {
+  try {
+    await query(
+      `INSERT INTO audit_events (id, user_id, event_type, action, details, created_at)
+       VALUES ($1, $2, 'admin_action', $3, $4, NOW())`,
+      [uuidv4(), adminUserId, action, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('[Admin Audit] Failed to log action:', err);
+  }
+};
 
 const parseIntOr = (value, fallback) => {
   const num = Number.parseInt(String(value || ''), 10);
@@ -159,6 +172,12 @@ export const setUserStatus = async (req, res) => {
     if (status === 'suspended') updated = await User.suspendUser(id, reason);
     else if (status === 'active') updated = await User.reactivateUser(id);
     else updated = await User.softDeleteUser(id);
+
+    await logAdminAction(req.userId, 'user:status', {
+      target_user_id: id,
+      new_status: status,
+      reason: reason || null,
+    });
 
     res.json({
       success: true,

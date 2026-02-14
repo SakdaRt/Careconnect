@@ -1,15 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card } from '../../components/ui';
 import { useAuth } from '../../contexts';
-import {
-  getNotificationsByUserId,
-  markNotificationAsRead,
-  subscribeNotifications,
-  type Notification,
-} from '../../mocks';
+import { api, AppNotification } from '../../services/api';
 
 type Filter = 'all' | 'unread';
 
@@ -17,45 +12,58 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleString('th-TH');
 }
 
+function getNotificationLink(n: AppNotification): string | null {
+  if (n.reference_type === 'job' && n.reference_id) {
+    return `/chat/${n.reference_id}`;
+  }
+  return null;
+}
+
 export default function NotificationsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [items, setItems] = useState<Notification[]>([]);
+  const [items, setItems] = useState<AppNotification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [filter, setFilter] = useState<Filter>('all');
+  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!user) {
       setItems([]);
+      setUnreadCount(0);
       return;
     }
-    const list = getNotificationsByUserId(user.id)
-      .slice()
-      .sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-    setItems(list);
-  }, [user]);
+    setLoading(true);
+    try {
+      const res = await api.getNotifications(1, 50, filter === 'unread');
+      if (res.success && res.data) {
+        setItems(res.data.data || []);
+        setUnreadCount(res.data.unreadCount ?? 0);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [user, filter]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  useEffect(() => {
-    return subscribeNotifications(load);
-  }, [load]);
-
-  const filtered = useMemo(() => {
-    if (filter === 'unread') return items.filter((n) => !n.is_read);
-    return items;
-  }, [filter, items]);
-
-  const unreadCount = useMemo(() => items.filter((n) => !n.is_read).length, [items]);
-
-  const handleOpen = (n: Notification) => {
+  const handleOpen = async (n: AppNotification) => {
     if (!user) return;
-    if (!n.is_read) {
-      markNotificationAsRead(n.id, user.id);
-      load();
+    if (n.status !== 'read') {
+      await api.markNotificationAsRead(n.id);
+      setItems((prev) => prev.map((item) => (item.id === n.id ? { ...item, status: 'read' } : item)));
+      setUnreadCount((c) => Math.max(0, c - 1));
     }
-    if (n.link) navigate(n.link);
+    const link = getNotificationLink(n);
+    if (link) navigate(link);
+  };
+
+  const handleMarkAllRead = async () => {
+    await api.markAllNotificationsAsRead();
+    setItems((prev) => prev.map((item) => ({ ...item, status: 'read' })));
+    setUnreadCount(0);
   };
 
   return (
@@ -83,6 +91,11 @@ export default function NotificationsPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-gray-700">ยังไม่อ่าน: {unreadCount}</div>
                 <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
+                      อ่านทั้งหมด
+                    </Button>
+                  )}
                   <Button variant={filter === 'all' ? 'primary' : 'outline'} size="sm" onClick={() => setFilter('all')}>
                     ทั้งหมด
                   </Button>
@@ -97,7 +110,11 @@ export default function NotificationsPage() {
               </div>
             </Card>
 
-            {filtered.length === 0 ? (
+            {loading ? (
+              <Card className="p-8">
+                <div className="text-center text-sm text-gray-500">กำลังโหลด...</div>
+              </Card>
+            ) : items.length === 0 ? (
               <Card className="p-8">
                 <div className="flex flex-col items-center text-center gap-3">
                   <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
@@ -109,24 +126,27 @@ export default function NotificationsPage() {
               </Card>
             ) : (
               <div className="space-y-2">
-                {filtered.map((n) => (
-                  <button
-                    key={n.id}
-                    className="w-full text-left"
-                    onClick={() => handleOpen(n)}
-                  >
-                    <Card className={`p-4 hover:bg-gray-50 transition-colors ${n.is_read ? '' : 'border-blue-200 bg-blue-50/30'}`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <div className="text-sm font-semibold text-gray-900">{n.title}</div>
-                          <div className="text-sm text-gray-700 mt-1">{n.message}</div>
-                          <div className="text-xs text-gray-500 mt-2">{formatDate(n.created_at)}</div>
+                {items.map((n) => {
+                  const isRead = n.status === 'read';
+                  return (
+                    <button
+                      key={n.id}
+                      className="w-full text-left"
+                      onClick={() => handleOpen(n)}
+                    >
+                      <Card className={`p-4 hover:bg-gray-50 transition-colors ${isRead ? '' : 'border-blue-200 bg-blue-50/30'}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-gray-900">{n.title}</div>
+                            <div className="text-sm text-gray-700 mt-1">{n.body}</div>
+                            <div className="text-xs text-gray-500 mt-2">{formatDate(n.created_at)}</div>
+                          </div>
+                          {!isRead && <div className="w-2 h-2 rounded-full bg-blue-600 mt-1" />}
                         </div>
-                        {!n.is_read && <div className="w-2 h-2 rounded-full bg-blue-600 mt-1" />}
-                      </div>
-                    </Card>
-                  </button>
-                ))}
+                      </Card>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </>

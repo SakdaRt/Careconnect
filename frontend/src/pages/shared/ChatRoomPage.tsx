@@ -131,12 +131,12 @@ export default function ChatRoomPage() {
   }, [load]);
 
   useEffect(() => {
-    if (!thread || appApi.isDemoToken()) return;
+    if (!thread) return;
 
     const env = (import.meta as any).env as Record<string, string | undefined>;
     const socketUrl = env.VITE_SOCKET_URL || window.location.origin;
     const token = localStorage.getItem('careconnect_token');
-    if (!token || token === 'demo') return;
+    if (!token) return;
 
     const socket = io(socketUrl, {
       transports: ['websocket'],
@@ -177,9 +177,9 @@ export default function ChatRoomPage() {
     if (!thread || !trimmed || !jobId) return;
     setSending(true);
     try {
-      const sender = { id: user?.id || 'demo-user', role: user?.role || 'user', name: user?.email || undefined };
+      const sender = { id: user?.id || '', role: user?.role || 'user', name: user?.name || undefined };
       const socket = socketRef.current;
-      if (socket?.connected && !appApi.isDemoToken()) {
+      if (socket?.connected) {
         socket.emit('message:send', { threadId: thread.id, type: 'text', content: trimmed });
         setText('');
         return;
@@ -349,56 +349,45 @@ export default function ChatRoomPage() {
         ) : (
           <div className="flex flex-col gap-3">
             <Card className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="text-sm text-gray-500">งาน</div>
-                  <div className="text-lg font-semibold text-gray-900 line-clamp-1">{job?.title || 'Job'}</div>
+              <div className="flex items-start justify-between gap-3 mb-2">
+                <div className="min-w-0 flex-1">
+                  <div className="text-lg font-semibold text-gray-900 line-clamp-1">{job?.title || 'งาน'}</div>
                   <div className="text-xs text-gray-600 mt-1">
-                    {patientDisplayName ? `ผู้รับการดูแล: ${patientDisplayName}` : hirerName ? `ผู้ว่าจ้าง: ${hirerName}` : ''}
-                    {caregiverName ? ` • ผู้ดูแล: ${caregiverName}` : ''}
+                    {user?.role === 'caregiver'
+                      ? (hirerName ? `ผู้ว่าจ้าง: ${hirerName}` : '')
+                      : (caregiverName ? `ผู้ดูแล: ${caregiverName}` : '')}
+                    {patientDisplayName ? ` • ผู้รับการดูแล: ${patientDisplayName}` : ''}
                   </div>
-                  <div className="text-xs text-gray-600 mt-1">{formatDateTimeRange(job?.scheduled_start_at, job?.scheduled_end_at)}</div>
-                  <div className="text-xs text-gray-600 mt-1">{location || '-'}</div>
-                  {jobStatus === 'cancelled' && cancelReasonDisplay && (
-                    <div className="text-xs text-red-700 mt-2">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
-                  )}
-                  {disputeInfo?.reason && (
-                    <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
-                  )}
-                  <div className="text-[11px] text-gray-500 mt-2 font-mono break-all">job: {jobId}</div>
-                  {job?.id && <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">job_post: {job.id}</div>}
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {jobStatus && <StatusBadge status={jobStatus as any} />}
+                {jobStatus && <StatusBadge status={jobStatus as any} />}
+              </div>
+              <div className="text-xs text-gray-600 space-y-0.5">
+                <div>{formatDateTimeRange(job?.scheduled_start_at, job?.scheduled_end_at)}</div>
+                {location && <div>{location}</div>}
+              </div>
+              {jobStatus === 'cancelled' && cancelReasonDisplay && (
+                <div className="text-xs text-red-700 mt-2">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
+              )}
+              {disputeInfo?.reason && (
+                <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
+              )}
+              {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
+                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
                   {disputeInfo?.id && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => navigate(`/dispute/${disputeInfo.id}`)}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
                       ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
                     </Button>
                   )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!job}
-                    loading={actionLoading === 'cancel'}
-                    onClick={handleCancelJob}
-                  >
+                  {!disputeInfo?.id && job?.job_id && (
+                    <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'dispute'} onClick={handleOpenDispute}>
+                      เปิดข้อพิพาท
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'cancel'} onClick={handleCancelJob}>
                     ยกเลิกงาน
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={!job}
-                    loading={actionLoading === 'dispute'}
-                    onClick={handleOpenDispute}
-                  >
-                    เปิดข้อพิพาท
-                  </Button>
                 </div>
-              </div>
+              )}
             </Card>
 
             {user?.role === 'caregiver' && (
@@ -449,7 +438,7 @@ export default function ChatRoomPage() {
                     <div key={m.id} className={`flex ${align}`}>
                       <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${bubble}`}>
                         {m.sender_id !== null && !isMine && (
-                          <div className="text-[11px] opacity-80 mb-1">{m.sender_name || 'ผู้ใช้'}</div>
+                          <div className="text-[11px] opacity-80 mb-1">{(m as any).sender_role === 'hirer' ? 'ผู้ว่าจ้าง' : (m as any).sender_role === 'caregiver' ? 'ผู้ดูแล' : (m.sender_name || 'ผู้ใช้')}</div>
                         )}
                         <div className="text-sm whitespace-pre-wrap break-words">{m.content}</div>
                         <div className="text-[11px] opacity-70 mt-1 text-right">{formatTime(m.created_at)}</div>

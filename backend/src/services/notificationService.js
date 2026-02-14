@@ -1,0 +1,109 @@
+import { Notification } from '../models/Notification.js';
+
+/**
+ * Create an in-app notification
+ */
+export const createNotification = async ({ userId, templateKey, title, body, data, referenceType, referenceId }) => {
+  return await Notification.create({
+    userId,
+    channel: 'in_app',
+    templateKey,
+    title,
+    body,
+    data,
+    referenceType,
+    referenceId,
+  });
+};
+
+/**
+ * Get notifications for a user
+ */
+export const getNotifications = async (userId, options = {}) => {
+  return await Notification.getByUserId(userId, options);
+};
+
+/**
+ * Mark notification as read
+ */
+export const markAsRead = async (notificationId, userId) => {
+  return await Notification.markAsRead(notificationId, userId);
+};
+
+/**
+ * Mark all notifications as read
+ */
+export const markAllAsRead = async (userId) => {
+  return await Notification.markAllAsRead(userId);
+};
+
+/**
+ * Get unread count
+ */
+export const getUnreadCount = async (userId) => {
+  return await Notification.getUnreadCount(userId);
+};
+
+// ============================================================================
+// Notification triggers for job events
+// ============================================================================
+
+/**
+ * Notify hirer when a caregiver accepts their job
+ */
+export const notifyJobAccepted = async (hirerId, jobTitle, caregiverName, jobId) => {
+  return await createNotification({
+    userId: hirerId,
+    templateKey: 'job_accepted',
+    title: 'มีผู้ดูแลรับงานแล้ว',
+    body: `${caregiverName || 'ผู้ดูแล'} ได้รับงาน "${jobTitle}"`,
+    data: { jobId, caregiverName },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};
+
+/**
+ * Notify hirer when caregiver checks in
+ */
+export const notifyCheckIn = async (hirerId, jobTitle, caregiverName, jobId) => {
+  return await createNotification({
+    userId: hirerId,
+    templateKey: 'job_started',
+    title: 'ผู้ดูแลเช็คอินแล้ว',
+    body: `${caregiverName || 'ผู้ดูแล'} เช็คอินแล้ว - งาน "${jobTitle}" เริ่มต้น`,
+    data: { jobId, caregiverName },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};
+
+/**
+ * Notify hirer when caregiver checks out
+ */
+export const notifyCheckOut = async (hirerId, jobTitle, caregiverName, jobId) => {
+  return await createNotification({
+    userId: hirerId,
+    templateKey: 'job_completed',
+    title: 'งานเสร็จสมบูรณ์',
+    body: `${caregiverName || 'ผู้ดูแล'} เช็คเอาต์แล้ว - งาน "${jobTitle}" เสร็จสิ้น`,
+    data: { jobId, caregiverName },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};
+
+/**
+ * Notify caregiver when job is cancelled
+ */
+export const notifyJobCancelled = async (caregiverId, jobTitle, jobId, reason) => {
+  return await createNotification({
+    userId: caregiverId,
+    templateKey: 'job_cancelled',
+    title: 'งานถูกยกเลิก',
+    body: `งาน "${jobTitle}" ถูกยกเลิก${reason ? ': ' + reason : ''}`,
+    data: { jobId, reason },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};

@@ -2,6 +2,18 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import Job from '../models/Job.js';
 
+const logAdminAction = async (adminUserId, action, details = {}) => {
+  try {
+    await query(
+      `INSERT INTO audit_events (id, user_id, event_type, action, details, created_at)
+       VALUES ($1, $2, 'admin_action', $3, $4, NOW())`,
+      [uuidv4(), adminUserId, action, JSON.stringify(details)]
+    );
+  } catch (err) {
+    console.error('[Admin Audit] Failed to log action:', err);
+  }
+};
+
 const parseIntOr = (value, fallback) => {
   const num = Number.parseInt(String(value || ''), 10);
   return Number.isFinite(num) ? num : fallback;
@@ -206,6 +218,12 @@ export const cancelJob = async (req, res) => {
       }
 
       return { job_post_id: resolvedJobPostId, job_id: job.job_id, status: 'cancelled' };
+    });
+
+    await logAdminAction(req.userId, 'job:cancel', {
+      job_post_id: result.job_post_id,
+      job_id: result.job_id,
+      reason,
     });
 
     res.json({ success: true, message: 'Job cancelled successfully', data: result });

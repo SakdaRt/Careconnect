@@ -347,27 +347,37 @@ class Job extends BaseModel {
   async getHirerJobs(hirerId, options = {}) {
     const { status, page = 1, limit = 20 } = options;
 
-    let whereClause = 'hirer_id = $1';
+    let whereClause = 'jp.hirer_id = $1';
     const values = [hirerId];
     let paramIndex = 2;
 
     if (status) {
-      whereClause += ` AND status = $${paramIndex++}`;
+      whereClause += ` AND jp.status = $${paramIndex++}`;
       values.push(status);
     }
 
     const offset = (page - 1) * limit;
 
     const result = await query(
-      `SELECT * FROM job_posts
+      `SELECT jp.*,
+              j.id as job_id,
+              j.status as job_status,
+              j.started_at,
+              j.completed_at,
+              ja.caregiver_id,
+              cp.display_name as caregiver_name
+       FROM job_posts jp
+       LEFT JOIN jobs j ON j.job_post_id = jp.id
+       LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
        WHERE ${whereClause}
-       ORDER BY created_at DESC
+       ORDER BY jp.created_at DESC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
       [...values, limit, offset]
     );
 
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM job_posts WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total FROM job_posts jp WHERE ${whereClause}`,
       values.slice(0, status ? 2 : 1)
     );
 
@@ -814,6 +824,75 @@ class Job extends BaseModel {
   }
 
   /**
+   * Get a job instance by ID (from the jobs table, not job_posts)
+   * @param {string} jobId - Job instance ID
+   * @returns {object|null} - Job instance with assignment info
+   */
+  async getJobInstanceById(jobId) {
+    const result = await query(
+      `SELECT j.*, ja.caregiver_id, ja.status as assignment_status
+       FROM jobs j
+       LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+       WHERE j.id = $1`,
+      [jobId]
+    );
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Get caregiver's assigned jobs
+   * @param {string} caregiverId - Caregiver user ID
+   * @param {object} options - Filter and pagination options
+   * @returns {object} - Paginated jobs
+   */
+  async getCaregiverJobs(caregiverId, options = {}) {
+    const { status, page = 1, limit = 20 } = options;
+
+    let whereClause = 'ja.caregiver_id = $1';
+    const values = [caregiverId];
+    let paramIndex = 2;
+
+    if (status) {
+      whereClause += ` AND j.status = $${paramIndex++}`;
+      values.push(status);
+    }
+
+    const offset = (page - 1) * limit;
+
+    const result = await query(
+      `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
+              jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
+              jp.address_line1, jp.district, jp.province, jp.is_urgent,
+              ja.status as assignment_status, ja.assigned_at
+       FROM jobs j
+       JOIN job_posts jp ON jp.id = j.job_post_id
+       JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+       WHERE ${whereClause}
+       ORDER BY j.created_at DESC
+       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
+      [...values, limit, offset]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*) as total
+       FROM jobs j
+       JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+       WHERE ${whereClause}`,
+      values
+    );
+
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    return {
+      data: result.rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
    * Get valid transitions for a given state
    * @param {string} currentState - Current state
    * @returns {array} - Array of valid target states
@@ -846,4 +925,6 @@ class Job extends BaseModel {
   }
 }
 
-export default Job;
+const jobInstance = new Job();
+export { InvalidTransitionError };
+export default jobInstance;

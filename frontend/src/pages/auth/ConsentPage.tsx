@@ -39,7 +39,7 @@ export default function ConsentPage() {
     try {
       const response = await appApi.acceptPolicy(resolvedRole, POLICY_VERSION);
       if (!response.success) {
-        toast.error(response.error || 'ยืนยัน Policy ไม่สำเร็จ');
+        toast.error(typeof response.error === 'string' ? response.error : 'ยืนยัน Policy ไม่สำเร็จ');
         return;
       }
 

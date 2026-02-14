@@ -13,6 +13,17 @@ const JWT_SECRET = process.env.JWT_SECRET || 'careconnect_jwt_secret_dev_only';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
 const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '30d';
 
+/**
+ * Generate a safe default display name that doesn't expose PII
+ * @param {string} role - User role
+ * @returns {string} - Default display name e.g. "ผู้ว่าจ้าง A1B2"
+ */
+const generateDefaultDisplayName = (role) => {
+  const suffix = uuidv4().replace(/-/g, '').slice(0, 4).toUpperCase();
+  if (role === 'caregiver') return `ผู้ดูแล ${suffix}`;
+  return `ผู้ว่าจ้าง ${suffix}`;
+};
+
 const normalizePhoneNumber = (value) => {
   if (!value) return null;
   const digits = String(value).replace(/\D/g, '');
@@ -36,8 +47,6 @@ const normalizePhoneNumber = (value) => {
 export const generateAccessToken = (user) => {
   const payload = {
     userId: user.id,
-    email: user.email,
-    phoneNumber: user.phone_number,
     role: user.role,
     accountType: user.account_type,
     trustLevel: user.trust_level,
@@ -161,6 +170,24 @@ export const registerGuest = async (data) => {
       [uuidv4(), user.id, walletType, 'THB']
     );
 
+    // Auto-create profile with default display_name
+    const defaultName = generateDefaultDisplayName(role);
+    if (role === 'hirer') {
+      await client.query(
+        `INSERT INTO hirer_profiles (user_id, display_name, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id, defaultName]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO caregiver_profiles (user_id, display_name, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id, defaultName]
+      );
+    }
+
     // Remove password hash from response
     delete user.password_hash;
 
@@ -230,6 +257,24 @@ export const registerMember = async (data) => {
        VALUES ($1, $2, $3, 0, 0, $4, NOW(), NOW())`,
       [uuidv4(), user.id, walletType, 'THB']
     );
+
+    // Auto-create profile with default display_name
+    const defaultName = generateDefaultDisplayName(role);
+    if (role === 'hirer') {
+      await client.query(
+        `INSERT INTO hirer_profiles (user_id, display_name, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id, defaultName]
+      );
+    } else {
+      await client.query(
+        `INSERT INTO caregiver_profiles (user_id, display_name, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (user_id) DO NOTHING`,
+        [user.id, defaultName]
+      );
+    }
 
     // Remove password hash from response
     delete user.password_hash;

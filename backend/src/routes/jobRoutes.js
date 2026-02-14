@@ -1,5 +1,4 @@
 import express from 'express';
-import Joi from 'joi';
 import {
   getJobStats,
   getJobFeed,
@@ -14,20 +13,10 @@ import {
   cancelJob,
 } from '../controllers/jobController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
+import { validateBody, validateQuery, validateParams, jobSchemas, commonSchemas } from '../utils/validation.js';
+import Joi from 'joi';
 
 const router = express.Router();
-
-const validateBody = (schema) => (req, res, next) => {
-  const { error, value } = schema.validate(req.body, { abortEarly: false });
-  if (error) {
-    return res.status(400).json({
-      error: 'Validation error',
-      message: error.details.map((detail) => detail.message).join(', '),
-    });
-  }
-  req.body = value;
-  return next();
-};
 
 const createJobSchema = Joi.object({
   title: Joi.string().trim().min(1).required(),
@@ -64,8 +53,8 @@ const gpsSchema = Joi.object({
 }).unknown(true);
 
 const cancelSchema = Joi.object({
-  reason: Joi.string().trim().min(1).required(),
-}).unknown(true);
+  reason: Joi.string().trim().min(1).max(500).required(),
+});
 
 /**
  * Job Routes
@@ -95,7 +84,12 @@ router.get('/stats', requireAuth, requirePolicy('job:stats'), getJobStats);
  * Headers: Authorization: Bearer <token>
  * Query: { job_type?, risk_level?, is_urgent?, page?, limit? }
  */
-router.get('/feed', requireAuth, requirePolicy('job:feed'), getJobFeed);
+router.get('/feed', 
+  requireAuth, 
+  requirePolicy('job:feed'), 
+  validateQuery(jobSchemas.jobQuery),
+  getJobFeed
+);
 
 /**
  * Get hirer's jobs
@@ -103,7 +97,12 @@ router.get('/feed', requireAuth, requirePolicy('job:feed'), getJobFeed);
  * Headers: Authorization: Bearer <token>
  * Query: { status?, page?, limit? }
  */
-router.get('/my-jobs', requireAuth, requirePolicy('job:my-jobs'), getHirerJobs);
+router.get('/my-jobs', 
+  requireAuth, 
+  requirePolicy('job:my-jobs'), 
+  validateQuery(commonSchemas.pagination),
+  getHirerJobs
+);
 
 /**
  * Get caregiver's assigned jobs
@@ -111,14 +110,24 @@ router.get('/my-jobs', requireAuth, requirePolicy('job:my-jobs'), getHirerJobs);
  * Headers: Authorization: Bearer <token>
  * Query: { status?, page?, limit? }
  */
-router.get('/assigned', requireAuth, requirePolicy('job:assigned'), getCaregiverJobs);
+router.get('/assigned', 
+  requireAuth, 
+  requirePolicy('job:assigned'), 
+  validateQuery(commonSchemas.pagination),
+  getCaregiverJobs
+);
 
 /**
  * Get job by ID
  * GET /api/jobs/:id
  * Headers: Authorization: Bearer <token>
  */
-router.get('/:id', requireAuth, requirePolicy('job:get'), getJobById);
+router.get('/:id', 
+  requireAuth, 
+  requirePolicy('job:get'),
+  validateParams(jobSchemas.jobParams),
+  getJobById
+);
 
 /**
  * Create a new job post (draft)
@@ -134,37 +143,64 @@ router.get('/:id', requireAuth, requirePolicy('job:get'), getJobById);
  *   patient_profile_id?
  * }
  */
-router.post('/', requireAuth, requirePolicy('job:create'), validateBody(createJobSchema), createJob);
+router.post('/', 
+  requireAuth, 
+  requirePolicy('job:create'), 
+  validateBody(jobSchemas.createJob), 
+  createJob
+);
 
 /**
  * Publish job post (draft → posted)
  * POST /api/jobs/:id/publish
  * Headers: Authorization: Bearer <token>
  */
-router.post('/:id/publish', requireAuth, requirePolicy('job:publish'), publishJob);
+router.post('/:id/publish', 
+  requireAuth, 
+  requirePolicy('job:publish'),
+  validateParams(jobSchemas.jobParams),
+  publishJob
+);
 
 /**
  * Accept a job (posted → assigned)
  * POST /api/jobs/:id/accept
  * Headers: Authorization: Bearer <token>
  */
-router.post('/:id/accept', requireAuth, requirePolicy('job:accept'), acceptJob);
+router.post('/:id/accept', 
+  requireAuth, 
+  requirePolicy('job:accept'),
+  validateParams(jobSchemas.jobParams),
+  acceptJob
+);
 
 /**
  * Check in to job (assigned → in_progress)
  * POST /api/jobs/:jobId/checkin
  * Headers: Authorization: Bearer <token>
- * Body: { lat?, lng?, accuracy_m? }
+ * Body: { lat, lng, accuracy_m? }
  */
-router.post('/:jobId/checkin', requireAuth, requirePolicy('job:checkin'), validateBody(gpsSchema), checkIn);
+router.post('/:jobId/checkin', 
+  requireAuth, 
+  requirePolicy('job:checkin'), 
+  validateParams(Joi.object({ jobId: commonSchemas.uuid })),
+  validateBody(gpsSchema), 
+  checkIn
+);
 
 /**
  * Check out from job (in_progress → completed)
  * POST /api/jobs/:jobId/checkout
  * Headers: Authorization: Bearer <token>
- * Body: { lat?, lng?, accuracy_m? }
+ * Body: { lat, lng, accuracy_m? }
  */
-router.post('/:jobId/checkout', requireAuth, requirePolicy('job:checkout'), validateBody(gpsSchema), checkOut);
+router.post('/:jobId/checkout', 
+  requireAuth, 
+  requirePolicy('job:checkout'), 
+  validateParams(Joi.object({ jobId: commonSchemas.uuid })),
+  validateBody(gpsSchema), 
+  checkOut
+);
 
 /**
  * Cancel job
@@ -172,6 +208,12 @@ router.post('/:jobId/checkout', requireAuth, requirePolicy('job:checkout'), vali
  * Headers: Authorization: Bearer <token>
  * Body: { reason }
  */
-router.post('/:id/cancel', requireAuth, requirePolicy('job:cancel'), validateBody(cancelSchema), cancelJob);
+router.post('/:id/cancel', 
+  requireAuth, 
+  requirePolicy('job:cancel'), 
+  validateParams(jobSchemas.jobParams),
+  validateBody(cancelSchema),
+  cancelJob
+);
 
 export default router;

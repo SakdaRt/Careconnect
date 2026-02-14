@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Shield } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
+import { useAuth } from '../../contexts';
 
 function formatDate(startIso: string) {
   const d = new Date(startIso);
@@ -11,8 +13,10 @@ function formatDate(startIso: string) {
 }
 
 export default function CaregiverJobFeedPage() {
-  const [jobs, setJobs] = useState<JobPost[]>([]);
+  const { user } = useAuth();
+  const [jobs, setJobs] = useState<(JobPost & { eligible?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
+  const isL0 = user?.trust_level === 'L0';
 
   const load = async () => {
     setLoading(true);
@@ -47,6 +51,16 @@ export default function CaregiverJobFeedPage() {
           </Button>
         </div>
 
+        {isL0 && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
+            <Shield className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+            <div className="text-sm text-yellow-900">
+              <p className="font-semibold mb-1">ยืนยันตัวตนเพื่อรับงาน</p>
+              <p>คุณยังไม่ได้ยืนยันเบอร์โทรศัพท์ กรุณายืนยัน OTP เพื่อเลื่อนเป็น Trust Level L1 แล้วจึงจะสามารถรับงานได้</p>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
@@ -72,10 +86,15 @@ export default function CaregiverJobFeedPage() {
                         <div>ค่าจ้างรวม: {job.total_amount.toLocaleString()} บาท</div>
                         <div>ประเภท: {job.job_type}</div>
                       </div>
+                      {job.eligible === false && (
+                        <div className="mt-2 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1 inline-block">
+                          ต้อง Trust Level {job.min_trust_level} ขึ้นไปจึงจะรับงานนี้ได้
+                        </div>
+                      )}
                       <div className="mt-4">
                         <Link to={`/caregiver/jobs/${job.id}/preview`}>
-                          <Button variant="primary" size="sm">
-                            ดูรายละเอียด / รับงาน
+                          <Button variant={job.eligible === false ? 'outline' : 'primary'} size="sm">
+                            {job.eligible === false ? 'ดูรายละเอียด' : 'ดูรายละเอียด / รับงาน'}
                           </Button>
                         </Link>
                       </div>

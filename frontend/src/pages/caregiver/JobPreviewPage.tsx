@@ -57,11 +57,11 @@ export default function JobPreviewPage() {
     try {
       const res = await appApi.acceptJob(job.id, caregiverId);
       if (res.success && res.data?.job_id) {
-        toast.success(appApi.isDemoToken() ? 'รับงานแล้ว (เดโม)' : 'รับงานแล้ว');
+        toast.success('รับงานแล้ว');
         navigate(`/chat/${res.data.job_id}`);
         return;
       }
-      toast.error(res.error || (appApi.isDemoToken() ? 'รับงานไม่สำเร็จ (เดโม): ยอดเงินผู้ว่าจ้างไม่เพียงพอ' : 'รับงานไม่สำเร็จ'));
+      toast.error(res.error || 'รับงานไม่สำเร็จ');
     } finally {
       setAccepting(false);
     }

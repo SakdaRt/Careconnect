@@ -17,14 +17,12 @@ import { BottomBar } from '../components/navigation/BottomBar';
 import { AdminLayout } from '../layouts/AdminLayout';
 
 const logoutMock = vi.fn();
-const loginAsDemoMock = vi.fn();
 let currentUser: any = null;
 
 vi.mock('../contexts', () => ({
   useAuth: () => ({
     user: currentUser,
     logout: logoutMock,
-    loginAsDemo: loginAsDemoMock,
   }),
 }));
 
@@ -46,7 +44,6 @@ const sampleJobPost = {
 
 vi.mock('../services/appApi', () => ({
   appApi: {
-    isDemoToken: () => true,
     getMyJobs: async () => ({ success: true, data: { data: [] } }),
     publishJob: async () => ({ success: true, data: {} }),
     getDisputeByJob: async () => ({ success: true, data: {} }),
@@ -130,7 +127,6 @@ describe('Landing page navigation', () => {
 describe('Auth entry navigation', () => {
   beforeEach(() => {
     currentUser = null;
-    loginAsDemoMock.mockClear();
   });
 
   it('navigates to login methods and forgot password', () => {

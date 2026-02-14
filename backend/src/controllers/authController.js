@@ -8,6 +8,7 @@ import {
 import { acceptPolicy, getPolicyAcceptances } from '../services/policyService.js';
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
+import { v4 as uuidv4 } from 'uuid';
 
 const normalizePhoneNumber = (value) => {
   if (!value) return null;
@@ -33,6 +34,46 @@ const normalizeEmail = (value) => {
  * Auth Controller
  * Handles authentication-related HTTP requests
  */
+
+/**
+ * Ensure a profile row exists for a user. Creates one with a safe default
+ * display_name if missing. This handles users created before auto-profile was added.
+ */
+const ensureProfileExists = async (userId, role) => {
+  try {
+    if (role === 'admin') return;
+    const table = role === 'hirer' ? 'hirer_profiles' : 'caregiver_profiles';
+    const existing = await query(`SELECT user_id FROM ${table} WHERE user_id = $1`, [userId]);
+    if (existing.rows.length > 0) return;
+    const suffix = uuidv4().replace(/-/g, '').slice(0, 4).toUpperCase();
+    const defaultName = role === 'caregiver' ? `ผู้ดูแล ${suffix}` : `ผู้ว่าจ้าง ${suffix}`;
+    await query(
+      `INSERT INTO ${table} (user_id, display_name, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id) DO NOTHING`,
+      [userId, defaultName]
+    );
+  } catch (err) {
+    console.error('[ensureProfileExists] Error:', err.message, err.stack);
+  }
+};
+
+/**
+ * Build a safe user response object:
+ * - Always includes 'name' from profile display_name
+ * - Strips password_hash
+ */
+const buildSafeUserResponse = async (userId) => {
+  try {
+    const userWithProfile = await User.getUserWithProfile(userId);
+    if (!userWithProfile) return null;
+    const { profile, ...rest } = userWithProfile;
+    const name = profile?.display_name ? String(profile.display_name) : rest.name || null;
+    delete rest.password_hash;
+    return { ...rest, name };
+  } catch (err) {
+    console.error('[buildSafeUserResponse] Error:', err.message, err.stack);
+    return null;
+  }
+};
 
 /**
  * Register guest user (email + password)
@@ -175,13 +216,17 @@ export const loginWithEmail = async (req, res) => {
     // Login user
     const result = await loginWithEmailService(email, password);
 
+    // Ensure profile exists for legacy users
+    await ensureProfileExists(result.user.id, result.user.role);
+
+    const safeUser = await buildSafeUserResponse(result.user.id);
     const policyAcceptances = await getPolicyAcceptances(result.user.id);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
-        user: { ...result.user, policy_acceptances: policyAcceptances },
+        user: { ...(safeUser || result.user), policy_acceptances: policyAcceptances },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       },
@@ -233,13 +278,17 @@ export const loginWithPhone = async (req, res) => {
     // Login user
     const result = await loginWithPhoneService(phone_number, password);
 
+    // Ensure profile exists for legacy users
+    await ensureProfileExists(result.user.id, result.user.role);
+
+    const safeUser = await buildSafeUserResponse(result.user.id);
     const policyAcceptances = await getPolicyAcceptances(result.user.id);
 
     res.status(200).json({
       success: true,
       message: 'Login successful',
       data: {
-        user: { ...result.user, policy_acceptances: policyAcceptances },
+        user: { ...(safeUser || result.user), policy_acceptances: policyAcceptances },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
       },
@@ -538,18 +587,22 @@ const normalizeNumber = (value) => {
  */
 export const getCurrentUser = async (req, res) => {
   try {
-    const userWithProfile = await User.getUserWithProfile(req.userId);
-    if (!userWithProfile) {
+    // Ensure profile exists for legacy users
+    const rawUser = await User.findById(req.userId);
+    if (rawUser) {
+      await ensureProfileExists(rawUser.id, rawUser.role);
+    }
+
+    const safeUser = await buildSafeUserResponse(req.userId);
+    if (!safeUser) {
       return res.status(404).json({
         error: 'Not Found',
         message: 'User not found',
       });
     }
 
-    const { profile, ...rest } = userWithProfile;
-    const name = profile?.display_name ? String(profile.display_name) : rest.name || null;
     const policyAcceptances = await getPolicyAcceptances(req.userId);
-    const user = { ...rest, name, policy_acceptances: policyAcceptances };
+    const user = { ...safeUser, policy_acceptances: policyAcceptances };
 
     res.status(200).json({
       success: true,

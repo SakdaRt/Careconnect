@@ -278,7 +278,8 @@ async function updateUserTrust(userId) {
       level: newLevel,
     };
   } catch (error) {
-    console.error(`[Trust Worker] Error updating user ${userId}:`, error);
+    // Error updating user - log silently for production
+    // logger.error(`[Trust Worker] Error updating user ${userId}:`, error)
     return { success: false, userId, error: error.message };
   }
 }
@@ -288,7 +289,7 @@ async function updateUserTrust(userId) {
  * @returns {object} - Summary of updates
  */
 async function runTrustLevelWorker() {
-  console.log('[Trust Worker] Starting trust level calculation...');
+  // Starting trust level calculation
   const startTime = Date.now();
 
   // Get all caregiver users
@@ -316,13 +317,14 @@ async function runTrustLevelWorker() {
       }
     } else {
       results.errors++;
-      console.error(`[Trust Worker] Failed for user ${user.id}:`, result.error);
+    // Failed for user - log silently for production
+    // logger.error(`[Trust Worker] Failed for user ${user.id}:`, result.error)
     }
   }
 
   const duration = Date.now() - startTime;
-  console.log(`[Trust Worker] Completed in ${duration}ms`);
-  console.log(`[Trust Worker] Updated: ${results.updated}, Unchanged: ${results.unchanged}, Errors: ${results.errors}`);
+  // Completed trust level calculation
+  // Duration: ${duration}ms, Updated: ${results.updated}, Unchanged: ${results.unchanged}, Errors: ${results.errors}
 
   return results;
 }
@@ -332,7 +334,7 @@ async function runTrustLevelWorker() {
  * @param {string} userId - User ID
  */
 async function triggerUserTrustUpdate(userId, source = 'event') {
-  console.log(`[Trust Worker] Triggered update for user ${userId}`);
+  // Triggered update for user ${userId} from ${source}
   const startTime = Date.now();
   const result = await updateUserTrust(userId);
   const durationMs = Date.now() - startTime;

@@ -1,5 +1,6 @@
 import express from 'express';
 import webhookController from '../controllers/webhookController.js';
+import { webhookLimiter } from '../utils/rateLimiter.js';
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ const router = express.Router();
  * Headers: x-webhook-signature (optional in dev)
  * Body: { event, data }
  */
-router.post('/payment', webhookController.handlePaymentWebhook);
+router.post('/payment', webhookLimiter, webhookController.handlePaymentWebhook);
 
 /**
  * KYC provider webhook
@@ -25,7 +26,7 @@ router.post('/payment', webhookController.handlePaymentWebhook);
  * Headers: x-webhook-signature (optional in dev)
  * Body: { event, data }
  */
-router.post('/kyc', webhookController.handleKycWebhook);
+router.post('/kyc', webhookLimiter, webhookController.handleKycWebhook);
 
 /**
  * SMS provider webhook

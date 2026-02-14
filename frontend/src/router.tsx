@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { MainLayout, AdminLayout } from './layouts';
 import { PlaceholderPage } from './components/PlaceholderPage';
 import { LoadingState } from './components/ui';
+import { RouteErrorFallback } from './components/ErrorBoundary';
 const ComponentShowcase = lazy(() => import('./pages/ComponentShowcase'));
 const JobDetailPage = lazy(() => import('./pages/shared/JobDetailPage'));
 const ChatRoomPage = lazy(() => import('./pages/shared/ChatRoomPage'));
@@ -42,7 +43,7 @@ const CaregiverWalletPage = lazy(() => import('./pages/caregiver/CaregiverWallet
 const EarningsHistoryPage = lazy(() => import('./pages/caregiver/EarningsHistoryPage'));
 const JobEarningDetailPage = lazy(() => import('./pages/caregiver/JobEarningDetailPage'));
 const AdminFinancialPage = lazy(() => import('./pages/admin/AdminFinancialPage'));
-import { RequireAdmin, RequireAuth, RequirePolicy, RequireRole } from './routerGuards';
+import { RequireAdmin, RequireAuth, RequirePolicy, RequireProfile, RequireRole } from './routerGuards';
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/AdminDashboardPage'));
 const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage'));
@@ -80,6 +81,10 @@ const CancelJobPage = () => <MainLayout showBottomBar={false}><PlaceholderPage t
 // Router Configuration
 // ============================================================================
 export const router = createBrowserRouter([
+  {
+    // Root layout route — provides errorElement for all child routes
+    errorElement: <RouteErrorFallback />,
+    children: [
   // Public Routes
   {
     path: '/',
@@ -132,7 +137,7 @@ export const router = createBrowserRouter([
   { path: '/register', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><RegisterTypePage /></Suspense> },
   { path: '/register/guest', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><GuestRegisterPage /></Suspense> },
   { path: '/register/member', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><MemberRegisterPage /></Suspense> },
-  { path: '/register/role', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><RoleSelectionPage /></Suspense> },
+  { path: '/select-role', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><RoleSelectionPage /></Suspense> },
   { path: '/register/consent', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><ConsentPage /></Suspense> },
 
   // Hirer Routes
@@ -142,9 +147,11 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['hirer']}>
           <RequirePolicy>
-            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-              <HirerHomePage />
-            </Suspense>
+            <RequireProfile>
+              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+                <HirerHomePage />
+              </Suspense>
+            </RequireProfile>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -156,9 +163,11 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['hirer']}>
           <RequirePolicy>
-            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-              <CreateJobPage />
-            </Suspense>
+            <RequireProfile>
+              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+                <CreateJobPage />
+              </Suspense>
+            </RequireProfile>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -256,9 +265,11 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['caregiver']}>
           <RequirePolicy>
-            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-              <CaregiverJobFeedPage />
-            </Suspense>
+            <RequireProfile>
+              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+                <CaregiverJobFeedPage />
+              </Suspense>
+            </RequireProfile>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -270,9 +281,11 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['caregiver']}>
           <RequirePolicy>
-            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-              <CaregiverMyJobsPage />
-            </Suspense>
+            <RequireProfile>
+              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+                <CaregiverMyJobsPage />
+              </Suspense>
+            </RequireProfile>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -430,4 +443,6 @@ export const router = createBrowserRouter([
 
   // Fallback
   { path: '*', element: <Navigate to="/" replace /> },
+    ], // end children
+  }, // end root layout route
 ]);

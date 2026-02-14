@@ -282,9 +282,6 @@ export default function CreateJobPage() {
     if (!form.title.trim()) throw new Error('กรุณากรอกชื่องาน');
     if (!form.description.trim()) throw new Error('กรุณากรอกรายละเอียดงาน');
     if (!form.address_line1.trim()) throw new Error('กรุณากรอกที่อยู่');
-    if (typeof form.lat !== 'number' || typeof form.lng !== 'number') {
-      throw new Error('กรุณาเลือกที่อยู่จาก Google Maps');
-    }
     if (!form.job_tasks_flags.length) throw new Error('กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง');
 
     return {
@@ -345,14 +342,15 @@ export default function CreateJobPage() {
         ? ((res.data as any)?.job || (res.data as any))
         : ((res as any)?.data?.job || (res as any)?.job || null);
       if (!createdJob || !(createdJob as any).id) {
-        const details = (res as any).details || {};
-        const code = (res as any).code as string | undefined;
+        const errObj = typeof res.error === 'object' && res.error ? res.error as any : {};
+        const details = (res as any).details || errObj.details || {};
+        const code = ((res as any).code || errObj.code) as string | undefined;
         const section = details.section as string | undefined;
         const field = details.field as string | undefined;
         const relatedTask = details.related_task as string | undefined;
 
         const taskLabel = relatedTask ? (labelByValue(JOB_TASK_OPTIONS as any, [relatedTask])[0] || relatedTask) : null;
-        let thai = res.error || 'สร้างงานไม่สำเร็จ';
+        let thai = (typeof res.error === 'string' ? res.error : errObj.message || 'สร้างงานไม่สำเร็จ');
         if (code === 'JOB_REQUIRED_FIELD') {
           const map: Record<string, string> = {
             title: 'กรุณากรอกชื่องาน',
@@ -879,37 +877,52 @@ export default function CreateJobPage() {
                 showMap
                 lat={form.lat}
                 lng={form.lng}
+                hasLocationData={!!(form.lat && form.lng && form.address_line1)}
                 onChange={(next) => {
                   const nextLat = typeof next.lat === 'number' ? next.lat : undefined;
                   const nextLng = typeof next.lng === 'number' ? next.lng : undefined;
                   setErrorSection(null);
                   setErrorMessage(null);
                   setFieldErrors((prev) => ({ ...prev, address_line1: '' }));
-                  setForm({
-                    ...form,
+                  setForm((prev) => ({
+                    ...prev,
                     address_line1: next.address_line1 || '',
-                    district: next.district || '',
-                    province: next.province || form.province,
-                    postal_code: next.postal_code || '',
+                    district: next.district || prev.district,
+                    province: next.province || prev.province,
+                    postal_code: next.postal_code || prev.postal_code,
                     lat: nextLat,
                     lng: nextLng,
-                  });
+                  }));
                 }}
               />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input
-                  label="เขต/อำเภอ"
-                  value={form.district}
-                  onChange={(e) => setForm({ ...form, district: e.target.value })}
-                  placeholder="เช่น วัฒนา"
-                />
-                <Input
-                  label="จังหวัด"
-                  value={form.province}
-                  onChange={(e) => setForm({ ...form, province: e.target.value })}
-                  placeholder="เช่น Bangkok"
-                />
+                {!form.district && !form.province && (
+                  <>
+                    <Input
+                      label="เขต/อำเภอ"
+                      value={form.district}
+                      onChange={(e) => setForm({ ...form, district: e.target.value })}
+                      placeholder="เช่น วัฒนา"
+                    />
+                    <Input
+                      label="จังหวัด"
+                      value={form.province}
+                      onChange={(e) => setForm({ ...form, province: e.target.value })}
+                      placeholder="เช่น Bangkok"
+                    />
+                  </>
+                )}
+                {(form.district || form.province) && (
+                  <div className="sm:col-span-2">
+                    <div className="text-sm text-gray-600">
+                      ที่อยู่: {form.address_line1}
+                      {form.district && `, ${form.district}`}
+                      {form.province && `, ${form.province}`}
+                      {form.postal_code && ` ${form.postal_code}`}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

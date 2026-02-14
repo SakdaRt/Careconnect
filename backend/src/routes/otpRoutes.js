@@ -1,6 +1,7 @@
 import express from 'express';
 import { sendEmailOtp, sendPhoneOtp, verifyOtp, resendOtp } from '../controllers/otpController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
+import { otpLimiter } from '../utils/rateLimiter.js';
 
 const router = express.Router();
 
@@ -16,14 +17,14 @@ const router = express.Router();
  * POST /api/otp/email/send
  * Headers: Authorization: Bearer <token>
  */
-router.post('/email/send', requireAuth, requirePolicy('auth:otp'), sendEmailOtp);
+router.post('/email/send', requireAuth, requirePolicy('auth:otp'), otpLimiter, sendEmailOtp);
 
 /**
  * Send phone OTP
  * POST /api/otp/phone/send
  * Headers: Authorization: Bearer <token>
  */
-router.post('/phone/send', requireAuth, requirePolicy('auth:otp'), sendPhoneOtp);
+router.post('/phone/send', requireAuth, requirePolicy('auth:otp'), otpLimiter, sendPhoneOtp);
 
 /**
  * Verify OTP
@@ -31,7 +32,7 @@ router.post('/phone/send', requireAuth, requirePolicy('auth:otp'), sendPhoneOtp)
  * Headers: Authorization: Bearer <token>
  * Body: { otp_id, code }
  */
-router.post('/verify', requireAuth, requirePolicy('auth:otp'), verifyOtp);
+router.post('/verify', requireAuth, requirePolicy('auth:otp'), otpLimiter, verifyOtp);
 
 /**
  * Resend OTP
@@ -39,6 +40,6 @@ router.post('/verify', requireAuth, requirePolicy('auth:otp'), verifyOtp);
  * Headers: Authorization: Bearer <token>
  * Body: { otp_id }
  */
-router.post('/resend', requireAuth, requirePolicy('auth:otp'), resendOtp);
+router.post('/resend', requireAuth, requirePolicy('auth:otp'), otpLimiter, resendOtp);
 
 export default router;

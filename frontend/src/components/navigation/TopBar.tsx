@@ -1,18 +1,39 @@
 import { Link } from 'react-router-dom';
 import { Bell, User, Settings, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../contexts';
-import { useEffect, useMemo, useState } from 'react';
-import { getUnreadCount, subscribeNotifications } from '../../mocks';
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '../../services/api';
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return '***';
+  const visible = local.slice(0, 2);
+  return `${visible}***@${domain}`;
+}
+
+function maskPhone(phone: string): string {
+  if (phone.length <= 4) return '***';
+  return '***' + phone.slice(-4);
+}
 
 export function TopBar() {
   const { user, logout } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
-  const [tick, setTick] = useState(0);
-  const unreadCount = useMemo(() => (user ? getUnreadCount(user.id) : 0), [user, tick]);
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  const fetchUnread = useCallback(async () => {
+    if (!user) { setUnreadCount(0); return; }
+    try {
+      const res = await api.getUnreadNotificationCount();
+      if (res.success && res.data) setUnreadCount(res.data.count ?? 0);
+    } catch { /* ignore */ }
+  }, [user]);
 
   useEffect(() => {
-    return subscribeNotifications(() => setTick((t) => t + 1));
-  }, []);
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30000);
+    return () => clearInterval(interval);
+  }, [fetchUnread]);
 
   if (!user) return null;
 
@@ -63,7 +84,7 @@ export function TopBar() {
                     {/* User Info */}
                     <div className="px-4 py-3 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-900">{user.name || 'ผู้ใช้'}</p>
-                      <p className="text-xs text-gray-500">{user.email || user.phone_number}</p>
+                      <p className="text-xs text-gray-500">{user.email ? maskEmail(user.email) : user.phone_number ? maskPhone(user.phone_number) : ''}</p>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                           {user.role === 'hirer' ? 'ผู้ว่าจ้าง' : user.role === 'caregiver' ? 'ผู้ดูแล' : 'แอดมิน'}

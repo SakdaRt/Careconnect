@@ -97,4 +97,7 @@ export const closePool = async () => {
   console.log('[Database] Pool has been closed');
 };
 
+// Export pool for backward compatibility
+export { pool };
+
 export default pool;

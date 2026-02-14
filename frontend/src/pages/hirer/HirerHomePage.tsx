@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { MessageCircle, User as UserIcon } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -28,7 +29,7 @@ function JobPostCard({
   onOpenDispute,
   onCancel,
 }: {
-  job: JobPost;
+  job: JobPost & { caregiver_name?: string | null; job_status?: string | null; job_id?: string | null };
   onPublish: () => void;
   onOpenDispute: () => void;
   onCancel: () => void;
@@ -59,12 +60,37 @@ function JobPostCard({
             </div>
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
+          {job.caregiver_name && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
+            <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                <UserIcon className="w-4 h-4 text-blue-600" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-medium text-gray-900">{job.caregiver_name}</div>
+                <div className="text-xs text-gray-600">
+                  {job.job_status === 'assigned' && 'รอเช็คอิน'}
+                  {job.job_status === 'in_progress' && 'กำลังดูแล'}
+                  {job.job_status === 'completed' && 'เสร็จสิ้น'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-gray-100">
             <Link to={`/jobs/${job.id}`}>
               <Button variant="outline" size="sm">
                 ดูรายละเอียด
               </Button>
             </Link>
+
+            {job.job_id && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
+              <Link to={`/chat/${job.job_id}`}>
+                <Button variant="primary" size="sm">
+                  <MessageCircle className="w-4 h-4 mr-1" />
+                  แชท
+                </Button>
+              </Link>
+            )}
 
             {job.status === 'draft' && (
               <Button variant="primary" size="sm" onClick={onPublish}>
@@ -72,7 +98,7 @@ function JobPostCard({
               </Button>
             )}
 
-            {job.status !== 'draft' && (
+            {job.job_id && job.status !== 'draft' && job.status !== 'cancelled' && job.status !== 'completed' && (
               <Button variant="outline" size="sm" onClick={onOpenDispute}>
                 เปิดข้อพิพาท
               </Button>
@@ -134,7 +160,7 @@ export default function HirerHomePage() {
   const handlePublish = async (jobPostId: string) => {
     const res = await appApi.publishJob(jobPostId, hirerId);
     if (res.success) {
-      toast.success(appApi.isDemoToken() ? 'เผยแพร่งานแล้ว (เดโม)' : 'เผยแพร่งานแล้ว');
+      toast.success('เผยแพร่งานแล้ว');
       await loadJobs();
       return;
     }
@@ -201,10 +227,10 @@ export default function HirerHomePage() {
     try {
       const res = await appApi.createDispute(disputeJobId, hirerId, reason);
       if (!res.success || !res.data?.dispute?.id) {
-        toast.error(res.error || (appApi.isDemoToken() ? 'เปิดข้อพิพาทไม่สำเร็จ (เดโม)' : 'เปิดข้อพิพาทไม่สำเร็จ'));
+        toast.error(res.error || 'เปิดข้อพิพาทไม่สำเร็จ');
         return;
       }
-      toast.success(appApi.isDemoToken() ? 'เปิดข้อพิพาทแล้ว (เดโม)' : 'เปิดข้อพิพาทแล้ว');
+      toast.success('เปิดข้อพิพาทแล้ว');
       setDisputeOpen(false);
       setDisputeReason('');
       setDisputeJobId(null);

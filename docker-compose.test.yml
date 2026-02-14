@@ -1,0 +1,58 @@
+name: careconnect-test
+
+services:
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: careconnect-postgres-test
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: careconnect_test
+      POSTGRES_USER: careconnect
+      POSTGRES_PASSWORD: careconnect_test_password
+      TZ: Asia/Bangkok
+    ports:
+      - "5433:5432"  # Different port to avoid conflicts
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U careconnect -d careconnect_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - careconnect-test-network
+
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: careconnect-backend-test
+    container_name: careconnect-backend-test
+    environment:
+      NODE_ENV: test
+      DATABASE_HOST: postgres-test
+      DATABASE_PORT: 5432
+      DATABASE_NAME: careconnect_test
+      DATABASE_USER: careconnect
+      DATABASE_PASSWORD: careconnect_test_password
+      JWT_SECRET: test-jwt-secret-for-testing
+      JWT_REFRESH_SECRET: test-refresh-secret-for-testing
+      PORT: 3001
+      CORS_ORIGIN: "*"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+    networks:
+      - careconnect-test-network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    working_dir: /app
+    command: npm run test:integration
+
+volumes:
+  postgres_test_data:
+
+networks:
+  careconnect-test-network:
+    driver: bridge

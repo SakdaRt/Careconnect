@@ -224,8 +224,7 @@ networks:
 # ============================================================================
 volumes:
   postgres_data:
-    external: true
-    name: trae-ai_postgres_data
+    driver: local
   backend_node_modules:
     driver: local
   backend_uploads:
