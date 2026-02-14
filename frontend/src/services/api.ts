@@ -152,10 +152,14 @@ class ApiClient {
           this.clearTokens();
         }
 
-        const errorMessage =
-          typeof parsed === 'object' && parsed
-            ? ((parsed as any).message || (parsed as any).error || 'Request failed')
-            : rawText || 'Request failed';
+        let errorMessage: string;
+        if (typeof parsed === 'object' && parsed) {
+          const p = parsed as any;
+          const rawErr = p.message || p.error;
+          errorMessage = (typeof rawErr === 'string') ? rawErr : (typeof rawErr === 'object' && rawErr?.message) ? rawErr.message : 'Request failed';
+        } else {
+          errorMessage = rawText || 'Request failed';
+        }
         return {
           success: false,
           error: errorMessage,
@@ -165,7 +169,13 @@ class ApiClient {
       }
 
       if (typeof parsed === 'object' && parsed && 'success' in (parsed as any)) {
-        return parsed as ApiResponse<T>;
+        const result = parsed as ApiResponse<T>;
+        // Sanitize error: ensure it is always a string (API may return {code, message} objects)
+        if (result.error && typeof result.error !== 'string') {
+          const errObj = result.error as unknown as Record<string, unknown>;
+          result.error = (typeof errObj.message === 'string' && errObj.message) || (typeof errObj.code === 'string' && errObj.code) || 'Request failed';
+        }
+        return result;
       }
 
       return {
@@ -206,14 +216,25 @@ class ApiClient {
           if (refreshed) return this.requestFormData<T>(endpoint, formData);
           this.clearTokens();
         }
-        const errorMessage =
-          typeof parsed === 'object' && parsed
-            ? ((parsed as any).message || (parsed as any).error || 'Request failed')
-            : rawText || 'Request failed';
+        let errorMessage: string;
+        if (typeof parsed === 'object' && parsed) {
+          const p = parsed as any;
+          const rawErr = p.message || p.error;
+          errorMessage = (typeof rawErr === 'string') ? rawErr : (typeof rawErr === 'object' && rawErr?.message) ? rawErr.message : 'Request failed';
+        } else {
+          errorMessage = rawText || 'Request failed';
+        }
         return { success: false, error: errorMessage, code: typeof parsed === 'object' && parsed ? (parsed as any).code : undefined };
       }
 
-      if (typeof parsed === 'object' && parsed && 'success' in (parsed as any)) return parsed as ApiResponse<T>;
+      if (typeof parsed === 'object' && parsed && 'success' in (parsed as any)) {
+        const result = parsed as ApiResponse<T>;
+        if (result.error && typeof result.error !== 'string') {
+          const errObj = result.error as unknown as Record<string, unknown>;
+          result.error = (typeof errObj.message === 'string' && errObj.message) || (typeof errObj.code === 'string' && errObj.code) || 'Request failed';
+        }
+        return result;
+      }
       return { success: true, data: parsed as T };
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : 'Network error' };
