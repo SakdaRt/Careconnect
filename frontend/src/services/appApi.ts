@@ -31,6 +31,26 @@ export const appApi = {
     return api.submitMockKyc(input);
   },
 
+  async submitKyc(formData: FormData) {
+    return api.submitKyc(formData);
+  },
+
+  async getMyCaregiverDocuments() {
+    return api.getMyCaregiverDocuments();
+  },
+
+  async uploadCaregiverDocument(formData: FormData) {
+    return api.uploadCaregiverDocument(formData);
+  },
+
+  async deleteCaregiverDocument(docId: string) {
+    return api.deleteCaregiverDocument(docId);
+  },
+
+  async getCaregiverDocumentsByCaregiver(caregiverId: string) {
+    return api.getCaregiverDocumentsByCaregiver(caregiverId);
+  },
+
   async updateRole(role: 'hirer' | 'caregiver') {
     return api.updateRole(role);
   },

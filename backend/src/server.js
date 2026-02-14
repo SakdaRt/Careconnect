@@ -1,5 +1,6 @@
 import express from 'express';
 import http from 'http';
+import path from 'path';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -20,6 +21,7 @@ import disputeRoutes from './routes/disputeRoutes.js';
 import kycRoutes from './routes/kycRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
+import caregiverDocumentRoutes from './routes/caregiverDocumentRoutes.js';
 import { initChatSocket } from './sockets/chatSocket.js';
 
 // Load environment variables
@@ -118,6 +120,11 @@ app.use('/api/disputes', disputeRoutes);
 app.use('/api/kyc', kycRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/caregiver-documents', caregiverDocumentRoutes);
+
+// Static file serving for uploads
+const uploadDir = process.env.UPLOAD_DIR || '/app/uploads';
+app.use('/uploads', express.static(path.resolve(uploadDir)));
 
 // Initialize Socket.IO chat handlers
 initChatSocket(io);

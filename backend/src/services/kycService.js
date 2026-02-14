@@ -21,6 +21,10 @@ export const getKycStatusByUserId = async (userId) => {
   return result.rows[0] || null;
 };
 
+export const submitKyc = async (userId, payload) => {
+  return submitMockKyc(userId, payload);
+};
+
 export const submitMockKyc = async (userId, payload) => {
   const referenceId = uuidv4();
   const sessionId = uuidv4();

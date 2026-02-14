@@ -181,6 +181,45 @@ class ApiClient {
     }
   }
 
+  /** Send a FormData request (for file uploads). Does NOT set Content-Type — browser adds multipart boundary. */
+  async requestFormData<T>(endpoint: string, formData: FormData): Promise<ApiResponse<T>> {
+    const requestHeaders: Record<string, string> = {};
+    const token = this.getAuthToken();
+    if (token) requestHeaders['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: requestHeaders,
+        body: formData,
+      });
+
+      const rawText = await response.text();
+      let parsed: unknown = null;
+      if (rawText) {
+        try { parsed = JSON.parse(rawText); } catch { parsed = rawText; }
+      }
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          const refreshed = await this.attemptRefresh();
+          if (refreshed) return this.requestFormData<T>(endpoint, formData);
+          this.clearTokens();
+        }
+        const errorMessage =
+          typeof parsed === 'object' && parsed
+            ? ((parsed as any).message || (parsed as any).error || 'Request failed')
+            : rawText || 'Request failed';
+        return { success: false, error: errorMessage, code: typeof parsed === 'object' && parsed ? (parsed as any).code : undefined };
+      }
+
+      if (typeof parsed === 'object' && parsed && 'success' in (parsed as any)) return parsed as ApiResponse<T>;
+      return { success: true, data: parsed as T };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : 'Network error' };
+    }
+  }
+
   // Auth endpoints
   async registerGuest(email: string, password: string, role: string) {
     const response = await this.request<{
@@ -703,6 +742,27 @@ class ApiClient {
       method: 'POST',
       body: input,
     });
+  }
+
+  async submitKyc(formData: FormData) {
+    return this.requestFormData<{ kyc: KycStatus }>('/api/kyc/submit', formData);
+  }
+
+  // Caregiver documents (certifications)
+  async getMyCaregiverDocuments() {
+    return this.request<CaregiverDocument[]>('/api/caregiver-documents');
+  }
+
+  async uploadCaregiverDocument(formData: FormData) {
+    return this.requestFormData<CaregiverDocument>('/api/caregiver-documents', formData);
+  }
+
+  async deleteCaregiverDocument(docId: string) {
+    return this.request<{ id: string }>(`/api/caregiver-documents/${docId}`, { method: 'DELETE' });
+  }
+
+  async getCaregiverDocumentsByCaregiver(caregiverId: string) {
+    return this.request<CaregiverDocument[]>(`/api/caregiver-documents/by-caregiver/${caregiverId}`);
   }
 
   async getCareRecipients() {
@@ -1316,6 +1376,23 @@ export interface KycStatus {
   created_at: string;
   updated_at: string;
   expires_at: string | null;
+}
+
+export interface CaregiverDocument {
+  id: string;
+  user_id: string;
+  document_type: string;
+  title: string;
+  description: string | null;
+  issuer: string | null;
+  issued_date: string | null;
+  expiry_date: string | null;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface CaregiverAssignedJob {

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MessageCircle, User as UserIcon } from 'lucide-react';
+import { MessageCircle, ShieldCheck, User as UserIcon } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -129,6 +129,7 @@ export default function HirerHomePage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelJobId, setCancelJobId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [showKycPrompt, setShowKycPrompt] = useState(false);
 
   const hirerId = user?.id || 'demo-hirer';
 
@@ -161,12 +162,26 @@ export default function HirerHomePage() {
     const res = await appApi.publishJob(jobPostId, hirerId);
     if (res.success) {
       toast.success('เผยแพร่งานแล้ว');
+      setShowKycPrompt(false);
       await loadJobs();
       return;
     }
     const code = (res as any).code as string | undefined;
-    if (code === 'INSUFFICIENT_BALANCE' || String(res.error || '').includes('Insufficient')) {
+    const errMsg = String(res.error || '');
+    if (code === 'INSUFFICIENT_BALANCE' || errMsg.includes('Insufficient')) {
       toast.error('เงินในระบบไม่พอ กรุณาเติมเงินก่อนเผยแพร่');
+      return;
+    }
+    if (code === 'POLICY_VIOLATION' || code === 'INSUFFICIENT_TRUST_LEVEL' || errMsg.includes('trust') || errMsg.includes('Trust') || errMsg.includes('policy')) {
+      setShowKycPrompt(true);
+      const tl = user?.trust_level || 'L0';
+      if (tl === 'L0') {
+        toast.error('กรุณายืนยันเบอร์โทรก่อนเผยแพร่งาน (ต้อง L1+)');
+      } else if (tl === 'L1') {
+        toast.error('งานความเสี่ยงสูงต้องยืนยันตัวตน KYC ก่อนเผยแพร่ (ต้อง L2+)');
+      } else {
+        toast.error(errMsg || 'ระดับความน่าเชื่อถือไม่เพียงพอ');
+      }
       return;
     }
     toast.error(res.error || 'ไม่สามารถเผยแพร่งานได้');
@@ -271,6 +286,26 @@ export default function HirerHomePage() {
             </Button>
           ))}
         </div>
+
+        {showKycPrompt && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+            <ShieldCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-amber-900">ต้องยืนยันตัวตนก่อนเผยแพร่งาน</p>
+              <p className="text-xs text-amber-700 mt-1">
+                {(user?.trust_level || 'L0') === 'L0'
+                  ? 'กรุณายืนยันเบอร์โทรศัพท์ก่อน (Trust Level L1) จากนั้นยืนยันตัวตน KYC เพื่อเผยแพร่งานความเสี่ยงสูง (L2)'
+                  : 'งานความเสี่ยงสูงต้อง Trust Level L2 ขึ้นไป กรุณายืนยันตัวตน KYC'}
+              </p>
+              <div className="mt-2 flex gap-2">
+                <Link to="/kyc">
+                  <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
+                </Link>
+                <Button variant="outline" size="sm" onClick={() => setShowKycPrompt(false)}>ปิด</Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <LoadingState message="กำลังโหลดรายการงาน..." />

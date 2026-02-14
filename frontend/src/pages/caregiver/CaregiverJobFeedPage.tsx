@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield } from 'lucide-react';
+import { Shield, ShieldCheck } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, StatusBadge } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -54,9 +54,29 @@ export default function CaregiverJobFeedPage() {
         {isL0 && (
           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">
             <Shield className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-            <div className="text-sm text-yellow-900">
-              <p className="font-semibold mb-1">ยืนยันตัวตนเพื่อรับงาน</p>
+            <div className="flex-1 text-sm text-yellow-900">
+              <p className="font-semibold mb-1">ยืนยันเบอร์โทรเพื่อรับงาน</p>
               <p>คุณยังไม่ได้ยืนยันเบอร์โทรศัพท์ กรุณายืนยัน OTP เพื่อเลื่อนเป็น Trust Level L1 แล้วจึงจะสามารถรับงานได้</p>
+              <div className="mt-2">
+                <Link to="/profile">
+                  <Button variant="primary" size="sm">ไปยืนยันเบอร์โทร</Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {user?.trust_level === 'L1' && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start gap-3">
+            <ShieldCheck className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 text-sm text-blue-900">
+              <p className="font-semibold mb-1">ยืนยันตัวตน KYC เพื่อรับงานความเสี่ยงสูง</p>
+              <p>งานบางประเภทต้อง Trust Level L2 ขึ้นไป ยืนยันตัวตนเพื่อปลดล็อก</p>
+              <div className="mt-2">
+                <Link to="/kyc">
+                  <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
+                </Link>
+              </div>
             </div>
           </div>
         )}
@@ -87,8 +107,9 @@ export default function CaregiverJobFeedPage() {
                         <div>ประเภท: {job.job_type}</div>
                       </div>
                       {job.eligible === false && (
-                        <div className="mt-2 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1 inline-block">
-                          ต้อง Trust Level {job.min_trust_level} ขึ้นไปจึงจะรับงานนี้ได้
+                        <div className="mt-2 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1 inline-flex items-center gap-2 flex-wrap">
+                          <span>ต้อง Trust Level {job.min_trust_level} ขึ้นไปจึงจะรับงานนี้ได้</span>
+                          <Link to="/kyc" className="text-blue-600 underline hover:text-blue-800">ยืนยันตัวตน</Link>
                         </div>
                       )}
                       <div className="mt-4">

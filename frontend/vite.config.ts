@@ -44,6 +44,10 @@ export default defineConfig(({ mode }) => {
           target: 'http://backend:3000',
           changeOrigin: true,
         },
+        '/uploads': {
+          target: 'http://backend:3000',
+          changeOrigin: true,
+        },
         '/socket.io': {
           target: 'http://backend:3000',
           changeOrigin: true,

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Bell, User, Settings, LogOut, Menu } from 'lucide-react';
+import { Bell, User, Settings, LogOut, Menu, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
@@ -14,6 +14,15 @@ function maskEmail(email: string): string {
 function maskPhone(phone: string): string {
   if (phone.length <= 4) return '***';
   return '***' + phone.slice(-4);
+}
+
+function trustLevelStyle(level: string) {
+  switch (level) {
+    case 'L3': return { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'L3 เชื่อถือสูง' };
+    case 'L2': return { bg: 'bg-blue-100', text: 'text-blue-800', label: 'L2 ยืนยันแล้ว' };
+    case 'L1': return { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'L1 พื้นฐาน' };
+    default: return { bg: 'bg-gray-100', text: 'text-gray-600', label: 'L0 ยังไม่ยืนยัน' };
+  }
 }
 
 export function TopBar() {
@@ -89,9 +98,9 @@ export function TopBar() {
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
                           {user.role === 'hirer' ? 'ผู้ว่าจ้าง' : user.role === 'caregiver' ? 'ผู้ดูแล' : 'แอดมิน'}
                         </span>
-                        <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
-                          {user.trust_level}
-                        </span>
+                        {(() => { const tl = trustLevelStyle(user.trust_level || 'L0'); return (
+                          <span className={`text-xs ${tl.bg} ${tl.text} px-2 py-1 rounded`}>{tl.label}</span>
+                        ); })()}
                       </div>
                     </div>
 
@@ -104,6 +113,22 @@ export function TopBar() {
                       <User className="w-5 h-5" />
                       <span>โปรไฟล์</span>
                     </Link>
+
+                    {user.role !== 'admin' && (
+                      <Link
+                        to="/kyc"
+                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <ShieldCheck className="w-5 h-5" />
+                        <div className="flex items-center gap-2">
+                          <span>ยืนยันตัวตน</span>
+                          {(['L0', 'L1'].includes(user.trust_level || 'L0')) && (
+                            <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">แนะนำ</span>
+                          )}
+                        </div>
+                      </Link>
+                    )}
 
                     <Link
                       to="/settings"

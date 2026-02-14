@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { ShieldCheck } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState } from '../../components/ui';
 import { BankAccount, Transaction, WalletBalance, WithdrawalRequest } from '../../services/api';
@@ -84,7 +85,13 @@ export default function CaregiverWalletPage() {
 
       const res = await appApi.initiateWithdrawal(value, selectedBankAccountId);
       if (!res.success) {
-        toast.error(res.error || 'ถอนเงินไม่สำเร็จ');
+        const code = (res as any).code as string | undefined;
+        const errMsg = String(res.error || '');
+        if (code === 'POLICY_VIOLATION' || code === 'INSUFFICIENT_TRUST_LEVEL' || errMsg.includes('trust') || errMsg.includes('Trust') || errMsg.includes('L2')) {
+          toast.error('ต้องยืนยันตัวตน KYC ก่อนถอนเงิน (Trust Level L2+)');
+        } else {
+          toast.error(res.error || 'ถอนเงินไม่สำเร็จ');
+        }
         return;
       }
       toast.success(res.data?.message || 'ส่งคำขอถอนเงินแล้ว');
@@ -239,6 +246,23 @@ export default function CaregiverWalletPage() {
                 </div>
                 <div className="text-xs text-gray-500 mt-2">โหมด dev จะ mark verified อัตโนมัติ เพื่อให้ถอนเงินได้</div>
               </Card>
+            )}
+
+            {!['L2', 'L3'].includes(user?.trust_level || 'L0') && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900">ยืนยันตัวตนเพื่อถอนเงิน</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    การถอนเงินต้อง Trust Level L2 ขึ้นไป (ยืนยันเบอร์โทร + KYC)
+                  </p>
+                  <div className="mt-2">
+                    <Link to="/kyc">
+                      <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
             )}
 
             <Card className="p-6">

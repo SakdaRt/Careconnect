@@ -682,6 +682,8 @@ export const updateMyProfile = async (req, res) => {
     }
 
     if (user.role === 'hirer') {
+      const rawLat = req.body?.lat;
+      const rawLng = req.body?.lng;
       const payload = {
         user_id: user.id,
         display_name,
@@ -690,12 +692,14 @@ export const updateMyProfile = async (req, res) => {
         district: normalizeString(req.body?.district),
         province: normalizeString(req.body?.province),
         postal_code: normalizeString(req.body?.postal_code),
+        lat: typeof rawLat === 'number' && Number.isFinite(rawLat) ? rawLat : null,
+        lng: typeof rawLng === 'number' && Number.isFinite(rawLng) ? rawLng : null,
       };
 
       const result = await query(
         `INSERT INTO hirer_profiles
-          (user_id, display_name, address_line1, address_line2, district, province, postal_code, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+          (user_id, display_name, address_line1, address_line2, district, province, postal_code, lat, lng, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
          ON CONFLICT (user_id) DO UPDATE
          SET display_name = EXCLUDED.display_name,
              address_line1 = EXCLUDED.address_line1,
@@ -703,6 +707,8 @@ export const updateMyProfile = async (req, res) => {
              district = EXCLUDED.district,
              province = EXCLUDED.province,
              postal_code = EXCLUDED.postal_code,
+             lat = EXCLUDED.lat,
+             lng = EXCLUDED.lng,
              updated_at = NOW()
          RETURNING *`,
         [
@@ -713,6 +719,8 @@ export const updateMyProfile = async (req, res) => {
           payload.district,
           payload.province,
           payload.postal_code,
+          payload.lat,
+          payload.lng,
         ]
       );
 

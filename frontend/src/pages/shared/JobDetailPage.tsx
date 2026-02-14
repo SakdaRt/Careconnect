@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MessageCircle, User as UserIcon } from 'lucide-react';
+import { MessageCircle, User as UserIcon, FileText, ExternalLink } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
-import { JobPost } from '../../services/api';
+import { JobPost, CaregiverDocument } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
 
@@ -32,6 +32,8 @@ export default function JobDetailPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState('');
+  const [caregiverDocs, setCaregiverDocs] = useState<CaregiverDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -48,6 +50,17 @@ export default function JobDetailPage() {
         );
         const cancelRes = await appApi.getCancelReason(id);
         setCancelReasonDisplay(cancelRes.success ? String((cancelRes.data as any)?.reason || '') : '');
+        // Load caregiver documents if hirer and caregiver is assigned
+        const jobData = res.data.job;
+        if (jobData.caregiver_id && ['assigned', 'in_progress', 'completed'].includes(jobData.status || '')) {
+          setDocsLoading(true);
+          try {
+            const docRes = await appApi.getCaregiverDocumentsByCaregiver(jobData.caregiver_id);
+            if (docRes.success && docRes.data) setCaregiverDocs(Array.isArray(docRes.data) ? docRes.data : []);
+          } catch { /* ignore */ } finally {
+            setDocsLoading(false);
+          }
+        }
         return;
       }
       setJob(null);
@@ -245,6 +258,43 @@ export default function JobDetailPage() {
                     </Link>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Caregiver certification documents — visible to hirer after assignment */}
+            {(job as any).caregiver_id && ['assigned', 'in_progress', 'completed'].includes(job.status || '') && (
+              <div className="mt-4">
+                <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">เอกสารรับรองความสามารถ</div>
+                {docsLoading ? (
+                  <div className="text-xs text-gray-400 py-2">กำลังโหลด...</div>
+                ) : caregiverDocs.length === 0 ? (
+                  <div className="text-xs text-gray-400 py-2">ผู้ดูแลยังไม่ได้อัปโหลดเอกสารรับรอง</div>
+                ) : (
+                  <div className="space-y-2">
+                    {caregiverDocs.map((doc) => (
+                      <a
+                        key={doc.id}
+                        href={`/uploads/${doc.file_path}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="w-8 h-8 rounded bg-blue-50 flex items-center justify-center flex-shrink-0">
+                          <FileText className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-gray-900">{doc.title}</div>
+                          <div className="text-xs text-gray-500">
+                            {doc.issuer && <>{doc.issuer} • </>}
+                            {doc.issued_date && <>ออกเมื่อ {new Date(doc.issued_date).toLocaleDateString('th-TH')}</>}
+                            {doc.expiry_date && <> • หมดอายุ {new Date(doc.expiry_date).toLocaleDateString('th-TH')}</>}
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      </a>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
