@@ -131,9 +131,21 @@ export const authSchemas = {
   }),
   
   updateProfile: Joi.object({
-    full_name: Joi.string().trim().min(1).max(100),
-    phone: Joi.string().pattern(/^[0-9+\-\s()]+$/).allow('', null),
-    profile_image_url: Joi.string().uri().allow('', null),
+    display_name: Joi.string().trim().min(1).max(255).required(),
+    bio: Joi.string().allow('', null),
+    experience_years: Joi.number().integer().min(0).allow(null),
+    certifications: Joi.array().items(Joi.string().trim()).allow(null),
+    specializations: Joi.array().items(Joi.string().trim()).allow(null),
+    available_from: Joi.string().allow('', null),
+    available_to: Joi.string().allow('', null),
+    available_days: Joi.array().items(Joi.number().integer().min(0).max(6)).allow(null),
+    address_line1: Joi.string().allow('', null),
+    address_line2: Joi.string().allow('', null),
+    district: Joi.string().allow('', null),
+    province: Joi.string().allow('', null),
+    postal_code: Joi.string().allow('', null),
+    lat: Joi.number().allow(null),
+    lng: Joi.number().allow(null),
   }),
   
   changePassword: Joi.object({

@@ -58,6 +58,7 @@ const validatePatientProfilePayload = (payload) => {
   const allergies = new Set(['no_known_allergies', 'food_allergy', 'drug_allergy', 'latex_allergy', 'other_allergy']);
 
   const errors = [];
+  const currentYear = new Date().getFullYear();
 
   const checkEnum = (key, value, allowed) => {
     if (value === null || value === undefined || String(value).trim() === '') return;
@@ -82,6 +83,13 @@ const validatePatientProfilePayload = (payload) => {
   checkEnum('mobility_level', payload.mobility_level, mobility);
   checkEnum('communication_style', payload.communication_style, comm);
   checkEnum('cognitive_status', payload.cognitive_status, cognitive);
+
+  if (payload.birth_year !== null && payload.birth_year !== undefined && String(payload.birth_year).trim() !== '') {
+    const year = Number(payload.birth_year);
+    if (!Number.isInteger(year) || year < 1900 || year > currentYear) {
+      errors.push('birth_year is invalid');
+    }
+  }
 
   checkFlags('chronic_conditions_flags', payload.chronic_conditions_flags, chronic);
   checkFlags('symptoms_flags', payload.symptoms_flags, symptoms);
@@ -136,6 +144,7 @@ const createCareRecipient = async (req, res) => {
       postal_code,
       lat,
       lng,
+      birth_year,
       age_band,
       gender,
       mobility_level,
@@ -169,6 +178,7 @@ const createCareRecipient = async (req, res) => {
       postal_code: postal_code ? String(postal_code).trim() : null,
       lat: Number.isFinite(Number(lat)) ? Number(lat) : null,
       lng: Number.isFinite(Number(lng)) ? Number(lng) : null,
+      birth_year: Number.isInteger(Number(birth_year)) ? Number(birth_year) : null,
       age_band: age_band ? String(age_band).trim() : null,
       gender: gender ? String(gender).trim() : null,
       mobility_level: mobility_level ? String(mobility_level).trim() : null,
@@ -212,6 +222,7 @@ const updateCareRecipient = async (req, res) => {
       'postal_code',
       'lat',
       'lng',
+      'birth_year',
       'age_band',
       'gender',
       'mobility_level',
@@ -233,6 +244,9 @@ const updateCareRecipient = async (req, res) => {
         } else if (field === 'lat' || field === 'lng') {
           const parsed = Number(value);
           patch[field] = Number.isFinite(parsed) ? parsed : null;
+        } else if (field === 'birth_year') {
+          const parsed = Number(value);
+          patch[field] = Number.isInteger(parsed) ? parsed : null;
         } else if (value === null || value === undefined || String(value).trim() === '') {
           patch[field] = null;
         } else {

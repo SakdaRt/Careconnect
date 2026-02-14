@@ -262,6 +262,7 @@ CREATE TABLE patient_profiles (
     postal_code VARCHAR(10),
     lat NUMERIC(10,7),
     lng NUMERIC(10,7),
+    birth_year INTEGER,
     age_band VARCHAR(20), -- e.g., "60-70", "70-80"
     gender VARCHAR(20),
 
