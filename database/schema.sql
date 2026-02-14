@@ -256,6 +256,7 @@ CREATE TABLE patient_profiles (
     -- Basic info (non-sensitive)
     patient_display_name VARCHAR(255) NOT NULL,
     address_line1 VARCHAR(255),
+    address_line2 VARCHAR(255),
     district VARCHAR(100),
     province VARCHAR(100),
     postal_code VARCHAR(10),

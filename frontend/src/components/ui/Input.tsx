@@ -1,4 +1,4 @@
-import { InputHTMLAttributes, forwardRef, useState } from 'react';
+import { InputHTMLAttributes, forwardRef, useId, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
 import { cn } from '../../contexts/ThemeContext';
 
@@ -12,11 +12,14 @@ export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ label, error, helperText, leftIcon, rightIcon, fullWidth, className, ...props }, ref) => {
+  ({ id, label, error, helperText, leftIcon, rightIcon, fullWidth, className, ...props }, ref) => {
+    const autoId = useId();
+    const inputId = id || autoId;
+
     return (
       <div className={cn('flex flex-col gap-1', fullWidth && 'w-full')}>
         {label && (
-          <label className="text-sm font-semibold text-gray-700">
+          <label htmlFor={inputId} className="text-sm font-semibold text-gray-700">
             {label}
             {props.required && <span className="text-red-500 ml-1">*</span>}
           </label>
@@ -31,6 +34,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
 
           <input
             ref={ref}
+            id={inputId}
             className={cn(
               'w-full px-4 py-2 border rounded-lg transition-colors',
               'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',

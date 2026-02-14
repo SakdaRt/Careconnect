@@ -2,11 +2,104 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
-import { Button, Card, CheckboxGroup, Input, LoadingState, RadioGroup } from '../../components/ui';
+import { Button, Card, CheckboxGroup, Input, LoadingState } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { cn } from '../../contexts/ThemeContext';
+
+type SelectOption = {
+  value: string;
+  label: string;
+};
+
+const GENDER_OPTIONS: SelectOption[] = [
+  { value: 'female', label: 'หญิง' },
+  { value: 'male', label: 'ชาย' },
+  { value: 'other', label: 'อื่น ๆ / ไม่ระบุ' },
+];
+
+const MOBILITY_OPTIONS: SelectOption[] = [
+  { value: 'walk_independent', label: 'เดินได้เอง' },
+  { value: 'walk_assisted', label: 'เดินได้แต่ต้องพยุง/ใช้ไม้เท้า' },
+  { value: 'wheelchair', label: 'ใช้รถเข็น' },
+  { value: 'bedbound', label: 'ติดเตียง' },
+];
+
+const COMMUNICATION_OPTIONS: SelectOption[] = [
+  { value: 'normal', label: 'สื่อสารได้ตามปกติ' },
+  { value: 'hearing_impaired', label: 'ได้ยินไม่ชัด/ต้องพูดช้า' },
+  { value: 'speech_impaired', label: 'พูดไม่ชัด/ต้องใช้เวลาสื่อสาร' },
+  { value: 'nonverbal', label: 'สื่อสารด้วยท่าทาง/ไม่พูด' },
+];
+
+const COGNITIVE_OPTIONS: SelectOption[] = [
+  { value: 'normal', label: 'ปกติ' },
+  { value: 'mild_impairment', label: 'หลงลืมเล็กน้อย' },
+  { value: 'dementia', label: 'สมองเสื่อม/สับสนเป็นช่วง ๆ' },
+  { value: 'delirium', label: 'สับสนเฉียบพลัน/เปลี่ยนแปลงเร็ว' },
+  { value: 'psychiatric', label: 'โรคทางจิตเวช/พฤติกรรมต้องดูแลใกล้ชิด' },
+];
+
+const CHRONIC_OPTIONS: SelectOption[] = [
+  { value: 'hypertension', label: 'ความดันโลหิตสูง' },
+  { value: 'diabetes', label: 'เบาหวาน' },
+  { value: 'heart_disease', label: 'โรคหัวใจ' },
+  { value: 'stroke_history', label: 'เคยเป็นสโตรก/อัมพฤกษ์อัมพาต' },
+  { value: 'copd_asthma', label: 'โรคปอดเรื้อรัง/หอบหืด' },
+  { value: 'kidney_disease', label: 'ไตเรื้อรัง' },
+  { value: 'cancer', label: 'มะเร็ง/อยู่ระหว่างรักษา' },
+  { value: 'pressure_ulcer', label: 'แผลกดทับ' },
+  { value: 'fall_history', label: 'มีประวัติล้มบ่อย' },
+];
+
+const SYMPTOM_OPTIONS: SelectOption[] = [
+  { value: 'shortness_of_breath', label: 'หายใจเหนื่อย/หอบ' },
+  { value: 'chest_pain', label: 'เจ็บหน้าอก/แน่นหน้าอก' },
+  { value: 'seizure', label: 'ชัก/ลมชัก' },
+  { value: 'altered_consciousness', label: 'ซึม/สติเปลี่ยนแปลง' },
+  { value: 'high_fever', label: 'ไข้สูง (≥38.5°C)' },
+  { value: 'uncontrolled_bleeding', label: 'เลือดออกผิดปกติ/หยุดยาก' },
+  { value: 'severe_pain', label: 'ปวดรุนแรงควบคุมยาก' },
+  { value: 'frequent_vomiting', label: 'อาเจียนบ่อย/เสี่ยงขาดน้ำ' },
+];
+
+const MEDICAL_DEVICE_OPTIONS: SelectOption[] = [
+  { value: 'oxygen', label: 'ใช้ออกซิเจน' },
+  { value: 'tracheostomy', label: 'เจาะคอ (tracheostomy)' },
+  { value: 'ventilator', label: 'ใช้เครื่องช่วยหายใจ' },
+  { value: 'feeding_tube', label: 'สายให้อาหาร (NG/PEG)' },
+  { value: 'urinary_catheter', label: 'สายสวนปัสสาวะ' },
+  { value: 'wound_dressing', label: 'ต้องทำแผล/เปลี่ยนผ้าพันแผล' },
+];
+
+const CARE_NEED_OPTIONS: SelectOption[] = [
+  { value: 'bathing', label: 'อาบน้ำ/เช็ดตัว' },
+  { value: 'dressing', label: 'แต่งตัว' },
+  { value: 'toileting', label: 'เข้าห้องน้ำ/เปลี่ยนผ้าอ้อม' },
+  { value: 'transfer_assist', label: 'ช่วยพยุง/ย้ายท่า/ขึ้นลงเตียง' },
+  { value: 'feeding', label: 'ช่วยป้อนอาหาร' },
+  { value: 'tube_feeding', label: 'ให้อาหารทางสาย' },
+  { value: 'medication_reminder', label: 'เตือนกินยา' },
+  { value: 'medication_administration', label: 'จัดยา/ช่วยให้ยาตามแผนแพทย์' },
+  { value: 'vitals_check', label: 'วัดสัญญาณชีพ' },
+];
+
+const BEHAVIOR_RISK_OPTIONS: SelectOption[] = [
+  { value: 'fall_risk', label: 'เสี่ยงหกล้ม' },
+  { value: 'wandering', label: 'เดินหลง/ออกนอกบ้านเอง' },
+  { value: 'aggression', label: 'ก้าวร้าว/ทำร้ายตนเองหรือผู้อื่น' },
+  { value: 'choking_risk', label: 'เสี่ยงสำลัก' },
+  { value: 'infection_control', label: 'ต้องระวังการติดเชื้อเป็นพิเศษ' },
+];
+
+const ALLERGY_OPTIONS: SelectOption[] = [
+  { value: 'no_known_allergies', label: 'ไม่มีประวัติแพ้ (NKA)' },
+  { value: 'food_allergy', label: 'แพ้อาหารบางชนิด' },
+  { value: 'drug_allergy', label: 'แพ้ยา' },
+  { value: 'latex_allergy', label: 'แพ้ยาง/ลาเท็กซ์' },
+  { value: 'other_allergy', label: 'อื่น ๆ' },
+];
 
 function normalizeAgeBand(raw?: string | null) {
   const v = String(raw || '').trim();
@@ -94,6 +187,77 @@ function formatAgeBand(ageBand: string, age?: number | null) {
   return `${label} • อายุ ${age} ปี`;
 }
 
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  required,
+}: {
+  label: string;
+  value: string;
+  onChange: (next: string) => void;
+  options: SelectOption[];
+  required?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-semibold text-gray-700">
+        {label}
+        {required ? <span className="text-red-500 ml-1">*</span> : null}
+      </label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      >
+        {options.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function ExpandableMultiSelect({
+  title,
+  helperText,
+  value,
+  onChange,
+  options,
+}: {
+  title: string;
+  helperText?: string;
+  value: string[];
+  onChange: (next: string[]) => void;
+  options: SelectOption[];
+}) {
+  return (
+    <Card className="p-0 overflow-hidden">
+      <details>
+        <summary className="list-none cursor-pointer px-4 py-3 flex items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-semibold text-gray-900">{title}</div>
+            <div className="text-xs text-gray-500 mt-0.5">เลือกแล้ว {value.length} รายการ</div>
+          </div>
+          <span className="text-xs text-gray-500">กดเพื่อขยาย</span>
+        </summary>
+        <div className="px-4 pb-4 border-t border-gray-100">
+          {helperText ? <div className="text-xs text-gray-500 mt-2 mb-3">{helperText}</div> : null}
+          <CheckboxGroup
+            layout="grid"
+            value={value}
+            onChange={onChange}
+            options={options}
+          />
+        </div>
+      </details>
+    </Card>
+  );
+}
+
 export default function CareRecipientFormPage() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -109,6 +273,7 @@ export default function CareRecipientFormPage() {
   const [form, setForm] = useState({
     patient_display_name: '',
     address_line1: '',
+    address_line2: '',
     district: '',
     province: 'Bangkok',
     postal_code: '',
@@ -146,6 +311,7 @@ export default function CareRecipientFormPage() {
       setForm({
         patient_display_name: res.data.patient_display_name || '',
         address_line1: res.data.address_line1 || '',
+        address_line2: res.data.address_line2 || '',
         district: res.data.district || '',
         province: res.data.province || 'Bangkok',
         postal_code: res.data.postal_code || '',
@@ -156,14 +322,14 @@ export default function CareRecipientFormPage() {
         gender: normalizeGender(res.data.gender),
         mobility_level: normalizeMobility(res.data.mobility_level),
         communication_style: normalizeCommunication(res.data.communication_style),
-        cognitive_status: normalizeCognitive((res.data as any).cognitive_status),
+        cognitive_status: normalizeCognitive(res.data.cognitive_status),
         general_health_summary: res.data.general_health_summary || '',
         chronic_conditions_flags: res.data.chronic_conditions_flags || [],
-        symptoms_flags: (res.data as any).symptoms_flags || [],
-        medical_devices_flags: (res.data as any).medical_devices_flags || [],
-        care_needs_flags: (res.data as any).care_needs_flags || [],
-        behavior_risks_flags: (res.data as any).behavior_risks_flags || [],
-        allergies_flags: (res.data as any).allergies_flags || [],
+        symptoms_flags: res.data.symptoms_flags || [],
+        medical_devices_flags: res.data.medical_devices_flags || [],
+        care_needs_flags: res.data.care_needs_flags || [],
+        behavior_risks_flags: res.data.behavior_risks_flags || [],
+        allergies_flags: res.data.allergies_flags || [],
       });
     } finally {
       setLoading(false);
@@ -232,9 +398,10 @@ export default function CareRecipientFormPage() {
 
     setSaving(true);
     try {
-      const payload = {
+      const payload: Omit<CareRecipient, 'id' | 'hirer_id' | 'is_active' | 'created_at' | 'updated_at'> = {
         patient_display_name: displayName,
         address_line1: form.address_line1.trim() || null,
+        address_line2: form.address_line2.trim() || null,
         district: form.district.trim() || null,
         province: form.province.trim() || null,
         postal_code: form.postal_code.trim() || null,
@@ -256,7 +423,7 @@ export default function CareRecipientFormPage() {
       };
 
       if (!id) {
-        const res = await appApi.createCareRecipient(payload as any);
+        const res = await appApi.createCareRecipient(payload);
         if (!res.success) {
           toast.error(res.error || 'บันทึกไม่สำเร็จ');
           return;
@@ -361,6 +528,12 @@ export default function CareRecipientFormPage() {
                   onChange={(e) => setForm((prev) => ({ ...prev, postal_code: e.target.value }))}
                   placeholder="เช่น 10110"
                 />
+                <Input
+                  label="รายละเอียดที่อยู่เพิ่มเติม"
+                  value={form.address_line2}
+                  onChange={(e) => setForm((prev) => ({ ...prev, address_line2: e.target.value }))}
+                  placeholder="เช่น หมู่บ้าน อาคาร ชั้น ห้อง หรือจุดสังเกต"
+                />
               </div>
             </Card>
 
@@ -385,154 +558,84 @@ export default function CareRecipientFormPage() {
                     </div>
                   )}
                 </div>
-                <RadioGroup
+                <SelectField
                   label="เพศ"
                   required
-                  layout="grid"
                   value={form.gender}
                   onChange={(v) => setForm((prev) => ({ ...prev, gender: v }))}
-                  options={[
-                    { value: 'female', label: 'หญิง' },
-                    { value: 'male', label: 'ชาย' },
-                    { value: 'other', label: 'อื่น ๆ / ไม่ระบุ' },
-                  ]}
+                  options={GENDER_OPTIONS}
                 />
-                <RadioGroup
+                <SelectField
                   label="การเคลื่อนไหว"
                   required
                   value={form.mobility_level}
                   onChange={(v) => setForm((prev) => ({ ...prev, mobility_level: v }))}
-                  options={[
-                    { value: 'walk_independent', label: 'เดินได้เอง' },
-                    { value: 'walk_assisted', label: 'เดินได้แต่ต้องพยุง/ใช้ไม้เท้า' },
-                    { value: 'wheelchair', label: 'ใช้รถเข็น' },
-                    { value: 'bedbound', label: 'ติดเตียง' },
-                  ]}
+                  options={MOBILITY_OPTIONS}
                 />
-                <RadioGroup
+                <SelectField
                   label="การสื่อสาร"
                   required
                   value={form.communication_style}
                   onChange={(v) => setForm((prev) => ({ ...prev, communication_style: v }))}
-                  options={[
-                    { value: 'normal', label: 'สื่อสารได้ตามปกติ' },
-                    { value: 'hearing_impaired', label: 'ได้ยินไม่ชัด/ต้องพูดช้า' },
-                    { value: 'speech_impaired', label: 'พูดไม่ชัด/ต้องใช้เวลาสื่อสาร' },
-                    { value: 'nonverbal', label: 'สื่อสารด้วยท่าทาง/ไม่พูด' },
-                  ]}
+                  options={COMMUNICATION_OPTIONS}
                 />
-                <RadioGroup
+                <SelectField
                   label="ความจำ/สติ"
                   required
                   value={form.cognitive_status}
                   onChange={(v) => setForm((prev) => ({ ...prev, cognitive_status: v }))}
-                  options={[
-                    { value: 'normal', label: 'ปกติ' },
-                    { value: 'mild_impairment', label: 'หลงลืมเล็กน้อย' },
-                    { value: 'dementia', label: 'สมองเสื่อม/สับสนเป็นช่วง ๆ' },
-                    { value: 'delirium', label: 'สับสนเฉียบพลัน/เปลี่ยนแปลงเร็ว' },
-                    { value: 'psychiatric', label: 'โรคทางจิตเวช/พฤติกรรมต้องดูแลใกล้ชิด' },
-                  ]}
+                  options={COGNITIVE_OPTIONS}
                 />
               </div>
             </Card>
 
-            <Card className="p-4">
-              <div className="text-sm font-semibold text-gray-900">โรคประจำตัว/เงื่อนไขสำคัญ</div>
-              <div className="text-xs text-gray-500 mt-1 mb-3">เลือกได้หลายข้อ</div>
-              <CheckboxGroup
-                layout="grid"
-                value={form.chronic_conditions_flags}
-                onChange={(v) => setForm((prev) => ({ ...prev, chronic_conditions_flags: v }))}
-                options={[
-                  { value: 'hypertension', label: 'ความดันโลหิตสูง' },
-                  { value: 'diabetes', label: 'เบาหวาน' },
-                  { value: 'heart_disease', label: 'โรคหัวใจ' },
-                  { value: 'stroke_history', label: 'เคยเป็นสโตรก/อัมพฤกษ์อัมพาต' },
-                  { value: 'copd_asthma', label: 'โรคปอดเรื้อรัง/หอบหืด' },
-                  { value: 'kidney_disease', label: 'ไตเรื้อรัง' },
-                  { value: 'cancer', label: 'มะเร็ง/อยู่ระหว่างรักษา' },
-                  { value: 'pressure_ulcer', label: 'แผลกดทับ' },
-                  { value: 'fall_history', label: 'มีประวัติล้มบ่อย' },
-                ]}
-              />
-            </Card>
+            <ExpandableMultiSelect
+              title="โรคประจำตัว/เงื่อนไขสำคัญ"
+              helperText="เลือกได้หลายข้อ"
+              value={form.chronic_conditions_flags}
+              onChange={(v) => setForm((prev) => ({ ...prev, chronic_conditions_flags: v }))}
+              options={CHRONIC_OPTIONS}
+            />
 
-            <Card className="p-4">
-              <div className="text-sm font-semibold text-gray-900">อาการสำคัญ/อาการเสี่ยง (ช่วยประเมินงานความเสี่ยงสูง)</div>
-              <div className="text-xs text-gray-500 mt-1 mb-3">เลือกได้หลายข้อ งานอาจถูกจัดเป็นความเสี่ยงสูงอัตโนมัติ</div>
-              <CheckboxGroup
-                layout="grid"
-                value={form.symptoms_flags}
-                onChange={(v) => setForm((prev) => ({ ...prev, symptoms_flags: v }))}
-                options={[
-                  { value: 'shortness_of_breath', label: 'หายใจเหนื่อย/หอบ' },
-                  { value: 'chest_pain', label: 'เจ็บหน้าอก/แน่นหน้าอก' },
-                  { value: 'seizure', label: 'ชัก/ลมชัก' },
-                  { value: 'altered_consciousness', label: 'ซึม/สติเปลี่ยนแปลง' },
-                  { value: 'high_fever', label: 'ไข้สูง (≥38.5°C)' },
-                  { value: 'uncontrolled_bleeding', label: 'เลือดออกผิดปกติ/หยุดยาก' },
-                  { value: 'severe_pain', label: 'ปวดรุนแรงควบคุมยาก' },
-                  { value: 'frequent_vomiting', label: 'อาเจียนบ่อย/เสี่ยงขาดน้ำ' },
-                ]}
-              />
-            </Card>
+            <ExpandableMultiSelect
+              title="อาการสำคัญ/อาการเสี่ยง"
+              helperText="เลือกได้หลายข้อ งานอาจถูกจัดเป็นความเสี่ยงสูงอัตโนมัติ"
+              value={form.symptoms_flags}
+              onChange={(v) => setForm((prev) => ({ ...prev, symptoms_flags: v }))}
+              options={SYMPTOM_OPTIONS}
+            />
 
-            <Card className="p-4">
-              <div className="text-sm font-semibold text-gray-900">อุปกรณ์/หัตถการทางการแพทย์</div>
-              <div className="text-xs text-gray-500 mt-1 mb-3">เลือกได้หลายข้อ งานอาจถูกจัดเป็นความเสี่ยงสูงอัตโนมัติ</div>
-              <CheckboxGroup
-                layout="grid"
-                value={form.medical_devices_flags}
-                onChange={(v) => setForm((prev) => ({ ...prev, medical_devices_flags: v }))}
-                options={[
-                  { value: 'oxygen', label: 'ใช้ออกซิเจน' },
-                  { value: 'tracheostomy', label: 'เจาะคอ (tracheostomy)' },
-                  { value: 'ventilator', label: 'ใช้เครื่องช่วยหายใจ' },
-                  { value: 'feeding_tube', label: 'สายให้อาหาร (NG/PEG)' },
-                  { value: 'urinary_catheter', label: 'สายสวนปัสสาวะ' },
-                  { value: 'wound_dressing', label: 'ต้องทำแผล/เปลี่ยนผ้าพันแผล' },
-                ]}
-              />
-            </Card>
+            <ExpandableMultiSelect
+              title="อุปกรณ์/หัตถการทางการแพทย์"
+              helperText="เลือกได้หลายข้อ"
+              value={form.medical_devices_flags}
+              onChange={(v) => setForm((prev) => ({ ...prev, medical_devices_flags: v }))}
+              options={MEDICAL_DEVICE_OPTIONS}
+            />
 
-            <Card className="p-4">
-              <div className="text-sm font-semibold text-gray-900">ความต้องการการดูแล (สิ่งที่ผู้ดูแลต้องช่วยทำ)</div>
-              <div className="text-xs text-gray-500 mt-1 mb-3">เลือกได้หลายข้อ เลือกให้ครบจะช่วยประเมินงานได้แม่นยำ</div>
-              <CheckboxGroup
-                layout="grid"
-                value={form.care_needs_flags}
-                onChange={(v) => setForm((prev) => ({ ...prev, care_needs_flags: v }))}
-                options={[
-                  { value: 'bathing', label: 'อาบน้ำ/เช็ดตัว' },
-                  { value: 'dressing', label: 'แต่งตัว' },
-                  { value: 'toileting', label: 'เข้าห้องน้ำ/เปลี่ยนผ้าอ้อม' },
-                  { value: 'transfer_assist', label: 'ช่วยพยุง/ย้ายท่า/ขึ้นลงเตียง' },
-                  { value: 'feeding', label: 'ช่วยป้อนอาหาร' },
-                  { value: 'tube_feeding', label: 'ให้อาหารทางสาย' },
-                  { value: 'medication_reminder', label: 'เตือนกินยา' },
-                  { value: 'medication_administration', label: 'จัดยา/ช่วยให้ยาตามแผนแพทย์' },
-                  { value: 'vitals_check', label: 'วัดสัญญาณชีพ' },
-                ]}
-              />
-            </Card>
+            <ExpandableMultiSelect
+              title="ความต้องการการดูแล"
+              helperText="เลือกได้หลายข้อ เลือกให้ครบจะช่วยประเมินงานได้แม่นยำ"
+              value={form.care_needs_flags}
+              onChange={(v) => setForm((prev) => ({ ...prev, care_needs_flags: v }))}
+              options={CARE_NEED_OPTIONS}
+            />
 
-            <Card className="p-4">
-              <div className="text-sm font-semibold text-gray-900">พฤติกรรม/ความเสี่ยงด้านความปลอดภัย</div>
-              <div className="text-xs text-gray-500 mt-1 mb-3">เลือกได้หลายข้อ</div>
-              <CheckboxGroup
-                layout="grid"
-                value={form.behavior_risks_flags}
-                onChange={(v) => setForm((prev) => ({ ...prev, behavior_risks_flags: v }))}
-                options={[
-                  { value: 'fall_risk', label: 'เสี่ยงหกล้ม' },
-                  { value: 'wandering', label: 'เดินหลง/ออกนอกบ้านเอง' },
-                  { value: 'aggression', label: 'ก้าวร้าว/ทำร้ายตนเองหรือผู้อื่น' },
-                  { value: 'choking_risk', label: 'เสี่ยงสำลัก' },
-                  { value: 'infection_control', label: 'ต้องระวังการติดเชื้อเป็นพิเศษ' },
-                ]}
-              />
-            </Card>
+            <ExpandableMultiSelect
+              title="พฤติกรรม/ความเสี่ยงด้านความปลอดภัย"
+              helperText="เลือกได้หลายข้อ"
+              value={form.behavior_risks_flags}
+              onChange={(v) => setForm((prev) => ({ ...prev, behavior_risks_flags: v }))}
+              options={BEHAVIOR_RISK_OPTIONS}
+            />
+
+            <ExpandableMultiSelect
+              title="แพ้/ข้อห้าม"
+              helperText="เลือกได้หลายข้อ หากมี “อื่น ๆ” โปรดระบุในสรุปสุขภาพโดยรวม"
+              value={form.allergies_flags}
+              onChange={(v) => setForm((prev) => ({ ...prev, allergies_flags: v }))}
+              options={ALLERGY_OPTIONS}
+            />
 
             <div className="flex flex-col gap-1">
               <label className="text-sm font-semibold text-gray-700">สรุปสุขภาพโดยรวม</label>
@@ -548,22 +651,6 @@ export default function CareRecipientFormPage() {
                 placeholder="เช่น โรคประจำตัว, ข้อควรระวัง, อาการสำคัญ"
               />
             </div>
-            <Card className="p-4">
-              <div className="text-sm font-semibold text-gray-900">แพ้/ข้อห้าม</div>
-              <div className="text-xs text-gray-500 mt-1 mb-3">เลือกได้หลายข้อ หากมี “อื่น ๆ” โปรดระบุในสรุปสุขภาพโดยรวม</div>
-              <CheckboxGroup
-                layout="grid"
-                value={form.allergies_flags}
-                onChange={(v) => setForm((prev) => ({ ...prev, allergies_flags: v }))}
-                options={[
-                  { value: 'no_known_allergies', label: 'ไม่มีประวัติแพ้ (NKA)' },
-                  { value: 'food_allergy', label: 'แพ้อาหารบางชนิด' },
-                  { value: 'drug_allergy', label: 'แพ้ยา' },
-                  { value: 'latex_allergy', label: 'แพ้ยาง/ลาเท็กซ์' },
-                  { value: 'other_allergy', label: 'อื่น ๆ' },
-                ]}
-              />
-            </Card>
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" fullWidth onClick={() => navigate(-1)} disabled={saving}>

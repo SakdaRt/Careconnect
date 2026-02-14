@@ -73,10 +73,19 @@ class ApiClient {
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const { method = 'GET', body, headers = {}, requireAuth = true } = options;
 
+    const isFormData = typeof FormData !== 'undefined' && body instanceof FormData;
+
     const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...headers,
     };
+
+    const requestBody =
+      body === undefined
+        ? undefined
+        : isFormData
+          ? body
+          : JSON.stringify(body);
 
     if (requireAuth) {
       const token = this.getAuthToken();
@@ -89,7 +98,7 @@ class ApiClient {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
         method,
         headers: requestHeaders,
-        body: body ? JSON.stringify(body) : undefined,
+        body: requestBody,
       });
 
       const rawText = await response.text();
@@ -377,6 +386,31 @@ class ApiClient {
     return this.request<{ otp_id: string; expires_in: number }>('/api/otp/resend', {
       method: 'POST',
       body: { otp_id },
+    });
+  }
+
+  async getNotifications(page = 1, limit = 20, unreadOnly = false) {
+    const params = new URLSearchParams();
+    params.append('page', String(page));
+    params.append('limit', String(limit));
+    if (unreadOnly) params.append('unread_only', 'true');
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<Paginated<AppNotification> & { unreadCount: number }>(`/api/notifications${query}`);
+  }
+
+  async getUnreadNotificationCount() {
+    return this.request<{ count: number }>('/api/notifications/unread-count');
+  }
+
+  async markNotificationAsRead(notificationId: string) {
+    return this.request<{ notification: AppNotification }>(`/api/notifications/${notificationId}/read`, {
+      method: 'PATCH',
+    });
+  }
+
+  async markAllNotificationsAsRead() {
+    return this.request<{ message?: string }>('/api/notifications/read-all', {
+      method: 'PATCH',
     });
   }
 
@@ -729,6 +763,83 @@ class ApiClient {
       method: 'POST',
       body: input,
     });
+  }
+
+  async submitKyc(formData: FormData) {
+    return this.request<{ kyc: KycStatus }>('/api/kyc/submit', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async getMyCaregiverDocuments() {
+    return this.request<CaregiverDocument[]>('/api/caregiver-documents');
+  }
+
+  async uploadCaregiverDocument(formData: FormData) {
+    return this.request<CaregiverDocument>('/api/caregiver-documents', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  async deleteCaregiverDocument(docId: string) {
+    return this.request<{ id: string }>(`/api/caregiver-documents/${docId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async getCaregiverDocumentsByCaregiver(caregiverId: string) {
+    return this.request<CaregiverDocument[]>(`/api/caregiver-documents/by-caregiver/${caregiverId}`);
+  }
+
+  async getPayments(options?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+    sort_by?: string;
+    sort_order?: 'ASC' | 'DESC';
+  }) {
+    const params = new URLSearchParams();
+    if (options?.status) params.append('status', String(options.status));
+    if (options?.page) params.append('page', String(options.page));
+    if (options?.limit) params.append('limit', String(options.limit));
+    if (options?.sort_by) params.append('sort_by', String(options.sort_by));
+    if (options?.sort_order) params.append('sort_order', String(options.sort_order));
+    const query = params.toString() ? `?${params.toString()}` : '';
+
+    const raw: any = await this.request<any>(`/api/payments${query}`);
+    if (!raw.success) return raw as ApiResponse<Paginated<Payment>>;
+
+    const pagination = raw.pagination || {};
+    return {
+      success: true,
+      data: {
+        data: raw.data || [],
+        total: pagination.total || 0,
+        page: pagination.page || 1,
+        limit: pagination.limit || 20,
+        totalPages: pagination.pages || 1,
+      },
+    } as ApiResponse<Paginated<Payment>>;
+  }
+
+  async getPaymentById(paymentId: string) {
+    return this.request<Payment>(`/api/payments/${paymentId}`);
+  }
+
+  async simulatePayment(paymentId: string) {
+    const raw: any = await this.request<any>(`/api/payments/${paymentId}/simulate`, {
+      method: 'POST',
+    });
+    if (!raw.success) return raw as ApiResponse<{ payment: Payment; ledgerEntry?: any }>;
+    return {
+      success: true,
+      data: {
+        payment: raw.data,
+        ledgerEntry: raw.ledgerEntry,
+      },
+    } as ApiResponse<{ payment: Payment; ledgerEntry?: any }>;
   }
 
   async getCareRecipients() {
@@ -1259,11 +1370,63 @@ export interface WithdrawalRequest {
   updated_at: string;
 }
 
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  channel: string;
+  template_key?: string | null;
+  title: string;
+  body: string;
+  data?: Record<string, unknown> | null;
+  reference_type?: string | null;
+  reference_id?: string | null;
+  status: string;
+  read_at?: string | null;
+  created_at: string;
+}
+
+export interface CaregiverDocument {
+  id: string;
+  user_id: string;
+  document_type: string;
+  title: string;
+  description?: string | null;
+  issuer?: string | null;
+  issued_date?: string | null;
+  expiry_date?: string | null;
+  file_path: string;
+  file_name: string;
+  file_size: number;
+  mime_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Payment {
+  id: string;
+  payer_user_id: string;
+  payee_user_id: string;
+  job_id?: string | null;
+  amount: number;
+  fee_amount: number;
+  status: string;
+  payment_method?: string | null;
+  provider_payment_id?: string | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: string;
+  updated_at: string;
+  processed_at?: string | null;
+  payer_name?: string | null;
+  payee_name?: string | null;
+  ledger_entries?: unknown[];
+}
+
 export interface CareRecipient {
   id: string;
   hirer_id: string;
   patient_display_name: string;
   address_line1?: string | null;
+  address_line2?: string | null;
   district?: string | null;
   province?: string | null;
   postal_code?: string | null;

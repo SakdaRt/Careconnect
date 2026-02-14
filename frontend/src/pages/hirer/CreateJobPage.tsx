@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, Input, Modal } from '../../components/ui';
+import { Badge, Button, Card, Input, Modal, type BadgeProps } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
@@ -17,6 +17,35 @@ type JobType =
   | 'dementia_care'
   | 'post_surgery'
   | 'emergency';
+
+type OptionItem = {
+  v: string;
+  label: string;
+};
+
+type CreateJobErrorDetails = {
+  section?: string;
+  field?: string;
+  related_task?: string;
+};
+
+type CreateJobErrorObject = {
+  message?: string;
+  code?: string;
+  details?: CreateJobErrorDetails;
+};
+
+type CreateJobResult = {
+  success: boolean;
+  data?: {
+    job?: {
+      id?: string;
+    };
+  };
+  error?: string | CreateJobErrorObject;
+  code?: string;
+  details?: CreateJobErrorDetails;
+};
 
 const JOB_TYPE_LABEL: Record<JobType, string> = {
   companionship: 'เพื่อนคุย / ดูแลทั่วไป',
@@ -85,7 +114,7 @@ const PRECAUTION_OPTIONS = [
   { v: 'lifting_precaution', label: 'ต้องระวังการยกพยุง' },
 ] as const;
 
-const labelByValue = (options: { v: string; label: string }[], values: string[]) => {
+const labelByValue = (options: ReadonlyArray<OptionItem>, values: readonly string[]) => {
   const map = new Map(options.map((o) => [o.v, o.label]));
   return values.map((v) => map.get(v) || v);
 };
@@ -115,6 +144,7 @@ export default function CreateJobPage() {
     scheduled_start_at: '',
     scheduled_end_at: '',
     address_line1: '',
+    address_line2: '',
     district: '',
     province: 'Bangkok',
     postal_code: '',
@@ -135,10 +165,10 @@ export default function CreateJobPage() {
   }, [careRecipientId, careRecipients]);
 
   const suggestions = useMemo(() => {
-    const needs = new Set((((selectedCareRecipient as any)?.care_needs_flags || []) as string[]) || []);
-    const devices = new Set((((selectedCareRecipient as any)?.medical_devices_flags || []) as string[]) || []);
-    const behaviors = new Set((((selectedCareRecipient as any)?.behavior_risks_flags || []) as string[]) || []);
-    const cognitive = String((selectedCareRecipient as any)?.cognitive_status || '');
+    const needs = new Set(selectedCareRecipient?.care_needs_flags ?? []);
+    const devices = new Set(selectedCareRecipient?.medical_devices_flags ?? []);
+    const behaviors = new Set(selectedCareRecipient?.behavior_risks_flags ?? []);
+    const cognitive = String(selectedCareRecipient?.cognitive_status || '');
     const mobility = String(selectedCareRecipient?.mobility_level || '');
     const selectedTasks = new Set(form.job_tasks_flags || []);
 
@@ -232,22 +262,26 @@ export default function CreateJobPage() {
   const patientSummary = useMemo(() => {
     if (!selectedCareRecipient) return null;
     const p = selectedCareRecipient;
-    const tags: { label: string; variant: 'default' | 'success' | 'warning' | 'danger' | 'info' }[] = [];
+    const tags: { label: string; variant: NonNullable<BadgeProps['variant']> }[] = [];
 
     if (p.mobility_level) tags.push({ label: `การเคลื่อนไหว: ${p.mobility_level}`, variant: 'info' });
     if (p.communication_style) tags.push({ label: `สื่อสาร: ${p.communication_style}`, variant: 'info' });
-    if ((p as any).cognitive_status) tags.push({ label: `สติ/ความจำ: ${(p as any).cognitive_status}`, variant: 'warning' });
+    if (p.cognitive_status) tags.push({ label: `สติ/ความจำ: ${p.cognitive_status}`, variant: 'warning' });
 
-    const addFlags = (arr: string[] | null | undefined, prefix: string, variant: any) => {
+    const addFlags = (
+      arr: string[] | null | undefined,
+      prefix: string,
+      variant: NonNullable<BadgeProps['variant']>
+    ) => {
       for (const v of arr || []) tags.push({ label: `${prefix}${v}`, variant });
     };
 
     addFlags(p.chronic_conditions_flags, 'โรค: ', 'default');
-    addFlags((p as any).symptoms_flags, 'อาการ: ', 'danger');
-    addFlags((p as any).medical_devices_flags, 'อุปกรณ์: ', 'warning');
-    addFlags((p as any).care_needs_flags, 'ต้องช่วย: ', 'info');
-    addFlags((p as any).behavior_risks_flags, 'เสี่ยง: ', 'warning');
-    addFlags((p as any).allergies_flags, 'แพ้: ', 'default');
+    addFlags(p.symptoms_flags, 'อาการ: ', 'danger');
+    addFlags(p.medical_devices_flags, 'อุปกรณ์: ', 'warning');
+    addFlags(p.care_needs_flags, 'ต้องช่วย: ', 'info');
+    addFlags(p.behavior_risks_flags, 'เสี่ยง: ', 'warning');
+    addFlags(p.allergies_flags, 'แพ้: ', 'default');
 
     return { tags };
   }, [selectedCareRecipient]);
@@ -268,6 +302,7 @@ export default function CreateJobPage() {
     setForm((prev) => ({
       ...prev,
       address_line1: selectedCareRecipient.address_line1 || '',
+      address_line2: selectedCareRecipient.address_line2 || '',
       district: selectedCareRecipient.district || '',
       province: selectedCareRecipient.province || prev.province,
       postal_code: selectedCareRecipient.postal_code || '',
@@ -294,6 +329,7 @@ export default function CreateJobPage() {
       scheduled_start_at: new Date(form.scheduled_start_at).toISOString(),
       scheduled_end_at: new Date(form.scheduled_end_at).toISOString(),
       address_line1: form.address_line1.trim(),
+      address_line2: form.address_line2.trim() || undefined,
       district: form.district.trim() || undefined,
       province: form.province.trim() || undefined,
       postal_code: form.postal_code.trim() || undefined,
@@ -338,20 +374,19 @@ export default function CreateJobPage() {
     if (!pendingPayload || loading) return;
     setLoading(true);
     try {
-      const res = await appApi.createJob(hirerId, pendingPayload);
-      const createdJob = res.success
-        ? ((res.data as any)?.job || (res.data as any))
-        : ((res as any)?.data?.job || (res as any)?.job || null);
-      if (!createdJob || !(createdJob as any).id) {
-        const errObj = typeof res.error === 'object' && res.error ? res.error as any : {};
-        const details = (res as any).details || errObj.details || {};
-        const code = ((res as any).code || errObj.code) as string | undefined;
-        const section = details.section as string | undefined;
-        const field = details.field as string | undefined;
-        const relatedTask = details.related_task as string | undefined;
+      const res = (await appApi.createJob(hirerId, pendingPayload)) as CreateJobResult;
+      const createdJob = res.success ? res.data?.job : null;
+      if (!createdJob?.id) {
+        const errObj: CreateJobErrorObject | undefined =
+          typeof res.error === 'object' && res.error ? res.error : undefined;
+        const details = res.details || errObj?.details || {};
+        const code = res.code || errObj?.code;
+        const section = details.section;
+        const field = details.field;
+        const relatedTask = details.related_task;
 
-        const taskLabel = relatedTask ? (labelByValue(JOB_TASK_OPTIONS as any, [relatedTask])[0] || relatedTask) : null;
-        let thai = (typeof res.error === 'string' ? res.error : errObj.message || 'สร้างงานไม่สำเร็จ');
+        const taskLabel = relatedTask ? (labelByValue(JOB_TASK_OPTIONS, [relatedTask])[0] || relatedTask) : null;
+        let thai = typeof res.error === 'string' ? res.error : errObj?.message || 'สร้างงานไม่สำเร็จ';
         if (code === 'JOB_REQUIRED_FIELD') {
           const map: Record<string, string> = {
             title: 'กรุณากรอกชื่องาน',
@@ -627,7 +662,7 @@ export default function CreateJobPage() {
                   <div className="mt-3">
                     <div className="text-xs text-gray-600">งานที่แนะนำ</div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {labelByValue(JOB_TASK_OPTIONS as any, suggestions.tasks).map((l) => (
+                      {labelByValue(JOB_TASK_OPTIONS, suggestions.tasks).map((l) => (
                         <Badge key={l} variant="info">
                           {l}
                         </Badge>
@@ -639,7 +674,7 @@ export default function CreateJobPage() {
                   <div className="mt-3">
                     <div className="text-xs text-gray-600">ทักษะที่แนะนำ</div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {labelByValue(SKILL_OPTIONS as any, suggestions.skills).map((l) => (
+                      {labelByValue(SKILL_OPTIONS, suggestions.skills).map((l) => (
                         <Badge key={l} variant="default">
                           {l}
                         </Badge>
@@ -651,7 +686,7 @@ export default function CreateJobPage() {
                   <div className="mt-3">
                     <div className="text-xs text-gray-600">ข้อควรระวังที่แนะนำ</div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {labelByValue(PRECAUTION_OPTIONS as any, suggestions.precautions).map((l) => (
+                      {labelByValue(PRECAUTION_OPTIONS, suggestions.precautions).map((l) => (
                         <Badge key={l} variant="warning">
                           {l}
                         </Badge>
@@ -663,7 +698,7 @@ export default function CreateJobPage() {
                   <div className="mt-3">
                     <div className="text-xs text-gray-600">อุปกรณ์ที่แนะนำ</div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {labelByValue(EQUIPMENT_OPTIONS as any, suggestions.equipment || []).map((l) => (
+                      {labelByValue(EQUIPMENT_OPTIONS, suggestions.equipment || []).map((l) => (
                         <Badge key={l} variant="success">
                           {l}
                         </Badge>
@@ -896,7 +931,6 @@ export default function CreateJobPage() {
                 showMap
                 lat={form.lat}
                 lng={form.lng}
-                hasLocationData={!!(form.lat && form.lng && form.address_line1)}
                 onChange={(next) => {
                   const nextLat = typeof next.lat === 'number' ? next.lat : undefined;
                   const nextLng = typeof next.lng === 'number' ? next.lng : undefined;
@@ -943,6 +977,13 @@ export default function CreateJobPage() {
                   </div>
                 )}
               </div>
+
+              <Input
+                label="รายละเอียดที่อยู่เพิ่มเติม"
+                value={form.address_line2}
+                onChange={(e) => setForm((prev) => ({ ...prev, address_line2: e.target.value }))}
+                placeholder="เช่น หมู่บ้าน อาคาร ชั้น ห้อง หรือจุดสังเกต"
+              />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1056,7 +1097,7 @@ export default function CreateJobPage() {
               <div className="text-sm font-semibold text-gray-900">รายละเอียดที่เลือก</div>
               <div className="text-xs text-gray-600 mt-2">งานที่ต้องทำ</div>
               <div className="flex flex-wrap gap-2 mt-2">
-                {labelByValue(JOB_TASK_OPTIONS as any, pendingPayload.job_tasks_flags || []).map((l) => (
+                {labelByValue(JOB_TASK_OPTIONS, pendingPayload.job_tasks_flags || []).map((l) => (
                   <Badge key={l} variant="info">
                     {l}
                   </Badge>
@@ -1067,7 +1108,7 @@ export default function CreateJobPage() {
                 <>
                   <div className="text-xs text-gray-600 mt-3">ทักษะที่ต้องมี</div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {labelByValue(SKILL_OPTIONS as any, pendingPayload.required_skills_flags || []).map((l) => (
+                    {labelByValue(SKILL_OPTIONS, pendingPayload.required_skills_flags || []).map((l) => (
                       <Badge key={l} variant="default">
                         {l}
                       </Badge>
@@ -1080,7 +1121,7 @@ export default function CreateJobPage() {
                 <>
                   <div className="text-xs text-gray-600 mt-3">อุปกรณ์ที่มีให้</div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {labelByValue(EQUIPMENT_OPTIONS as any, pendingPayload.equipment_available_flags || []).map((l) => (
+                    {labelByValue(EQUIPMENT_OPTIONS, pendingPayload.equipment_available_flags || []).map((l) => (
                       <Badge key={l} variant="success">
                         {l}
                       </Badge>
@@ -1093,7 +1134,7 @@ export default function CreateJobPage() {
                 <>
                   <div className="text-xs text-gray-600 mt-3">ข้อควรระวัง</div>
                   <div className="flex flex-wrap gap-2 mt-2">
-                    {labelByValue(PRECAUTION_OPTIONS as any, pendingPayload.precautions_flags || []).map((l) => (
+                    {labelByValue(PRECAUTION_OPTIONS, pendingPayload.precautions_flags || []).map((l) => (
                       <Badge key={l} variant="warning">
                         {l}
                       </Badge>

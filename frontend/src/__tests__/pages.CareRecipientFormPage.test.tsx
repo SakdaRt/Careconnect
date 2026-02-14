@@ -63,7 +63,7 @@ describe('CareRecipientFormPage', () => {
     mockCreateCareRecipient.mockReset();
   });
 
-  it('keeps nickname when address changes', () => {
+  it('keeps nickname when address changes', async () => {
     render(
       <MemoryRouter initialEntries={['/hirer/care-recipients/new']}>
         <Routes>
@@ -72,7 +72,7 @@ describe('CareRecipientFormPage', () => {
       </MemoryRouter>
     );
 
-    const nameInput = screen.getByLabelText('ชื่อที่ใช้แสดง');
+    const nameInput = await screen.findByLabelText(/ชื่อที่ใช้แสดง/);
     fireEvent.change(nameInput, { target: { value: 'คุณแม่' } });
     fireEvent.click(screen.getByRole('button', { name: 'mock-place' }));
 
@@ -90,8 +90,9 @@ describe('CareRecipientFormPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByLabelText('ชื่อที่ใช้แสดง'), { target: { value: 'คุณพ่อ' } });
-    fireEvent.change(screen.getByLabelText('ปีเกิด'), { target: { value: '1955' } });
+    fireEvent.change(await screen.findByLabelText(/ชื่อที่ใช้แสดง/), { target: { value: 'คุณพ่อ' } });
+    fireEvent.change(await screen.findByLabelText(/ปีเกิด/), { target: { value: '1955' } });
+    fireEvent.change(await screen.findByLabelText(/รายละเอียดที่อยู่เพิ่มเติม/), { target: { value: 'อาคาร A ชั้น 3' } });
     fireEvent.click(screen.getByRole('button', { name: 'mock-place' }));
     fireEvent.click(screen.getByRole('button', { name: 'บันทึก' }));
 
@@ -102,6 +103,7 @@ describe('CareRecipientFormPage', () => {
     const payload = mockCreateCareRecipient.mock.calls[0]?.[0];
     expect(payload.patient_display_name).toBe('คุณพ่อ');
     expect(payload.address_line1).toBe('Mock Address');
+    expect(payload.address_line2).toBe('อาคาร A ชั้น 3');
     expect(mockNavigate).toHaveBeenCalledWith('/hirer/care-recipients');
   });
 
@@ -114,7 +116,7 @@ describe('CareRecipientFormPage', () => {
       </MemoryRouter>
     );
 
-    fireEvent.change(screen.getByLabelText('ปีเกิด'), { target: { value: '1955' } });
+    fireEvent.change(await screen.findByLabelText(/ปีเกิด/), { target: { value: '1955' } });
     fireEvent.click(screen.getByRole('button', { name: 'บันทึก' }));
 
     await waitFor(() => {

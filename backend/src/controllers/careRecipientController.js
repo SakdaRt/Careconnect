@@ -130,6 +130,7 @@ const createCareRecipient = async (req, res) => {
     const {
       patient_display_name,
       address_line1,
+      address_line2,
       district,
       province,
       postal_code,
@@ -162,6 +163,7 @@ const createCareRecipient = async (req, res) => {
       hirer_id: hirerId,
       patient_display_name: String(patient_display_name).trim(),
       address_line1: address_line1 ? String(address_line1).trim() : null,
+      address_line2: address_line2 ? String(address_line2).trim() : null,
       district: district ? String(district).trim() : null,
       province: province ? String(province).trim() : null,
       postal_code: postal_code ? String(postal_code).trim() : null,
@@ -204,6 +206,7 @@ const updateCareRecipient = async (req, res) => {
     const fields = [
       'patient_display_name',
       'address_line1',
+      'address_line2',
       'district',
       'province',
       'postal_code',

@@ -9,6 +9,49 @@ type AddressResult = {
   lng?: number | null;
 };
 
+type AddressComponent = {
+  long_name: string;
+  short_name: string;
+  types: string[];
+};
+
+type GeocoderResult = {
+  formatted_address?: string;
+  address_components?: AddressComponent[];
+};
+
+type MapLatLng = {
+  lat: number;
+  lng: number;
+};
+
+type GoogleLatLngLike = {
+  lat?: () => number;
+  lng?: () => number;
+};
+
+type GoogleMapClickEvent = {
+  latLng?: GoogleLatLngLike;
+};
+
+type GoogleMapInstance = {
+  setCenter: (latLng: MapLatLng) => void;
+  setZoom: (zoom: number) => void;
+  addListener: (event: string, handler: (event: GoogleMapClickEvent) => void) => void;
+};
+
+type GoogleMarkerInstance = {
+  setPosition: (latLng: MapLatLng) => void;
+  setMap: (map: GoogleMapInstance | null) => void;
+};
+
+type GoogleGeocoderInstance = {
+  geocode: (
+    request: { location: MapLatLng },
+    callback: (results: GeocoderResult[] | null, status: string) => void
+  ) => void;
+};
+
 type GoogleMapsLike = {
   maps?: {
     places?: {
@@ -19,7 +62,7 @@ type GoogleMapsLike = {
         addListener: (event: string, handler: () => void) => void;
         getPlace: () => {
           formatted_address?: string;
-          address_components?: Array<{ long_name: string; short_name: string; types: string[] }>;
+          address_components?: AddressComponent[];
           geometry?: { location?: { lat?: () => number; lng?: () => number } };
         };
       };
@@ -32,21 +75,9 @@ type GoogleMapsLike = {
         disableDefaultUI?: boolean;
         zoomControl?: boolean;
       }
-    ) => {
-      setCenter: (latLng: { lat: number; lng: number }) => void;
-      setZoom: (zoom: number) => void;
-      addListener: (event: string, handler: (event: any) => void) => void;
-    };
-    Marker?: new (options: { map: any; position?: { lat: number; lng: number } }) => {
-      setPosition: (latLng: { lat: number; lng: number }) => void;
-      setMap: (map: any) => void;
-    };
-    Geocoder?: new () => {
-      geocode: (
-        request: { location: { lat: number; lng: number } },
-        callback: (results: Array<{ formatted_address?: string; address_components?: Array<{ long_name: string; short_name: string; types: string[] }> }> | null, status: string) => void
-      ) => void;
-    };
+    ) => GoogleMapInstance;
+    Marker?: new (options: { map: GoogleMapInstance; position?: MapLatLng }) => GoogleMarkerInstance;
+    Geocoder?: new () => GoogleGeocoderInstance;
   };
 };
 
@@ -84,16 +115,18 @@ export function GooglePlacesInput({
   lng?: number | null;
   showMap?: boolean;
   onFormUpdate?: (data: Partial<AddressResult>) => void;
-  hasLocationData?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const mapRef = useRef<HTMLDivElement | null>(null);
-  const mapInstanceRef = useRef<any>(null);
-  const markerRef = useRef<any>(null);
-  const geocoderRef = useRef<any>(null);
+  const mapInstanceRef = useRef<GoogleMapInstance | null>(null);
+  const markerRef = useRef<GoogleMarkerInstance | null>(null);
+  const geocoderRef = useRef<GoogleGeocoderInstance | null>(null);
   const latestLatLngRef = useRef<{ lat: number; lng: number } | null>(null);
-  const apiKey = (import.meta as any).env?.VITE_GOOGLE_MAPS_API_KEY as string | undefined;
+  const apiKey =
+    (import.meta as unknown as { env?: { VITE_GOOGLE_MAPS_API_KEY?: string } }).env
+      ?.VITE_GOOGLE_MAPS_API_KEY;
   const [locating, setLocating] = useState(false);
+  const hasPinnedLocation = typeof lat === 'number' && typeof lng === 'number';
 
   useEffect(() => {
     if (!apiKey) return;
@@ -116,7 +149,7 @@ export function GooglePlacesInput({
 
     const init = () => {
       const g = getGoogle();
-      const maps = g?.maps as any;
+      const maps = g?.maps;
       if (!maps?.places || !inputRef.current) return;
       const autocomplete = new maps.places.Autocomplete(inputRef.current, {
         fields: ['formatted_address', 'address_components', 'geometry'],
@@ -124,11 +157,7 @@ export function GooglePlacesInput({
       });
       autocomplete.addListener('place_changed', () => {
         const place = autocomplete.getPlace();
-        const comps = (place.address_components || []) as Array<{
-          long_name: string;
-          short_name: string;
-          types: string[];
-        }>;
+        const comps = place.address_components || [];
         const { district, province, postal_code } = parseComponents(comps);
         const lat = place.geometry?.location?.lat?.() ?? null;
         const lng = place.geometry?.location?.lng?.() ?? null;
@@ -166,7 +195,7 @@ export function GooglePlacesInput({
             position: typeof lat === 'number' && typeof lng === 'number' ? initial : undefined,
           });
         }
-        mapInstanceRef.current.addListener('click', (event: any) => {
+        mapInstanceRef.current.addListener('click', (event) => {
           const clickedLat = event?.latLng?.lat?.();
           const clickedLng = event?.latLng?.lng?.();
           if (typeof clickedLat !== 'number' || typeof clickedLng !== 'number') return;
@@ -182,19 +211,9 @@ export function GooglePlacesInput({
           if (!geocoderRef.current) geocoderRef.current = new maps.Geocoder();
           geocoderRef.current.geocode(
             { location: { lat: clickedLat, lng: clickedLng } },
-            (
-              results: Array<{
-                formatted_address?: string;
-                address_components?: Array<{ long_name: string; short_name: string; types: string[] }>;
-              }> | null,
-              status: string
-            ) => {
+            (results, status) => {
               if (status === 'OK' && results && results[0]) {
-                const comps = (results[0].address_components || []) as Array<{
-                  long_name: string;
-                  short_name: string;
-                  types: string[];
-                }>;
+                const comps = results[0].address_components || [];
                 const { district, province, postal_code } = parseComponents(comps);
                 onChange({
                   address_line1: results[0].formatted_address || inputRef.current?.value || '',
@@ -256,25 +275,15 @@ export function GooglePlacesInput({
 
         // Reverse geocode
         const g = getGoogle();
-        const maps = g?.maps as any;
+        const maps = g?.maps;
         if (maps?.Geocoder) {
           if (!geocoderRef.current) geocoderRef.current = new maps.Geocoder();
           geocoderRef.current.geocode(
             { location: { lat: myLat, lng: myLng } },
-            (
-              results: Array<{
-                formatted_address?: string;
-                address_components?: Array<{ long_name: string; short_name: string; types: string[] }>;
-              }> | null,
-              status: string
-            ) => {
+            (results, status) => {
               setLocating(false);
               if (status === 'OK' && results && results[0]) {
-                const comps = (results[0].address_components || []) as Array<{
-                  long_name: string;
-                  short_name: string;
-                  types: string[];
-                }>;
+                const comps = results[0].address_components || [];
                 const { district, province, postal_code } = parseComponents(comps);
                 onChange({
                   address_line1: results[0].formatted_address || '',
@@ -312,7 +321,7 @@ export function GooglePlacesInput({
           onChange={(e) => onChange({ address_line1: e.target.value })}
           placeholder={placeholder || 'ค้นหาที่อยู่ด้วย Google Maps'}
           disabled={disabled}
-          className={`flex-1 min-w-0 px-4 py-2 border rounded-lg bg-white ${error ? 'border-red-500' : 'border-gray-300'}`}
+className={`flex-1 min-w-0 px-4 py-2 border rounded-lg ${hasPinnedLocation ? 'bg-blue-50 border-blue-300' : 'bg-white'} ${error ? 'border-red-500' : 'border-gray-300'}`}
         />
         {typeof lat === 'number' && typeof lng === 'number' && !disabled && (
           <button
