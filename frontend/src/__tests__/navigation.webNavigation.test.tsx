@@ -210,8 +210,8 @@ describe('Bottom bar navigation', () => {
   it('navigates hirer tabs', () => {
     currentUser = { id: 'hirer-1', role: 'hirer', email: 'hirer@test.com', trust_level: 'L1', name: 'Hirer' };
     renderWithRouter(<BottomBar />, ['/hirer/home']);
-    fireEvent.click(screen.getByRole('link', { name: 'สร้างงาน' }));
-    expect(screen.getByTestId('location').textContent).toBe('/hirer/create-job');
+    fireEvent.click(screen.getByRole('link', { name: 'ค้นหาผู้ดูแล' }));
+    expect(screen.getByTestId('location').textContent).toBe('/hirer/search-caregivers');
   });
 
   it('navigates hirer care recipients', () => {
@@ -289,7 +289,7 @@ describe('Hirer navigation flows', () => {
 
   it('navigates from hirer home to create job', async () => {
     renderWithRouter(<HirerHomePage />, ['/hirer/home']);
-    fireEvent.click(await screen.findByRole('button', { name: 'สร้างงานใหม่' }));
+    fireEvent.click(await screen.findByRole('link', { name: 'สร้างงาน' }));
     expect(screen.getByTestId('location').textContent).toBe('/hirer/create-job');
   });
 
