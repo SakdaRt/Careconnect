@@ -1,4 +1,38 @@
 import PatientProfile from '../models/PatientProfile.js';
+import { query } from '../utils/db.js';
+
+let patientProfileSchemaReady = false;
+
+const ensurePatientProfileSchema = async () => {
+  if (patientProfileSchemaReady) return;
+
+  await query(`
+    ALTER TABLE patient_profiles
+      ADD COLUMN IF NOT EXISTS patient_display_name VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS address_line1 VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS address_line2 VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS district VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS province VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS postal_code VARCHAR(10),
+      ADD COLUMN IF NOT EXISTS lat NUMERIC(10,7),
+      ADD COLUMN IF NOT EXISTS lng NUMERIC(10,7),
+      ADD COLUMN IF NOT EXISTS birth_year INTEGER,
+      ADD COLUMN IF NOT EXISTS age_band VARCHAR(20),
+      ADD COLUMN IF NOT EXISTS mobility_level VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS communication_style VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS cognitive_status VARCHAR(30),
+      ADD COLUMN IF NOT EXISTS general_health_summary TEXT,
+      ADD COLUMN IF NOT EXISTS chronic_conditions_flags TEXT[],
+      ADD COLUMN IF NOT EXISTS symptoms_flags TEXT[],
+      ADD COLUMN IF NOT EXISTS medical_devices_flags TEXT[],
+      ADD COLUMN IF NOT EXISTS care_needs_flags TEXT[],
+      ADD COLUMN IF NOT EXISTS behavior_risks_flags TEXT[],
+      ADD COLUMN IF NOT EXISTS allergies_flags TEXT[],
+      ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE
+  `);
+
+  patientProfileSchemaReady = true;
+};
 
 const uniq = (arr) => {
   if (!Array.isArray(arr)) return null;
@@ -134,6 +168,8 @@ const getCareRecipient = async (req, res) => {
 
 const createCareRecipient = async (req, res) => {
   try {
+    await ensurePatientProfileSchema();
+
     const hirerId = req.userId;
     const {
       patient_display_name,
@@ -198,12 +234,18 @@ const createCareRecipient = async (req, res) => {
     res.status(201).json({ success: true, data: created });
   } catch (error) {
     console.error('[Care Recipient] Create error:', error);
-    res.status(500).json({ success: false, error: 'Failed to create care recipient' });
+    const detail = error instanceof Error ? error.message : 'Failed to create care recipient';
+    res.status(500).json({
+      success: false,
+      error: process.env.NODE_ENV === 'production' ? 'Failed to create care recipient' : detail,
+    });
   }
 };
 
 const updateCareRecipient = async (req, res) => {
   try {
+    await ensurePatientProfileSchema();
+
     const hirerId = req.userId;
     const { id } = req.params;
 
@@ -268,7 +310,11 @@ const updateCareRecipient = async (req, res) => {
     res.json({ success: true, data: updated });
   } catch (error) {
     console.error('[Care Recipient] Update error:', error);
-    res.status(500).json({ success: false, error: 'Failed to update care recipient' });
+    const detail = error instanceof Error ? error.message : 'Failed to update care recipient';
+    res.status(500).json({
+      success: false,
+      error: process.env.NODE_ENV === 'production' ? 'Failed to update care recipient' : detail,
+    });
   }
 };
 

@@ -315,7 +315,7 @@ export const publishJob = async (hirerId, jobPostId) => {
       );
       await client.query(
         `INSERT INTO ledger_transactions (id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-         VALUES ($1, $2, $3, 'credit', 'dev_topup', $4, 'Dev auto topup for job publish', NOW())`,
+         VALUES ($1, $2, $3, 'credit', 'topup', $4, 'Dev auto topup for job publish', NOW())`,
         [uuidv4(), hirerWallet.id, shortfall, jobPostId]
       );
       const refreshed = await client.query(`SELECT available_balance FROM wallets WHERE id = $1`, [hirerWallet.id]);
