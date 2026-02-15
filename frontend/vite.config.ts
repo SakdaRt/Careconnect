@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: devPort,
       strictPort: true,
-      allowedHosts: publicHost ? [publicHost] : undefined,
+      allowedHosts: publicHost ? [publicHost, 'careconnect.kmitl.site'] : ['careconnect.kmitl.site'],
       hmr: publicHost
         ? {
             host: publicHost,
