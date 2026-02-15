@@ -124,17 +124,24 @@ export default function CareRecipientsPage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex flex-col gap-3 mb-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">ผู้รับการดูแล</h1>
             <p className="text-sm text-gray-600">เพิ่มข้อมูลผู้รับการดูแลเพื่อใช้ตอนสร้างงาน</p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={load}>
-              รีเฟรช
-            </Button>
-            <Button variant="primary" onClick={() => navigate('/hirer/care-recipients/new')}>
-              เพิ่มผู้รับการดูแล
+          <div className="w-full sm:w-auto">
+            <Button
+              variant="primary"
+              fullWidth
+              className="min-h-[56px] sm:min-h-0 sm:w-auto sm:px-6"
+              onClick={() => navigate('/hirer/care-recipients/new')}
+            >
+              <span className="block text-center leading-tight sm:hidden">
+                เพิ่มผู้รับ
+                <br />
+                การดูแล
+              </span>
+              <span className="hidden sm:block">เพิ่มผู้รับการดูแล</span>
             </Button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Search, Bell, User } from 'lucide-react';
+import { Briefcase, Search, Users, Wallet, Bell, User } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { cn } from '../../contexts/ThemeContext';
 
@@ -27,7 +27,7 @@ export function BottomBar() {
     );
   };
 
-  // Hirer Bottom Bar: งานของฉัน | ค้นหาผู้ดูแล | แจ้งเตือน | โปรไฟล์
+  // Hirer Bottom Bar: งานของฉัน | ค้นหาผู้ดูแล | ผู้รับการดูแล | กระเป๋าเงิน
   if (user.role === 'hirer') {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
@@ -35,8 +35,8 @@ export function BottomBar() {
           <div className="flex items-center justify-around h-16">
             <TabLink to="/hirer/home" icon={Briefcase} label="งานของฉัน" paths={['/hirer/home', '/hirer/create-job', '/jobs']} />
             <TabLink to="/hirer/search-caregivers" icon={Search} label="ค้นหาผู้ดูแล" />
-            <TabLink to="/notifications" icon={Bell} label="แจ้งเตือน" />
-            <TabLink to="/profile" icon={User} label="โปรไฟล์" paths={['/profile', '/kyc', '/settings']} />
+            <TabLink to="/hirer/care-recipients" icon={Users} label="ผู้รับการดูแล" paths={['/hirer/care-recipients']} />
+            <TabLink to="/hirer/wallet" icon={Wallet} label="กระเป๋าเงิน" paths={['/hirer/wallet']} />
           </div>
         </div>
       </div>
