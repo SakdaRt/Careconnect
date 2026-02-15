@@ -139,6 +139,7 @@ export const authSchemas = {
     available_from: Joi.string().allow('', null),
     available_to: Joi.string().allow('', null),
     available_days: Joi.array().items(Joi.number().integer().min(0).max(6)).allow(null),
+    is_public_profile: Joi.boolean().allow(null),
     address_line1: Joi.string().allow('', null),
     address_line2: Joi.string().allow('', null),
     district: Joi.string().allow('', null),

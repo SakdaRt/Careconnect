@@ -74,6 +74,183 @@ const io = new Server(server, {
   },
 });
 
+const DEV_MOCK_CAREGIVERS = [
+  {
+    email: 'caregiver.mock1@careconnect.local',
+    display_name: 'พิมพ์ชนก ผู้ดูแล',
+    bio: 'ดูแลผู้สูงอายุทั่วไป และช่วยกิจวัตรประจำวันอย่างอ่อนโยน',
+    experience_years: 3,
+    certifications: ['basic_first_aid', 'safe_transfer'],
+    specializations: ['companionship', 'personal_care'],
+    available_from: '08:00',
+    available_to: '18:00',
+    available_days: [1, 2, 3, 4, 5],
+    trust_level: 'L2',
+    trust_score: 82,
+    completed_jobs_count: 18,
+  },
+  {
+    email: 'caregiver.mock2@careconnect.local',
+    display_name: 'กิตติพร ผู้ดูแล',
+    bio: 'ถนัดดูแลผู้ป่วยสมองเสื่อม และเฝ้าระวังพฤติกรรมเสี่ยง',
+    experience_years: 5,
+    certifications: ['dementia_care', 'medication_management'],
+    specializations: ['dementia_care', 'medical_monitoring'],
+    available_from: '09:00',
+    available_to: '20:00',
+    available_days: [0, 1, 2, 3, 4, 5],
+    trust_level: 'L3',
+    trust_score: 91,
+    completed_jobs_count: 44,
+  },
+  {
+    email: 'caregiver.mock3@careconnect.local',
+    display_name: 'วรัญญา ผู้ดูแล',
+    bio: 'มีประสบการณ์ดูแลหลังผ่าตัดและติดตามสัญญาณชีพเบื้องต้น',
+    experience_years: 4,
+    certifications: ['post_surgery_care', 'vitals_monitoring'],
+    specializations: ['post_surgery', 'medical_monitoring'],
+    available_from: '07:00',
+    available_to: '16:00',
+    available_days: [1, 2, 3, 4, 5],
+    trust_level: 'L2',
+    trust_score: 85,
+    completed_jobs_count: 27,
+  },
+  {
+    email: 'caregiver.mock4@careconnect.local',
+    display_name: 'ศิริพร ผู้ดูแล',
+    bio: 'ช่วยพยุงเดิน ย้ายท่า และดูแลผู้ป่วยติดเตียงอย่างปลอดภัย',
+    experience_years: 6,
+    certifications: ['safe_transfer', 'catheter_care'],
+    specializations: ['personal_care', 'medical_monitoring'],
+    available_from: '10:00',
+    available_to: '22:00',
+    available_days: [0, 2, 3, 5, 6],
+    trust_level: 'L2',
+    trust_score: 79,
+    completed_jobs_count: 36,
+  },
+  {
+    email: 'caregiver.mock5@careconnect.local',
+    display_name: 'ปวีณ์ ผู้ดูแล',
+    bio: 'รับงานดูแลทั่วไปแบบยืดหยุ่น เหมาะกับงานช่วงสั้นและเร่งด่วน',
+    experience_years: 2,
+    certifications: ['basic_first_aid'],
+    specializations: ['companionship', 'emergency'],
+    available_from: '12:00',
+    available_to: '23:00',
+    available_days: [1, 3, 4, 6],
+    trust_level: 'L1',
+    trust_score: 68,
+    completed_jobs_count: 9,
+  },
+];
+
+async function ensureCaregiverPublicProfileColumn() {
+  await query(`ALTER TABLE caregiver_profiles ADD COLUMN IF NOT EXISTS is_public_profile BOOLEAN NOT NULL DEFAULT TRUE`);
+}
+
+async function ensureMockCaregivers() {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const enabled = process.env.SEED_MOCK_CAREGIVERS !== 'false';
+  if (!isDev || !enabled) return;
+
+  await ensureCaregiverPublicProfileColumn();
+
+  const mockPasswordHash = await bcrypt.hash(process.env.MOCK_CAREGIVER_PASSWORD || 'DemoCare123!', 10);
+
+  for (const caregiver of DEV_MOCK_CAREGIVERS) {
+    const userResult = await query(
+      `INSERT INTO users (
+         id,
+         email,
+         password_hash,
+         account_type,
+         role,
+         status,
+         is_email_verified,
+         trust_level,
+         trust_score,
+         completed_jobs_count,
+         created_at,
+         updated_at
+       )
+       VALUES (
+         gen_random_uuid(),
+         $1,
+         $2,
+         'guest',
+         'caregiver',
+         'active',
+         TRUE,
+         $3,
+         $4,
+         $5,
+         NOW(),
+         NOW()
+       )
+       ON CONFLICT (email) DO UPDATE
+       SET role = 'caregiver',
+           status = 'active',
+           trust_level = EXCLUDED.trust_level,
+           trust_score = EXCLUDED.trust_score,
+           completed_jobs_count = GREATEST(users.completed_jobs_count, EXCLUDED.completed_jobs_count),
+           updated_at = NOW()
+       RETURNING id`,
+      [
+        caregiver.email,
+        mockPasswordHash,
+        caregiver.trust_level,
+        caregiver.trust_score,
+        caregiver.completed_jobs_count,
+      ],
+    );
+
+    const userId = userResult.rows[0]?.id;
+    if (!userId) continue;
+
+    await query(
+      `INSERT INTO caregiver_profiles (
+         user_id,
+         display_name,
+         bio,
+         experience_years,
+         certifications,
+         specializations,
+         available_from,
+         available_to,
+         available_days,
+         is_public_profile,
+         updated_at
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE, NOW())
+       ON CONFLICT (user_id) DO UPDATE
+       SET display_name = EXCLUDED.display_name,
+           bio = EXCLUDED.bio,
+           experience_years = EXCLUDED.experience_years,
+           certifications = EXCLUDED.certifications,
+           specializations = EXCLUDED.specializations,
+           available_from = EXCLUDED.available_from,
+           available_to = EXCLUDED.available_to,
+           available_days = EXCLUDED.available_days,
+           is_public_profile = TRUE,
+           updated_at = NOW()`,
+      [
+        userId,
+        caregiver.display_name,
+        caregiver.bio,
+        caregiver.experience_years,
+        caregiver.certifications,
+        caregiver.specializations,
+        caregiver.available_from,
+        caregiver.available_to,
+        caregiver.available_days,
+      ],
+    );
+  }
+}
+
 // Middleware
 app.use(helmet());
 app.use(cors());
@@ -170,8 +347,9 @@ testConnection().then((connected) => {
   // Start server
   const PORT = process.env.PORT || 3000;
   ensureAdmin()
+    .then(() => ensureMockCaregivers())
     .catch((error) => {
-      console.error('[Backend] Admin bootstrap failed:', error);
+      console.error('[Backend] Bootstrap failed:', error);
     })
     .finally(() => {
       server.listen(PORT, '0.0.0.0', () => {

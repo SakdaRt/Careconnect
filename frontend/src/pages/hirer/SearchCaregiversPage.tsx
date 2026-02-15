@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Search, Star, Briefcase } from 'lucide-react';
+import { Search, Star, Briefcase, Clock3 } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -18,9 +18,13 @@ interface CaregiverResult {
   display_name?: string;
   bio?: string;
   skills?: string[];
+  certifications?: string[];
+  specializations?: string[];
   experience_years?: number;
-  available_days?: string[];
-  hourly_rate?: number;
+  available_days?: Array<number | string>;
+  available_from?: string;
+  available_to?: string;
+  is_public_profile?: boolean;
 }
 
 const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> = {
@@ -31,17 +35,59 @@ const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> =
 };
 
 const SKILL_LABELS: Record<string, string> = {
+  companionship: 'ดูแลทั่วไป/เพื่อนคุย',
+  personal_care: 'ช่วยกิจวัตรประจำวัน',
+  medical_monitoring: 'ดูแลการกินยา/วัดสัญญาณชีพ',
+  dementia_care: 'ดูแลสมองเสื่อม',
+  post_surgery: 'ดูแลหลังผ่าตัด',
+  emergency: 'กรณีฉุกเฉิน',
   basic_care: 'ดูแลทั่วไป',
   personal_hygiene: 'อาบน้ำ/แต่งตัว',
   medication: 'จัดยา/ให้ยา',
   vital_signs: 'วัดสัญญาณชีพ',
   wound_care: 'ดูแลแผล',
-  dementia_care: 'ดูแลสมองเสื่อม',
   physical_therapy: 'กายภาพบำบัด',
   cooking: 'ทำอาหาร',
   driving: 'ขับรถ',
   first_aid: 'ปฐมพยาบาล',
+  basic_first_aid: 'ปฐมพยาบาลเบื้องต้น',
+  safe_transfer: 'ย้ายท่าอย่างปลอดภัย',
+  vitals_monitoring: 'วัด/ติดตามสัญญาณชีพ',
+  medication_management: 'จัดยา/ดูแลการใช้ยา',
+  post_surgery_care: 'ดูแลหลังผ่าตัด',
+  catheter_care: 'ดูแลสายสวน',
+  tube_feeding_care: 'ดูแลการให้อาหารทางสาย',
 };
+
+const DAY_LABELS: Record<number, string> = {
+  0: 'อา',
+  1: 'จ',
+  2: 'อ',
+  3: 'พ',
+  4: 'พฤ',
+  5: 'ศ',
+  6: 'ส',
+};
+
+function formatTime(time?: string) {
+  if (!time) return '';
+  return time.slice(0, 5);
+}
+
+function formatAvailability(days?: Array<number | string>, from?: string, to?: string) {
+  const dayNums = (days || [])
+    .map((d) => Number(d))
+    .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6) as number[];
+
+  const dayText = dayNums.length ? dayNums.map((d) => DAY_LABELS[d] || String(d)).join(', ') : '';
+  const fromText = formatTime(from);
+  const toText = formatTime(to);
+  const timeText = fromText && toText ? `${fromText}-${toText}` : '';
+
+  if (!dayText && !timeText) return '';
+  if (dayText && timeText) return `${dayText} (${timeText})`;
+  return dayText || timeText;
+}
 
 export default function SearchCaregiversPage() {
   const { user } = useAuth();
@@ -188,6 +234,10 @@ export default function SearchCaregiversPage() {
           <div className="space-y-3">
             {caregivers.map((cg) => {
               const tl = TRUST_STYLE[cg.trust_level] || TRUST_STYLE.L0;
+              const tags = Array.from(
+                new Set([...(cg.specializations || []), ...(cg.certifications || []), ...(cg.skills || [])])
+              );
+              const availability = formatAvailability(cg.available_days, cg.available_from, cg.available_to);
               return (
                 <Card key={cg.id} className="flex flex-col sm:flex-row gap-4 items-start">
                   <div className="flex-1 min-w-0">
@@ -211,22 +261,22 @@ export default function SearchCaregiversPage() {
                           <Briefcase className="w-3.5 h-3.5" />ทำงานแล้ว {cg.completed_jobs_count} งาน
                         </span>
                       )}
-                      {cg.hourly_rate != null && (
+                      {availability && (
                         <span className="flex items-center gap-1">
-                          ฿{cg.hourly_rate}/ชม.
+                          <Clock3 className="w-3.5 h-3.5" />ว่าง: {availability}
                         </span>
                       )}
                     </div>
 
-                    {cg.skills && cg.skills.length > 0 && (
+                    {tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
-                        {cg.skills.slice(0, 5).map((s) => (
+                        {tags.slice(0, 5).map((s) => (
                           <span key={s} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
                             {SKILL_LABELS[s] || s}
                           </span>
                         ))}
-                        {cg.skills.length > 5 && (
-                          <span className="text-xs text-gray-400">+{cg.skills.length - 5}</span>
+                        {tags.length > 5 && (
+                          <span className="text-xs text-gray-400">+{tags.length - 5}</span>
                         )}
                       </div>
                     )}

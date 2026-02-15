@@ -41,6 +41,7 @@ export default function ProfilePage() {
     available_from: '',
     available_to: '',
     available_days: [] as string[],
+    is_public_profile: true,
   });
   const [profileSnapshot, setProfileSnapshot] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
@@ -315,6 +316,7 @@ export default function ProfilePage() {
       available_from: profile?.available_from || '',
       available_to: profile?.available_to || '',
       available_days: (profile?.available_days || []).map((d) => String(d)),
+      is_public_profile: typeof profile?.is_public_profile === 'boolean' ? profile.is_public_profile : true,
     });
   }, []);
 
@@ -409,6 +411,7 @@ export default function ProfilePage() {
         available_from: caregiverForm.available_from || null,
         available_to: caregiverForm.available_to || null,
         available_days: availableDays,
+        is_public_profile: caregiverForm.is_public_profile,
       });
       if (!res.success || !res.data) {
         toast.error(res.error || 'บันทึกไม่สำเร็จ');
@@ -685,6 +688,20 @@ export default function ProfilePage() {
                         onChange={(v) => setCaregiverForm({ ...caregiverForm, available_days: v })}
                         options={DAY_OPTIONS}
                       />
+                      <label className="flex items-start gap-3 p-3 border border-gray-200 rounded-lg bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={caregiverForm.is_public_profile}
+                          onChange={(e) => setCaregiverForm({ ...caregiverForm, is_public_profile: e.target.checked })}
+                        />
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">เปิดให้ผู้ว่าจ้างค้นหาโปรไฟล์ได้</div>
+                          <div className="text-xs text-gray-600 mt-0.5">
+                            หากปิดไว้ โปรไฟล์ของคุณจะไม่แสดงในหน้า “ค้นหาผู้ดูแล” ของผู้ว่าจ้าง
+                          </div>
+                        </div>
+                      </label>
                     </div>
                   )}
 

@@ -580,6 +580,19 @@ const normalizeNumber = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
+const hasCaregiverPublicProfileColumn = async () => {
+  const result = await query(
+    `SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = 'caregiver_profiles'
+        AND column_name = 'is_public_profile'
+    ) AS has_column`
+  );
+  return !!result.rows[0]?.has_column;
+};
+
 /**
  * Get current user
  * GET /api/auth/me
@@ -737,6 +750,19 @@ export const updateMyProfile = async (req, res) => {
           .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6)
       : null;
 
+    const hasPublicProfileColumn = await hasCaregiverPublicProfileColumn();
+
+    let existingIsPublic = true;
+    if (hasPublicProfileColumn) {
+      const existingCaregiverProfile = await query(
+        `SELECT is_public_profile FROM caregiver_profiles WHERE user_id = $1 LIMIT 1`,
+        [user.id],
+      );
+      existingIsPublic = typeof existingCaregiverProfile.rows[0]?.is_public_profile === 'boolean'
+        ? existingCaregiverProfile.rows[0].is_public_profile
+        : true;
+    }
+
     const payload = {
       user_id: user.id,
       display_name,
@@ -748,6 +774,47 @@ export const updateMyProfile = async (req, res) => {
       available_to: normalizeString(req.body?.available_to),
       available_days: available_days && available_days.length ? available_days : null,
     };
+
+    if (hasPublicProfileColumn) {
+      const isPublicProfile = typeof req.body?.is_public_profile === 'boolean'
+        ? req.body.is_public_profile
+        : existingIsPublic;
+
+      const result = await query(
+        `INSERT INTO caregiver_profiles
+          (user_id, display_name, bio, experience_years, certifications, specializations, available_from, available_to, available_days, is_public_profile, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         ON CONFLICT (user_id) DO UPDATE
+         SET display_name = EXCLUDED.display_name,
+             bio = EXCLUDED.bio,
+             experience_years = EXCLUDED.experience_years,
+             certifications = EXCLUDED.certifications,
+             specializations = EXCLUDED.specializations,
+             available_from = EXCLUDED.available_from,
+             available_to = EXCLUDED.available_to,
+             available_days = EXCLUDED.available_days,
+             is_public_profile = EXCLUDED.is_public_profile,
+             updated_at = NOW()
+         RETURNING *`,
+        [
+          payload.user_id,
+          payload.display_name,
+          payload.bio,
+          payload.experience_years,
+          payload.certifications,
+          payload.specializations,
+          payload.available_from,
+          payload.available_to,
+          payload.available_days,
+          isPublicProfile,
+        ]
+      );
+
+      return res.status(200).json({
+        success: true,
+        data: { profile: result.rows[0] },
+      });
+    }
 
     const result = await query(
       `INSERT INTO caregiver_profiles

@@ -1145,6 +1145,7 @@ export interface CaregiverProfile {
   id: string;
   user_id: string;
   display_name: string;
+  is_public_profile?: boolean | null;
   bio: string | null;
   experience_years: number | null;
   certifications: string[] | null;
