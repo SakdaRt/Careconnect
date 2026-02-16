@@ -179,7 +179,10 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
-      VITE_PUBLIC_HOST: localhost
+      # External/tunnel access for Vite HMR (override via shell/.env if needed)
+      VITE_PUBLIC_HOST: ${VITE_PUBLIC_HOST:-careconnect.kmitl.site}
+      VITE_PUBLIC_PROTOCOL: ${VITE_PUBLIC_PROTOCOL:-wss}
+      VITE_PUBLIC_PORT: ${VITE_PUBLIC_PORT:-443}
     ports:
       - "5173:5173"
     volumes:

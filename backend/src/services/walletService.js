@@ -302,7 +302,9 @@ class WalletService {
       // Get and lock top-up intent
       const topupResult = await client.query(
         `SELECT ti.*, w.id as wallet_id FROM topup_intents ti
-         JOIN wallets w ON w.user_id = ti.user_id AND w.wallet_type IN ('hirer', 'caregiver')
+         JOIN users u ON u.id = ti.user_id
+         JOIN wallets w ON w.user_id = ti.user_id
+          AND w.wallet_type = CASE WHEN u.role = 'hirer' THEN 'hirer' ELSE 'caregiver' END
          WHERE ti.id = $1 FOR UPDATE`,
         [topupId]
       );

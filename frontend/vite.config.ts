@@ -5,11 +5,14 @@ import { fileURLToPath, URL } from 'url';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
-  const publicHost = env.VITE_PUBLIC_HOST;
+  const publicHost = env.VITE_PUBLIC_HOST?.trim();
+  const isLocalPublicHost = publicHost === 'localhost' || publicHost === '127.0.0.1';
   const publicPort = Number(env.VITE_PUBLIC_PORT || env.VITE_PUBLIC_HMR_PORT || '');
   const devPort = Number(env.VITE_DEV_PORT || 5173);
-  const hmrPort = Number.isFinite(publicPort) ? publicPort : devPort;
-  const publicProtocol = env.VITE_PUBLIC_PROTOCOL || 'ws';
+  const hmrPort = Number.isFinite(publicPort)
+    ? publicPort
+    : (publicHost && !isLocalPublicHost ? 443 : devPort);
+  const publicProtocol = env.VITE_PUBLIC_PROTOCOL || (publicHost && !isLocalPublicHost ? 'wss' : 'ws');
 
   return {
     plugins: [react()],
@@ -28,8 +31,9 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: devPort,
       strictPort: true,
-      allowedHosts: publicHost ? [publicHost, 'careconnect.kmitl.site'] : ['careconnect.kmitl.site'],
-      hmr: publicHost
+      // Allow access through tunnel/public domains in development
+      allowedHosts: true,
+      hmr: publicHost && !isLocalPublicHost
         ? {
             host: publicHost,
             protocol: publicProtocol,
