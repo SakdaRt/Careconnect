@@ -316,6 +316,10 @@ class ApiClient {
     });
   }
 
+  async uploadProfileAvatar(formData: FormData) {
+    return this.requestFormData<{ avatar: string }>('/api/auth/avatar', formData);
+  }
+
   async updatePhoneNumber(phone_number: string) {
     return this.request<{ phone_number: string; is_phone_verified: boolean }>('/api/auth/phone', {
       method: 'POST',

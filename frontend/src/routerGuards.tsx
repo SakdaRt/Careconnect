@@ -3,6 +3,7 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { LoadingState } from './components/ui';
 import { useAuth } from './contexts';
 import type { UserRole } from './contexts/AuthContext';
+import { isConfiguredDisplayName } from './utils/profileName';
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -117,8 +118,8 @@ export function RequireProfile({ children }: { children: ReactNode }) {
   // Admin users don't need a profile
   if (user.role === 'admin') return <>{children}</>;
 
-  // If user has no name or name is empty, redirect to profile setup
-  if (!user.name || user.name.trim().length === 0) {
+  // Require a configured display name (e.g. "สมชาย ใ.") before entering core flows.
+  if (!isConfiguredDisplayName(user.name)) {
     return (
       <Navigate
         to="/profile"

@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ShieldCheck, BadgeCheck, Shield, Upload, FileText, Trash2, ExternalLink } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput } from '../../components/ui';
+import { Avatar, Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
 import type { CaregiverProfile, CaregiverDocument, HirerProfile } from '../../services/api';
+import { FULL_NAME_INPUT_GUIDE, isConfiguredDisplayName, toDisplayNameFromFullName } from '../../utils/profileName';
 
 function roleLabel(role: string) {
   if (role === 'hirer') return 'ผู้ว่าจ้าง';
@@ -68,8 +69,56 @@ export default function ProfilePage() {
   const [certUploading, setCertUploading] = useState(false);
   const [certFile, setCertFile] = useState<File | null>(null);
   const [certForm, setCertForm] = useState({ title: '', document_type: 'certification', description: '', issuer: '', issued_date: '', expiry_date: '' });
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
 
   const primaryId = useMemo(() => user?.email || user?.phone_number || '-', [user]);
+  const avatarSrc = useMemo(() => {
+    if (!user?.avatar) return undefined;
+    if (user.avatar.startsWith('http://') || user.avatar.startsWith('https://') || user.avatar.startsWith('/')) {
+      return user.avatar;
+    }
+    return `/uploads/${user.avatar}`;
+  }, [user?.avatar]);
+  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} ระบบจะแสดงเป็น “ชื่อจริง น.” อัตโนมัติ`;
+
+  const handleAvatarFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const supportedMime = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!supportedMime.includes(file.type)) {
+      toast.error('อนุญาตเฉพาะไฟล์ JPEG, PNG หรือ WebP');
+      event.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB');
+      event.target.value = '';
+      return;
+    }
+
+    setAvatarUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await appApi.uploadProfileAvatar(formData);
+      if (!res.success || !res.data?.avatar) {
+        toast.error(res.error || 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ');
+        return;
+      }
+
+      updateUser({ avatar: res.data.avatar });
+      toast.success('อัปเดตรูปโปรไฟล์แล้ว');
+    } catch (error: any) {
+      toast.error(error.message || 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ');
+    } finally {
+      setAvatarUploading(false);
+      event.target.value = '';
+    }
+  };
 
   const handleSendEmailOtp = async () => {
     if (!emailValue.trim()) {
@@ -268,6 +317,24 @@ export default function ProfilePage() {
     []
   );
 
+  const hirerDisplayNamePreview = useMemo(() => toDisplayNameFromFullName(hirerForm.display_name), [hirerForm.display_name]);
+  const caregiverDisplayNamePreview = useMemo(() => toDisplayNameFromFullName(caregiverForm.display_name), [caregiverForm.display_name]);
+
+  const resolveDisplayNameForSave = useCallback((rawInput: string, previousDisplayName?: string | null) => {
+    const trimmedInput = rawInput.trim();
+    if (!trimmedInput) return null;
+
+    const converted = toDisplayNameFromFullName(trimmedInput);
+    if (converted) return converted;
+
+    const previous = (previousDisplayName || '').trim();
+    if (previous && trimmedInput === previous && isConfiguredDisplayName(previous)) {
+      return previous;
+    }
+
+    return null;
+  }, []);
+
   const SPECIALIZATION_OPTIONS = useMemo(
     () => [
       { value: 'companionship', label: 'ดูแลทั่วไป/เพื่อนคุย' },
@@ -364,9 +431,10 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       if (profileRole === 'hirer') {
-        const displayName = hirerForm.display_name.trim();
+        const previousDisplayName = (profileSnapshot as HirerProfile | null)?.display_name || null;
+        const displayName = resolveDisplayNameForSave(hirerForm.display_name, previousDisplayName);
         if (!displayName) {
-          toast.error('กรุณากรอกชื่อที่ใช้แสดง');
+          toast.error(`${FULL_NAME_INPUT_GUIDE} แล้วระบบจะแสดงเป็นชื่อจริงและตัวแรกของนามสกุล`);
           return;
         }
         const res = await appApi.updateMyProfile({
@@ -392,9 +460,10 @@ export default function ProfilePage() {
         return;
       }
 
-      const displayName = caregiverForm.display_name.trim();
+      const previousDisplayName = (profileSnapshot as CaregiverProfile | null)?.display_name || null;
+      const displayName = resolveDisplayNameForSave(caregiverForm.display_name, previousDisplayName);
       if (!displayName) {
-        toast.error('กรุณากรอกชื่อที่ใช้แสดง');
+        toast.error(`${FULL_NAME_INPUT_GUIDE} แล้วระบบจะแสดงเป็นชื่อจริงและตัวแรกของนามสกุล`);
         return;
       }
       const experienceYears = caregiverForm.experience_years.trim();
@@ -515,10 +584,44 @@ export default function ProfilePage() {
           )}
         </div>
 
+        {user && (
+          <Card className="p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar src={avatarSrc} name={user.name || ''} size="lg" />
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-gray-900 truncate">{user.name || '-'}</div>
+                  <div className="text-xs text-gray-600 break-all">{primaryId}</div>
+                  <div className="text-xs text-gray-400 font-mono break-all">{user.id}</div>
+                </div>
+              </div>
+
+              <div className="flex-shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  loading={avatarUploading}
+                  onClick={() => avatarInputRef.current?.click()}
+                >
+                  เพิ่มรูปโปรไฟล์
+                </Button>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarFileChange}
+                />
+              </div>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">รองรับไฟล์ JPEG, PNG, WebP ขนาดไม่เกิน 5 MB</div>
+          </Card>
+        )}
+
         {profileRequired && (
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <div className="text-sm font-semibold text-amber-800">กรุณาตั้งชื่อที่ใช้แสดงก่อนเริ่มใช้งาน</div>
-            <div className="text-xs text-amber-700 mt-1">ชื่อที่ใช้แสดงจะแสดงให้ผู้ใช้อื่นเห็นแทนอีเมลหรือเบอร์โทร เพื่อความปลอดภัยของคุณ</div>
+            <div className="text-xs text-amber-700 mt-1">{FULL_NAME_INPUT_GUIDE} ระบบจะย่อให้อัตโนมัติเป็น “ชื่อจริง + ตัวแรกของนามสกุล” เพื่อความปลอดภัย</div>
           </div>
         )}
 
@@ -587,9 +690,13 @@ export default function ProfilePage() {
                         label="ชื่อที่ใช้แสดง"
                         value={hirerForm.display_name}
                         onChange={(e) => { const v = e.target.value; setHirerForm((prev) => ({ ...prev, display_name: v })); }}
-                        placeholder="ชื่อของคุณ"
+                        placeholder="เช่น สมชาย ใจดี"
+                        helperText={displayNameGuideText}
                         required
                       />
+                      {hirerDisplayNamePreview && hirerDisplayNamePreview !== hirerForm.display_name.trim() && (
+                        <div className="text-xs text-blue-700">ชื่อที่จะแสดง: {hirerDisplayNamePreview}</div>
+                      )}
                       <GooglePlacesInput
                         label="ที่อยู่"
                         value={hirerForm.address_line1}
@@ -643,9 +750,13 @@ export default function ProfilePage() {
                           label="ชื่อที่ใช้แสดง"
                           value={caregiverForm.display_name}
                           onChange={(e) => setCaregiverForm({ ...caregiverForm, display_name: e.target.value })}
-                          placeholder="ชื่อของคุณ"
+                          placeholder="เช่น อรทัย ใจงาม"
+                          helperText={displayNameGuideText}
                           required
                         />
+                        {caregiverDisplayNamePreview && caregiverDisplayNamePreview !== caregiverForm.display_name.trim() && (
+                          <div className="text-xs text-blue-700 sm:col-span-2">ชื่อที่จะแสดง: {caregiverDisplayNamePreview}</div>
+                        )}
                         <Input
                           label="ประสบการณ์ (ปี)"
                           type="number"
@@ -891,16 +1002,6 @@ export default function ProfilePage() {
                 )}
               </Card>
             )}
-
-            <Card className="p-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1">
-                  <div className="text-sm font-semibold text-gray-700">บัญชี</div>
-                  <div className="text-sm text-gray-900">{primaryId}</div>
-                  <div className="text-xs text-gray-500 font-mono break-all">{user.id}</div>
-                </div>
-              </div>
-            </Card>
 
             <Card className="p-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

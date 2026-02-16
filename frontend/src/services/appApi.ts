@@ -11,6 +11,10 @@ export const appApi = {
     return api.updateMyProfile(payload);
   },
 
+  async uploadProfileAvatar(formData: FormData) {
+    return api.uploadProfileAvatar(formData);
+  },
+
   async updatePhoneNumber(phone_number: string) {
     return api.updatePhoneNumber(phone_number);
   },

@@ -1,4 +1,8 @@
 import express from 'express';
+import fs from 'fs';
+import path from 'path';
+import multer from 'multer';
+import { v4 as uuidv4 } from 'uuid';
 import {
   registerGuest,
   registerMember,
@@ -12,6 +16,7 @@ import {
   getCurrentUser,
   getMyProfile,
   updateMyProfile,
+  updateAvatar,
   logout,
 } from '../controllers/authController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
@@ -106,6 +111,54 @@ const updateRoleSchema = Joi.object({
   role: Joi.string().valid('hirer', 'caregiver').required(),
 }).unknown(true);
 
+const uploadDir = process.env.UPLOAD_DIR || '/app/uploads';
+const avatarDir = path.join(uploadDir, 'avatars');
+if (!fs.existsSync(avatarDir)) {
+  fs.mkdirSync(avatarDir, { recursive: true });
+}
+
+const avatarStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, avatarDir),
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.bin';
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+
+const avatarUpload = multer({
+  storage: avatarStorage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (allowed.includes(file.mimetype)) {
+      cb(null, true);
+      return;
+    }
+    cb(new Error('อนุญาตเฉพาะไฟล์รูปภาพ JPEG, PNG หรือ WebP'));
+  },
+});
+
+const avatarUploadMiddleware = (req, res, next) => {
+  avatarUpload.single('file')(req, res, (error) => {
+    if (!error) {
+      next();
+      return;
+    }
+
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: 'รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB',
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      error: error.message || 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ',
+    });
+  });
+};
+
 /**
  * Auth Routes
  * Base path: /api/auth
@@ -174,6 +227,8 @@ router.get('/profile', requireAuth, requirePolicy('auth:profile:view'), getMyPro
  * Headers: Authorization: Bearer <token>
  */
 router.put('/profile', requireAuth, requirePolicy('auth:profile:update'), validateBody(authSchemas.updateProfile), updateMyProfile);
+
+router.post('/avatar', requireAuth, requirePolicy('auth:profile:update'), avatarUploadMiddleware, updateAvatar);
 
 router.post('/phone', requireAuth, requirePolicy('auth:phone'), validateBody(updatePhoneSchema), updatePhoneNumber);
 

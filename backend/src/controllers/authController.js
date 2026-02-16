@@ -9,6 +9,11 @@ import { acceptPolicy, getPolicyAcceptances } from '../services/policyService.js
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
+import path from 'path';
+
+const GENERATED_DISPLAY_NAME_PATTERN = /^ผู้(?:ว่าจ้าง|ดูแล)\s+[A-Z0-9]{4}$/u;
+const DISPLAY_NAME_PATTERN = /^(\S+)\s+(\S)\.?$/u;
 
 const normalizePhoneNumber = (value) => {
   if (!value) return null;
@@ -25,10 +30,125 @@ const normalizePhoneNumber = (value) => {
   return `+66${national}`;
 };
 
+export const updateAvatar = async (req, res) => {
+  const uploadedFilePath = req.file?.path;
+
+  try {
+    await ensureProfileSchema();
+
+    const file = req.file;
+    if (!file) {
+      return res.status(400).json({
+        error: 'Validation error',
+        message: 'กรุณาอัปโหลดรูปโปรไฟล์',
+      });
+    }
+
+    const uploadDir = path.resolve(process.env.UPLOAD_DIR || '/app/uploads');
+    const relativePath = path
+      .relative(uploadDir, file.path)
+      .replace(/\\/g, '/');
+
+    const existingUser = await User.findById(req.userId);
+    if (!existingUser) {
+      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+        fs.unlinkSync(uploadedFilePath);
+      }
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    const previousAvatar = typeof existingUser.avatar === 'string' ? existingUser.avatar : null;
+
+    const updatedUser = await User.updateById(req.userId, {
+      avatar: relativePath,
+      updated_at: new Date(),
+    });
+
+    if (!updatedUser) {
+      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+        fs.unlinkSync(uploadedFilePath);
+      }
+      return res.status(404).json({
+        error: 'Not Found',
+        message: 'User not found',
+      });
+    }
+
+    if (previousAvatar && previousAvatar !== relativePath) {
+      const previousAvatarPath = path.join(uploadDir, previousAvatar);
+      if (fs.existsSync(previousAvatarPath)) {
+        fs.unlinkSync(previousAvatarPath);
+      }
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        avatar: relativePath,
+      },
+    });
+  } catch (error) {
+    if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
+      fs.unlinkSync(uploadedFilePath);
+    }
+
+    console.error('[Auth Controller] Update avatar error:', error);
+    const detail = error instanceof Error ? error.message : 'Failed to update avatar';
+
+    return res.status(500).json({
+      error: 'Server error',
+      message: process.env.NODE_ENV === 'production' ? 'Failed to update avatar' : detail,
+    });
+  }
+};
+
 const normalizeEmail = (value) => {
   if (!value) return null;
   const trimmed = String(value).trim().toLowerCase();
   return trimmed.length ? trimmed : null;
+};
+
+const normalizeSpaces = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/\s+/g, ' ').trim();
+};
+
+const buildDisplayNameFromFullName = (value) => {
+  const normalized = normalizeSpaces(value);
+  if (!normalized) return null;
+
+  const parts = normalized.split(' ').filter(Boolean);
+  if (parts.length < 2) return null;
+
+  const firstName = parts[0];
+  const lastName = parts.slice(1).join('').replace(/[^\p{L}\p{N}]/gu, '');
+  if (lastName.length < 2) return null;
+  const lastInitial = Array.from(lastName)[0];
+  if (!lastInitial) return null;
+
+  return `${firstName} ${lastInitial}.`;
+};
+
+const normalizeDisplayNameInput = (value) => {
+  const normalized = normalizeSpaces(value);
+  if (!normalized) return null;
+
+  if (GENERATED_DISPLAY_NAME_PATTERN.test(normalized)) {
+    return null;
+  }
+
+  const derived = buildDisplayNameFromFullName(normalized);
+  if (derived) return derived;
+
+  const shortMatch = normalized.match(DISPLAY_NAME_PATTERN);
+  if (shortMatch) {
+    return `${shortMatch[1]} ${shortMatch[2]}.`;
+  }
+
+  return null;
 };
 /**
  * Auth Controller
@@ -586,6 +706,11 @@ const ensureProfileSchema = async () => {
   if (profileSchemaReady) return;
 
   await query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS avatar VARCHAR(500)
+  `);
+
+  await query(`
     ALTER TABLE hirer_profiles
       ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION,
       ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION
@@ -730,11 +855,12 @@ export const updateMyProfile = async (req, res) => {
       });
     }
 
-    const display_name = normalizeString(req.body?.display_name);
+    const rawDisplayName = normalizeString(req.body?.display_name);
+    const display_name = normalizeDisplayNameInput(rawDisplayName);
     if (!display_name) {
       return res.status(400).json({
         error: 'Validation error',
-        message: 'display_name is required',
+        message: 'กรุณากรอกชื่อและนามสกุลเต็ม เช่น "สมชาย ใจดี" (ระบบจะแสดงเป็น "สมชาย ใ.")',
       });
     }
 
@@ -968,5 +1094,6 @@ export default {
   getCurrentUser,
   getMyProfile,
   updateMyProfile,
+  updateAvatar,
   logout,
 };
