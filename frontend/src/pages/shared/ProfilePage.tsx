@@ -433,6 +433,13 @@ export default function ProfilePage() {
     applyProfile(profileRole, profileSnapshot);
   };
 
+  const handleChangeRole = () => {
+    if (!user || user.role === 'admin') return;
+    navigate('/select-role', {
+      state: { mode: 'login' },
+    });
+  };
+
   // ─── Caregiver certification documents ───
   const loadCertDocs = useCallback(async () => {
     if (user?.role !== 'caregiver') return;
@@ -501,9 +508,11 @@ export default function ProfilePage() {
             <h1 className="text-2xl font-bold text-gray-900">โปรไฟล์</h1>
             <p className="text-sm text-gray-600">ข้อมูลบัญชีและสถานะการยืนยันตัวตน</p>
           </div>
-          <Button variant="outline" onClick={logout} disabled={!user}>
-            ออกจากระบบ
-          </Button>
+          {user && user.role !== 'admin' && (
+            <Button variant="outline" onClick={handleChangeRole}>
+              เปลี่ยนสถานะ
+            </Button>
+          )}
         </div>
 
         {profileRequired && (
@@ -1010,6 +1019,10 @@ export default function ProfilePage() {
                 </div>
               )}
             </Card>
+
+            <Button variant="danger" fullWidth onClick={logout}>
+              ออกจากระบบ
+            </Button>
           </>
         )}
       </div>
