@@ -580,6 +580,25 @@ const normalizeNumber = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
+let profileSchemaReady = false;
+
+const ensureProfileSchema = async () => {
+  if (profileSchemaReady) return;
+
+  await query(`
+    ALTER TABLE hirer_profiles
+      ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION,
+      ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION
+  `);
+
+  await query(`
+    ALTER TABLE caregiver_profiles
+      ADD COLUMN IF NOT EXISTS is_public_profile BOOLEAN NOT NULL DEFAULT TRUE
+  `);
+
+  profileSchemaReady = true;
+};
+
 const hasCaregiverPublicProfileColumn = async () => {
   const result = await query(
     `SELECT EXISTS (
@@ -640,6 +659,8 @@ export const getCurrentUser = async (req, res) => {
  */
 export const getMyProfile = async (req, res) => {
   try {
+    await ensureProfileSchema();
+
     const userWithProfile = await User.getUserWithProfile(req.userId);
     if (!userWithProfile) {
       return res.status(404).json({
@@ -671,6 +692,8 @@ export const getMyProfile = async (req, res) => {
  */
 export const updateMyProfile = async (req, res) => {
   try {
+    await ensureProfileSchema();
+
     const user = await User.findById(req.userId);
     if (!user) {
       return res.status(404).json({
@@ -850,9 +873,10 @@ export const updateMyProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('[Auth Controller] Update profile error:', error);
+    const detail = error instanceof Error ? error.message : 'Failed to update profile';
     res.status(500).json({
       error: 'Server error',
-      message: 'Failed to update profile',
+      message: process.env.NODE_ENV === 'production' ? 'Failed to update profile' : detail,
     });
   }
 };
