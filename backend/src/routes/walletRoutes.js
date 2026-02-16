@@ -85,6 +85,18 @@ router.get('/topup/:topupId',
 );
 
 /**
+ * Confirm top-up payment manually
+ * POST /api/wallet/topup/:topupId/confirm
+ * Headers: Authorization: Bearer <token>
+ */
+router.post('/topup/:topupId/confirm',
+  requireAuth,
+  requirePolicy('wallet:topup:status'),
+  validateParams(Joi.object({ topupId: commonSchemas.uuid })),
+  walletController.confirmTopup
+);
+
+/**
  * Get withdrawal requests
  * GET /api/wallet/withdrawals
  * Headers: Authorization: Bearer <token>

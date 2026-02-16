@@ -273,4 +273,67 @@ describe('Wallet Safety', () => {
       ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('Insufficient') });
     });
   });
+
+  describe('Manual topup confirmation (simulation)', () => {
+    it('confirms pending topup and returns succeeded status with credited wallet', async () => {
+      mockQuery
+        // initial getTopupById
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'topup-1',
+            user_id: 'user-1',
+            status: 'pending',
+            provider_name: 'mock',
+          }],
+        })
+        // getTopupById after success processing
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'topup-1',
+            user_id: 'user-1',
+            status: 'succeeded',
+            provider_name: 'mock',
+          }],
+        });
+
+      const processSpy = jest.spyOn(walletService, 'processTopupSuccess').mockResolvedValue({
+        id: 'wallet-1',
+        available_balance: 1500,
+      });
+
+      const result = await walletService.confirmTopupPayment('topup-1', 'user-1');
+
+      expect(processSpy).toHaveBeenCalledWith(
+        'topup-1',
+        expect.objectContaining({ transaction_id: expect.stringContaining('mock_confirm_') })
+      );
+      expect(result.topup.status).toBe('succeeded');
+      expect(result.wallet).toEqual(expect.objectContaining({ id: 'wallet-1' }));
+
+      processSpy.mockRestore();
+    });
+
+    it('does not process already succeeded topup again', async () => {
+      mockQuery.mockResolvedValueOnce({
+        rows: [{
+          id: 'topup-1',
+          user_id: 'user-1',
+          status: 'succeeded',
+          provider_name: 'mock',
+        }],
+      });
+
+      const processSpy = jest.spyOn(walletService, 'processTopupSuccess').mockResolvedValue({
+        id: 'wallet-1',
+      });
+
+      const result = await walletService.confirmTopupPayment('topup-1', 'user-1');
+
+      expect(processSpy).not.toHaveBeenCalled();
+      expect(result.topup.status).toBe('succeeded');
+      expect(result.wallet).toBeNull();
+
+      processSpy.mockRestore();
+    });
+  });
 });

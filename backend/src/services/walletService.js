@@ -398,6 +398,71 @@ class WalletService {
   }
 
   /**
+   * Confirm top-up payment by checking provider status
+   * In non-production with mock provider, this simulates a successful paid result.
+   * @param {string} topupId - Top-up ID
+   * @param {string} userId - User ID (authorization)
+   * @returns {object} - Updated top-up status and wallet (if credited)
+   */
+  async confirmTopupPayment(topupId, userId) {
+    const topup = await this.getTopupById(topupId, userId);
+
+    if (topup.status === 'succeeded') {
+      return { topup, wallet: null };
+    }
+
+    if (topup.status === 'failed' || topup.status === 'expired') {
+      return { topup, wallet: null };
+    }
+
+    if (topup.status !== 'pending') {
+      throw { status: 400, message: `Cannot confirm top-up with status: ${topup.status}` };
+    }
+
+    const verification = await this.checkTopupPaymentStatusWithProvider(topup);
+
+    if (verification.status === 'succeeded') {
+      const wallet = await this.processTopupSuccess(topupId, {
+        transaction_id: verification.transaction_id || `mock_confirm_${Date.now()}`,
+      });
+      const updatedTopup = await this.getTopupById(topupId, userId);
+      return { topup: updatedTopup, wallet };
+    }
+
+    if (verification.status === 'failed' || verification.status === 'expired') {
+      await this.processTopupFailure(
+        topupId,
+        verification.reason || (verification.status === 'expired' ? 'Payment expired' : 'Payment failed')
+      );
+      const updatedTopup = await this.getTopupById(topupId, userId);
+      return { topup: updatedTopup, wallet: null };
+    }
+
+    return { topup, wallet: null };
+  }
+
+  /**
+   * Check payment status from provider
+   * For mock provider in non-production, we simulate successful payment after user confirmation.
+   * @param {object} topupIntent - Top-up intent
+   * @returns {{status: 'pending'|'succeeded'|'failed'|'expired', transaction_id?: string, reason?: string}}
+   */
+  async checkTopupPaymentStatusWithProvider(topupIntent) {
+    if (topupIntent.provider_name === 'mock') {
+      if (process.env.NODE_ENV !== 'production') {
+        return {
+          status: 'succeeded',
+          transaction_id: `mock_confirm_${Date.now()}`,
+        };
+      }
+
+      return { status: 'pending' };
+    }
+
+    return { status: 'pending' };
+  }
+
+  /**
    * Initiate withdrawal request
    * @param {string} userId - User ID
    * @param {string} role - User role (must be caregiver)

@@ -196,6 +196,10 @@ export const appApi = {
     return api.getTopupStatus(topupId);
   },
 
+  async confirmTopupPayment(topupId: string) {
+    return api.confirmTopupPayment(topupId);
+  },
+
   async getBankAccounts() {
     return api.getBankAccounts();
   },

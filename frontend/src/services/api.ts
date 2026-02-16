@@ -467,6 +467,22 @@ class ApiClient {
     return { success: true, data: raw.topup } as ApiResponse<TopupIntent>;
   }
 
+  async confirmTopupPayment(topupId: string) {
+    const raw: any = await this.request<any>(`/api/wallet/topup/${topupId}/confirm`, {
+      method: 'POST',
+    });
+    if (!raw.success) {
+      return raw as ApiResponse<{ topup: TopupIntent; wallet: WalletBalance | null }>;
+    }
+    return {
+      success: true,
+      data: {
+        topup: raw.topup,
+        wallet: raw.wallet || null,
+      },
+    } as ApiResponse<{ topup: TopupIntent; wallet: WalletBalance | null }>;
+  }
+
   async getBankAccounts() {
     const raw: any = await this.request<any>('/api/wallet/bank-accounts');
     if (!raw.success) return raw as ApiResponse<BankAccount[]>;

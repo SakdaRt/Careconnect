@@ -128,6 +128,33 @@ const walletController = {
   },
 
   /**
+   * Confirm top-up payment (manual verification trigger)
+   * POST /api/wallet/topup/:topupId/confirm
+   */
+  async confirmTopup(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { topupId } = req.params;
+
+      const result = await walletService.confirmTopupPayment(topupId, userId);
+
+      res.json({
+        success: true,
+        topup: result.topup,
+        wallet: result.wallet,
+      });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({
+          success: false,
+          error: error.message,
+        });
+      }
+      next(error);
+    }
+  },
+
+  /**
    * Get pending top-ups
    * GET /api/wallet/topup/pending
    */
