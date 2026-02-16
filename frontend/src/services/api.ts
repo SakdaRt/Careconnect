@@ -399,7 +399,7 @@ class ApiClient {
 
   // Wallet endpoints
   async getWallet() {
-    const raw: any = await this.request<any>('/api/wallet/balance');
+    const raw: any = await this.request<any>(`/api/wallet/balance?_=${Date.now()}`);
     if (!raw.success) return raw as ApiResponse<WalletBalance>;
     return {
       success: true,
@@ -419,7 +419,8 @@ class ApiClient {
     if (page) params.append('page', page.toString());
     if (limit) params.append('limit', limit.toString());
     const query = params.toString() ? `?${params.toString()}` : '';
-    const raw: any = await this.request<any>(`/api/wallet/transactions${query}`);
+    const sep = query ? '&' : '?';
+    const raw: any = await this.request<any>(`/api/wallet/transactions${query}${sep}_=${Date.now()}`);
     if (!raw.success) return raw as ApiResponse<Paginated<Transaction>>;
     return {
       success: true,
@@ -455,13 +456,13 @@ class ApiClient {
   }
 
   async getPendingTopups() {
-    const raw: any = await this.request<any>('/api/wallet/topup/pending');
+    const raw: any = await this.request<any>(`/api/wallet/topup/pending?_=${Date.now()}`);
     if (!raw.success) return raw as ApiResponse<TopupIntent[]>;
     return { success: true, data: raw.data || [] } as ApiResponse<TopupIntent[]>;
   }
 
   async getTopupStatus(topupId: string) {
-    const raw: any = await this.request<any>(`/api/wallet/topup/${topupId}`);
+    const raw: any = await this.request<any>(`/api/wallet/topup/${topupId}?_=${Date.now()}`);
     if (!raw.success) return raw as ApiResponse<TopupIntent>;
     return { success: true, data: raw.topup } as ApiResponse<TopupIntent>;
   }
