@@ -298,11 +298,11 @@ class ApiClient {
   }
 
   async getMyProfile() {
-    return this.request<{ role: User['role']; profile: UserProfile | null }>('/api/auth/profile');
+    return this.request<{ role: User['role']; profile: HirerProfile | CaregiverProfile | null }>('/api/auth/profile');
   }
 
   async updateMyProfile(payload: Partial<UserProfile> & { display_name: string }) {
-    return this.request<{ profile: UserProfile }>('/api/auth/profile', {
+    return this.request<{ profile: HirerProfile | CaregiverProfile }>('/api/auth/profile', {
       method: 'PUT',
       body: payload,
     });

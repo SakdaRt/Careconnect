@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Shield, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, StatusBadge } from '../../components/ui';
-import { JobPost, UserProfile } from '../../services/api';
+import { CaregiverProfile, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 import toast from 'react-hot-toast';
@@ -31,7 +31,7 @@ export default function CaregiverJobFeedPage() {
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('');
-  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profile, setProfile] = useState<CaregiverProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
   const isL0 = user?.trust_level === 'L0';
@@ -54,31 +54,33 @@ export default function CaregiverJobFeedPage() {
     setProfileLoading(true);
     try {
       const res = await appApi.getMyProfile();
-      if (res.success && res.data) {
-        setProfile(res.data.profile);
+      if (res.success && res.data && res.data.role === 'caregiver') {
+        setProfile((res.data.profile || null) as CaregiverProfile | null);
+      } else {
+        setProfile(null);
       }
     } catch {}
     setProfileLoading(false);
   };
 
   const toggleVisibility = async () => {
-    if (!profile || profile.role !== 'caregiver') return;
+    if (!profile) return;
     setTogglingVisibility(true);
     try {
-      const newVisibility = !(profile.caregiver_profile?.is_public_profile ?? true);
+      const newVisibility = !(profile.is_public_profile ?? true);
       const res = await appApi.updateMyProfile({
-        display_name: profile.caregiver_profile?.display_name || '',
-        bio: profile.caregiver_profile?.bio || '',
-        experience_years: profile.caregiver_profile?.experience_years,
-        certifications: profile.caregiver_profile?.certifications || [],
-        specializations: profile.caregiver_profile?.specializations || [],
-        available_from: profile.caregiver_profile?.available_from || '',
-        available_to: profile.caregiver_profile?.available_to || '',
-        available_days: profile.caregiver_profile?.available_days || [],
+        display_name: profile.display_name || '',
+        bio: profile.bio || '',
+        experience_years: profile.experience_years,
+        certifications: profile.certifications || [],
+        specializations: profile.specializations || [],
+        available_from: profile.available_from || '',
+        available_to: profile.available_to || '',
+        available_days: profile.available_days || [],
         is_public_profile: newVisibility,
       });
       if (res.success && res.data) {
-        setProfile(res.data.profile);
+        setProfile(res.data.profile as CaregiverProfile);
         toast.success(newVisibility ? 'เปิดให้ผู้ว่าจ้างค้นหาโปรไฟล์แล้ว' : 'ปิดโปรไฟล์จากผู้ว่าจ้างแล้ว');
       } else {
         toast.error(res.error || 'เปลี่ยนการแสดงตนไม่สำเร็จ');
@@ -114,6 +116,40 @@ export default function CaregiverJobFeedPage() {
           </Button>
         </div>
 
+        {/* Profile Visibility Toggle */}
+        {user?.role === 'caregiver' && profile && (
+          <Card className="mb-4 p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-start gap-3">
+                {(profile.is_public_profile ?? true) ? (
+                  <Eye className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                ) : (
+                  <EyeOff className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    โปรไฟล์ของ {profile.display_name || 'คุณ'}
+                  </div>
+                  <div className="text-xs text-gray-600 mt-0.5">
+                    {(profile.is_public_profile ?? true)
+                      ? 'แสดงให้ผู้ว่าจ้างค้นหาเห็นอยู่'
+                      : 'ถูกซ่อนจากผู้ว่าจ้าง'}
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleVisibility}
+                loading={togglingVisibility}
+                disabled={profileLoading}
+              >
+                {(profile.is_public_profile ?? true) ? 'ปิด' : 'เปิด'}
+              </Button>
+            </div>
+          </Card>
+        )}
+
         <div className="flex flex-wrap gap-2 mb-4">
           <select
             className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
@@ -138,40 +174,6 @@ export default function CaregiverJobFeedPage() {
             <button onClick={() => setTypeFilter('')} className="text-xs text-blue-600 hover:underline">ล้างตัวกรอง</button>
           )}
         </div>
-
-        {/* Profile Visibility Toggle */}
-        {profile && profile.role === 'caregiver' && (
-          <Card className="mb-6 p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-start gap-3">
-                {(profile.caregiver_profile?.is_public_profile ?? true) ? (
-                  <Eye className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <EyeOff className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
-                )}
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">
-                    โปรไฟล์ของ {profile.caregiver_profile?.display_name || 'คุณ'}
-                  </div>
-                  <div className="text-xs text-gray-600 mt-0.5">
-                    {(profile.caregiver_profile?.is_public_profile ?? true)
-                      ? 'แสดงให้ผู้ว่าจ้างค้นหาเห็นอยู่'
-                      : 'ถูกซ่อนจากผู้ว่าจ้าง'}
-                  </div>
-                </div>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleVisibility}
-                loading={togglingVisibility}
-                disabled={profileLoading}
-              >
-                {(profile.caregiver_profile?.is_public_profile ?? true) ? 'ปิด' : 'เปิด'}
-              </Button>
-            </div>
-          </Card>
-        )}
 
         {isL0 && (
           <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-start gap-3">

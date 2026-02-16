@@ -7,7 +7,7 @@ import { Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput } from '../../
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
-import type { CaregiverProfile, CaregiverDocument, HirerProfile, UserProfile } from '../../services/api';
+import type { CaregiverProfile, CaregiverDocument, HirerProfile } from '../../services/api';
 
 function roleLabel(role: string) {
   if (role === 'hirer') return 'ผู้ว่าจ้าง';
@@ -43,7 +43,7 @@ export default function ProfilePage() {
     available_days: [] as string[],
     is_public_profile: true,
   });
-  const [profileSnapshot, setProfileSnapshot] = useState<UserProfile | null>(null);
+  const [profileSnapshot, setProfileSnapshot] = useState<HirerProfile | CaregiverProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [emailValue, setEmailValue] = useState('');
@@ -321,7 +321,7 @@ export default function ProfilePage() {
   }, []);
 
   const applyProfile = useCallback(
-    (role: 'hirer' | 'caregiver' | 'admin', profile: UserProfile | null) => {
+    (role: 'hirer' | 'caregiver' | 'admin', profile: HirerProfile | CaregiverProfile | null) => {
       const fallbackName = user?.name || '';
       setProfileRole(role);
       setProfileSnapshot(profile);

@@ -77,7 +77,7 @@ const io = new Server(server, {
 const DEV_MOCK_CAREGIVERS = [
   {
     email: 'caregiver.mock1@careconnect.local',
-    display_name: 'พิมพ์ชนก ผู้ดูแล',
+    display_name: 'mock พิมพ์ชนก ผู้ดูแล',
     bio: 'ดูแลผู้สูงอายุทั่วไป และช่วยกิจวัตรประจำวันอย่างอ่อนโยน',
     experience_years: 3,
     certifications: ['basic_first_aid', 'safe_transfer'],
@@ -91,7 +91,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: 'caregiver.mock2@careconnect.local',
-    display_name: 'กิตติพร ผู้ดูแล',
+    display_name: 'mock กิตติพร ผู้ดูแล',
     bio: 'ถนัดดูแลผู้ป่วยสมองเสื่อม และเฝ้าระวังพฤติกรรมเสี่ยง',
     experience_years: 5,
     certifications: ['dementia_care', 'medication_management'],
@@ -105,7 +105,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: 'caregiver.mock3@careconnect.local',
-    display_name: 'วรัญญา ผู้ดูแล',
+    display_name: 'mock วรัญญา ผู้ดูแล',
     bio: 'มีประสบการณ์ดูแลหลังผ่าตัดและติดตามสัญญาณชีพเบื้องต้น',
     experience_years: 4,
     certifications: ['post_surgery_care', 'vitals_monitoring'],
@@ -119,7 +119,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: 'caregiver.mock4@careconnect.local',
-    display_name: 'ศิริพร ผู้ดูแล',
+    display_name: 'mock ศิริพร ผู้ดูแล',
     bio: 'ช่วยพยุงเดิน ย้ายท่า และดูแลผู้ป่วยติดเตียงอย่างปลอดภัย',
     experience_years: 6,
     certifications: ['safe_transfer', 'catheter_care'],
@@ -133,7 +133,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: 'caregiver.mock5@careconnect.local',
-    display_name: 'ปวีณ์ ผู้ดูแล',
+    display_name: 'mock ปวีณ์ ผู้ดูแล',
     bio: 'รับงานดูแลทั่วไปแบบยืดหยุ่น เหมาะกับงานช่วงสั้นและเร่งด่วน',
     experience_years: 2,
     certifications: ['basic_first_aid'],
