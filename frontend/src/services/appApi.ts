@@ -117,6 +117,10 @@ export const appApi = {
     return api.acceptJob(jobPostId, message);
   },
 
+  async rejectJob(jobPostId: string, _caregiverId: string, reason?: string) {
+    return api.rejectJob(jobPostId, reason);
+  },
+
   async checkIn(jobId: string, _caregiverId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }) {
     return api.checkIn(jobId, gpsData);
   },

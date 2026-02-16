@@ -8,6 +8,7 @@ import {
   createJob,
   publishJob,
   acceptJob,
+  rejectAssignedJob,
   checkIn,
   checkOut,
   cancelJob,
@@ -54,6 +55,10 @@ const gpsSchema = Joi.object({
 
 const cancelSchema = Joi.object({
   reason: Joi.string().trim().min(1).max(500).required(),
+});
+
+const rejectSchema = Joi.object({
+  reason: Joi.string().trim().max(500).allow('', null),
 });
 
 /**
@@ -172,6 +177,19 @@ router.post('/:id/accept',
   requirePolicy('job:accept'),
   validateParams(jobSchemas.jobParams),
   acceptJob
+);
+
+/**
+ * Reject direct-assigned job offer
+ * POST /api/jobs/:id/reject
+ * Headers: Authorization: Bearer <token>
+ */
+router.post('/:id/reject',
+  requireAuth,
+  requirePolicy('job:accept'),
+  validateParams(jobSchemas.jobParams),
+  validateBody(rejectSchema),
+  rejectAssignedJob
 );
 
 /**

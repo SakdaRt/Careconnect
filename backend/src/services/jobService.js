@@ -155,18 +155,9 @@ export const createJob = async (hirerId, jobData) => {
     throw new ValidationError('Please select at least one job task', { code: 'JOB_TASKS_REQUIRED', field: 'job_tasks_flags', section: 'job_tasks' });
   }
 
-  let preferred_caregiver_id = null;
-  if (jobData.preferred_caregiver_id) {
-    const caregiver = await User.findById(jobData.preferred_caregiver_id);
-    if (!caregiver || caregiver.role !== 'caregiver' || caregiver.status !== 'active') {
-      throw new ValidationError('Preferred caregiver is invalid or inactive', {
-        code: 'PREFERRED_CAREGIVER_INVALID',
-        field: 'preferred_caregiver_id',
-        section: 'job_basic',
-      });
-    }
-    preferred_caregiver_id = caregiver.id;
-  }
+  // Creation always starts as an open post. A specific caregiver can be set later
+  // via explicit assignment flow only.
+  const preferred_caregiver_id = null;
 
   let patientProfile = null;
   if (jobData.patient_profile_id) {
@@ -416,7 +407,31 @@ export const getHirerJobs = async (hirerId, options = {}) => {
  * @param {object} options - Filter options
  * @returns {object} - Paginated jobs
  */
+const autoCompleteOverdueJobsForCaregiver = async (caregiverId) => {
+  const overdueResult = await query(
+    `SELECT j.id
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+     WHERE ja.caregiver_id = $1
+       AND j.status = 'in_progress'
+       AND jp.scheduled_end_at <= NOW()
+     ORDER BY jp.scheduled_end_at ASC
+     LIMIT 20`,
+    [caregiverId]
+  );
+
+  for (const row of overdueResult.rows) {
+    try {
+      await checkOut(row.id, caregiverId, {});
+    } catch (error) {
+      console.error(`[Job Service] Failed to auto-complete overdue job ${row.id}:`, error.message);
+    }
+  }
+};
+
 export const getCaregiverJobs = async (caregiverId, options = {}) => {
+  await autoCompleteOverdueJobsForCaregiver(caregiverId);
   return await Job.getCaregiverJobs(caregiverId, options);
 };
 
@@ -620,13 +635,18 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       );
     }
 
+    const isPreferredCaregiverFlow =
+      Boolean(jobPost.preferred_caregiver_id) && jobPost.preferred_caregiver_id === caregiverId;
+    const nextJobStatus = isPreferredCaregiverFlow ? 'in_progress' : 'assigned';
+    const assignmentStartConfirmedAt = isPreferredCaregiverFlow ? new Date() : null;
+
     // Update job post status
     const jobPostUpdate = await client.query(
       `UPDATE job_posts
-       SET status = 'assigned', updated_at = NOW()
+       SET status = $2, updated_at = NOW()
        WHERE id = $1 AND status = 'posted'
        RETURNING id`,
-      [jobPostId]
+      [jobPostId, nextJobStatus]
     );
 
     if (jobPostUpdate.rows.length === 0) {
@@ -636,9 +656,9 @@ export const acceptJob = async (jobPostId, caregiverId) => {
     // Create job instance first (needed for escrow wallet foreign key)
     const jobId = uuidv4();
     await client.query(
-      `INSERT INTO jobs (id, job_post_id, hirer_id, status, assigned_at, created_at, updated_at)
-       VALUES ($1, $2, $3, 'assigned', NOW(), NOW(), NOW())`,
-      [jobId, jobPostId, jobPost.hirer_id]
+      `INSERT INTO jobs (id, job_post_id, hirer_id, status, assigned_at, started_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), $5, NOW(), NOW())`,
+      [jobId, jobPostId, jobPost.hirer_id, nextJobStatus, assignmentStartConfirmedAt]
     );
 
     // Create escrow wallet for this job (now with job_id)
@@ -660,9 +680,9 @@ export const acceptJob = async (jobPostId, caregiverId) => {
     // Create assignment
     const assignmentId = uuidv4();
     await client.query(
-      `INSERT INTO job_assignments (id, job_id, job_post_id, caregiver_id, status, assigned_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'active', NOW(), NOW(), NOW())`,
-      [assignmentId, jobId, jobPostId, caregiverId]
+      `INSERT INTO job_assignments (id, job_id, job_post_id, caregiver_id, status, assigned_at, start_confirmed_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, 'active', NOW(), $5, NOW(), NOW())`,
+      [assignmentId, jobId, jobPostId, caregiverId, assignmentStartConfirmedAt]
     );
 
     // Create chat thread for job
@@ -674,10 +694,13 @@ export const acceptJob = async (jobPostId, caregiverId) => {
     );
 
     // Add system message
+    const systemMessage = isPreferredCaregiverFlow
+      ? 'ผู้ดูแลตอบรับงานแล้ว และงานเริ่มดำเนินการ'
+      : 'Job has been assigned. Payment has been secured in escrow.';
     await client.query(
       `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
-       VALUES ($1, $2, NULL, 'system', 'Job has been assigned. Payment has been secured in escrow.', true, NOW())`,
-      [uuidv4(), threadId]
+       VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
+      [uuidv4(), threadId, systemMessage]
     );
 
     // Notify hirer that caregiver accepted the job
@@ -699,6 +722,65 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       chat_thread_id: threadId,
       escrow_wallet_id: escrowWalletId,
       escrow_amount: totalAmount,
+      status: nextJobStatus,
+    };
+  });
+};
+
+/**
+ * Reject a direct-assigned job offer (preferred caregiver flow)
+ * @param {string} jobPostId - Job post ID
+ * @param {string} caregiverId - Caregiver user ID
+ * @param {string} reason - Optional reject reason
+ * @returns {object}
+ */
+export const rejectAssignedJob = async (jobPostId, caregiverId, reason = '') => {
+  // Validate caregiver
+  const caregiver = await User.findById(caregiverId);
+  if (!caregiver) {
+    throw new Error('Caregiver not found');
+  }
+
+  if (caregiver.role !== 'caregiver') {
+    throw new Error('Only caregivers can reject assigned jobs');
+  }
+
+  return await transaction(async (client) => {
+    const jobPostResult = await client.query(
+      `SELECT id, status, preferred_caregiver_id
+       FROM job_posts
+       WHERE id = $1
+       FOR UPDATE`,
+      [jobPostId]
+    );
+
+    if (jobPostResult.rows.length === 0) {
+      throw new Error('Job post not found');
+    }
+
+    const jobPost = jobPostResult.rows[0];
+
+    if (jobPost.status !== 'posted') {
+      throw new Error(`Cannot reject job in status: ${jobPost.status}`);
+    }
+
+    if (!jobPost.preferred_caregiver_id || jobPost.preferred_caregiver_id !== caregiverId) {
+      throw new Error('Not authorized to reject this assignment');
+    }
+
+    await client.query(
+      `UPDATE job_posts
+       SET preferred_caregiver_id = NULL,
+           updated_at = NOW()
+       WHERE id = $1`,
+      [jobPostId]
+    );
+
+    return {
+      job_post_id: jobPostId,
+      status: 'posted',
+      rejected: true,
+      reason: reason ? String(reason).trim() : '',
     };
   });
 };

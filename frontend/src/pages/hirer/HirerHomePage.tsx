@@ -3,16 +3,53 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MessageCircle, ShieldCheck, User as UserIcon, PlusCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, ReasonModal } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 
+type HirerJob = JobPost & { caregiver_name?: string | null; job_status?: string | null; job_id?: string | null };
+
 type JobStatusFilter =
-  | 'active'
+  | 'all'
+  | 'waiting_response'
+  | 'in_progress'
   | 'completed'
-  | 'cancelled'
-  | 'expired';
+  | 'cancelled';
+
+type JobLifecycleStatus = 'draft' | 'waiting_response' | 'in_progress' | 'completed' | 'cancelled';
+
+function getLifecycleStatus(job: HirerJob): JobLifecycleStatus {
+  if (job.status === 'cancelled' || job.job_status === 'cancelled') return 'cancelled';
+  if (job.status === 'completed' || job.job_status === 'completed') return 'completed';
+
+  if (
+    job.status === 'assigned' ||
+    job.status === 'in_progress' ||
+    job.job_status === 'assigned' ||
+    job.job_status === 'in_progress'
+  ) {
+    return 'in_progress';
+  }
+
+  if (job.status === 'draft') return 'draft';
+  return 'waiting_response';
+}
+
+function getLifecycleBadge(status: JobLifecycleStatus): { label: string; variant: 'default' | 'info' | 'warning' | 'success' | 'danger' } {
+  switch (status) {
+    case 'waiting_response':
+      return { label: 'รอการตอบรับ', variant: 'info' };
+    case 'in_progress':
+      return { label: 'อยู่ระหว่างการดำเนินงาน', variant: 'warning' };
+    case 'completed':
+      return { label: 'เสร็จแล้ว', variant: 'success' };
+    case 'cancelled':
+      return { label: 'ยกเลิก', variant: 'danger' };
+    default:
+      return { label: 'ยังไม่เผยแพร่', variant: 'default' };
+  }
+}
 
 function formatDateTimeRange(startIso: string, endIso: string) {
   const start = new Date(startIso);
@@ -29,7 +66,7 @@ function JobPostCard({
   onOpenDispute,
   onCancel,
 }: {
-  job: JobPost & { caregiver_name?: string | null; job_status?: string | null; job_id?: string | null };
+  job: HirerJob;
   onPublish: () => void;
   onOpenDispute: () => void;
   onCancel: () => void;
@@ -38,6 +75,17 @@ function JobPostCard({
     const parts = [job.address_line1, job.district, job.province].filter(Boolean);
     return parts.join(', ');
   }, [job.address_line1, job.district, job.province]);
+  const lifecycleStatus = getLifecycleStatus(job);
+  const lifecycle = getLifecycleBadge(lifecycleStatus);
+  const isAssignedToCaregiver = Boolean(job.preferred_caregiver_id) && lifecycleStatus !== 'draft';
+
+  const canChat =
+    Boolean(job.job_id) &&
+    (job.job_status === 'assigned' || job.job_status === 'in_progress' || job.job_status === 'completed');
+
+  const canDispute = Boolean(job.job_id) && lifecycleStatus !== 'draft' && lifecycleStatus !== 'cancelled' && lifecycleStatus !== 'completed';
+  const canCancel = lifecycleStatus !== 'cancelled' && lifecycleStatus !== 'completed';
+  const canPublish = lifecycleStatus === 'draft';
 
   return (
     <Card className="p-4">
@@ -45,10 +93,16 @@ function JobPostCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold text-gray-900 text-lg line-clamp-1">{job.title}</h3>
-            <StatusBadge status={job.status as any} />
+            <Badge variant={lifecycle.variant}>{lifecycle.label}</Badge>
           </div>
 
           <p className="text-sm text-gray-600 mt-1 line-clamp-2">{job.description}</p>
+
+          <div className="mt-2">
+            <Badge variant={isAssignedToCaregiver ? 'warning' : 'info'}>
+              {isAssignedToCaregiver ? 'มอบหมายให้ผู้ดูแล' : 'งานโพสต์รับสมัคร'}
+            </Badge>
+          </div>
 
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
             <div>เวลา: {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}</div>
@@ -60,7 +114,7 @@ function JobPostCard({
             </div>
           </div>
 
-          {job.caregiver_name && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
+          {job.caregiver_name && (job.job_status === 'assigned' || job.job_status === 'in_progress' || job.job_status === 'completed') && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                 <UserIcon className="w-4 h-4 text-blue-600" />
@@ -76,40 +130,42 @@ function JobPostCard({
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap gap-2 pt-3 border-t border-gray-100">
-            <Link to={`/jobs/${job.id}`}>
-              <Button variant="outline" size="sm">
-                ดูรายละเอียด
-              </Button>
-            </Link>
-
-            {job.job_id && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
-              <Link to={`/chat/${job.job_id}`}>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={<MessageCircle className="w-4 h-4" />}
-                >
-                  แชท
+          <div className="mt-4 flex flex-wrap items-start justify-between gap-2 pt-3 border-t border-gray-100">
+            <div className="flex flex-wrap gap-2">
+              <Link to={`/jobs/${job.id}`}>
+                <Button variant="outline" size="sm">
+                  ดูรายละเอียด
                 </Button>
               </Link>
-            )}
 
-            {job.status === 'draft' && (
+              {canChat && (
+                <Link to={`/chat/${job.job_id}`}>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<MessageCircle className="w-4 h-4" />}
+                  >
+                    แชท
+                  </Button>
+                </Link>
+              )}
+
+              {canDispute && (
+                <Button variant="outline" size="sm" onClick={onOpenDispute}>
+                  เปิดข้อพิพาท
+                </Button>
+              )}
+
+              {canCancel && (
+                <Button variant="danger" size="sm" onClick={onCancel}>
+                  ยกเลิกงาน
+                </Button>
+              )}
+            </div>
+
+            {canPublish && (
               <Button variant="primary" size="sm" onClick={onPublish}>
                 เผยแพร่
-              </Button>
-            )}
-
-            {job.job_id && job.status !== 'draft' && job.status !== 'cancelled' && job.status !== 'completed' && (
-              <Button variant="outline" size="sm" onClick={onOpenDispute}>
-                เปิดข้อพิพาท
-              </Button>
-            )}
-
-            {job.status !== 'cancelled' && job.status !== 'completed' && (
-              <Button variant="danger" size="sm" onClick={onCancel}>
-                ยกเลิกงาน
               </Button>
             )}
           </div>
@@ -122,8 +178,8 @@ function JobPostCard({
 export default function HirerHomePage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<JobStatusFilter>('active');
-  const [jobs, setJobs] = useState<JobPost[]>([]);
+  const [status, setStatus] = useState<JobStatusFilter>('all');
+  const [jobs, setJobs] = useState<HirerJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeJobId, setDisputeJobId] = useState<string | null>(null);
@@ -137,12 +193,22 @@ export default function HirerHomePage() {
   const loadJobs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await appApi.getMyJobs(hirerId, status === 'active' ? undefined : status);
+      const requestStatus = status === 'waiting_response'
+        ? 'posted'
+        : status === 'completed'
+          ? 'completed'
+        : status === 'cancelled'
+          ? 'cancelled'
+          : undefined;
+      const res = await appApi.getMyJobs(hirerId, requestStatus);
       if (res.success && res.data) {
-        const items = res.data.data || [];
-        if (status === 'active') {
-          const activeStatuses = new Set(['draft', 'posted', 'assigned', 'in_progress']);
-          setJobs(items.filter((job) => activeStatuses.has(job.status)));
+        const items = (res.data.data || []) as HirerJob[];
+        if (status === 'in_progress') {
+          setJobs(items.filter((job) => getLifecycleStatus(job) === 'in_progress'));
+          return;
+        }
+        if (status === 'waiting_response') {
+          setJobs(items.filter((job) => getLifecycleStatus(job) === 'waiting_response'));
           return;
         }
         setJobs(items);
@@ -243,8 +309,10 @@ export default function HirerHomePage() {
   };
 
   const filters: { key: JobStatusFilter; label: string }[] = [
-    { key: 'active', label: 'งานที่ใช้งานอยู่' },
-    { key: 'completed', label: 'เสร็จสิ้น' },
+    { key: 'all', label: 'งานทั้งหมด' },
+    { key: 'waiting_response', label: 'รอตอบรับ' },
+    { key: 'in_progress', label: 'อยู่ระหว่างการดำเนินงาน' },
+    { key: 'completed', label: 'เสร็จแล้ว' },
     { key: 'cancelled', label: 'ยกเลิก' },
   ];
 

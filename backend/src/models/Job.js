@@ -854,47 +854,98 @@ class Job extends BaseModel {
   async getCaregiverJobs(caregiverId, options = {}) {
     const { status, page = 1, limit = 20 } = options;
 
-    let whereClause = 'ja.caregiver_id = $1';
-    const values = [caregiverId];
-    let paramIndex = 2;
+    let activeWhereClause = 'ja.caregiver_id = $1';
+    const activeValues = [caregiverId];
+    let activeParamIndex = 2;
 
     if (status) {
-      whereClause += ` AND j.status = $${paramIndex++}`;
-      values.push(status);
+      activeWhereClause += ` AND j.status = $${activeParamIndex++}`;
+      activeValues.push(status);
     }
 
-    const offset = (page - 1) * limit;
-
-    const result = await query(
+    const activeResult = await query(
       `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
               jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
-              jp.address_line1, jp.district, jp.province, jp.is_urgent,
-              ja.status as assignment_status, ja.assigned_at
+              jp.address_line1, jp.district, jp.province, jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
+              ja.status as assignment_status,
+              ja.assigned_at as assignment_assigned_at,
+              FALSE as awaiting_response
        FROM jobs j
        JOIN job_posts jp ON jp.id = j.job_post_id
        JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
-       WHERE ${whereClause}
-       ORDER BY j.created_at DESC
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...values, limit, offset]
+       WHERE ${activeWhereClause}`,
+      activeValues
     );
 
-    const countResult = await query(
-      `SELECT COUNT(*) as total
-       FROM jobs j
-       JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
-       WHERE ${whereClause}`,
-      values
-    );
+    let pendingResult = { rows: [] };
+    if (!status || status === 'assigned') {
+      pendingResult = await query(
+        `SELECT
+           jp.id,
+           jp.id as job_post_id,
+           jp.hirer_id,
+           'assigned'::text as status,
+           jp.updated_at as assigned_at,
+           NULL::timestamptz as started_at,
+           NULL::timestamptz as completed_at,
+           NULL::timestamptz as cancelled_at,
+           NULL::timestamptz as expired_at,
+           NULL::timestamptz as job_closed_at,
+           jp.created_at,
+           jp.updated_at,
+           jp.title,
+           jp.description,
+           jp.job_type,
+           jp.hourly_rate,
+           jp.total_hours,
+           jp.total_amount,
+           jp.scheduled_start_at,
+           jp.scheduled_end_at,
+           jp.address_line1,
+           jp.district,
+           jp.province,
+           jp.lat,
+           jp.lng,
+           jp.geofence_radius_m,
+           jp.is_urgent,
+           'active'::text as assignment_status,
+           jp.updated_at as assignment_assigned_at,
+           TRUE as awaiting_response
+         FROM job_posts jp
+         WHERE jp.preferred_caregiver_id = $1
+           AND jp.status = 'posted'
+           AND NOT EXISTS (
+             SELECT 1
+             FROM jobs j2
+             JOIN job_assignments ja2 ON ja2.job_id = j2.id AND ja2.status = 'active'
+             WHERE j2.job_post_id = jp.id
+           )`,
+        [caregiverId]
+      );
+    }
 
-    const total = parseInt(countResult.rows[0].total, 10);
+    const combinedRows = [...pendingResult.rows, ...activeResult.rows].sort((a, b) => {
+      if (a.awaiting_response !== b.awaiting_response) {
+        return a.awaiting_response ? -1 : 1;
+      }
+      const aTime = new Date(a.assignment_assigned_at || a.assigned_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.assignment_assigned_at || b.assigned_at || b.created_at || 0).getTime();
+      return bTime - aTime;
+    });
+
+    const normalizedPage = Math.max(1, parseInt(page, 10) || 1);
+    const normalizedLimit = Math.max(1, parseInt(limit, 10) || 20);
+    const offset = (normalizedPage - 1) * normalizedLimit;
+    const pagedRows = combinedRows.slice(offset, offset + normalizedLimit);
+
+    const total = combinedRows.length;
 
     return {
-      data: result.rows,
+      data: pagedRows,
       total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      page: normalizedPage,
+      limit: normalizedLimit,
+      totalPages: Math.ceil(total / normalizedLimit),
     };
   }
 

@@ -982,9 +982,22 @@ class ApiClient {
       assignment_id: string;
       chat_thread_id: string;
       escrow_amount: number;
+      status?: string;
     }>(`/api/jobs/${jobId}/accept`, {
       method: 'POST',
       body: { message },
+    });
+  }
+
+  async rejectJob(jobId: string, reason?: string) {
+    return this.request<{
+      job_post_id: string;
+      status: string;
+      rejected: boolean;
+      reason?: string;
+    }>(`/api/jobs/${jobId}/reject`, {
+      method: 'POST',
+      body: { reason },
     });
   }
 
@@ -1534,6 +1547,7 @@ export interface CaregiverAssignedJob {
   job_post_id: string;
   hirer_id: string;
   status: string;
+  awaiting_response?: boolean;
   assigned_at: string | null;
   started_at: string | null;
   completed_at: string | null;

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MessageCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
 import { CaregiverAssignedJob } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -88,6 +88,54 @@ export default function CaregiverMyJobsPage() {
   }, [load]);
 
   const items = useMemo(() => jobs, [jobs]);
+
+  const handleAcceptAssignedOffer = async (job: CaregiverAssignedJob) => {
+    const targetJobPostId = String(job.job_post_id || job.id || '').trim();
+    if (!targetJobPostId) {
+      toast.error('ไม่พบข้อมูลงานสำหรับตอบรับ');
+      return;
+    }
+
+    setActionLoadingId(job.id);
+    try {
+      const res = await appApi.acceptJob(targetJobPostId, caregiverId);
+      if (!res.success) {
+        toast.error(res.error || 'ตอบรับงานไม่สำเร็จ');
+        return;
+      }
+
+      toast.success('ตอบรับงานแล้ว สถานะงานเปลี่ยนเป็นอยู่ระหว่างการดำเนินงาน');
+      if (filter === 'in_progress') {
+        await load();
+      } else {
+        setFilter('in_progress');
+      }
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRejectAssignedOffer = async (job: CaregiverAssignedJob) => {
+    const targetJobPostId = String(job.job_post_id || job.id || '').trim();
+    if (!targetJobPostId) {
+      toast.error('ไม่พบข้อมูลงานสำหรับปฏิเสธ');
+      return;
+    }
+
+    setActionLoadingId(job.id);
+    try {
+      const res = await appApi.rejectJob(targetJobPostId, caregiverId);
+      if (!res.success) {
+        toast.error(res.error || 'ปฏิเสธงานไม่สำเร็จ');
+        return;
+      }
+
+      toast.success('ปฏิเสธงานแล้ว');
+      await load();
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
 
   const handleCheckIn = async (job: CaregiverAssignedJob) => {
     setActionLoadingId(job.id);
@@ -175,7 +223,7 @@ export default function CaregiverMyJobsPage() {
   };
 
   const filters: { key: Filter; label: string }[] = [
-    { key: 'assigned', label: 'รับงานแล้ว' },
+    { key: 'assigned', label: 'รอตอบรับ' },
     { key: 'in_progress', label: 'กำลังทำ' },
     { key: 'completed', label: 'เสร็จสิ้น' },
     { key: 'cancelled', label: 'ยกเลิก' },
@@ -187,7 +235,7 @@ export default function CaregiverMyJobsPage() {
         <div className="flex items-start justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
-            <p className="text-sm text-gray-600">จัดการงานที่รับไว้ และเช็คอิน/เช็คเอาต์</p>
+            <p className="text-sm text-gray-600">งานที่มอบหมายจะขึ้นก่อน พร้อมตัวเลือกตอบรับหรือปฏิเสธ</p>
           </div>
           <Button variant="outline" onClick={load}>
             รีเฟรช
@@ -223,13 +271,17 @@ export default function CaregiverMyJobsPage() {
             {items.map((job) => {
               const location = [job.address_line1, job.district, job.province].filter(Boolean).join(', ');
               const isLoading = actionLoadingId === job.id;
+              const isAwaitingResponse = Boolean(job.awaiting_response);
               return (
                 <Card key={job.id} className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-gray-900 text-lg line-clamp-1">{job.title}</h3>
-                        <StatusBadge status={job.status as any} />
+                        <div className="flex items-center gap-2">
+                          {isAwaitingResponse && <Badge variant="warning">รอการตอบรับ</Badge>}
+                          <StatusBadge status={job.status as any} />
+                        </div>
                       </div>
                       <p className="text-sm text-gray-600 mt-1 line-clamp-2">{job.description}</p>
 
@@ -240,20 +292,43 @@ export default function CaregiverMyJobsPage() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
-                        <Link to={`/chat/${job.id}`}>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            leftIcon={<MessageCircle className="w-4 h-4" />}
-                          >
-                            เปิดแชท
-                          </Button>
-                        </Link>
-                        <Button variant="outline" size="sm" loading={isLoading} onClick={() => handleOpenDispute(job.id)}>
-                          เปิดข้อพิพาท
-                        </Button>
+                        {isAwaitingResponse ? (
+                          <>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              loading={isLoading}
+                              onClick={() => handleAcceptAssignedOffer(job)}
+                            >
+                              ตอบรับงาน
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              loading={isLoading}
+                              onClick={() => handleRejectAssignedOffer(job)}
+                            >
+                              ปฏิเสธงาน
+                            </Button>
+                          </>
+                        ) : (
+                          <>
+                            <Link to={`/chat/${job.id}`}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                leftIcon={<MessageCircle className="w-4 h-4" />}
+                              >
+                                เปิดแชท
+                              </Button>
+                            </Link>
+                            <Button variant="outline" size="sm" loading={isLoading} onClick={() => handleOpenDispute(job.id)}>
+                              เปิดข้อพิพาท
+                            </Button>
+                          </>
+                        )}
 
-                        {job.status === 'assigned' && (
+                        {job.status === 'assigned' && !isAwaitingResponse && (
                           <Button
                             variant="primary"
                             size="sm"

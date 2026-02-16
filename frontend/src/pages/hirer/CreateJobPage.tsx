@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, Input, Modal, type BadgeProps } from '../../components/ui';
@@ -121,8 +121,13 @@ const labelByValue = (options: ReadonlyArray<OptionItem>, values: readonly strin
 
 export default function CreateJobPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const hirerId = user?.id || 'demo-hirer';
+  const preferredCaregiverIdParam = (searchParams.get('preferred_caregiver_id') || '').trim();
+  const preferredCaregiverNameParam = (searchParams.get('preferred_caregiver_name') || '').trim();
+  const preferredCaregiverTrustLevelParam = (searchParams.get('preferred_caregiver_trust_level') || '').trim();
+  const shouldReturnToAssign = searchParams.get('return_to_assign') === '1';
 
   const [loading, setLoading] = useState(false);
   const [careRecipients, setCareRecipients] = useState<CareRecipient[]>([]);
@@ -143,7 +148,6 @@ export default function CreateJobPage() {
   const [form, setForm] = useState({
     title: '',
     description: '',
-    preferred_caregiver_id: '',
     job_type: 'companionship' as JobType,
     scheduled_start_at: '',
     scheduled_end_at: '',
@@ -352,7 +356,6 @@ export default function CreateJobPage() {
     return {
       title: form.title.trim(),
       description: form.description.trim(),
-      preferred_caregiver_id: form.preferred_caregiver_id.trim() || undefined,
       job_type: form.job_type,
       risk_level: computedRisk.risk_level,
       scheduled_start_at: new Date(form.scheduled_start_at).toISOString(),
@@ -435,8 +438,6 @@ export default function CreateJobPage() {
           thai = taskLabel ? `งานที่เลือกไม่สอดคล้องกับข้อมูลผู้ป่วย: ${taskLabel}` : 'งานที่เลือกไม่สอดคล้องกับข้อมูลผู้ป่วย';
         } else if (code === 'JOB_FLAGS_INVALID') {
           thai = 'มีตัวเลือกบางอย่างไม่ถูกต้อง กรุณารีเฟรชหน้าแล้วลองใหม่';
-        } else if (code === 'PREFERRED_CAREGIVER_INVALID') {
-          thai = 'ไม่พบผู้ดูแลที่ระบุหรือสถานะไม่พร้อมใช้งาน';
         }
 
         setErrorMessage(thai);
@@ -458,6 +459,22 @@ export default function CreateJobPage() {
       toast.success('สร้างงานแบบร่างสำเร็จ');
       setReviewOpen(false);
       setPendingPayload(null);
+
+      if (shouldReturnToAssign && preferredCaregiverIdParam) {
+        const returnParams = new URLSearchParams();
+        returnParams.set('resume_assign', '1');
+        returnParams.set('caregiver_id', preferredCaregiverIdParam);
+        returnParams.set('job_id', createdJob.id);
+        if (preferredCaregiverNameParam) {
+          returnParams.set('caregiver_name', preferredCaregiverNameParam);
+        }
+        if (preferredCaregiverTrustLevelParam) {
+          returnParams.set('caregiver_trust_level', preferredCaregiverTrustLevelParam);
+        }
+        navigate(`/hirer/search-caregivers?${returnParams.toString()}`, { replace: true });
+        return;
+      }
+
       navigate('/hirer/home', { replace: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'สร้างงานไม่สำเร็จ');
@@ -865,7 +882,7 @@ export default function CreateJobPage() {
                 onClick={() => setShowAdvanced(!showAdvanced)}
                 className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors rounded-lg"
               >
-                <span>ตั้งค่าขั้นสูง (ทักษะ, อุปกรณ์, ข้อควรระวัง, ระบุผู้ดูแล)</span>
+                <span>ตั้งค่าขั้นสูง (ทักษะ, อุปกรณ์, ข้อควรระวัง)</span>
                 <svg className={cn('w-5 h-5 transition-transform', showAdvanced && 'rotate-180')} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
               </button>
             </div>
@@ -964,23 +981,6 @@ export default function CreateJobPage() {
                   );
                 })}
               </div>
-            </Card>
-
-            <Card>
-              <div className="text-sm font-semibold text-gray-900 mb-3">ระบุผู้ดูแลที่ต้องการ</div>
-              <Input
-                label="User ID ของผู้ดูแล"
-                value={form.preferred_caregiver_id}
-                error={fieldErrors.preferred_caregiver_id}
-                onChange={(e) => {
-                  setErrorSection(null);
-                  setErrorMessage(null);
-                  setFieldErrors((prev) => ({ ...prev, preferred_caregiver_id: '' }));
-                  setForm({ ...form, preferred_caregiver_id: e.target.value });
-                }}
-                placeholder="เว้นว่างหากเปิดรับทุกคน"
-              />
-              <div className="text-xs text-gray-500 mt-1">ถ้าต้องการให้ผู้ดูแลคนเดิมรับงาน ให้ใส่ User ID ที่ได้จากระบบ</div>
             </Card>
               </>
             )}
@@ -1133,11 +1133,6 @@ export default function CreateJobPage() {
               <div className="text-sm text-gray-800 mt-1">
                 ความเสี่ยง: {computedRisk.risk_level === 'high_risk' ? 'สูง' : 'ต่ำ'}
               </div>
-              {pendingPayload.preferred_caregiver_id ? (
-                <div className="text-sm text-gray-800 mt-1">
-                  ผู้ดูแลที่ระบุ: {pendingPayload.preferred_caregiver_id}
-                </div>
-              ) : null}
               {computedRisk.reasons?.length ? (
                 <div className="text-xs text-gray-600 mt-2">
                   {computedRisk.reasons.map((r) => (

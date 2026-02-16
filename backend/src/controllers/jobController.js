@@ -6,6 +6,7 @@ import {
   getCaregiverJobs as getCaregiverJobsService,
   getJobById as getJobByIdService,
   acceptJob as acceptJobService,
+  rejectAssignedJob as rejectAssignedJobService,
   checkIn as checkInService,
   checkOut as checkOutService,
   cancelJob as cancelJobService,
@@ -63,7 +64,7 @@ const handleJobError = (error, res, operation) => {
   if (error.message.includes('Missing') || error.message.includes('Invalid') ||
       error.message.includes('must') || error.message.includes('GPS') ||
       error.message.includes('Cannot accept') || error.message.includes('Cannot check') ||
-      error.message.includes('Cannot cancel') || error.message.includes('already has') ||
+      error.message.includes('Cannot cancel') || error.message.includes('Cannot reject') || error.message.includes('already has') ||
       error.message.includes('already assigned') || error.message.includes('Insufficient balance')) {
     return res.status(400).json({
       error: 'Bad request',
@@ -101,6 +102,29 @@ export const createJob = async (req, res) => {
     });
   } catch (error) {
     handleJobError(error, res, 'create job');
+  }
+};
+
+/**
+ * Reject direct-assigned job offer (preferred caregiver flow)
+ * POST /api/jobs/:id/reject
+ * Requires: requireAuth, requireRole('caregiver')
+ */
+export const rejectAssignedJob = async (req, res) => {
+  try {
+    const caregiverId = req.userId;
+    const { id: jobPostId } = req.params;
+    const { reason } = req.body || {};
+
+    const result = await rejectAssignedJobService(jobPostId, caregiverId, reason);
+
+    res.status(200).json({
+      success: true,
+      message: 'Job rejected successfully',
+      data: result,
+    });
+  } catch (error) {
+    handleJobError(error, res, 'reject assigned job');
   }
 };
 
@@ -417,6 +441,7 @@ export default {
   getCaregiverJobs,
   getJobById,
   acceptJob,
+  rejectAssignedJob,
   checkIn,
   checkOut,
   cancelJob,

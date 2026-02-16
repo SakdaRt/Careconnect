@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, StatusBadge } from '../../components/ui';
 import { CaregiverProfile, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -110,6 +110,9 @@ export default function CaregiverJobFeedPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">ค้นหางาน</h1>
             <p className="text-sm text-gray-600">งานที่เปิดรับสมัครอยู่</p>
+            <div className="mt-2">
+              <Badge variant="warning">การ์ดสีส้ม = ผู้ว่าจ้างอยากจ้างคุณโดยตรง</Badge>
+            </div>
           </div>
           <Button variant="outline" onClick={load}>
             รีเฟรช
@@ -215,15 +218,24 @@ export default function CaregiverJobFeedPage() {
           <div className="space-y-3">
             {items.map((job) => {
               const location = [job.address_line1, job.district, job.province].filter(Boolean).join(', ');
+              const isDirectInvite = Boolean(user?.id && job.preferred_caregiver_id === user.id);
+              const cardClassName = isDirectInvite
+                ? 'p-4 border-orange-300 bg-gradient-to-br from-orange-50 to-amber-50 shadow-sm shadow-orange-100/60'
+                : 'p-4';
               return (
-                <Card key={job.id} className="p-4">
+                <Card key={job.id} className={cardClassName}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-gray-900 text-lg line-clamp-1">{job.title}</h3>
-                        <StatusBadge status={job.status as any} />
+                        <div className="flex items-center gap-2">
+                          {isDirectInvite && <Badge variant="warning">อยากจ้างคุณ</Badge>}
+                          <StatusBadge status={job.status as any} />
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">{job.description}</p>
+                      <p className={`text-sm mt-1 line-clamp-2 ${isDirectInvite ? 'text-orange-900' : 'text-gray-600'}`}>
+                        {job.description}
+                      </p>
                       <div className="mt-3 text-sm text-gray-700 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>วันที่: {formatDate(job.scheduled_start_at)}</div>
                         <div>สถานที่: {location || '-'}</div>

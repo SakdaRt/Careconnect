@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, Star, Briefcase, Clock3 } from 'lucide-react';
 import { MainLayout } from '../../layouts';
@@ -69,6 +69,8 @@ const DAY_LABELS: Record<number, string> = {
   6: 'ส',
 };
 
+const CREATE_NEW_JOB_OPTION = '__create_new_job__';
+
 function formatTime(time?: string) {
   if (!time) return '';
   return time.slice(0, 5);
@@ -91,7 +93,10 @@ function formatAvailability(days?: Array<number | string>, from?: string, to?: s
 
 export default function SearchCaregiversPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const hirerId = user?.id || '';
+  const resumeAssignHandledRef = useRef(false);
 
   const [caregivers, setCaregivers] = useState<CaregiverResult[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,20 +155,99 @@ export default function SearchCaregiversPage() {
     }
   }, [hirerId]);
 
+  useEffect(() => {
+    const shouldResumeAssign = searchParams.get('resume_assign') === '1';
+    const caregiverId = (searchParams.get('caregiver_id') || '').trim();
+
+    if (!shouldResumeAssign || !caregiverId || resumeAssignHandledRef.current) {
+      return;
+    }
+
+    resumeAssignHandledRef.current = true;
+
+    const caregiverName = (searchParams.get('caregiver_name') || '').trim();
+    const caregiverTrustLevel = (searchParams.get('caregiver_trust_level') || '').trim();
+    const jobId = (searchParams.get('job_id') || '').trim();
+
+    setSelectedCaregiver({
+      id: caregiverId,
+      trust_level: caregiverTrustLevel || 'L0',
+      display_name: caregiverName || undefined,
+    });
+    setSelectedJobId(jobId);
+    setAssignOpen(true);
+    loadMyJobs();
+
+    navigate('/hirer/search-caregivers', { replace: true });
+  }, [loadMyJobs, navigate, searchParams]);
+
+  const buildCreateJobPath = useCallback((caregiver?: CaregiverResult | null) => {
+    const params = new URLSearchParams();
+    if (caregiver?.id) {
+      params.set('preferred_caregiver_id', caregiver.id);
+    }
+    if (caregiver?.display_name) {
+      params.set('preferred_caregiver_name', caregiver.display_name);
+    }
+    if (caregiver?.trust_level) {
+      params.set('preferred_caregiver_trust_level', caregiver.trust_level);
+    }
+    params.set('return_to_assign', '1');
+    return `/hirer/create-job?${params.toString()}`;
+  }, []);
+
   const handleOpenAssign = (cg: CaregiverResult) => {
     setSelectedCaregiver(cg);
-    setSelectedJobId('');
+    setSelectedJobId(CREATE_NEW_JOB_OPTION);
     setAssignOpen(true);
     loadMyJobs();
   };
 
+  const handleOpenCreateJob = () => {
+    if (!selectedCaregiver) return;
+    setAssignOpen(false);
+    navigate(buildCreateJobPath(selectedCaregiver));
+  };
+
   const handleConfirmAssign = async () => {
-    if (!selectedJobId || !selectedCaregiver) return;
+    if (!selectedCaregiver) return;
+    if (selectedJobId === CREATE_NEW_JOB_OPTION) {
+      handleOpenCreateJob();
+      return;
+    }
+    if (!selectedJobId) return;
+    const selectedJob = myJobs.find((job) => job.id === selectedJobId);
     setAssigning(true);
     try {
+      if (selectedJob?.status === 'draft') {
+        const publishRes = await appApi.publishJob(selectedJob.id, hirerId);
+        if (!publishRes.success) {
+          const code = (publishRes as any).code as string | undefined;
+          const errMsg = String(publishRes.error || '');
+
+          if (code === 'INSUFFICIENT_BALANCE' || errMsg.includes('Insufficient')) {
+            toast.error('เงินในระบบไม่พอ กรุณาเติมเงินก่อนส่งงานให้ผู้ดูแล');
+            return;
+          }
+          if (
+            code === 'HIRER_TRUST_RESTRICTION' ||
+            code === 'POLICY_VIOLATION' ||
+            code === 'INSUFFICIENT_TRUST_LEVEL' ||
+            errMsg.includes('trust') ||
+            errMsg.includes('Trust') ||
+            errMsg.includes('policy')
+          ) {
+            toast.error('กรุณายืนยันตัวตนให้ครบตามระดับความเสี่ยงของงานก่อนส่งให้ผู้ดูแล');
+            return;
+          }
+          toast.error(publishRes.error || 'ไม่สามารถเผยแพร่งานเพื่อส่งให้ผู้ดูแลได้');
+          return;
+        }
+      }
+
       const res = await appApi.assignCaregiverToJob(selectedJobId, selectedCaregiver.id);
       if (res.success) {
-        toast.success('มอบหมายผู้ดูแลสำเร็จ');
+        toast.success('ส่งงานให้ผู้ดูแลแล้ว รอการตอบรับ');
         setAssignOpen(false);
       } else {
         toast.error(res.error || 'ไม่สามารถมอบหมายได้');
@@ -322,7 +406,11 @@ export default function SearchCaregiversPage() {
                 disabled={assigning || !selectedJobId}
                 className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
               >
-                {assigning ? 'กำลังมอบหมาย...' : 'ยืนยันมอบหมาย'}
+                {selectedJobId === CREATE_NEW_JOB_OPTION
+                  ? 'ไปสร้างงานใหม่'
+                  : assigning
+                    ? 'กำลังมอบหมาย...'
+                    : 'ยืนยันมอบหมาย'}
               </button>
             </div>
           }
@@ -334,12 +422,30 @@ export default function SearchCaregiversPage() {
             ) : myJobs.length === 0 ? (
               <div className="text-center py-4">
                 <p className="text-sm text-gray-500 mb-2">ยังไม่มีงานที่สามารถมอบหมายได้</p>
-                <Link to="/hirer/create-job">
-                  <Button variant="primary" size="sm">สร้างงานใหม่</Button>
-                </Link>
+                <Button variant="primary" size="sm" onClick={handleOpenCreateJob}>
+                  สร้างงานใหม่ทันที
+                </Button>
               </div>
             ) : (
               <div className="space-y-2 max-h-64 overflow-y-auto">
+                <label
+                  className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedJobId === CREATE_NEW_JOB_OPTION ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assign-job"
+                    value={CREATE_NEW_JOB_OPTION}
+                    checked={selectedJobId === CREATE_NEW_JOB_OPTION}
+                    onChange={() => setSelectedJobId(CREATE_NEW_JOB_OPTION)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-gray-900">สร้างงานใหม่</div>
+                    <p className="text-xs text-gray-500 mt-0.5">ไปหน้าสร้างงานโพสต์ แล้วกลับมาเลือกมอบหมายผู้ดูแลคนนี้อัตโนมัติ</p>
+                  </div>
+                </label>
                 {myJobs.map((job) => (
                   <label
                     key={job.id}

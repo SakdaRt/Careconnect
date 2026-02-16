@@ -230,14 +230,6 @@ router.post(
             [uuidv4(), job.job_id, job_post_id, caregiver_id],
           );
         }
-
-        // Update job status to assigned if it was posted
-        if (["posted", "pending"].includes(job.job_status)) {
-          await query(
-            `UPDATE jobs SET status = 'assigned', updated_at = NOW() WHERE id = $1`,
-            [job.job_id],
-          );
-        }
       }
 
       res.json({ success: true, message: "มอบหมายผู้ดูแลสำเร็จ" });
