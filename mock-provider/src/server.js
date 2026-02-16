@@ -74,6 +74,41 @@ app.post('/payment/initiate', (req, res) => {
     payment_url: `http://localhost:${PORT}/payment/mock/${reference_id}`,
     qr_code: `mock_qr_${reference_id}`,
   });
+
+  // Auto-success: automatically send webhook callback after delay
+  const autoSuccess = process.env.MOCK_PAYMENT_AUTO_SUCCESS === 'true';
+  if (autoSuccess) {
+    const delay = Number(process.env.MOCK_PAYMENT_SUCCESS_DELAY_MS) || 3000;
+    const storedPayment = payments.get(reference_id);
+    setTimeout(async () => {
+      // Only auto-complete if still pending (user may have already completed/failed it manually)
+      if (!storedPayment || storedPayment.status !== 'pending') return;
+
+      storedPayment.status = 'success';
+      storedPayment.updated_at = new Date().toISOString();
+      payments.set(reference_id, storedPayment);
+
+      const payload = {
+        event: 'payment.success',
+        data: {
+          reference_id,
+          transaction_id: `mock_txn_${Date.now()}`,
+          amount: storedPayment.amount,
+        },
+      };
+
+      try {
+        await fetch(storedPayment.callback_url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        console.log(`[Mock Payment] Auto-success webhook sent for ${reference_id}`);
+      } catch (error) {
+        console.error(`[Mock Payment] Auto-success webhook failed for ${reference_id}:`, error.message);
+      }
+    }, delay);
+  }
 });
 
 app.get('/payment/mock/:referenceId', (req, res) => {
