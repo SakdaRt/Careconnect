@@ -1,15 +1,34 @@
 import { vi } from 'vitest'
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+function createStorageMock() {
+  const store = new Map<string, string>()
+  return {
+    getItem: vi.fn((key: string) => (store.has(key) ? store.get(key)! : null)),
+    setItem: vi.fn((key: string, value: string) => {
+      store.set(key, value)
+    }),
+    removeItem: vi.fn((key: string) => {
+      store.delete(key)
+    }),
+    clear: vi.fn(() => {
+      store.clear()
+    }),
+    __reset: () => {
+      store.clear()
+    },
+  }
 }
+
+// Mock localStorage and sessionStorage
+const localStorageMock = createStorageMock()
+const sessionStorageMock = createStorageMock()
 
 Object.defineProperty(window, 'localStorage', {
   value: localStorageMock,
+})
+
+Object.defineProperty(window, 'sessionStorage', {
+  value: sessionStorageMock,
 })
 
 // Mock matchMedia
@@ -55,4 +74,11 @@ beforeEach(() => {
   localStorageMock.setItem.mockClear()
   localStorageMock.removeItem.mockClear()
   localStorageMock.clear.mockClear()
+  localStorageMock.__reset()
+
+  sessionStorageMock.getItem.mockClear()
+  sessionStorageMock.setItem.mockClear()
+  sessionStorageMock.removeItem.mockClear()
+  sessionStorageMock.clear.mockClear()
+  sessionStorageMock.__reset()
 })

@@ -1,10 +1,11 @@
 import { Notification } from '../models/Notification.js';
+import { emitToUserRoom } from '../sockets/realtimeHub.js';
 
 /**
  * Create an in-app notification
  */
 export const createNotification = async ({ userId, templateKey, title, body, data, referenceType, referenceId }) => {
-  return await Notification.create({
+  const notification = await Notification.create({
     userId,
     channel: 'in_app',
     templateKey,
@@ -14,6 +15,9 @@ export const createNotification = async ({ userId, templateKey, title, body, dat
     referenceType,
     referenceId,
   });
+
+  emitToUserRoom(userId, 'notification:new', { notification });
+  return notification;
 };
 
 /**
@@ -58,6 +62,24 @@ export const notifyJobAccepted = async (hirerId, jobTitle, caregiverName, jobId)
     title: 'มีผู้ดูแลรับงานแล้ว',
     body: `${caregiverName || 'ผู้ดูแล'} ได้รับงาน "${jobTitle}"`,
     data: { jobId, caregiverName },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};
+
+/**
+ * Notify recipient when there is a new chat message
+ */
+export const notifyChatMessage = async (recipientId, senderName, jobTitle, jobId) => {
+  const safeSenderName = senderName || 'คู่สนทนา';
+  const safeJobTitle = jobTitle || 'งานของคุณ';
+
+  return await createNotification({
+    userId: recipientId,
+    templateKey: 'chat_message',
+    title: 'มีข้อความแชทใหม่',
+    body: `${safeSenderName} ส่งข้อความใหม่เกี่ยวกับงาน "${safeJobTitle}"`,
+    data: { jobId, senderName: safeSenderName },
     referenceType: 'job',
     referenceId: jobId,
   });

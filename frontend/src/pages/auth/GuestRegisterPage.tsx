@@ -6,6 +6,7 @@ import { Button, Input, OTPInput, PasswordInput } from '../../components/ui';
 import { useAuth } from '../../contexts';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { setScopedStorageItem } from '../../utils/authStorage';
 
 type Step = 'credentials' | 'otp';
 
@@ -103,7 +104,7 @@ export default function GuestRegisterPage() {
       await refreshUser();
 
       toast.success('Email verified successfully!');
-      localStorage.setItem('pendingRole', 'hirer');
+      setScopedStorageItem('pendingRole', 'hirer');
       navigate('/register/consent', { replace: true });
     } catch (error: any) {
       toast.error(error.message || 'Verification failed');

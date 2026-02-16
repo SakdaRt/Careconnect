@@ -45,6 +45,9 @@ export function initChatSocket(io) {
     }
     userSockets.get(socket.userId).add(socket.id);
 
+    // Join personal room for realtime user-level events (e.g., notifications)
+    socket.join(`user:${socket.userId}`);
+
     // Join thread room
     socket.on('thread:join', async (threadId) => {
       try {

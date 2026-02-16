@@ -6,6 +6,7 @@ import { Button } from '../../components/ui';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
+import { getScopedStorageItem, removeScopedStorageItem } from '../../utils/authStorage';
 
 export default function ConsentPage() {
   const navigate = useNavigate();
@@ -19,7 +20,7 @@ export default function ConsentPage() {
   const [loading, setLoading] = useState(false);
 
   const state = location.state as { role?: 'hirer' | 'caregiver'; from?: string; mode?: 'login' } | null;
-  const pendingRole = localStorage.getItem('pendingRole') || '';
+  const pendingRole = getScopedStorageItem('pendingRole') || '';
   const resolvedRole =
     state?.role ||
     (pendingRole === 'caregiver' ? 'caregiver' : pendingRole === 'hirer' ? 'hirer' : null) ||
@@ -46,7 +47,7 @@ export default function ConsentPage() {
       await refreshUser();
 
       // Clear pending role
-      localStorage.removeItem('pendingRole');
+      removeScopedStorageItem('pendingRole');
       setActiveRole(resolvedRole);
 
       toast.success('สมัครสมาชิกสำเร็จ! ยินดีต้อนรับสู่ Careconnect');

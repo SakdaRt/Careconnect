@@ -6,6 +6,7 @@ import { Button, PhoneInput, OTPInput, PasswordInput } from '../../components/ui
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../contexts';
+import { setScopedStorageItem } from '../../utils/authStorage';
 
 type Step = 'phone' | 'otp' | 'password';
 
@@ -75,7 +76,7 @@ export default function MemberRegisterPage() {
       }
       await refreshUser();
       toast.success('ยืนยันเบอร์โทรสำเร็จ');
-      localStorage.setItem('pendingRole', selectedRole || 'hirer');
+      setScopedStorageItem('pendingRole', selectedRole || 'hirer');
       navigate('/register/consent', { replace: true });
     } catch (error: any) {
       toast.error(error.message || 'เกิดข้อผิดพลาด');

@@ -74,9 +74,13 @@ describe('AuthContext', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    sessionStorage.clear()
     vi.mocked(localStorage.getItem).mockReturnValue(null)
     vi.mocked(localStorage.setItem).mockImplementation(() => {})
     vi.mocked(localStorage.removeItem).mockImplementation(() => {})
+    vi.mocked(sessionStorage.getItem).mockReturnValue(null)
+    vi.mocked(sessionStorage.setItem).mockImplementation(() => {})
+    vi.mocked(sessionStorage.removeItem).mockImplementation(() => {})
   })
 
   describe('Initialization', () => {
@@ -286,7 +290,7 @@ describe('AuthContext', () => {
       })
 
       expect(screen.getByTestId('active-role')).toHaveTextContent('caregiver')
-      expect(localStorage.setItem).toHaveBeenCalledWith('careconnect_active_role', 'caregiver')
+      expect(sessionStorage.setItem).toHaveBeenCalledWith('careconnect_active_role', 'caregiver')
     })
 
     it('clears active role', async () => {

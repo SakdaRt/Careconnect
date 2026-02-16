@@ -1,8 +1,13 @@
 import { Link } from 'react-router-dom';
 import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users } from 'lucide-react';
 import { useAuth } from '../../contexts';
-import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../services/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
+import { io, Socket } from 'socket.io-client';
+import { api, AppNotification } from '../../services/api';
+import { getScopedStorageItem } from '../../utils/authStorage';
+
+const UNREAD_POLL_INTERVAL_MS = 5000;
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -49,9 +54,10 @@ export function TopBar() {
   const { user, logout, activeRole } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const seenRealtimeNotificationIds = useRef<Set<string>>(new Set());
 
   const fetchUnread = useCallback(async () => {
-    if (!user) {
+    if (!user?.id) {
       setUnreadCount(0);
       return;
     }
@@ -61,13 +67,84 @@ export function TopBar() {
     } catch {
       /* ignore */
     }
-  }, [user]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30000);
-    return () => clearInterval(interval);
+    const interval = window.setInterval(fetchUnread, UNREAD_POLL_INTERVAL_MS);
+
+    const handleFocus = () => {
+      fetchUnread();
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchUnread();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [fetchUnread]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const token = getScopedStorageItem('careconnect_token');
+    if (!token) return;
+
+    const env = (import.meta as any).env as Record<string, string | undefined>;
+    const socketUrl = env.VITE_SOCKET_URL || window.location.origin;
+
+    const socket: Socket = io(socketUrl, {
+      transports: ['websocket'],
+      auth: { token },
+    });
+
+    const onNotification = (payload: { notification?: AppNotification }) => {
+      const notification = payload?.notification;
+      if (!notification?.id) {
+        fetchUnread();
+        return;
+      }
+
+      if (seenRealtimeNotificationIds.current.has(notification.id)) {
+        return;
+      }
+
+      seenRealtimeNotificationIds.current.add(notification.id);
+      if (seenRealtimeNotificationIds.current.size > 200) {
+        seenRealtimeNotificationIds.current = new Set([notification.id]);
+      }
+
+      if (notification.status !== 'read') {
+        setUnreadCount((count) => count + 1);
+      }
+
+      // Keep badge authoritative with backend count in case any event was missed.
+      fetchUnread();
+
+      const message = notification.body
+        ? `${notification.title}: ${notification.body}`
+        : notification.title;
+      toast(message, { icon: '🔔' });
+    };
+
+    socket.on('notification:new', onNotification);
+
+    return () => {
+      socket.off('notification:new', onNotification);
+      socket.disconnect();
+    };
+  }, [fetchUnread, user?.id]);
 
   if (!user) return null;
 

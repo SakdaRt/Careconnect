@@ -85,8 +85,11 @@ function JobPostCard({
 
             {job.job_id && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
               <Link to={`/chat/${job.job_id}`}>
-                <Button variant="primary" size="sm">
-                  <MessageCircle className="w-4 h-4 mr-1" />
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<MessageCircle className="w-4 h-4" />}
+                >
                   แชท
                 </Button>
               </Link>

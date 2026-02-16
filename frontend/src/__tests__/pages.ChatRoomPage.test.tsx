@@ -87,4 +87,31 @@ describe('ChatRoomPage', () => {
     });
     expect(mockGetOrCreateChatThread).not.toHaveBeenCalled();
   });
+
+  it('locks chat input when job status is cancelled', async () => {
+    mockGetJobById.mockResolvedValueOnce({
+      success: true,
+      data: {
+        job: {
+          id: 'job-post-1',
+          job_id: 'job-1',
+          title: 'งานดูแล',
+          status: 'cancelled',
+          scheduled_start_at: '2026-01-01T08:00:00.000Z',
+          scheduled_end_at: '2026-01-01T16:00:00.000Z',
+          address_line1: '123 ถนนหลัก',
+          district: 'ดินแดง',
+          province: 'กรุงเทพมหานคร',
+        },
+      },
+    });
+
+    render(<ChatRoomPage />);
+
+    await screen.findByText('งานนี้ถูกยกเลิกแล้ว จึงไม่สามารถพิมพ์แชทต่อได้');
+    const input = screen.getByPlaceholderText('ไม่สามารถส่งข้อความได้') as HTMLInputElement;
+    const sendButton = screen.getByRole('button', { name: 'ส่ง' }) as HTMLButtonElement;
+    expect(input.disabled).toBe(true);
+    expect(sendButton.disabled).toBe(true);
+  });
 });

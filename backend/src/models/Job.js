@@ -287,6 +287,7 @@ class Job extends BaseModel {
       job_type,
       risk_level,
       is_urgent,
+      exclude_hirer_id,
       page = 1,
       limit = 20,
     } = options;
@@ -308,6 +309,11 @@ class Job extends BaseModel {
     if (is_urgent !== undefined) {
       whereClause += ` AND is_urgent = $${paramIndex++}`;
       values.push(is_urgent);
+    }
+
+    if (exclude_hirer_id) {
+      whereClause += ` AND hirer_id <> $${paramIndex++}`;
+      values.push(exclude_hirer_id);
     }
 
     // TODO: Add distance filtering if lat/lng provided

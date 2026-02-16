@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { MessageCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
 import { CaregiverAssignedJob } from '../../services/api';
@@ -240,7 +241,11 @@ export default function CaregiverMyJobsPage() {
 
                       <div className="mt-4 flex flex-wrap gap-2">
                         <Link to={`/chat/${job.id}`}>
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            leftIcon={<MessageCircle className="w-4 h-4" />}
+                          >
                             เปิดแชท
                           </Button>
                         </Link>

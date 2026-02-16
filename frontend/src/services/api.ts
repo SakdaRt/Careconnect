@@ -3,6 +3,8 @@
  * Base HTTP client for making API requests to the backend
  */
 
+import { clearScopedStorageItems, getScopedStorageItem, setScopedStorageItem } from '../utils/authStorage';
+
 // In development, use the Vite proxy (empty string), in production use the API URL
 const env = (import.meta as any).env as Record<string, string | undefined>;
 const API_BASE_URL = env.VITE_API_URL || env.VITE_API_BASE_URL || '';
@@ -25,6 +27,7 @@ interface RequestOptions {
 
 class ApiClient {
   private baseUrl: string;
+  private refreshPromise: Promise<boolean> | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -53,21 +56,26 @@ class ApiClient {
   }
 
   private getAuthToken(): string | null {
-    return localStorage.getItem('careconnect_token');
+    return getScopedStorageItem('careconnect_token');
   }
 
   private setAuthToken(token: string): void {
-    localStorage.setItem('careconnect_token', token);
+    setScopedStorageItem('careconnect_token', token);
   }
 
   private setRefreshToken(token: string): void {
-    localStorage.setItem('careconnect_refresh_token', token);
+    setScopedStorageItem('careconnect_refresh_token', token);
   }
 
   clearTokens(): void {
-    localStorage.removeItem('careconnect_token');
-    localStorage.removeItem('careconnect_refresh_token');
-    localStorage.removeItem('careconnect_user');
+    clearScopedStorageItems([
+      'careconnect_token',
+      'careconnect_refresh_token',
+      'careconnect_user',
+      'careconnect_active_role',
+      'pendingRole',
+      'pendingAccountType',
+    ]);
   }
 
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
@@ -778,7 +786,7 @@ class ApiClient {
   }
 
   async getUnreadNotificationCount() {
-    return this.request<{ count: number }>('/api/notifications/unread-count');
+    return this.request<{ count: number }>(`/api/notifications/unread-count?_=${Date.now()}`);
   }
 
   async markNotificationAsRead(notificationId: string) {
@@ -1030,31 +1038,46 @@ class ApiClient {
   static readonly NO_REFRESH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/refresh'];
 
   private async attemptRefresh(): Promise<boolean> {
-    const refreshToken = localStorage.getItem('careconnect_refresh_token');
-    if (!refreshToken) return false;
-
-    try {
-      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!response.ok) return false;
-
-      const data = await response.json();
-      if (data.success && data.accessToken) {
-        localStorage.setItem('careconnect_token', data.accessToken);
-        if (data.refreshToken) {
-          localStorage.setItem('careconnect_refresh_token', data.refreshToken);
-        }
-        return true;
-      }
-    } catch (error) {
-      console.error('Token refresh failed:', error);
+    if (this.refreshPromise) {
+      return this.refreshPromise;
     }
 
-    return false;
+    this.refreshPromise = (async () => {
+      const refreshToken = getScopedStorageItem('careconnect_refresh_token');
+      if (!refreshToken) return false;
+
+      try {
+        const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+
+        if (!response.ok) return false;
+
+        const data = await response.json();
+        const tokenPayload = (typeof data?.data === 'object' && data?.data)
+          ? data.data
+          : data;
+        if (data.success && tokenPayload?.accessToken) {
+          setScopedStorageItem('careconnect_token', tokenPayload.accessToken);
+          if (tokenPayload.refreshToken) {
+            setScopedStorageItem('careconnect_refresh_token', tokenPayload.refreshToken);
+          }
+          return true;
+        }
+      } catch (error) {
+        console.error('Token refresh failed:', error);
+      }
+
+      return false;
+    })();
+
+    try {
+      return await this.refreshPromise;
+    } finally {
+      this.refreshPromise = null;
+    }
   }
 }
 

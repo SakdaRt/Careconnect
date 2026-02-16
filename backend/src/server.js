@@ -24,6 +24,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import caregiverDocumentRoutes from './routes/caregiverDocumentRoutes.js';
 import caregiverSearchRoutes from './routes/caregiverSearchRoutes.js';
 import { initChatSocket } from './sockets/chatSocket.js';
+import { setSocketServer } from './sockets/realtimeHub.js';
 
 // Load environment variables
 dotenv.config();
@@ -73,6 +74,8 @@ const io = new Server(server, {
     methods: ['GET', 'POST'],
   },
 });
+
+setSocketServer(io);
 
 const DEV_MOCK_CAREGIVERS = [
   {

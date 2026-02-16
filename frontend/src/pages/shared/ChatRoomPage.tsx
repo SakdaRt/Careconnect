@@ -7,6 +7,7 @@ import { Button, Card, Input, LoadingState, ReasonModal, StatusBadge } from '../
 import { ChatMessage, ChatThread, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
+import { getScopedStorageItem } from '../../utils/authStorage';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
@@ -133,7 +134,7 @@ export default function ChatRoomPage() {
 
     const env = (import.meta as any).env as Record<string, string | undefined>;
     const socketUrl = env.VITE_SOCKET_URL || window.location.origin;
-    const token = localStorage.getItem('careconnect_token');
+    const token = getScopedStorageItem('careconnect_token');
     if (!token) return;
 
     const socket = io(socketUrl, {
@@ -143,7 +144,11 @@ export default function ChatRoomPage() {
     socketRef.current = socket;
 
     const onError = (payload: any) => {
-      toast.error(payload?.message || 'เกิดข้อผิดพลาดของแชท');
+      const message = String(payload?.message || 'เกิดข้อผิดพลาดของแชท');
+      if (message.includes('closed chat') || message.includes('cancelled job')) {
+        setThread((prev) => (prev ? { ...prev, status: 'closed' } : prev));
+      }
+      toast.error(message);
     };
 
     socket.on('connect', () => {
@@ -172,7 +177,8 @@ export default function ChatRoomPage() {
 
   const handleSend = async () => {
     const trimmed = text.trim();
-    if (!thread || !trimmed || !jobId) return;
+    const currentJobStatus = ((job as any)?.job_status as string | undefined) || job?.status;
+    if (!thread || !trimmed || !jobId || currentJobStatus === 'cancelled' || thread.status === 'closed') return;
     setSending(true);
     try {
       const sender = { id: user?.id || '', role: user?.role || 'user', name: user?.name || undefined };
@@ -185,6 +191,10 @@ export default function ChatRoomPage() {
 
       const res = await appApi.sendMessage(thread.id, sender, trimmed, 'text');
       if (!res.success || !res.data?.message) {
+        const errorMessage = String(res.error || 'ส่งข้อความไม่สำเร็จ');
+        if (errorMessage.includes('closed chat') || errorMessage.includes('cancelled job')) {
+          setThread((prev) => (prev ? { ...prev, status: 'closed' } : prev));
+        }
         toast.error(res.error || 'ส่งข้อความไม่สำเร็จ');
         return;
       }
@@ -309,6 +319,12 @@ export default function ChatRoomPage() {
   const location = [job?.address_line1, job?.district, job?.province].filter(Boolean).join(', ');
   const canCheckIn = user?.role === 'caregiver' && jobInstanceStatus === 'assigned';
   const canCheckOut = user?.role === 'caregiver' && jobInstanceStatus === 'in_progress';
+  const isChatLocked = jobStatus === 'cancelled' || thread?.status === 'closed';
+  const chatLockMessage = jobStatus === 'cancelled'
+    ? 'งานนี้ถูกยกเลิกแล้ว จึงไม่สามารถพิมพ์แชทต่อได้'
+    : thread?.status === 'closed'
+      ? 'ห้องแชทนี้ปิดแล้ว'
+      : '';
 
   if (!jobId) {
     return (
@@ -437,8 +453,9 @@ export default function ChatRoomPage() {
               <Input
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                placeholder="พิมพ์ข้อความ..."
+                placeholder={isChatLocked ? 'ไม่สามารถส่งข้อความได้' : 'พิมพ์ข้อความ...'}
                 fullWidth
+                disabled={sending || isChatLocked}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault();
@@ -446,10 +463,13 @@ export default function ChatRoomPage() {
                   }
                 }}
               />
-              <Button variant="primary" loading={sending} onClick={handleSend}>
+              <Button variant="primary" loading={sending} disabled={isChatLocked} onClick={handleSend}>
                 ส่ง
               </Button>
             </div>
+            {isChatLocked && (
+              <div className="text-xs text-red-600">{chatLockMessage}</div>
+            )}
           </div>
         )}
         <ReasonModal

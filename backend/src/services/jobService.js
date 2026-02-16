@@ -368,12 +368,20 @@ export const getJobFeed = async (caregiverId, options = {}) => {
   }
 
   // Get jobs matching caregiver's trust level
-  const jobs = await Job.getJobFeed(options);
+  const jobs = await Job.getJobFeed({
+    ...options,
+    exclude_hirer_id: caregiverId,
+  });
 
   // Mark each job with eligibility based on trust level
   // Caregivers can see all posted jobs but only accept ones they're eligible for
   const enrichedJobs = jobs.data
     .filter(job => {
+      // Caregiver must not see own job posts when account can switch roles
+      if (job.hirer_id === caregiverId) {
+        return false;
+      }
+
       // Hide jobs reserved for a different caregiver
       if (job.preferred_caregiver_id && job.preferred_caregiver_id !== caregiverId) {
         return false;
@@ -503,6 +511,10 @@ export const acceptJob = async (jobPostId, caregiverId) => {
 
     if (jobPost.status !== 'posted') {
       throw new Error(`Cannot accept job in status: ${jobPost.status}`);
+    }
+
+    if (jobPost.hirer_id === caregiverId) {
+      throw new Error('Not authorized to accept your own job post');
     }
 
     if (!meetsRequiredTrustLevel(caregiver.trust_level, jobPost.min_trust_level)) {
@@ -1082,11 +1094,21 @@ export const cancelJob = async (jobPostId, userId, reason) => {
       );
 
       if (threadResult.rows.length > 0) {
+        const threadId = threadResult.rows[0].id;
         const cancelledBy = isHirer ? 'hirer' : 'caregiver';
         await client.query(
           `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
            VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
-          [uuidv4(), threadResult.rows[0].id, `Job cancelled by ${cancelledBy}. Reason: ${reason}`]
+          [uuidv4(), threadId, `Job cancelled by ${cancelledBy}. Reason: ${reason}`]
+        );
+
+        await client.query(
+          `UPDATE chat_threads
+           SET status = 'closed',
+               closed_at = COALESCE(closed_at, NOW()),
+               updated_at = NOW()
+           WHERE id = $1`,
+          [threadId]
         );
       }
     }

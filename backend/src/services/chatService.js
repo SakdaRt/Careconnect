@@ -1,5 +1,6 @@
 import Chat from '../models/Chat.js';
 import { query } from '../utils/db.js';
+import { notifyChatMessage } from './notificationService.js';
 
 /**
  * Chat Service
@@ -125,6 +126,10 @@ class ChatService {
       throw { status: 400, message: 'Cannot send messages to a closed chat' };
     }
 
+    if (thread.job_status === 'cancelled' || thread.job_post_status === 'cancelled') {
+      throw { status: 400, message: 'Cannot send messages for a cancelled job' };
+    }
+
     // Validate message type
     const validTypes = ['text', 'image', 'file', 'location'];
     const type = messageData.type || 'text';
@@ -150,6 +155,26 @@ class ChatService {
       attachment_key: messageData.attachment_key,
       metadata: messageData.metadata,
     });
+
+    try {
+      const isSenderHirer = thread.hirer_id === senderId;
+      const recipientId = isSenderHirer ? thread.caregiver_id : thread.hirer_id;
+
+      if (recipientId && recipientId !== senderId) {
+        const senderDisplayName = isSenderHirer
+          ? (thread.hirer_name || 'ผู้ว่าจ้าง')
+          : (thread.caregiver_name || 'ผู้ดูแล');
+
+        await notifyChatMessage(
+          recipientId,
+          senderDisplayName,
+          thread.job_title,
+          thread.job_id
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send chat_message notification:', error?.message || error);
+    }
 
     return message;
   }

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import api, { User } from '../services/api';
+import { getScopedStorageItem, removeScopedStorageItem, setScopedStorageItem } from '../utils/authStorage';
 
 // Re-export types for backwards compatibility
 export type UserRole = 'hirer' | 'caregiver' | 'admin';
@@ -34,8 +35,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Check for stored user and validate token on mount
   useEffect(() => {
     const initAuth = async () => {
-      const storedUser = localStorage.getItem('careconnect_user');
-      const token = localStorage.getItem('careconnect_token');
+      const storedUser = getScopedStorageItem('careconnect_user');
+      const token = getScopedStorageItem('careconnect_token');
 
       if (storedUser && token) {
         try {
@@ -43,15 +44,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const response = await api.getCurrentUser();
           if (response.success && response.data) {
             setUser(response.data.user);
-            localStorage.setItem('careconnect_user', JSON.stringify(response.data.user));
-            const storedActiveRole = localStorage.getItem('careconnect_active_role') as UserRole | null;
+            setScopedStorageItem('careconnect_user', JSON.stringify(response.data.user));
+            const storedActiveRole = getScopedStorageItem('careconnect_active_role') as UserRole | null;
             const isStoredRoleValid = storedActiveRole === 'hirer' || storedActiveRole === 'caregiver';
             const isGuest = response.data.user.account_type === 'guest';
             if (isStoredRoleValid && (!isGuest || storedActiveRole === 'hirer')) {
               setActiveRole(storedActiveRole);
             } else {
               setActiveRole(null);
-              localStorage.removeItem('careconnect_active_role');
+              removeScopedStorageItem('careconnect_active_role');
             }
           } else {
             // Token invalid, clear stored data
@@ -72,18 +73,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initAuth();
   }, []);
 
-  // Save user to localStorage whenever it changes
+  // Save user to scoped storage whenever it changes
   useEffect(() => {
     if (user) {
-      localStorage.setItem('careconnect_user', JSON.stringify(user));
+      setScopedStorageItem('careconnect_user', JSON.stringify(user));
     }
   }, [user]);
 
   useEffect(() => {
     if (activeRole) {
-      localStorage.setItem('careconnect_active_role', activeRole);
+      setScopedStorageItem('careconnect_active_role', activeRole);
     } else {
-      localStorage.removeItem('careconnect_active_role');
+      removeScopedStorageItem('careconnect_active_role');
     }
   }, [activeRole]);
 
@@ -97,8 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(response.data.user);
-      localStorage.removeItem('pendingRole');
-      localStorage.removeItem('pendingAccountType');
+      removeScopedStorageItem('pendingRole');
+      removeScopedStorageItem('pendingAccountType');
       setActiveRole(null);
       return response.data.user;
     } finally {
@@ -116,8 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       setUser(response.data.user);
-      localStorage.removeItem('pendingRole');
-      localStorage.removeItem('pendingAccountType');
+      removeScopedStorageItem('pendingRole');
+      removeScopedStorageItem('pendingAccountType');
       setActiveRole(null);
       return response.data.user;
     } finally {

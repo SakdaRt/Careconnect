@@ -4,8 +4,8 @@ import api from '../services/api'
 /**
  * Tests for ApiClient token management, 401 auto-refresh, and stampede prevention.
  *
- * Note: setup.ts replaces window.localStorage with vi.fn() stubs.
- * We give them a real backing Map so getItem/setItem/removeItem work end-to-end
+ * Note: setup.ts replaces window.localStorage/sessionStorage with vi.fn() stubs.
+ * We give them real backing Maps so getItem/setItem/removeItem work end-to-end
  * while still being spyable.
  */
 
@@ -32,19 +32,26 @@ function mockResponse(status: number, body: any): Response {
 }
 
 describe('API Interceptor', () => {
-  /** Backing store for the mocked localStorage */
-  let store: Map<string, string>
+  /** Backing stores for mocked session/local storage */
+  let sessionStore: Map<string, string>
+  let localStore: Map<string, string>
   const mockFetch = vi.fn()
 
   beforeEach(() => {
     vi.clearAllMocks()
-    store = new Map()
+    sessionStore = new Map()
+    localStore = new Map()
 
-    // Wire the vi.fn() stubs from setup.ts to a real backing store
-    vi.mocked(localStorage.getItem).mockImplementation((key: string) => store.get(key) ?? null)
-    vi.mocked(localStorage.setItem).mockImplementation((key: string, val: string) => { store.set(key, val) })
-    vi.mocked(localStorage.removeItem).mockImplementation((key: string) => { store.delete(key) })
-    vi.mocked(localStorage.clear).mockImplementation(() => { store.clear() })
+    // Wire the vi.fn() stubs from setup.ts to real backing stores
+    vi.mocked(sessionStorage.getItem).mockImplementation((key: string) => sessionStore.get(key) ?? null)
+    vi.mocked(sessionStorage.setItem).mockImplementation((key: string, val: string) => { sessionStore.set(key, val) })
+    vi.mocked(sessionStorage.removeItem).mockImplementation((key: string) => { sessionStore.delete(key) })
+    vi.mocked(sessionStorage.clear).mockImplementation(() => { sessionStore.clear() })
+
+    vi.mocked(localStorage.getItem).mockImplementation((key: string) => localStore.get(key) ?? null)
+    vi.mocked(localStorage.setItem).mockImplementation((key: string, val: string) => { localStore.set(key, val) })
+    vi.mocked(localStorage.removeItem).mockImplementation((key: string) => { localStore.delete(key) })
+    vi.mocked(localStorage.clear).mockImplementation(() => { localStore.clear() })
 
     // Mock global fetch
     vi.stubGlobal('fetch', mockFetch)
@@ -52,23 +59,27 @@ describe('API Interceptor', () => {
   })
 
   describe('Token Management', () => {
-    it('should store and retrieve auth token via localStorage', () => {
-      localStorage.setItem('careconnect_token', 'test-token')
-      expect(localStorage.getItem('careconnect_token')).toBe('test-token')
+    it('should store and retrieve auth token via sessionStorage', () => {
+      sessionStorage.setItem('careconnect_token', 'test-token')
+      expect(sessionStorage.getItem('careconnect_token')).toBe('test-token')
     })
 
-    it('should set auth token in localStorage', () => {
-      localStorage.setItem('careconnect_token', 'new-token')
-      expect(localStorage.getItem('careconnect_token')).toBe('new-token')
+    it('should set auth token in sessionStorage', () => {
+      sessionStorage.setItem('careconnect_token', 'new-token')
+      expect(sessionStorage.getItem('careconnect_token')).toBe('new-token')
     })
 
-    it('clearTokens removes all auth keys', () => {
-      localStorage.setItem('careconnect_token', 't')
-      localStorage.setItem('careconnect_refresh_token', 'r')
-      localStorage.setItem('careconnect_user', 'u')
+    it('clearTokens removes all auth keys from both storages', () => {
+      sessionStorage.setItem('careconnect_token', 't')
+      sessionStorage.setItem('careconnect_refresh_token', 'r')
+      sessionStorage.setItem('careconnect_user', 'u')
+      localStorage.setItem('careconnect_token', 'legacy-token')
 
       api.clearTokens()
 
+      expect(sessionStorage.getItem('careconnect_token')).toBeNull()
+      expect(sessionStorage.getItem('careconnect_refresh_token')).toBeNull()
+      expect(sessionStorage.getItem('careconnect_user')).toBeNull()
       expect(localStorage.getItem('careconnect_token')).toBeNull()
       expect(localStorage.getItem('careconnect_refresh_token')).toBeNull()
       expect(localStorage.getItem('careconnect_user')).toBeNull()
@@ -77,7 +88,7 @@ describe('API Interceptor', () => {
 
   describe('Request Header Attachment', () => {
     it('should attach Authorization header when token exists', async () => {
-      store.set('careconnect_token', 'my-token')
+      sessionStore.set('careconnect_token', 'my-token')
 
       mockFetch.mockResolvedValueOnce(
         mockResponse(200, { success: true, data: { ok: true } })
@@ -104,8 +115,8 @@ describe('API Interceptor', () => {
 
   describe('401 Auto-Refresh', () => {
     it('should refresh token on 401 and retry the request', async () => {
-      store.set('careconnect_token', 'expired')
-      store.set('careconnect_refresh_token', 'valid-rt')
+      sessionStore.set('careconnect_token', 'expired')
+      sessionStore.set('careconnect_refresh_token', 'valid-rt')
 
       // 1st call: 401
       // 2nd call: refresh endpoint succeeds
@@ -125,13 +136,13 @@ describe('API Interceptor', () => {
       expect(mockFetch).toHaveBeenCalledTimes(3)
 
       // Verify new tokens were stored
-      expect(store.get('careconnect_token')).toBe('new-access')
-      expect(store.get('careconnect_refresh_token')).toBe('new-refresh')
+      expect(sessionStore.get('careconnect_token')).toBe('new-access')
+      expect(sessionStore.get('careconnect_refresh_token')).toBe('new-refresh')
     })
 
     it('should clear tokens when refresh fails', async () => {
-      store.set('careconnect_token', 'expired')
-      store.set('careconnect_refresh_token', 'bad-rt')
+      sessionStore.set('careconnect_token', 'expired')
+      sessionStore.set('careconnect_refresh_token', 'bad-rt')
 
       // 1st call: 401
       // 2nd call: refresh endpoint fails
@@ -143,13 +154,13 @@ describe('API Interceptor', () => {
 
       expect(res.success).toBe(false)
       // Tokens should be cleared
-      expect(store.has('careconnect_token')).toBe(false)
-      expect(store.has('careconnect_refresh_token')).toBe(false)
-      expect(store.has('careconnect_user')).toBe(false)
+      expect(sessionStore.has('careconnect_token')).toBe(false)
+      expect(sessionStore.has('careconnect_refresh_token')).toBe(false)
+      expect(sessionStore.has('careconnect_user')).toBe(false)
     })
 
     it('should not attempt refresh when no refresh token exists', async () => {
-      store.set('careconnect_token', 'expired')
+      sessionStore.set('careconnect_token', 'expired')
       // No refresh token
 
       mockFetch
@@ -163,8 +174,8 @@ describe('API Interceptor', () => {
     })
 
     it('should not refresh on auth endpoints (prevents infinite loop)', async () => {
-      store.set('careconnect_token', 'expired')
-      store.set('careconnect_refresh_token', 'valid-rt')
+      sessionStore.set('careconnect_token', 'expired')
+      sessionStore.set('careconnect_refresh_token', 'valid-rt')
 
       mockFetch
         .mockResolvedValueOnce(mockResponse(401, { error: 'Unauthorized' }))
@@ -177,8 +188,8 @@ describe('API Interceptor', () => {
     })
 
     it('should not retry more than once (prevents infinite retry)', async () => {
-      store.set('careconnect_token', 'expired')
-      store.set('careconnect_refresh_token', 'valid-rt')
+      sessionStore.set('careconnect_token', 'expired')
+      sessionStore.set('careconnect_refresh_token', 'valid-rt')
 
       // 1st call: 401
       // 2nd call: refresh succeeds
@@ -201,8 +212,8 @@ describe('API Interceptor', () => {
 
   describe('Parallel 401 Stampede Prevention', () => {
     it('should share a single refresh call across parallel 401s', async () => {
-      store.set('careconnect_token', 'expired')
-      store.set('careconnect_refresh_token', 'valid-rt')
+      sessionStore.set('careconnect_token', 'expired')
+      sessionStore.set('careconnect_refresh_token', 'valid-rt')
 
       let refreshCallCount = 0
 
@@ -217,7 +228,7 @@ describe('API Interceptor', () => {
         }
         // First round: all return 401 if token is still 'expired'
         // After refresh: token is 'new-access', so succeed
-        const token = store.get('careconnect_token')
+        const token = sessionStore.get('careconnect_token')
         if (token === 'expired') {
           return mockResponse(401, { error: 'Unauthorized' })
         }
@@ -243,8 +254,8 @@ describe('API Interceptor', () => {
 
   describe('Non-401 Error Passthrough', () => {
     it('should pass through 403 errors without refresh attempt', async () => {
-      store.set('careconnect_token', 'valid')
-      store.set('careconnect_refresh_token', 'valid-rt')
+      sessionStore.set('careconnect_token', 'valid')
+      sessionStore.set('careconnect_refresh_token', 'valid-rt')
 
       mockFetch
         .mockResolvedValueOnce(mockResponse(403, { error: 'Forbidden' }))
@@ -258,7 +269,7 @@ describe('API Interceptor', () => {
     })
 
     it('should pass through 500 errors without refresh attempt', async () => {
-      store.set('careconnect_token', 'valid')
+      sessionStore.set('careconnect_token', 'valid')
 
       mockFetch
         .mockResolvedValueOnce(mockResponse(500, { error: 'Server error' }))
