@@ -5,10 +5,18 @@ import { fileURLToPath, URL } from 'url';
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_');
-  const publicHost = env.VITE_PUBLIC_HOST?.trim();
+  const publicHost = env.VITE_PUBLIC_HOST?.trim() || undefined;
   const isLocalPublicHost = publicHost === 'localhost' || publicHost === '127.0.0.1';
   const publicPort = Number(env.VITE_PUBLIC_PORT || env.VITE_PUBLIC_HMR_PORT || '');
   const devPort = Number(env.VITE_DEV_PORT || 5173);
+  const usePolling = env.VITE_USE_POLLING === 'true';
+  const pollingInterval = Number(env.VITE_POLL_INTERVAL || 300);
+  const watchConfig = usePolling
+    ? {
+        usePolling: true,
+        interval: Number.isFinite(pollingInterval) ? pollingInterval : 300,
+      }
+    : undefined;
   const hmrPort = Number.isFinite(publicPort)
     ? publicPort
     : (publicHost && !isLocalPublicHost ? 443 : devPort);
@@ -40,9 +48,7 @@ export default defineConfig(({ mode }) => {
             clientPort: hmrPort,
           }
         : undefined,
-      watch: {
-        usePolling: true,
-      },
+      watch: watchConfig,
       proxy: {
         '/api': {
           target: 'http://backend:3000',
