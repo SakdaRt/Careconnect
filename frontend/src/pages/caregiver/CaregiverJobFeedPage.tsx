@@ -151,14 +151,12 @@ export default function CaregiverJobFeedPage() {
                 )}
                 <div>
                   <div className="text-sm font-semibold text-gray-900">
-                    {(profile.caregiver_profile?.is_public_profile ?? true)
-                      ? 'โปรไฟล์ของคุณแสดงให้ผู้ว่าจ้างค้นหาเห็น'
-                      : 'โปรไฟล์ของคุณถูกซ่อนจากผู้ว่าจ้าง'}
+                    โปรไฟล์ของ {profile.caregiver_profile?.display_name || 'คุณ'}
                   </div>
                   <div className="text-xs text-gray-600 mt-0.5">
                     {(profile.caregiver_profile?.is_public_profile ?? true)
-                      ? 'ผู้ว่าจ้างสามารถค้นหาและดูโปรไฟล์ของคุณได้'
-                      : 'ผู้ว่าจ้างจะไม่เห็นโปรไฟล์ของคุณในหน้าค้นหา'}
+                      ? 'แสดงให้ผู้ว่าจ้างค้นหาเห็นอยู่'
+                      : 'ถูกซ่อนจากผู้ว่าจ้าง'}
                   </div>
                 </div>
               </div>

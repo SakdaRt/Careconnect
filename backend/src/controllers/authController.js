@@ -780,6 +780,9 @@ export const updateMyProfile = async (req, res) => {
         ? req.body.is_public_profile
         : existingIsPublic;
 
+      // Add is_public_profile to payload for this query
+      payload.is_public_profile = isPublicProfile;
+
       const result = await query(
         `INSERT INTO caregiver_profiles
           (user_id, display_name, bio, experience_years, certifications, specializations, available_from, available_to, available_days, is_public_profile, updated_at)
@@ -806,7 +809,7 @@ export const updateMyProfile = async (req, res) => {
           payload.available_from,
           payload.available_to,
           payload.available_days,
-          isPublicProfile,
+          payload.is_public_profile,
         ]
       );
 
