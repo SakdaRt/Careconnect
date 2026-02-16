@@ -11,6 +11,8 @@ import { useAuth } from '../../contexts';
 export default function CaregiverWalletPage() {
   const { user } = useAuth();
   const userId = user?.id || 'demo-caregiver';
+  const needsPhoneVerification = !user?.is_phone_verified;
+  const needsKycVerification = !!user?.is_phone_verified && !['L2', 'L3'].includes(user?.trust_level || 'L0');
 
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<WalletBalance | null>(null);
@@ -248,13 +250,30 @@ export default function CaregiverWalletPage() {
               </Card>
             )}
 
-            {!['L2', 'L3'].includes(user?.trust_level || 'L0') && (
+            {needsPhoneVerification && (
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
                 <ShieldCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-amber-900">ยืนยันตัวตนเพื่อถอนเงิน</p>
+                  <p className="text-sm font-semibold text-amber-900">ยืนยันเบอร์โทรก่อนถอนเงิน</p>
                   <p className="text-xs text-amber-700 mt-1">
-                    การถอนเงินต้อง Trust Level L2 ขึ้นไป (ยืนยันเบอร์โทร + KYC)
+                    ผู้ดูแลต้องยืนยันเบอร์โทร (L1) ก่อน แล้วจึงยืนยันตัวตน KYC เพื่อปลดล็อกการถอนเงิน
+                  </p>
+                  <div className="mt-2">
+                    <Link to="/profile">
+                      <Button variant="primary" size="sm">ไปยืนยันเบอร์โทร</Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {needsKycVerification && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-amber-900">ยืนยันตัวตน KYC เพื่อถอนเงิน</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    การถอนเงินต้อง Trust Level L2 ขึ้นไป (ยืนยันเบอร์โทรแล้ว + ยืนยันตัวตน KYC)
                   </p>
                   <div className="mt-2">
                     <Link to="/kyc">

@@ -1,13 +1,15 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Briefcase, Search, Users, Wallet, Bell, User } from 'lucide-react';
+import { Briefcase, Search, Users, Wallet, User } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { cn } from '../../contexts/ThemeContext';
 
 export function BottomBar() {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const location = useLocation();
 
   if (!user) return null;
+
+  const resolvedRole = user.role === 'admin' ? 'admin' : (activeRole || user.role);
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -28,7 +30,7 @@ export function BottomBar() {
   };
 
   // Hirer Bottom Bar: งานของฉัน | ค้นหาผู้ดูแล | ผู้รับการดูแล | กระเป๋าเงิน
-  if (user.role === 'hirer') {
+  if (resolvedRole === 'hirer') {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
         <div className="max-w-7xl mx-auto">
@@ -43,15 +45,15 @@ export function BottomBar() {
     );
   }
 
-  // Caregiver Bottom Bar: ค้นหางาน | งานของฉัน | แจ้งเตือน | โปรไฟล์
-  if (user.role === 'caregiver') {
+  // Caregiver Bottom Bar: ค้นหางาน | งานของฉัน | กระเป๋าเงิน | โปรไฟล์
+  if (resolvedRole === 'caregiver') {
     return (
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-around h-16">
             <TabLink to="/caregiver/jobs/feed" icon={Search} label="ค้นหางาน" />
             <TabLink to="/caregiver/jobs/my-jobs" icon={Briefcase} label="งานของฉัน" />
-            <TabLink to="/notifications" icon={Bell} label="แจ้งเตือน" />
+            <TabLink to="/caregiver/wallet" icon={Wallet} label="กระเป๋าเงิน" paths={['/caregiver/wallet']} />
             <TabLink to="/profile" icon={User} label="โปรไฟล์" paths={['/profile', '/caregiver/profile', '/kyc', '/settings']} />
           </div>
         </div>

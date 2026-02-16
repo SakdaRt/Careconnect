@@ -20,7 +20,7 @@ const STEPS: { key: Step; label: string; icon: any }[] = [
 
 export default function KycPage() {
   const navigate = useNavigate();
-  const { user, refreshUser } = useAuth();
+  const { user, activeRole, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [kyc, setKyc] = useState<KycStatus | null>(null);
@@ -48,6 +48,9 @@ export default function KycPage() {
   // Processing animation
   const [processing, setProcessing] = useState(false);
   const [processingStep, setProcessingStep] = useState(0);
+
+  const resolvedRole = user?.role === 'admin' ? 'admin' : (activeRole || user?.role || 'hirer');
+  const homePath = resolvedRole === 'caregiver' ? '/caregiver/jobs/feed' : resolvedRole === 'admin' ? '/admin/dashboard' : '/hirer/home';
 
   const isVerified = kyc?.status === 'approved' || verifiedLevels.has(user?.trust_level || 'L0');
 
@@ -236,7 +239,7 @@ export default function KycPage() {
         <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <h1 className="text-2xl font-bold text-gray-900">ยืนยันตัวตน (KYC)</h1>
-            <Button variant="outline" onClick={() => navigate(-1)}>ย้อนกลับ</Button>
+            <Button variant="outline" onClick={() => navigate(homePath)}>ย้อนกลับ</Button>
           </div>
           <Card className="p-8 text-center">
             <BadgeCheck className="w-16 h-16 text-green-500 mx-auto mb-4" />
@@ -248,7 +251,7 @@ export default function KycPage() {
               <p className="text-sm text-gray-500">ยืนยันเมื่อ: {new Date(kyc.verified_at).toLocaleString('th-TH')}</p>
             )}
             <div className="mt-6">
-              <Button variant="primary" onClick={() => navigate(-1)}>กลับหน้าหลัก</Button>
+              <Button variant="primary" onClick={() => navigate(homePath)}>กลับหน้าหลัก</Button>
             </div>
           </Card>
         </div>

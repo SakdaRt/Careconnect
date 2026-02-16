@@ -46,7 +46,7 @@ function trustLevelStyle(level: string) {
 }
 
 export function TopBar() {
-  const { user, logout } = useAuth();
+  const { user, logout, activeRole } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
@@ -71,12 +71,15 @@ export function TopBar() {
 
   if (!user) return null;
 
+  const resolvedRole = user.role === 'admin' ? 'admin' : (activeRole || user.role);
+  const homePath = resolvedRole === 'caregiver' ? '/caregiver/jobs/feed' : resolvedRole === 'admin' ? '/admin/dashboard' : '/hirer/home';
+
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <Link to="/hirer/home" className="flex items-center">
+          <Link to={homePath} className="flex items-center">
             <span className="text-xl font-bold text-blue-600">Careconnect</span>
           </Link>
 
@@ -129,9 +132,9 @@ export function TopBar() {
                       </p>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                          {user.role === "hirer"
+                          {resolvedRole === "hirer"
                             ? "ผู้ว่าจ้าง"
-                            : user.role === "caregiver"
+                            : resolvedRole === "caregiver"
                               ? "ผู้ดูแล"
                               : "แอดมิน"}
                         </span>
@@ -158,7 +161,7 @@ export function TopBar() {
                       <span>โปรไฟล์</span>
                     </Link>
 
-                    {user.role === 'hirer' && (
+                    {resolvedRole === 'hirer' && (
                       <>
                         <Link
                           to="/hirer/care-recipients"
@@ -179,7 +182,7 @@ export function TopBar() {
                       </>
                     )}
 
-                    {user.role === 'caregiver' && (
+                    {resolvedRole === 'caregiver' && (
                       <Link
                         to="/caregiver/wallet"
                         className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
@@ -190,7 +193,7 @@ export function TopBar() {
                       </Link>
                     )}
 
-                    {user.role !== 'admin' && (
+                    {resolvedRole !== 'admin' && (
                       <Link
                         to="/kyc"
                         className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
