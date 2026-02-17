@@ -50,10 +50,24 @@ export const createJob = async (hirerId, jobData) => {
   }
 
   // Validate required fields
-  const requiredFields = ['title', 'description', 'job_type', 'scheduled_start_at', 'scheduled_end_at', 'hourly_rate', 'total_hours', 'address_line1'];
+  const requiredFields = [
+    'title',
+    'description',
+    'job_type',
+    'scheduled_start_at',
+    'scheduled_end_at',
+    'hourly_rate',
+    'total_hours',
+    'address_line1',
+    'patient_profile_id',
+  ];
   for (const field of requiredFields) {
     if (!jobData[field]) {
-      throw new ValidationError(`Missing required field: ${field}`, { code: 'JOB_REQUIRED_FIELD', field, section: 'job_basic' });
+      throw new ValidationError(`Missing required field: ${field}`, {
+        code: 'JOB_REQUIRED_FIELD',
+        field,
+        section: field === 'patient_profile_id' ? 'patient' : 'job_basic',
+      });
     }
   }
 

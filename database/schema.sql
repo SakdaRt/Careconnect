@@ -344,6 +344,7 @@ CREATE TABLE job_posts (
     replacement_chain_count INT NOT NULL DEFAULT 0 CHECK (replacement_chain_count >= 0),
     original_job_post_id UUID REFERENCES job_posts(id), -- NULL for original, set for replacements
     preferred_caregiver_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    patient_profile_id UUID REFERENCES patient_profiles(id) ON DELETE SET NULL,
 
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -362,6 +363,7 @@ CREATE INDEX idx_job_posts_is_urgent ON job_posts(is_urgent);
 CREATE INDEX idx_job_posts_scheduled_start ON job_posts(scheduled_start_at);
 CREATE INDEX idx_job_posts_original_job ON job_posts(original_job_post_id) WHERE original_job_post_id IS NOT NULL;
 CREATE INDEX idx_job_posts_preferred_caregiver ON job_posts(preferred_caregiver_id);
+CREATE INDEX idx_job_posts_patient_profile_id ON job_posts(patient_profile_id);
 
 COMMENT ON TABLE job_posts IS 'Job postings (can be draft or posted)';
 COMMENT ON COLUMN job_posts.replacement_chain_count IS 'Track replacement depth: 0=original, max=3';

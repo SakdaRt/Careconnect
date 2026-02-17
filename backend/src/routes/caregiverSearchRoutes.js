@@ -165,7 +165,7 @@ router.post(
 
       // Verify the job post belongs to this hirer
       const jobResult = await query(
-        `SELECT jp.id, jp.status, jp.hirer_id, j.id as job_id, j.status as job_status
+        `SELECT jp.id, jp.status, jp.hirer_id, jp.scheduled_start_at, jp.scheduled_end_at, j.id as job_id, j.status as job_status
        FROM job_posts jp
        LEFT JOIN jobs j ON j.job_post_id = jp.id
        WHERE jp.id = $1`,
@@ -199,6 +199,30 @@ router.post(
         return res
           .status(404)
           .json({ success: false, error: "ไม่พบผู้ดูแลนี้" });
+      }
+
+      if (job.scheduled_start_at && job.scheduled_end_at) {
+        const conflictResult = await query(
+          `SELECT jp.id
+           FROM job_assignments ja
+           JOIN jobs j ON j.id = ja.job_id
+           JOIN job_posts jp ON jp.id = j.job_post_id
+           WHERE ja.caregiver_id = $1
+             AND ja.status = 'active'
+             AND j.status IN ('assigned', 'in_progress')
+             AND jp.id <> $4
+             AND jp.scheduled_start_at < $3
+             AND jp.scheduled_end_at > $2
+           LIMIT 1`,
+          [caregiver_id, job.scheduled_start_at, job.scheduled_end_at, job_post_id],
+        );
+
+        if (conflictResult.rows.length) {
+          return res.status(409).json({
+            success: false,
+            error: "ผู้ดูแลมีงานที่มอบหมายแล้วในช่วงเวลาเดียวกัน",
+          });
+        }
       }
 
       // Update preferred_caregiver_id on the job post

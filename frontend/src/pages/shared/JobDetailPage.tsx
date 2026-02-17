@@ -17,6 +17,16 @@ function formatDateTimeRange(startIso: string, endIso: string) {
   return `${date} ${timeStart} - ${timeEnd}`;
 }
 
+function formatFullLocation(
+  addressLine1?: string | null,
+  addressLine2?: string | null,
+  district?: string | null,
+  province?: string | null,
+  postalCode?: string | null
+) {
+  return [addressLine1, addressLine2, district, province, postalCode].filter(Boolean).join(', ');
+}
+
 const JOB_TYPE_LABEL: Record<string, string> = {
   companionship: 'เพื่อนคุย / ดูแลทั่วไป',
   personal_care: 'ช่วยเหลือตัวเอง / อาบน้ำแต่งตัว',
@@ -87,9 +97,7 @@ export default function JobDetailPage() {
 
   const locationArea = useMemo(() => {
     if (!job) return '';
-    const parts = [job.district, job.province].filter(Boolean);
-    if (parts.length === 0) return job.address_line1 || '';
-    return parts.join(', ');
+    return formatFullLocation(job.address_line1, job.address_line2, job.district, job.province, job.postal_code);
   }, [job]);
 
   const mapLink = useMemo(() => {
@@ -302,9 +310,13 @@ export default function JobDetailPage() {
                   </div>
                   {job.job_id && (
                     <Link to={`/chat/${job.job_id}`}>
-                      <Button variant="primary" size="sm">
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        เปิดแชท
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        className="whitespace-nowrap"
+                        leftIcon={<MessageCircle className="w-4 h-4" />}
+                      >
+                        แชท
                       </Button>
                     </Link>
                   )}

@@ -352,6 +352,7 @@ export default function CreateJobPage() {
     if (!form.description.trim()) throw new Error('กรุณากรอกรายละเอียดงาน');
     if (!form.address_line1.trim()) throw new Error('กรุณากรอกที่อยู่');
     if (!form.job_tasks_flags.length) throw new Error('กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง');
+    if (!careRecipientId) throw new Error('กรุณาเลือกผู้รับการดูแล');
 
     return {
       title: form.title.trim(),
@@ -426,6 +427,7 @@ export default function CreateJobPage() {
             address_line1: 'กรุณากรอกที่อยู่',
             scheduled_start_at: 'กรุณาเลือกวันและเวลาเริ่มงาน',
             scheduled_end_at: 'กรุณาเลือกวันและเวลาสิ้นสุด',
+            patient_profile_id: 'กรุณาเลือกผู้รับการดูแล',
           };
           thai = map[field || ''] || 'กรุณากรอกข้อมูลให้ครบ';
         } else if (code === 'JOB_SCHEDULE_INVALID') {
@@ -507,6 +509,9 @@ export default function CreateJobPage() {
         setErrorSection('job_location');
         setFieldErrors({ address_line1: msg });
         setErrorAnchorId('section-job_location');
+      } else if (msg.includes('ผู้รับการดูแล')) {
+        setErrorSection('patient');
+        setErrorAnchorId('section-patient');
       } else if (msg.includes('งานที่ต้องทำ')) {
         setErrorSection('job_tasks');
         setFieldErrors({ job_tasks_flags: msg });

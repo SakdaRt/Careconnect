@@ -1220,6 +1220,7 @@ export interface AdminJobListItem extends JobPost {
   caregiver_id?: string | null;
   assignment_status?: string | null;
   caregiver_name?: string | null;
+  patient_profile_id?: string | null;
   patient_display_name?: string | null;
   hirer_name?: string | null;
   assigned_at?: string | null;
@@ -1492,6 +1493,7 @@ export interface JobPost {
   caregiver_id?: string | null;
   assignment_status?: string | null;
   caregiver_name?: string | null;
+  patient_profile_id?: string | null;
   patient_display_name?: string | null;
   hirer_name?: string | null;
   assigned_at?: string | null;
@@ -1574,6 +1576,8 @@ export interface CaregiverAssignedJob {
   address_line1: string;
   district: string | null;
   province: string | null;
+  patient_profile_id?: string | null;
+  patient_display_name?: string | null;
   lat?: number | null;
   lng?: number | null;
   geofence_radius_m?: number | null;

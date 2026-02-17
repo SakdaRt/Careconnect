@@ -19,6 +19,11 @@ function formatDateTimeRange(startIso: string, endIso: string) {
   return `${date} ${timeStart} - ${timeEnd}`;
 }
 
+function formatCompactLocation(addressLine1?: string | null, district?: string | null, province?: string | null) {
+  const compact = [district, province].filter(Boolean).join(', ');
+  return compact || addressLine1 || '';
+}
+
 const toRadians = (value: number) => (value * Math.PI) / 180;
 
 const getDistanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
@@ -132,11 +137,9 @@ export default function CaregiverMyJobsPage() {
   const loadSchedule = useCallback(async () => {
     setScheduleLoading(true);
     try {
-      const statuses: Array<'assigned' | 'in_progress' | 'completed' | 'cancelled'> = [
+      const statuses: Array<'assigned' | 'in_progress'> = [
         'assigned',
         'in_progress',
-        'completed',
-        'cancelled',
       ];
 
       const responses = await Promise.all(statuses.map((status) => appApi.getAssignedJobs(caregiverId, status, 1, 100)));
@@ -372,13 +375,18 @@ export default function CaregiverMyJobsPage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
             <p className="text-sm text-gray-600">งานที่มอบหมายจะขึ้นก่อน พร้อมตัวเลือกตอบรับหรือปฏิเสธ</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" leftIcon={<CalendarDays className="w-4 h-4" />} onClick={handleOpenSchedule}>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <Button
+              variant="outline"
+              className="whitespace-nowrap"
+              leftIcon={<CalendarDays className="w-4 h-4" />}
+              onClick={handleOpenSchedule}
+            >
               ดูตารางงาน
             </Button>
             <Button variant="outline" onClick={handleRefresh}>
@@ -415,7 +423,7 @@ export default function CaregiverMyJobsPage() {
           <div className="space-y-3">
             {items.map((job) => {
               const targetJobPostId = String(job.job_post_id || job.id || '').trim();
-              const location = [job.address_line1, job.district, job.province].filter(Boolean).join(', ');
+              const location = formatCompactLocation(job.address_line1, job.district, job.province);
               const isLoading = actionLoadingId === job.id;
               const isAwaitingResponse = Boolean(job.awaiting_response);
               return (
@@ -434,6 +442,7 @@ export default function CaregiverMyJobsPage() {
                       <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
                         <div>เวลา: {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}</div>
                         <div>สถานที่: {location || '-'}</div>
+                        <div>ผู้รับการดูแล: {job.patient_display_name || '-'}</div>
                         <div>ค่าจ้างรวม: {job.total_amount.toLocaleString()} บาท</div>
                       </div>
 
@@ -470,9 +479,10 @@ export default function CaregiverMyJobsPage() {
                               <Button
                                 variant="primary"
                                 size="sm"
+                                className="whitespace-nowrap"
                                 leftIcon={<MessageCircle className="w-4 h-4" />}
                               >
-                                เปิดแชท
+                                แชท
                               </Button>
                             </Link>
                             <Button variant="outline" size="sm" loading={isLoading} onClick={() => handleOpenDispute(job.id)}>
@@ -607,6 +617,7 @@ export default function CaregiverMyJobsPage() {
                           <div className="mt-1 text-xs text-gray-600">
                             {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}
                           </div>
+                          <div className="mt-1 text-xs text-gray-500">ผู้รับการดูแล: {job.patient_display_name || '-'}</div>
                           {location && <div className="mt-1 text-xs text-gray-500">พื้นที่: {location}</div>}
                         </div>
                       );

@@ -186,7 +186,7 @@ export const jobSchemas = {
     total_hours: Joi.number().positive().required(),
     is_urgent: Joi.boolean().default(false),
     preferred_caregiver_id: Joi.string().uuid().allow('', null).optional(),
-    patient_profile_id: Joi.string().uuid().allow('', null).optional(),
+    patient_profile_id: Joi.string().uuid().required(),
     job_tasks_flags: Joi.array().items(Joi.string()).default([]),
     required_skills_flags: Joi.array().items(Joi.string()).default([]),
     equipment_available_flags: Joi.array().items(Joi.string()).default([]),

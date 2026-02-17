@@ -75,7 +75,7 @@ export const listJobs = async (req, res) => {
        LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
        LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
        LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
-       LEFT JOIN patient_profiles pp ON pp.id = jpr.patient_id
+       LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
        LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
        ${whereSql}
        ORDER BY jp.created_at DESC
@@ -90,7 +90,7 @@ export const listJobs = async (req, res) => {
        LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
        LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
        LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
-       LEFT JOIN patient_profiles pp ON pp.id = jpr.patient_id
+       LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
        LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
        ${whereSql}`,
       values

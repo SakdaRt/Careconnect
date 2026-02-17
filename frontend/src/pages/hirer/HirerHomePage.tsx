@@ -12,7 +12,6 @@ type HirerJob = JobPost & {
   caregiver_name?: string | null;
   job_status?: string | null;
   job_id?: string | null;
-  patient_profile_id?: string | null;
 };
 
 type JobStatusFilter =
@@ -65,6 +64,35 @@ function formatDateTimeRange(startIso: string, endIso: string) {
   return `${date} ${timeStart} - ${timeEnd}`;
 }
 
+function formatCompactLocation(addressLine1?: string | null, district?: string | null, province?: string | null) {
+  const compact = [district, province].filter(Boolean).join(', ');
+  return compact || addressLine1 || '';
+}
+
+const normalizeAddressPart = (value?: string | null) => (value || '').trim().toLowerCase();
+
+const buildRecipientAddressKey = (
+  addressLine1?: string | null,
+  district?: string | null,
+  province?: string | null,
+  postalCode?: string | null,
+  includePostalCode = true
+) => {
+  const normalizedAddress = normalizeAddressPart(addressLine1);
+  if (!normalizedAddress) return '';
+
+  const parts = [normalizedAddress, normalizeAddressPart(district), normalizeAddressPart(province)];
+  if (includePostalCode) {
+    parts.push(normalizeAddressPart(postalCode));
+  }
+  return parts.join('|');
+};
+
+function isSchedulableJob(job: HirerJob) {
+  const effectiveStatus = job.job_status || job.status;
+  return effectiveStatus === 'assigned' || effectiveStatus === 'in_progress';
+}
+
 const WEEKDAY_LABELS = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
 
 const toDateKey = (date: Date) => {
@@ -94,16 +122,18 @@ function JobPostCard({
   onPublish,
   onOpenDispute,
   onCancel,
+  getRecipientName,
 }: {
   job: HirerJob;
   onPublish: () => void;
   onOpenDispute: () => void;
   onCancel: () => void;
+  getRecipientName: (job: HirerJob) => string;
 }) {
   const location = useMemo(() => {
-    const parts = [job.address_line1, job.district, job.province].filter(Boolean);
-    return parts.join(', ');
+    return formatCompactLocation(job.address_line1, job.district, job.province);
   }, [job.address_line1, job.district, job.province]);
+  const recipientName = useMemo(() => getRecipientName(job), [getRecipientName, job]);
   const lifecycleStatus = getLifecycleStatus(job);
   const lifecycle = getLifecycleBadge(lifecycleStatus);
   const isAssignedToCaregiver = Boolean(job.preferred_caregiver_id) && lifecycleStatus !== 'draft';
@@ -136,6 +166,7 @@ function JobPostCard({
           <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-700">
             <div>เวลา: {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}</div>
             <div>สถานที่: {location || '-'}</div>
+            <div>ผู้รับการดูแล: {recipientName}</div>
             <div>ประเภทงาน: {job.job_type}</div>
             <div>
               ราคา: {job.total_amount.toLocaleString()} บาท ({job.hourly_rate.toLocaleString()} บาท/ชม. ×{' '}
@@ -172,6 +203,7 @@ function JobPostCard({
                   <Button
                     variant="primary"
                     size="sm"
+                    className="whitespace-nowrap"
                     leftIcon={<MessageCircle className="w-4 h-4" />}
                   >
                     แชท
@@ -275,17 +307,29 @@ export default function HirerHomePage() {
   const loadSchedule = useCallback(async () => {
     setScheduleLoading(true);
     try {
-      const [jobsRes, recipientsRes] = await Promise.all([
-        appApi.getMyJobs(hirerId, undefined, 1, 200),
+      const [assignedRes, inProgressRes, recipientsRes] = await Promise.all([
+        appApi.getMyJobs(hirerId, 'assigned', 1, 100),
+        appApi.getMyJobs(hirerId, 'in_progress', 1, 100),
         appApi.getCareRecipients(),
       ]);
 
-      if (jobsRes.success && jobsRes.data) {
-        const source = (jobsRes.data.data || []) as HirerJob[];
-        setScheduleJobs(source.filter((job) => job.status !== 'draft'));
-      } else {
-        setScheduleJobs([]);
-      }
+      const merged: HirerJob[] = [];
+      const seen = new Set<string>();
+
+      [assignedRes, inProgressRes].forEach((res) => {
+        if (!res.success || !res.data?.data) return;
+
+        for (const job of res.data.data as HirerJob[]) {
+          if (!isSchedulableJob(job)) continue;
+          const key = `${job.id}-${job.job_id || 'no-job'}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(job);
+        }
+      });
+
+      merged.sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime());
+      setScheduleJobs(merged);
 
       if (recipientsRes.success && Array.isArray(recipientsRes.data)) {
         setCareRecipients(recipientsRes.data);
@@ -303,17 +347,85 @@ export default function HirerHomePage() {
     return map;
   }, [careRecipients]);
 
+  const recipientIdByName = useMemo(() => {
+    const map = new Map<string, string>();
+    careRecipients.forEach((item) => {
+      const name = (item.patient_display_name || '').trim();
+      if (!name || map.has(name)) return;
+      map.set(name, item.id);
+    });
+    return map;
+  }, [careRecipients]);
+
+  const recipientIdByAddressStrict = useMemo(() => {
+    const map = new Map<string, string>();
+    const duplicatedKeys = new Set<string>();
+
+    careRecipients.forEach((item) => {
+      const key = buildRecipientAddressKey(item.address_line1, item.district, item.province, item.postal_code, true);
+      if (!key || duplicatedKeys.has(key)) return;
+      if (map.has(key)) {
+        map.delete(key);
+        duplicatedKeys.add(key);
+        return;
+      }
+      map.set(key, item.id);
+    });
+
+    return map;
+  }, [careRecipients]);
+
+  const recipientIdByAddressLoose = useMemo(() => {
+    const map = new Map<string, string>();
+    const duplicatedKeys = new Set<string>();
+
+    careRecipients.forEach((item) => {
+      const key = buildRecipientAddressKey(item.address_line1, item.district, item.province, item.postal_code, false);
+      if (!key || duplicatedKeys.has(key)) return;
+      if (map.has(key)) {
+        map.delete(key);
+        duplicatedKeys.add(key);
+        return;
+      }
+      map.set(key, item.id);
+    });
+
+    return map;
+  }, [careRecipients]);
+
+  const getRecipientId = useCallback((job: HirerJob) => {
+    if (job.patient_profile_id) return job.patient_profile_id;
+
+    const name = (job.patient_display_name || '').trim();
+    if (name && recipientIdByName.has(name)) {
+      return recipientIdByName.get(name) || null;
+    }
+
+    const strictKey = buildRecipientAddressKey(job.address_line1, job.district, job.province, job.postal_code, true);
+    if (strictKey && recipientIdByAddressStrict.has(strictKey)) {
+      return recipientIdByAddressStrict.get(strictKey) || null;
+    }
+
+    const looseKey = buildRecipientAddressKey(job.address_line1, job.district, job.province, job.postal_code, false);
+    if (looseKey && recipientIdByAddressLoose.has(looseKey)) {
+      return recipientIdByAddressLoose.get(looseKey) || null;
+    }
+
+    return null;
+  }, [recipientIdByAddressLoose, recipientIdByAddressStrict, recipientIdByName]);
+
   const getRecipientName = useCallback((job: HirerJob) => {
     if (job.patient_display_name) return job.patient_display_name;
-    if (job.patient_profile_id && recipientNameMap.has(job.patient_profile_id)) {
-      return recipientNameMap.get(job.patient_profile_id) || 'ผู้รับการดูแล';
+    const recipientId = getRecipientId(job);
+    if (recipientId && recipientNameMap.has(recipientId)) {
+      return recipientNameMap.get(recipientId) || 'ผู้รับการดูแล';
     }
     return 'ไม่ระบุผู้รับการดูแล';
-  }, [recipientNameMap]);
+  }, [getRecipientId, recipientNameMap]);
 
   const hasUnknownRecipientJobs = useMemo(
-    () => scheduleJobs.some((job) => !job.patient_profile_id),
-    [scheduleJobs]
+    () => scheduleJobs.some((job) => !getRecipientId(job)),
+    [getRecipientId, scheduleJobs]
   );
 
   const recipientOptions = useMemo(() => {
@@ -336,10 +448,15 @@ export default function HirerHomePage() {
   const filteredScheduleJobs = useMemo(() => {
     if (selectedRecipientId === 'all') return scheduleJobs;
     if (selectedRecipientId === '__unassigned__') {
-      return scheduleJobs.filter((job) => !job.patient_profile_id);
+      return scheduleJobs.filter((job) => !getRecipientId(job));
     }
-    return scheduleJobs.filter((job) => job.patient_profile_id === selectedRecipientId);
-  }, [scheduleJobs, selectedRecipientId]);
+    return scheduleJobs.filter((job) => getRecipientId(job) === selectedRecipientId);
+  }, [getRecipientId, scheduleJobs, selectedRecipientId]);
+
+  useEffect(() => {
+    if (recipientOptions.some((option) => option.id === selectedRecipientId)) return;
+    setSelectedRecipientId('all');
+  }, [recipientOptions, selectedRecipientId]);
 
   const scheduleJobsByDate = useMemo(() => {
     const grouped: Record<string, HirerJob[]> = {};
@@ -377,6 +494,7 @@ export default function HirerHomePage() {
   const selectedDateLabel = useMemo(() => formatFullDateLabel(selectedDateKey), [selectedDateKey]);
 
   const handleOpenSchedule = async () => {
+    setSelectedRecipientId('all');
     setScheduleOpen(true);
     await loadSchedule();
   };
@@ -480,13 +598,18 @@ export default function HirerHomePage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
             <p className="text-sm text-gray-600">จัดการงานทั้งหมดของคุณ</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" leftIcon={<CalendarDays className="w-4 h-4" />} onClick={handleOpenSchedule}>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <Button
+              variant="outline"
+              className="whitespace-nowrap"
+              leftIcon={<CalendarDays className="w-4 h-4" />}
+              onClick={handleOpenSchedule}
+            >
               ดูตารางงาน
             </Button>
             <Button variant="outline" onClick={handleRefresh}>
@@ -559,6 +682,7 @@ export default function HirerHomePage() {
                 onPublish={() => handlePublish(job.id)}
                 onOpenDispute={() => handleOpenDispute(job.id)}
                 onCancel={() => handleOpenCancel(job.id)}
+                getRecipientName={getRecipientName}
               />
             ))}
           </div>
@@ -571,8 +695,6 @@ export default function HirerHomePage() {
         >
           {scheduleLoading ? (
             <div className="py-10 text-center text-sm text-gray-500">กำลังโหลดตารางงาน...</div>
-          ) : scheduleJobs.length === 0 ? (
-            <div className="py-10 text-center text-sm text-gray-500">ยังไม่มีงานในตาราง</div>
           ) : (
             <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-[260px_1fr] gap-3 sm:items-end">
@@ -592,6 +714,10 @@ export default function HirerHomePage() {
                   งานทั้งหมดในมุมมองนี้: {filteredScheduleJobs.length}
                 </div>
               </div>
+
+              {filteredScheduleJobs.length === 0 && (
+                <div className="text-xs text-gray-500">ยังไม่มีงานสถานะมอบหมายหรือกำลังทำในมุมมองนี้</div>
+              )}
 
               <div className="flex items-center justify-between">
                 <button
@@ -661,7 +787,7 @@ export default function HirerHomePage() {
                 ) : (
                   <div className="space-y-2">
                     {selectedDateJobs.map((job) => {
-                      const location = [job.district, job.province].filter(Boolean).join(', ');
+                      const location = formatCompactLocation(job.address_line1, job.district, job.province);
                       return (
                         <div key={`${job.id}-${job.job_status || job.status}`} className="p-3 border border-gray-200 rounded-lg">
                           <div className="flex items-start justify-between gap-2">

@@ -100,6 +100,53 @@ const getDistanceMeters = (lat1, lng1, lat2, lng2) => {
   return earthRadius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
+const isMissingPatientProfileColumnError = (error) => {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '').toLowerCase();
+  return code === '42703' && message.includes('patient_profile_id');
+};
+
+const isRecipientSchemaCompatibilityError = (error) => {
+  const code = String(error?.code || '').toUpperCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  if (code === '42703') {
+    return (
+      message.includes('patient_profile_id') ||
+      message.includes('patient_id') ||
+      message.includes('patient_display_name')
+    );
+  }
+
+  if (code === '42P01') {
+    return message.includes('job_patient_requirements') || message.includes('patient_profiles');
+  }
+
+  return false;
+};
+
+const queryWithRecipientFallback = async (queries, values) => {
+  let lastError = null;
+
+  for (let i = 0; i < queries.length; i += 1) {
+    try {
+      return await query(queries[i], values);
+    } catch (error) {
+      lastError = error;
+      const isCompatibilityError = isRecipientSchemaCompatibilityError(error);
+      if (i === queries.length - 1) {
+        throw error;
+      }
+      if (!isCompatibilityError) {
+        // Keep trying remaining fallback queries to maximize compatibility
+        // across partially migrated environments.
+      }
+    }
+  }
+
+  throw lastError;
+};
+
 /**
  * Job Model
  * Handles job posts and job instances
@@ -143,6 +190,7 @@ class Job extends BaseModel {
       equipment_available_flags = [],
       precautions_flags = [],
       preferred_caregiver_id = null,
+      patient_profile_id = null,
     } = jobData;
 
     // Calculate total amount and platform fee
@@ -150,7 +198,7 @@ class Job extends BaseModel {
     const platform_fee_percent = 10;
     const platform_fee_amount = Math.round(total_amount * (platform_fee_percent / 100));
 
-    const newJobPost = await this.create({
+    const payload = {
       id: uuidv4(),
       hirer_id,
       title,
@@ -181,14 +229,24 @@ class Job extends BaseModel {
       equipment_available_flags: equipment_available_flags.length ? equipment_available_flags : null,
       precautions_flags: precautions_flags.length ? precautions_flags : null,
       preferred_caregiver_id: preferred_caregiver_id || null,
+      patient_profile_id: patient_profile_id || null,
       is_urgent,
       status: 'draft',
       replacement_chain_count: 0,
       created_at: new Date(),
       updated_at: new Date(),
-    });
+    };
 
-    return newJobPost;
+    try {
+      return await this.create(payload);
+    } catch (error) {
+      if (!isMissingPatientProfileColumnError(error)) {
+        throw error;
+      }
+
+      const { patient_profile_id: _ignored, ...legacyPayload } = payload;
+      return await this.create(legacyPayload);
+    }
   }
 
   /**
@@ -364,22 +422,47 @@ class Job extends BaseModel {
 
     const offset = (page - 1) * limit;
 
-    const result = await query(
-      `SELECT jp.*,
-              j.id as job_id,
-              j.status as job_status,
-              j.started_at,
-              j.completed_at,
-              ja.caregiver_id,
-              cp.display_name as caregiver_name
-       FROM job_posts jp
-       LEFT JOIN jobs j ON j.job_post_id = jp.id
-       LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
-       LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
-       WHERE ${whereClause}
-       ORDER BY jp.created_at DESC
-       LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...values, limit, offset]
+    const limitParam = paramIndex++;
+    const offsetParam = paramIndex++;
+    const queryParams = [...values, limit, offset];
+
+    const result = await queryWithRecipientFallback(
+      [
+        `SELECT jp.*,
+                j.id as job_id,
+                j.status as job_status,
+                j.started_at,
+                j.completed_at,
+                ja.caregiver_id,
+                cp.display_name as caregiver_name,
+                COALESCE(jpr.patient_id, jp.patient_profile_id) as patient_profile_id,
+                pp.patient_display_name
+         FROM job_posts jp
+         LEFT JOIN jobs j ON j.job_post_id = jp.id
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
+         LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
+         WHERE ${whereClause}
+         ORDER BY jp.created_at DESC
+         LIMIT $${limitParam} OFFSET $${offsetParam}`,
+        `SELECT jp.*,
+                j.id as job_id,
+                j.status as job_status,
+                j.started_at,
+                j.completed_at,
+                ja.caregiver_id,
+                cp.display_name as caregiver_name,
+                NULL::text as patient_display_name
+         FROM job_posts jp
+         LEFT JOIN jobs j ON j.job_post_id = jp.id
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         WHERE ${whereClause}
+         ORDER BY jp.created_at DESC
+         LIMIT $${limitParam} OFFSET $${offsetParam}`,
+      ],
+      queryParams
     );
 
     const countResult = await query(
@@ -404,27 +487,113 @@ class Job extends BaseModel {
    * @returns {object|null} - Job with details
    */
   async getJobWithDetails(jobPostId) {
-    const result = await query(
-      `SELECT
-        jp.*,
-        j.id as job_id,
-        j.status as job_status,
-        j.assigned_at,
-        j.started_at,
-        j.completed_at,
-        ja.caregiver_id,
-        ja.status as assignment_status,
-        cp.display_name as caregiver_name,
-        pp.patient_display_name,
-        hp.display_name as hirer_name
-       FROM job_posts jp
-       LEFT JOIN jobs j ON j.job_post_id = jp.id
-       LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
-       LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
-       LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
-       LEFT JOIN patient_profiles pp ON pp.id = jpr.patient_id
-       LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
-       WHERE jp.id = $1 OR j.id = $1`,
+    const result = await queryWithRecipientFallback(
+      [
+        `SELECT
+          jp.*,
+          j.id as job_id,
+          j.status as job_status,
+          j.assigned_at,
+          j.started_at,
+          j.completed_at,
+          ja.caregiver_id,
+          ja.status as assignment_status,
+          cp.display_name as caregiver_name,
+          pp.patient_display_name,
+          jp.patient_profile_id,
+          hp.display_name as hirer_name
+         FROM job_posts jp
+         LEFT JOIN jobs j ON j.job_post_id = jp.id
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
+         LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
+         LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
+         WHERE jp.id = $1 OR j.id = $1`,
+        `SELECT
+          jp.*,
+          j.id as job_id,
+          j.status as job_status,
+          j.assigned_at,
+          j.started_at,
+          j.completed_at,
+          ja.caregiver_id,
+          ja.status as assignment_status,
+          cp.display_name as caregiver_name,
+          COALESCE(pp.patient_display_name, pp_addr.patient_display_name) as patient_display_name,
+          COALESCE(jpr.patient_id, pp_addr.patient_id) as patient_profile_id,
+          hp.display_name as hirer_name
+         FROM job_posts jp
+         LEFT JOIN jobs j ON j.job_post_id = jp.id
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
+         LEFT JOIN patient_profiles pp ON pp.id = jpr.patient_id
+         LEFT JOIN LATERAL (
+           SELECT
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp2.id) ELSE NULL END as patient_id,
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp2.patient_display_name) ELSE NULL END as patient_display_name
+           FROM patient_profiles pp2
+           WHERE pp2.hirer_id = jp.hirer_id
+             AND pp2.is_active = TRUE
+             AND COALESCE(LOWER(TRIM(pp2.address_line1)), '') = COALESCE(LOWER(TRIM(jp.address_line1)), '')
+             AND COALESCE(LOWER(TRIM(pp2.district)), '') = COALESCE(LOWER(TRIM(jp.district)), '')
+             AND COALESCE(LOWER(TRIM(pp2.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
+             AND COALESCE(TRIM((pp2.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
+         ) pp_addr ON TRUE
+         LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
+         WHERE jp.id = $1 OR j.id = $1`,
+        `SELECT
+          jp.*,
+          j.id as job_id,
+          j.status as job_status,
+          j.assigned_at,
+          j.started_at,
+          j.completed_at,
+          ja.caregiver_id,
+          ja.status as assignment_status,
+          cp.display_name as caregiver_name,
+          pp_addr.patient_display_name,
+          pp_addr.patient_id as patient_profile_id,
+          hp.display_name as hirer_name
+         FROM job_posts jp
+         LEFT JOIN jobs j ON j.job_post_id = jp.id
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN LATERAL (
+           SELECT
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp.id) ELSE NULL END as patient_id,
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp.patient_display_name) ELSE NULL END as patient_display_name
+           FROM patient_profiles pp
+           WHERE pp.hirer_id = jp.hirer_id
+             AND pp.is_active = TRUE
+             AND COALESCE(LOWER(TRIM(pp.address_line1)), '') = COALESCE(LOWER(TRIM(jp.address_line1)), '')
+             AND COALESCE(LOWER(TRIM(pp.district)), '') = COALESCE(LOWER(TRIM(jp.district)), '')
+             AND COALESCE(LOWER(TRIM(pp.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
+             AND COALESCE(TRIM((pp.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
+         ) pp_addr ON TRUE
+         LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
+         WHERE jp.id = $1 OR j.id = $1`,
+        `SELECT
+          jp.*,
+          j.id as job_id,
+          j.status as job_status,
+          j.assigned_at,
+          j.started_at,
+          j.completed_at,
+          ja.caregiver_id,
+          ja.status as assignment_status,
+          cp.display_name as caregiver_name,
+          NULL::text as patient_display_name,
+          NULL::uuid as patient_profile_id,
+          hp.display_name as hirer_name
+         FROM job_posts jp
+         LEFT JOIN jobs j ON j.job_post_id = jp.id
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
+         WHERE jp.id = $1 OR j.id = $1`,
+      ],
       [jobPostId]
     );
 
@@ -863,63 +1032,230 @@ class Job extends BaseModel {
       activeValues.push(status);
     }
 
-    const activeResult = await query(
-      `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
-              jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
-              jp.address_line1, jp.district, jp.province, jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
-              ja.status as assignment_status,
-              ja.assigned_at as assignment_assigned_at,
-              FALSE as awaiting_response
-       FROM jobs j
-       JOIN job_posts jp ON jp.id = j.job_post_id
-       JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
-       WHERE ${activeWhereClause}`,
+    const activeResult = await queryWithRecipientFallback(
+      [
+        `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
+                jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
+                jp.address_line1, jp.district, jp.province, jp.patient_profile_id, pp.patient_display_name,
+                jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
+                ja.status as assignment_status,
+                ja.assigned_at as assignment_assigned_at,
+                FALSE as awaiting_response
+         FROM jobs j
+         JOIN job_posts jp ON jp.id = j.job_post_id
+         JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+         LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
+         LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
+         WHERE ${activeWhereClause}`,
+        `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
+                jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
+                jp.address_line1, jp.district, jp.province,
+                COALESCE(jpr.patient_id, pp_addr.patient_id) as patient_profile_id,
+                COALESCE(pp.patient_display_name, pp_addr.patient_display_name) as patient_display_name,
+                jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
+                ja.status as assignment_status,
+                ja.assigned_at as assignment_assigned_at,
+                FALSE as awaiting_response
+         FROM jobs j
+         JOIN job_posts jp ON jp.id = j.job_post_id
+         JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+         LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
+         LEFT JOIN patient_profiles pp ON pp.id = jpr.patient_id
+         LEFT JOIN LATERAL (
+           SELECT
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp2.id) ELSE NULL END as patient_id,
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp2.patient_display_name) ELSE NULL END as patient_display_name
+           FROM patient_profiles pp2
+           WHERE pp2.hirer_id = jp.hirer_id
+             AND pp2.is_active = TRUE
+             AND COALESCE(LOWER(TRIM(pp2.address_line1)), '') = COALESCE(LOWER(TRIM(jp.address_line1)), '')
+             AND COALESCE(LOWER(TRIM(pp2.district)), '') = COALESCE(LOWER(TRIM(jp.district)), '')
+             AND COALESCE(LOWER(TRIM(pp2.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
+             AND COALESCE(TRIM((pp2.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
+         ) pp_addr ON TRUE
+         WHERE ${activeWhereClause}`,
+        `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
+                jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
+                jp.address_line1, jp.district, jp.province, pp_addr.patient_id as patient_profile_id, pp_addr.patient_display_name,
+                jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
+                ja.status as assignment_status,
+                ja.assigned_at as assignment_assigned_at,
+                FALSE as awaiting_response
+         FROM jobs j
+         JOIN job_posts jp ON jp.id = j.job_post_id
+         JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+         LEFT JOIN LATERAL (
+           SELECT
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp.id) ELSE NULL END as patient_id,
+             CASE WHEN COUNT(*) = 1 THEN MIN(pp.patient_display_name) ELSE NULL END as patient_display_name
+           FROM patient_profiles pp
+           WHERE pp.hirer_id = jp.hirer_id
+             AND pp.is_active = TRUE
+             AND COALESCE(LOWER(TRIM(pp.address_line1)), '') = COALESCE(LOWER(TRIM(jp.address_line1)), '')
+             AND COALESCE(LOWER(TRIM(pp.district)), '') = COALESCE(LOWER(TRIM(jp.district)), '')
+             AND COALESCE(LOWER(TRIM(pp.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
+             AND COALESCE(TRIM((pp.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
+         ) pp_addr ON TRUE
+         WHERE ${activeWhereClause}`,
+        `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
+                jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
+                jp.address_line1, jp.district, jp.province, NULL::uuid as patient_profile_id, NULL::text as patient_display_name,
+                jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
+                ja.status as assignment_status,
+                ja.assigned_at as assignment_assigned_at,
+                FALSE as awaiting_response
+         FROM jobs j
+         JOIN job_posts jp ON jp.id = j.job_post_id
+         JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+         WHERE ${activeWhereClause}`,
+      ],
       activeValues
     );
 
     let pendingResult = { rows: [] };
     if (!status || status === 'assigned') {
-      pendingResult = await query(
-        `SELECT
-           jp.id,
-           jp.id as job_post_id,
-           jp.hirer_id,
-           'assigned'::text as status,
-           jp.updated_at as assigned_at,
-           NULL::timestamptz as started_at,
-           NULL::timestamptz as completed_at,
-           NULL::timestamptz as cancelled_at,
-           NULL::timestamptz as expired_at,
-           NULL::timestamptz as job_closed_at,
-           jp.created_at,
-           jp.updated_at,
-           jp.title,
-           jp.description,
-           jp.job_type,
-           jp.hourly_rate,
-           jp.total_hours,
-           jp.total_amount,
-           jp.scheduled_start_at,
-           jp.scheduled_end_at,
-           jp.address_line1,
-           jp.district,
-           jp.province,
-           jp.lat,
-           jp.lng,
-           jp.geofence_radius_m,
-           jp.is_urgent,
-           'active'::text as assignment_status,
-           jp.updated_at as assignment_assigned_at,
-           TRUE as awaiting_response
-         FROM job_posts jp
-         WHERE jp.preferred_caregiver_id = $1
-           AND jp.status = 'posted'
-           AND NOT EXISTS (
-             SELECT 1
-             FROM jobs j2
-             JOIN job_assignments ja2 ON ja2.job_id = j2.id AND ja2.status = 'active'
-             WHERE j2.job_post_id = jp.id
-           )`,
+      pendingResult = await queryWithRecipientFallback(
+        [
+          `SELECT
+             jp.id,
+             jp.id as job_post_id,
+             jp.hirer_id,
+             'assigned'::text as status,
+             jp.updated_at as assigned_at,
+             NULL::timestamptz as started_at,
+             NULL::timestamptz as completed_at,
+             NULL::timestamptz as cancelled_at,
+             NULL::timestamptz as expired_at,
+             NULL::timestamptz as job_closed_at,
+             jp.created_at,
+             jp.updated_at,
+             jp.title,
+             jp.description,
+             jp.job_type,
+             jp.hourly_rate,
+             jp.total_hours,
+             jp.total_amount,
+             jp.scheduled_start_at,
+             jp.scheduled_end_at,
+             jp.address_line1,
+             jp.district,
+             jp.province,
+             jp.patient_profile_id,
+             pp.patient_display_name,
+             jp.lat,
+             jp.lng,
+             jp.geofence_radius_m,
+             jp.is_urgent,
+             'active'::text as assignment_status,
+             jp.updated_at as assignment_assigned_at,
+             TRUE as awaiting_response
+           FROM job_posts jp
+           LEFT JOIN patient_profiles pp ON pp.id = jp.patient_profile_id
+           WHERE jp.preferred_caregiver_id = $1
+             AND jp.status = 'posted'
+             AND NOT EXISTS (
+               SELECT 1
+               FROM jobs j2
+               JOIN job_assignments ja2 ON ja2.job_id = j2.id AND ja2.status = 'active'
+               WHERE j2.job_post_id = jp.id
+             )`,
+          `SELECT
+             jp.id,
+             jp.id as job_post_id,
+             jp.hirer_id,
+             'assigned'::text as status,
+             jp.updated_at as assigned_at,
+             NULL::timestamptz as started_at,
+             NULL::timestamptz as completed_at,
+             NULL::timestamptz as cancelled_at,
+             NULL::timestamptz as expired_at,
+             NULL::timestamptz as job_closed_at,
+             jp.created_at,
+             jp.updated_at,
+             jp.title,
+             jp.description,
+             jp.job_type,
+             jp.hourly_rate,
+             jp.total_hours,
+             jp.total_amount,
+             jp.scheduled_start_at,
+             jp.scheduled_end_at,
+             jp.address_line1,
+             jp.district,
+             jp.province,
+             pp_addr.patient_id as patient_profile_id,
+             pp_addr.patient_display_name,
+             jp.lat,
+             jp.lng,
+             jp.geofence_radius_m,
+             jp.is_urgent,
+             'active'::text as assignment_status,
+             jp.updated_at as assignment_assigned_at,
+             TRUE as awaiting_response
+           FROM job_posts jp
+           LEFT JOIN LATERAL (
+             SELECT
+               CASE WHEN COUNT(*) = 1 THEN MIN(pp.id) ELSE NULL END as patient_id,
+               CASE WHEN COUNT(*) = 1 THEN MIN(pp.patient_display_name) ELSE NULL END as patient_display_name
+             FROM patient_profiles pp
+             WHERE pp.hirer_id = jp.hirer_id
+               AND pp.is_active = TRUE
+               AND COALESCE(LOWER(TRIM(pp.address_line1)), '') = COALESCE(LOWER(TRIM(jp.address_line1)), '')
+               AND COALESCE(LOWER(TRIM(pp.district)), '') = COALESCE(LOWER(TRIM(jp.district)), '')
+               AND COALESCE(LOWER(TRIM(pp.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
+               AND COALESCE(TRIM((pp.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
+           ) pp_addr ON TRUE
+           WHERE jp.preferred_caregiver_id = $1
+             AND jp.status = 'posted'
+             AND NOT EXISTS (
+               SELECT 1
+               FROM jobs j2
+               JOIN job_assignments ja2 ON ja2.job_id = j2.id AND ja2.status = 'active'
+               WHERE j2.job_post_id = jp.id
+             )`,
+          `SELECT
+             jp.id,
+             jp.id as job_post_id,
+             jp.hirer_id,
+             'assigned'::text as status,
+             jp.updated_at as assigned_at,
+             NULL::timestamptz as started_at,
+             NULL::timestamptz as completed_at,
+             NULL::timestamptz as cancelled_at,
+             NULL::timestamptz as expired_at,
+             NULL::timestamptz as job_closed_at,
+             jp.created_at,
+             jp.updated_at,
+             jp.title,
+             jp.description,
+             jp.job_type,
+             jp.hourly_rate,
+             jp.total_hours,
+             jp.total_amount,
+             jp.scheduled_start_at,
+             jp.scheduled_end_at,
+             jp.address_line1,
+             jp.district,
+             jp.province,
+             NULL::uuid as patient_profile_id,
+             NULL::text as patient_display_name,
+             jp.lat,
+             jp.lng,
+             jp.geofence_radius_m,
+             jp.is_urgent,
+             'active'::text as assignment_status,
+             jp.updated_at as assignment_assigned_at,
+             TRUE as awaiting_response
+           FROM job_posts jp
+           WHERE jp.preferred_caregiver_id = $1
+             AND jp.status = 'posted'
+             AND NOT EXISTS (
+               SELECT 1
+               FROM jobs j2
+               JOIN job_assignments ja2 ON ja2.job_id = j2.id AND ja2.status = 'active'
+               WHERE j2.job_post_id = jp.id
+             )`,
+        ],
         [caregiverId]
       );
     }
