@@ -31,6 +31,8 @@ export default function JobDetailPage() {
   const { id } = useParams();
   const { user } = useAuth();
   const hirerId = user?.id || 'demo-hirer';
+  const isCaregiverView = user?.role === 'caregiver';
+  const myJobsLink = isCaregiverView ? '/caregiver/jobs/my-jobs' : '/hirer/home';
 
   const [job, setJob] = useState<JobPost | null>(null);
   const [disputeInfo, setDisputeInfo] = useState<{ id: string; status?: string; reason?: string } | null>(null);
@@ -83,11 +85,48 @@ export default function JobDetailPage() {
     load();
   }, [load]);
 
-  const location = useMemo(() => {
+  const locationArea = useMemo(() => {
     if (!job) return '';
-    const parts = [job.address_line1, job.district, job.province].filter(Boolean);
+    const parts = [job.district, job.province].filter(Boolean);
+    if (parts.length === 0) return job.address_line1 || '';
     return parts.join(', ');
   }, [job]);
+
+  const mapLink = useMemo(() => {
+    if (!job) return '';
+
+    if (typeof job.lat === 'number' && typeof job.lng === 'number') {
+      return `https://www.google.com/maps/search/?api=1&query=${job.lat},${job.lng}&hl=th&gl=th`;
+    }
+
+    const addressQuery = [job.address_line1, job.address_line2, job.district, job.province, job.postal_code, 'ประเทศไทย']
+      .filter(Boolean)
+      .join(' ');
+
+    if (!addressQuery) return '';
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressQuery)}&hl=th&gl=th`;
+  }, [job]);
+
+  const counterpartTitle = isCaregiverView ? 'ผู้ว่าจ้างที่มอบหมายงาน' : 'ผู้ดูแลที่รับงาน';
+  const counterpartName = isCaregiverView
+    ? ((job as any)?.hirer_name || 'ผู้ว่าจ้าง')
+    : ((job as any)?.caregiver_name || 'ผู้ดูแล');
+  const counterpartStatus = isCaregiverView
+    ? {
+        assigned: 'มอบหมายงานให้คุณแล้ว',
+        in_progress: 'กำลังดำเนินงาน',
+        completed: 'งานเสร็จสิ้นแล้ว',
+      }
+    : {
+        assigned: 'รอเช็คอิน',
+        in_progress: 'กำลังดูแล',
+        completed: 'เสร็จสิ้น',
+      };
+  const shouldShowCounterpartCard = (
+    job?.status === 'assigned'
+    || job?.status === 'in_progress'
+    || job?.status === 'completed'
+  ) && (isCaregiverView ? Boolean((job as any)?.hirer_name || job?.hirer_id) : Boolean((job as any)?.caregiver_name));
 
   const handlePublish = async () => {
     if (!job) return;
@@ -175,7 +214,7 @@ export default function JobDetailPage() {
           <Button variant="outline" onClick={() => navigate(-1)}>
             ย้อนกลับ
           </Button>
-          <Link to="/hirer/home">
+          <Link to={myJobsLink}>
             <Button variant="ghost">ไปงานของฉัน</Button>
           </Link>
         </div>
@@ -208,7 +247,21 @@ export default function JobDetailPage() {
                 <span className="font-semibold">เวลา:</span> {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}
               </div>
               <div>
-                <span className="font-semibold">สถานที่:</span> {location || '-'}
+                <span className="font-semibold">พื้นที่งาน:</span> {locationArea || '-'}
+                {mapLink && (
+                  <div className="mt-2">
+                    <a
+                      href={mapLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 font-semibold"
+                    >
+                      เปิดแผนที่นำทาง (Google Maps)
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                    <div className="mt-1 text-xs text-gray-500">แสดงผลภาษาไทยตามแผนที่เป็นหลัก</div>
+                  </div>
+                )}
               </div>
               <div>
                 <span className="font-semibold">ประเภทงาน:</span> {JOB_TYPE_LABEL[job.job_type] || job.job_type}
@@ -232,19 +285,19 @@ export default function JobDetailPage() {
               )}
             </div>
 
-            {(job as any).caregiver_name && (job.status === 'assigned' || job.status === 'in_progress' || job.status === 'completed') && (
+            {shouldShowCounterpartCard && (
               <div className="mt-5 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-                <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">ผู้ดูแลที่รับงาน</div>
+                <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">{counterpartTitle}</div>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                     <UserIcon className="w-5 h-5 text-blue-600" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-gray-900">{(job as any).caregiver_name}</div>
+                    <div className="text-sm font-medium text-gray-900">{counterpartName}</div>
                     <div className="text-xs text-gray-600">
-                      {(job as any).job_status === 'assigned' && 'รอเช็คอิน'}
-                      {(job as any).job_status === 'in_progress' && 'กำลังดูแล'}
-                      {(job as any).job_status === 'completed' && 'เสร็จสิ้น'}
+                      {(job as any).job_status === 'assigned' && counterpartStatus.assigned}
+                      {(job as any).job_status === 'in_progress' && counterpartStatus.in_progress}
+                      {(job as any).job_status === 'completed' && counterpartStatus.completed}
                     </div>
                   </div>
                   {job.job_id && (

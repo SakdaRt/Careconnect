@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MessageCircle } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
 import { CaregiverAssignedJob } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
 
-type Filter = 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+type Filter = 'all' | 'offers' | 'upcoming' | 'in_progress' | 'completed' | 'cancelled';
 
 function formatDateTimeRange(startIso: string, endIso: string) {
   const start = new Date(startIso);
@@ -36,6 +36,30 @@ const formatDistance = (distance: number) => {
   return `${(distance / 1000).toFixed(2)} กม.`;
 };
 
+const WEEKDAY_LABELS = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
+
+const toDateKey = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const toDateKeyFromIso = (iso: string) => toDateKey(new Date(iso));
+
+const formatMonthLabel = (date: Date) => date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+const formatFullDateLabel = (dateKey: string) => {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  if (!y || !m || !d) return '-';
+  return new Date(y, m - 1, d).toLocaleDateString('th-TH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
+
 function getCurrentGps(): Promise<{ lat: number; lng: number; accuracy_m?: number }> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -60,20 +84,36 @@ export default function CaregiverMyJobsPage() {
   const navigate = useNavigate();
   const caregiverId = user?.id || 'demo-caregiver';
 
-  const [filter, setFilter] = useState<Filter>('assigned');
+  const [filter, setFilter] = useState<Filter>('all');
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState<CaregiverAssignedJob[]>([]);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeJobId, setDisputeJobId] = useState<string | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleJobs, setScheduleJobs] = useState<CaregiverAssignedJob[]>([]);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await appApi.getAssignedJobs(caregiverId, filter, 1, 20);
+      const apiStatus = filter === 'all'
+        ? undefined
+        : filter === 'offers' || filter === 'upcoming'
+          ? 'assigned'
+          : filter;
+      const res = await appApi.getAssignedJobs(caregiverId, apiStatus, 1, 50);
       if (res.success && res.data) {
-        setJobs(res.data.data || []);
+        const source = res.data.data || [];
+        const filtered = filter === 'offers'
+          ? source.filter((job) => Boolean(job.awaiting_response))
+          : filter === 'upcoming'
+            ? source.filter((job) => !job.awaiting_response && job.status === 'assigned')
+            : source;
+        setJobs(filtered);
         return;
       }
       setJobs([]);
@@ -88,6 +128,84 @@ export default function CaregiverMyJobsPage() {
   }, [load]);
 
   const items = useMemo(() => jobs, [jobs]);
+
+  const loadSchedule = useCallback(async () => {
+    setScheduleLoading(true);
+    try {
+      const statuses: Array<'assigned' | 'in_progress' | 'completed' | 'cancelled'> = [
+        'assigned',
+        'in_progress',
+        'completed',
+        'cancelled',
+      ];
+
+      const responses = await Promise.all(statuses.map((status) => appApi.getAssignedJobs(caregiverId, status, 1, 100)));
+      const merged: CaregiverAssignedJob[] = [];
+      const seen = new Set<string>();
+
+      responses.forEach((res) => {
+        if (!res.success || !res.data?.data) return;
+
+        for (const job of res.data.data) {
+          if (job.awaiting_response) continue;
+          const key = `${job.id}-${job.status}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          merged.push(job);
+        }
+      });
+
+      merged.sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime());
+      setScheduleJobs(merged);
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [caregiverId]);
+
+  const scheduleJobsByDate = useMemo(() => {
+    const grouped: Record<string, CaregiverAssignedJob[]> = {};
+
+    for (const job of scheduleJobs) {
+      const dateKey = toDateKeyFromIso(job.scheduled_start_at);
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(job);
+    }
+
+    Object.values(grouped).forEach((group) => {
+      group.sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime());
+    });
+
+    return grouped;
+  }, [scheduleJobs]);
+
+  const calendarCells = useMemo(() => {
+    const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+    const firstDayOfWeek = (firstDay.getDay() + 6) % 7;
+    const cells: Array<Date | null> = [];
+
+    for (let i = 0; i < firstDayOfWeek; i += 1) cells.push(null);
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day));
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    return cells;
+  }, [calendarMonth]);
+
+  const todayKey = useMemo(() => toDateKey(new Date()), []);
+  const selectedDateJobs = scheduleJobsByDate[selectedDateKey] || [];
+  const selectedDateLabel = useMemo(() => formatFullDateLabel(selectedDateKey), [selectedDateKey]);
+
+  const handleOpenSchedule = async () => {
+    setScheduleOpen(true);
+    await loadSchedule();
+  };
+
+  const handleRefresh = async () => {
+    await load();
+    if (scheduleOpen) await loadSchedule();
+  };
 
   const handleAcceptAssignedOffer = async (job: CaregiverAssignedJob) => {
     const targetJobPostId = String(job.job_post_id || job.id || '').trim();
@@ -104,12 +222,13 @@ export default function CaregiverMyJobsPage() {
         return;
       }
 
-      toast.success('ตอบรับงานแล้ว สถานะงานเปลี่ยนเป็นอยู่ระหว่างการดำเนินงาน');
-      if (filter === 'in_progress') {
+      toast.success('ตอบรับงานแล้ว ไปต่อที่แท็บรอเริ่มงาน');
+      if (filter === 'upcoming') {
         await load();
       } else {
-        setFilter('in_progress');
+        setFilter('upcoming');
       }
+      if (scheduleOpen) await loadSchedule();
     } finally {
       setActionLoadingId(null);
     }
@@ -148,17 +267,22 @@ export default function CaregiverMyJobsPage() {
           toast.error(`อยู่นอกระยะเช็คอิน (${formatDistance(distance)} > ${formatDistance(allowedRadius)})`);
           return;
         }
-        toast.success(`ระยะห่าง ${formatDistance(distance)} อยู่ในเกณฑ์เช็คอิน`);
+        toast.success(`ตรวจสอบตำแหน่งผ่านแล้ว (${formatDistance(distance)})`);
       }
       const res = await appApi.checkIn(job.id, caregiverId, gps);
       if (!res.success) {
-        toast.error(res.error || 'เช็คอินไม่สำเร็จ');
+        toast.error(res.error || 'บันทึกการมาถึงไม่สำเร็จ');
         return;
       }
-      toast.success('เช็คอินแล้ว');
-      await load();
+      toast.success('บันทึกแล้ว: มาถึงที่หมาย');
+      if (filter === 'in_progress') {
+        await load();
+      } else {
+        setFilter('in_progress');
+      }
+      if (scheduleOpen) await loadSchedule();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'เช็คอินไม่สำเร็จ');
+      toast.error(error instanceof Error ? error.message : 'บันทึกการมาถึงไม่สำเร็จ');
     } finally {
       setActionLoadingId(null);
     }
@@ -170,13 +294,18 @@ export default function CaregiverMyJobsPage() {
       const gps = await getCurrentGps();
       const res = await appApi.checkOut(jobId, caregiverId, gps);
       if (!res.success) {
-        toast.error(res.error || 'เช็คเอาต์ไม่สำเร็จ');
+        toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
         return;
       }
-      toast.success('เช็คเอาต์แล้ว');
-      await load();
+      toast.success('ส่งงานเสร็จแล้ว');
+      if (filter === 'completed') {
+        await load();
+      } else {
+        setFilter('completed');
+      }
+      if (scheduleOpen) await loadSchedule();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'เช็คเอาต์ไม่สำเร็จ');
+      toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
       setActionLoadingId(null);
     }
@@ -223,11 +352,22 @@ export default function CaregiverMyJobsPage() {
   };
 
   const filters: { key: Filter; label: string }[] = [
-    { key: 'assigned', label: 'รอตอบรับ' },
+    { key: 'all', label: 'งานทั้งหมด' },
+    { key: 'offers', label: 'รอตอบรับ' },
+    { key: 'upcoming', label: 'รอเริ่มงาน' },
     { key: 'in_progress', label: 'กำลังทำ' },
     { key: 'completed', label: 'เสร็จสิ้น' },
     { key: 'cancelled', label: 'ยกเลิก' },
   ];
+
+  const emptyMessageByFilter: Record<Filter, string> = {
+    all: 'ยังไม่มีงานในระบบ',
+    offers: 'ยังไม่มีงานที่รอการตอบรับ',
+    upcoming: 'ยังไม่มีงานที่รอเริ่มงาน',
+    in_progress: 'ยังไม่มีงานที่กำลังทำ',
+    completed: 'ยังไม่มีงานที่เสร็จสิ้น',
+    cancelled: 'ยังไม่มีงานที่ยกเลิก',
+  };
 
   return (
     <MainLayout>
@@ -237,9 +377,14 @@ export default function CaregiverMyJobsPage() {
             <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
             <p className="text-sm text-gray-600">งานที่มอบหมายจะขึ้นก่อน พร้อมตัวเลือกตอบรับหรือปฏิเสธ</p>
           </div>
-          <Button variant="outline" onClick={load}>
-            รีเฟรช
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" leftIcon={<CalendarDays className="w-4 h-4" />} onClick={handleOpenSchedule}>
+              ดูตารางงาน
+            </Button>
+            <Button variant="outline" onClick={handleRefresh}>
+              รีเฟรช
+            </Button>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-5">
@@ -259,7 +404,7 @@ export default function CaregiverMyJobsPage() {
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
           <Card className="p-6">
-            <p className="text-gray-700">ยังไม่มีงานในสถานะนี้</p>
+            <p className="text-gray-700">{emptyMessageByFilter[filter]}</p>
             <div className="mt-4">
               <Link to="/caregiver/jobs/feed">
                 <Button variant="primary">ไปค้นหางาน</Button>
@@ -269,6 +414,7 @@ export default function CaregiverMyJobsPage() {
         ) : (
           <div className="space-y-3">
             {items.map((job) => {
+              const targetJobPostId = String(job.job_post_id || job.id || '').trim();
               const location = [job.address_line1, job.district, job.province].filter(Boolean).join(', ');
               const isLoading = actionLoadingId === job.id;
               const isAwaitingResponse = Boolean(job.awaiting_response);
@@ -292,6 +438,13 @@ export default function CaregiverMyJobsPage() {
                       </div>
 
                       <div className="mt-4 flex flex-wrap gap-2">
+                        {targetJobPostId && (
+                          <Link to={`/jobs/${targetJobPostId}`}>
+                            <Button variant="outline" size="sm">
+                              ดูรายละเอียดงาน
+                            </Button>
+                          </Link>
+                        )}
                         {isAwaitingResponse ? (
                           <>
                             <Button
@@ -335,7 +488,7 @@ export default function CaregiverMyJobsPage() {
                             loading={isLoading}
                             onClick={() => handleCheckIn(job)}
                           >
-                            เช็คอิน
+                            มาถึงที่หมายแล้ว
                           </Button>
                         )}
 
@@ -346,10 +499,17 @@ export default function CaregiverMyJobsPage() {
                             loading={isLoading}
                             onClick={() => handleCheckOut(job.id)}
                           >
-                            เช็คเอาต์
+                            ส่งงานเสร็จ
                           </Button>
                         )}
                       </div>
+                      {!isAwaitingResponse && (job.status === 'assigned' || job.status === 'in_progress') && (
+                        <div className="mt-2 text-xs text-gray-500">
+                          {job.status === 'assigned'
+                            ? 'เมื่อไปถึงสถานที่แล้ว ให้กด "มาถึงที่หมายแล้ว"'
+                            : 'เมื่อดูแลเสร็จ ให้กด "ส่งงานเสร็จ" เพื่อแจ้งผู้ว่าจ้าง'}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Card>
@@ -357,6 +517,107 @@ export default function CaregiverMyJobsPage() {
             })}
           </div>
         )}
+        <Modal
+          isOpen={scheduleOpen}
+          onClose={() => setScheduleOpen(false)}
+          title="ตารางงานของฉัน"
+          size="xl"
+        >
+          {scheduleLoading ? (
+            <div className="py-10 text-center text-sm text-gray-500">กำลังโหลดตารางงาน...</div>
+          ) : scheduleJobs.length === 0 ? (
+            <div className="py-10 text-center text-sm text-gray-500">ยังไม่มีงานที่รับไว้ในตาราง</div>
+          ) : (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  className="p-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                  onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="text-sm font-semibold text-gray-900">{formatMonthLabel(calendarMonth)}</div>
+                <button
+                  type="button"
+                  className="p-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                  onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500">
+                {WEEKDAY_LABELS.map((label) => (
+                  <div key={label} className="py-1">
+                    {label}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {calendarCells.map((day, index) => {
+                  if (!day) {
+                    return <div key={`empty-${index}`} className="h-14 rounded-md bg-gray-50" />;
+                  }
+
+                  const dateKey = toDateKey(day);
+                  const jobsOnDate = scheduleJobsByDate[dateKey] || [];
+                  const isSelected = dateKey === selectedDateKey;
+                  const isToday = dateKey === todayKey;
+
+                  return (
+                    <button
+                      type="button"
+                      key={dateKey}
+                      onClick={() => setSelectedDateKey(dateKey)}
+                      className={`h-14 rounded-md border text-xs transition-colors ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : isToday
+                            ? 'border-blue-200 bg-blue-50/40 text-gray-800'
+                            : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <div className="leading-none">{day.getDate()}</div>
+                      {jobsOnDate.length > 0 && (
+                        <div className="mt-1 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-blue-100 px-1 text-[10px] font-semibold text-blue-700">
+                          {jobsOnDate.length}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold text-gray-900 mb-2">{selectedDateLabel}</div>
+                {selectedDateJobs.length === 0 ? (
+                  <div className="text-sm text-gray-500">ไม่มีงานในวันนี้</div>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedDateJobs.map((job) => {
+                      const location = [job.district, job.province].filter(Boolean).join(', ');
+                      return (
+                        <div key={`${job.id}-${job.status}`} className="p-3 border border-gray-200 rounded-lg">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-medium text-sm text-gray-900 line-clamp-1">{job.title}</div>
+                            <StatusBadge status={job.status as any} />
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}
+                          </div>
+                          {location && <div className="mt-1 text-xs text-gray-500">พื้นที่: {location}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Modal>
+
         <Modal
           isOpen={disputeOpen}
           onClose={() => setDisputeOpen(false)}

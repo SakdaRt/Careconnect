@@ -30,8 +30,9 @@ export default function NotificationsPage() {
   const navigate = useNavigate();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>('unread');
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) {
@@ -59,7 +60,11 @@ export default function NotificationsPage() {
     if (!user) return;
     if (n.status !== 'read') {
       await api.markNotificationAsRead(n.id);
-      setItems((prev) => prev.map((item) => (item.id === n.id ? { ...item, status: 'read' } : item)));
+      setItems((prev) => (
+        filter === 'unread'
+          ? prev.filter((item) => item.id !== n.id)
+          : prev.map((item) => (item.id === n.id ? { ...item, status: 'read' } : item))
+      ));
       setUnreadCount((c) => Math.max(0, c - 1));
     }
     const link = getNotificationLink(n);
@@ -67,9 +72,41 @@ export default function NotificationsPage() {
   };
 
   const handleMarkAllRead = async () => {
+    setActionLoading(true);
     await api.markAllNotificationsAsRead();
-    setItems((prev) => prev.map((item) => ({ ...item, status: 'read' })));
+    setItems((prev) => (filter === 'unread' ? [] : prev.map((item) => ({ ...item, status: 'read' }))));
     setUnreadCount(0);
+    setActionLoading(false);
+  };
+
+  const handleClear = async () => {
+    if (!user) return;
+
+    const unreadOnly = filter === 'unread';
+    const confirmed = window.confirm(
+      unreadOnly
+        ? 'ยืนยันล้างข้อความที่ยังไม่อ่านทั้งหมด?'
+        : 'ยืนยันล้างข้อความทั้งหมด?'
+    );
+
+    if (!confirmed) return;
+
+    setActionLoading(true);
+    try {
+      const res = await api.clearNotifications(unreadOnly);
+      if (!res.success) return;
+
+      if (unreadOnly) {
+        setItems([]);
+        setUnreadCount(0);
+        return;
+      }
+
+      setItems([]);
+      setUnreadCount(0);
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   return (
@@ -97,20 +134,23 @@ export default function NotificationsPage() {
               <div className="flex items-center justify-between gap-3">
                 <div className="text-sm text-gray-700">ยังไม่อ่าน: {unreadCount}</div>
                 <div className="flex items-center gap-2">
-                  {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
-                      อ่านทั้งหมด
-                    </Button>
-                  )}
-                  <Button variant={filter === 'all' ? 'primary' : 'outline'} size="sm" onClick={() => setFilter('all')}>
-                    ทั้งหมด
-                  </Button>
                   <Button
                     variant={filter === 'unread' ? 'primary' : 'outline'}
                     size="sm"
                     onClick={() => setFilter('unread')}
                   >
                     ยังไม่อ่าน
+                  </Button>
+                  <Button variant={filter === 'all' ? 'primary' : 'outline'} size="sm" onClick={() => setFilter('all')}>
+                    ทั้งหมด
+                  </Button>
+                  {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" onClick={handleMarkAllRead} disabled={actionLoading}>
+                      อ่านทั้งหมด
+                    </Button>
+                  )}
+                  <Button variant="outline" size="sm" onClick={handleClear} disabled={actionLoading || items.length === 0}>
+                    {filter === 'unread' ? 'ล้างยังไม่อ่าน' : 'ล้างข้อความ'}
                   </Button>
                 </div>
               </div>

@@ -42,6 +42,13 @@ export const markAllAsRead = async (userId) => {
 };
 
 /**
+ * Clear notifications
+ */
+export const clearNotifications = async (userId, options = {}) => {
+  return await Notification.clearByUserId(userId, options);
+};
+
+/**
  * Get unread count
  */
 export const getUnreadCount = async (userId) => {
@@ -92,8 +99,8 @@ export const notifyCheckIn = async (hirerId, jobTitle, caregiverName, jobId) => 
   return await createNotification({
     userId: hirerId,
     templateKey: 'job_started',
-    title: 'ผู้ดูแลเช็คอินแล้ว',
-    body: `${caregiverName || 'ผู้ดูแล'} เช็คอินแล้ว - งาน "${jobTitle}" เริ่มต้น`,
+    title: 'ผู้ดูแลมาถึงที่หมายแล้ว',
+    body: `${caregiverName || 'ผู้ดูแล'} มาถึงที่หมายแล้ว - งาน "${jobTitle}" เริ่มต้น`,
     data: { jobId, caregiverName },
     referenceType: 'job',
     referenceId: jobId,
@@ -108,7 +115,7 @@ export const notifyCheckOut = async (hirerId, jobTitle, caregiverName, jobId) =>
     userId: hirerId,
     templateKey: 'job_completed',
     title: 'งานเสร็จสมบูรณ์',
-    body: `${caregiverName || 'ผู้ดูแล'} เช็คเอาต์แล้ว - งาน "${jobTitle}" เสร็จสิ้น`,
+    body: `${caregiverName || 'ผู้ดูแล'} ส่งงานเสร็จแล้ว - งาน "${jobTitle}" เสร็จสิ้น`,
     data: { jobId, caregiverName },
     referenceType: 'job',
     referenceId: jobId,

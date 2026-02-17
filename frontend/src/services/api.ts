@@ -822,6 +822,15 @@ class ApiClient {
     });
   }
 
+  async clearNotifications(unreadOnly = false) {
+    const params = new URLSearchParams();
+    if (unreadOnly) params.append('unread_only', 'true');
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{ deletedCount: number }>(`/api/notifications${query}`, {
+      method: 'DELETE',
+    });
+  }
+
   async getPayments(options?: {
     status?: string;
     page?: number;

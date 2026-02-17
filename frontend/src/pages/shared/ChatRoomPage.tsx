@@ -219,17 +219,17 @@ export default function ChatRoomPage() {
           toast.error(`อยู่นอกระยะเช็คอิน (${formatDistance(distance)} > ${formatDistance(allowedRadius)})`);
           return;
         }
-        toast.success(`ระยะห่าง ${formatDistance(distance)} อยู่ในเกณฑ์เช็คอิน`);
+        toast.success(`ตรวจสอบตำแหน่งผ่านแล้ว (${formatDistance(distance)})`);
       }
       const res = await appApi.checkIn(jobId, caregiverId, gps);
       if (!res.success) {
-        toast.error(res.error || 'เช็คอินไม่สำเร็จ');
+        toast.error(res.error || 'บันทึกการมาถึงไม่สำเร็จ');
         return;
       }
-      toast.success('เช็คอินแล้ว');
+      toast.success('บันทึกแล้ว: มาถึงที่หมาย');
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'เช็คอินไม่สำเร็จ');
+      toast.error(error instanceof Error ? error.message : 'บันทึกการมาถึงไม่สำเร็จ');
     } finally {
       setActionLoading(null);
     }
@@ -243,13 +243,13 @@ export default function ChatRoomPage() {
       const gps = await getCurrentGps();
       const res = await appApi.checkOut(jobId, caregiverId, gps);
       if (!res.success) {
-        toast.error(res.error || 'เช็คเอาต์ไม่สำเร็จ');
+        toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
         return;
       }
-      toast.success('เช็คเอาต์แล้ว');
+      toast.success('ส่งงานเสร็จแล้ว');
       await load();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'เช็คเอาต์ไม่สำเร็จ');
+      toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
       setActionLoading(null);
     }
@@ -319,6 +319,20 @@ export default function ChatRoomPage() {
   const location = [job?.address_line1, job?.district, job?.province].filter(Boolean).join(', ');
   const canCheckIn = user?.role === 'caregiver' && jobInstanceStatus === 'assigned';
   const canCheckOut = user?.role === 'caregiver' && jobInstanceStatus === 'in_progress';
+  const statusLabelMap: Record<string, string> = {
+    assigned: 'รอไปถึงที่หมาย',
+    in_progress: 'กำลังทำงาน',
+    completed: 'เสร็จสิ้น',
+    cancelled: 'ยกเลิก',
+    posted: 'รอผู้ดูแล',
+    draft: 'แบบร่าง',
+  };
+  const jobStatusLabel = jobInstanceStatus ? (statusLabelMap[jobInstanceStatus] || jobInstanceStatus) : '-';
+  const caregiverActionHint = canCheckIn
+    ? 'เมื่อไปถึงสถานที่แล้ว ให้กด "มาถึงที่หมายแล้ว"'
+    : canCheckOut
+      ? 'เมื่อดูแลเสร็จ ให้กด "ส่งงานเสร็จ" เพื่อแจ้งผู้ว่าจ้าง'
+      : 'ติดตามสถานะงานจากหน้านี้ได้ตลอดเวลา';
   const isChatLocked = jobStatus === 'cancelled' || thread?.status === 'closed';
   const chatLockMessage = jobStatus === 'cancelled'
     ? 'งานนี้ถูกยกเลิกแล้ว จึงไม่สามารถพิมพ์แชทต่อได้'
@@ -400,7 +414,7 @@ export default function ChatRoomPage() {
                     loading={actionLoading === 'checkin'}
                     onClick={handleCheckIn}
                   >
-                    เช็คอิน
+                    มาถึงที่หมายแล้ว
                   </Button>
                   <Button
                     variant="primary"
@@ -409,11 +423,14 @@ export default function ChatRoomPage() {
                     loading={actionLoading === 'checkout'}
                     onClick={handleCheckOut}
                   >
-                    เช็คเอาต์
+                    ส่งงานเสร็จ
                   </Button>
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  {jobInstanceStatus ? `สถานะงาน: ${jobInstanceStatus}` : 'สถานะงาน: -'}
+                  สถานะงาน: {jobStatusLabel}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {caregiverActionHint}
                 </div>
               </Card>
             )}

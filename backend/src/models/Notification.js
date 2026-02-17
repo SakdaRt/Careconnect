@@ -89,6 +89,27 @@ class NotificationModel {
     );
     return parseInt(result.rows[0].count, 10);
   }
+
+  /**
+   * Clear notifications for a user
+   */
+  async clearByUserId(userId, { unreadOnly = false } = {}) {
+    let whereClause = 'user_id = $1';
+    const values = [userId];
+
+    if (unreadOnly) {
+      whereClause += ` AND status != 'read'`;
+    }
+
+    const result = await query(
+      `DELETE FROM notifications WHERE ${whereClause}`,
+      values
+    );
+
+    return {
+      deletedCount: result.rowCount || 0,
+    };
+  }
 }
 
 export const Notification = new NotificationModel();

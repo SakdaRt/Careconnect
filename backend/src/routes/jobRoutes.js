@@ -61,6 +61,11 @@ const rejectSchema = Joi.object({
   reason: Joi.string().trim().max(500).allow('', null),
 });
 
+const myJobsQuerySchema = Joi.object({
+  status: commonSchemas.jobStatus,
+  ...commonSchemas.paginationKeys,
+});
+
 /**
  * Job Routes
  * Base path: /api/jobs
@@ -105,7 +110,7 @@ router.get('/feed',
 router.get('/my-jobs', 
   requireAuth, 
   requirePolicy('job:my-jobs'), 
-  validateQuery(commonSchemas.pagination),
+  validateQuery(myJobsQuerySchema),
   getHirerJobs
 );
 
@@ -118,7 +123,7 @@ router.get('/my-jobs',
 router.get('/assigned', 
   requireAuth, 
   requirePolicy('job:assigned'), 
-  validateQuery(commonSchemas.pagination),
+  validateQuery(myJobsQuerySchema),
   getCaregiverJobs
 );
 

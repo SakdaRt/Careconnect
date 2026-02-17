@@ -2,6 +2,7 @@ import {
   getNotifications as getNotificationsService,
   markAsRead as markAsReadService,
   markAllAsRead as markAllAsReadService,
+  clearNotifications as clearNotificationsService,
   getUnreadCount as getUnreadCountService,
 } from '../services/notificationService.js';
 
@@ -78,4 +79,26 @@ export const markAllAsRead = async (req, res) => {
   }
 };
 
-export default { getNotifications, getUnreadCount, markAsRead, markAllAsRead };
+/**
+ * Clear notifications
+ * DELETE /api/notifications
+ */
+export const clearNotifications = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { unread_only } = req.query;
+    const unreadOnly = unread_only === 'true';
+
+    const result = await clearNotificationsService(userId, { unreadOnly });
+    res.status(200).json({
+      success: true,
+      data: result,
+      message: unreadOnly ? 'Unread notifications cleared' : 'All notifications cleared',
+    });
+  } catch (error) {
+    console.error('clearNotifications error:', error);
+    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
+};
+
+export default { getNotifications, getUnreadCount, markAsRead, markAllAsRead, clearNotifications };

@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MessageCircle, ShieldCheck, User as UserIcon, PlusCircle } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle, ShieldCheck, User as UserIcon, PlusCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, ReasonModal } from '../../components/ui';
-import { JobPost } from '../../services/api';
+import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge } from '../../components/ui';
+import { CareRecipient, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 
-type HirerJob = JobPost & { caregiver_name?: string | null; job_status?: string | null; job_id?: string | null };
+type HirerJob = JobPost & {
+  caregiver_name?: string | null;
+  job_status?: string | null;
+  job_id?: string | null;
+  patient_profile_id?: string | null;
+};
 
 type JobStatusFilter =
   | 'all'
@@ -59,6 +64,30 @@ function formatDateTimeRange(startIso: string, endIso: string) {
   const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   return `${date} ${timeStart} - ${timeEnd}`;
 }
+
+const WEEKDAY_LABELS = ['จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.', 'อา.'];
+
+const toDateKey = (date: Date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+const toDateKeyFromIso = (iso: string) => toDateKey(new Date(iso));
+
+const formatMonthLabel = (date: Date) => date.toLocaleDateString('th-TH', { month: 'long', year: 'numeric' });
+
+const formatFullDateLabel = (dateKey: string) => {
+  const [y, m, d] = dateKey.split('-').map(Number);
+  if (!y || !m || !d) return '-';
+  return new Date(y, m - 1, d).toLocaleDateString('th-TH', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+};
 
 function JobPostCard({
   job,
@@ -187,6 +216,13 @@ export default function HirerHomePage() {
   const [cancelJobId, setCancelJobId] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [showKycPrompt, setShowKycPrompt] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleLoading, setScheduleLoading] = useState(false);
+  const [scheduleJobs, setScheduleJobs] = useState<HirerJob[]>([]);
+  const [careRecipients, setCareRecipients] = useState<CareRecipient[]>([]);
+  const [selectedRecipientId, setSelectedRecipientId] = useState('all');
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date());
+  const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
 
   const hirerId = user?.id || 'demo-hirer';
 
@@ -224,6 +260,131 @@ export default function HirerHomePage() {
   useEffect(() => {
     loadJobs();
   }, [loadJobs]);
+
+  const loadCareRecipients = useCallback(async () => {
+    const res = await appApi.getCareRecipients();
+    if (res.success && Array.isArray(res.data)) {
+      setCareRecipients(res.data);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCareRecipients();
+  }, [loadCareRecipients]);
+
+  const loadSchedule = useCallback(async () => {
+    setScheduleLoading(true);
+    try {
+      const [jobsRes, recipientsRes] = await Promise.all([
+        appApi.getMyJobs(hirerId, undefined, 1, 200),
+        appApi.getCareRecipients(),
+      ]);
+
+      if (jobsRes.success && jobsRes.data) {
+        const source = (jobsRes.data.data || []) as HirerJob[];
+        setScheduleJobs(source.filter((job) => job.status !== 'draft'));
+      } else {
+        setScheduleJobs([]);
+      }
+
+      if (recipientsRes.success && Array.isArray(recipientsRes.data)) {
+        setCareRecipients(recipientsRes.data);
+      }
+    } finally {
+      setScheduleLoading(false);
+    }
+  }, [hirerId]);
+
+  const recipientNameMap = useMemo(() => {
+    const map = new Map<string, string>();
+    careRecipients.forEach((item) => {
+      map.set(item.id, item.patient_display_name || 'ผู้รับการดูแล');
+    });
+    return map;
+  }, [careRecipients]);
+
+  const getRecipientName = useCallback((job: HirerJob) => {
+    if (job.patient_display_name) return job.patient_display_name;
+    if (job.patient_profile_id && recipientNameMap.has(job.patient_profile_id)) {
+      return recipientNameMap.get(job.patient_profile_id) || 'ผู้รับการดูแล';
+    }
+    return 'ไม่ระบุผู้รับการดูแล';
+  }, [recipientNameMap]);
+
+  const hasUnknownRecipientJobs = useMemo(
+    () => scheduleJobs.some((job) => !job.patient_profile_id),
+    [scheduleJobs]
+  );
+
+  const recipientOptions = useMemo(() => {
+    const sortedRecipients = [...careRecipients].sort((a, b) =>
+      (a.patient_display_name || '').localeCompare(b.patient_display_name || '', 'th')
+    );
+
+    const options = [
+      { id: 'all', label: 'ผู้รับการดูแลทั้งหมด' },
+      ...sortedRecipients.map((item) => ({ id: item.id, label: item.patient_display_name || 'ผู้รับการดูแล' })),
+    ];
+
+    if (hasUnknownRecipientJobs) {
+      options.push({ id: '__unassigned__', label: 'ไม่ระบุผู้รับการดูแล' });
+    }
+
+    return options;
+  }, [careRecipients, hasUnknownRecipientJobs]);
+
+  const filteredScheduleJobs = useMemo(() => {
+    if (selectedRecipientId === 'all') return scheduleJobs;
+    if (selectedRecipientId === '__unassigned__') {
+      return scheduleJobs.filter((job) => !job.patient_profile_id);
+    }
+    return scheduleJobs.filter((job) => job.patient_profile_id === selectedRecipientId);
+  }, [scheduleJobs, selectedRecipientId]);
+
+  const scheduleJobsByDate = useMemo(() => {
+    const grouped: Record<string, HirerJob[]> = {};
+
+    for (const job of filteredScheduleJobs) {
+      const dateKey = toDateKeyFromIso(job.scheduled_start_at);
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push(job);
+    }
+
+    Object.values(grouped).forEach((group) => {
+      group.sort((a, b) => new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime());
+    });
+
+    return grouped;
+  }, [filteredScheduleJobs]);
+
+  const calendarCells = useMemo(() => {
+    const firstDay = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+    const daysInMonth = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate();
+    const firstDayOfWeek = (firstDay.getDay() + 6) % 7;
+    const cells: Array<Date | null> = [];
+
+    for (let i = 0; i < firstDayOfWeek; i += 1) cells.push(null);
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      cells.push(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day));
+    }
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    return cells;
+  }, [calendarMonth]);
+
+  const todayKey = useMemo(() => toDateKey(new Date()), []);
+  const selectedDateJobs = scheduleJobsByDate[selectedDateKey] || [];
+  const selectedDateLabel = useMemo(() => formatFullDateLabel(selectedDateKey), [selectedDateKey]);
+
+  const handleOpenSchedule = async () => {
+    setScheduleOpen(true);
+    await loadSchedule();
+  };
+
+  const handleRefresh = async () => {
+    await loadJobs();
+    if (scheduleOpen) await loadSchedule();
+  };
 
   const handlePublish = async (jobPostId: string) => {
     const res = await appApi.publishJob(jobPostId, hirerId);
@@ -319,9 +480,19 @@ export default function HirerHomePage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
-          <p className="text-sm text-gray-600">จัดการงานทั้งหมดของคุณ</p>
+        <div className="flex items-start justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
+            <p className="text-sm text-gray-600">จัดการงานทั้งหมดของคุณ</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" leftIcon={<CalendarDays className="w-4 h-4" />} onClick={handleOpenSchedule}>
+              ดูตารางงาน
+            </Button>
+            <Button variant="outline" onClick={handleRefresh}>
+              รีเฟรช
+            </Button>
+          </div>
         </div>
 
         {/* Quick Actions */}
@@ -392,6 +563,125 @@ export default function HirerHomePage() {
             ))}
           </div>
         )}
+        <Modal
+          isOpen={scheduleOpen}
+          onClose={() => setScheduleOpen(false)}
+          title="ตารางงานผู้รับการดูแล"
+          size="xl"
+        >
+          {scheduleLoading ? (
+            <div className="py-10 text-center text-sm text-gray-500">กำลังโหลดตารางงาน...</div>
+          ) : scheduleJobs.length === 0 ? (
+            <div className="py-10 text-center text-sm text-gray-500">ยังไม่มีงานในตาราง</div>
+          ) : (
+            <div className="space-y-5">
+              <div className="grid grid-cols-1 sm:grid-cols-[260px_1fr] gap-3 sm:items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500">เลือกผู้รับการดูแล</label>
+                  <select
+                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                    value={selectedRecipientId}
+                    onChange={(e) => setSelectedRecipientId(e.target.value)}
+                  >
+                    {recipientOptions.map((option) => (
+                      <option key={option.id} value={option.id}>{option.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="text-xs text-gray-500 sm:text-right">
+                  งานทั้งหมดในมุมมองนี้: {filteredScheduleJobs.length}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <button
+                  type="button"
+                  className="p-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                  onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <div className="text-sm font-semibold text-gray-900">{formatMonthLabel(calendarMonth)}</div>
+                <button
+                  type="button"
+                  className="p-2 rounded-md border border-gray-200 hover:bg-gray-50"
+                  onClick={() => setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-1 text-center text-xs font-medium text-gray-500">
+                {WEEKDAY_LABELS.map((label) => (
+                  <div key={label} className="py-1">
+                    {label}
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-1">
+                {calendarCells.map((day, index) => {
+                  if (!day) {
+                    return <div key={`empty-${index}`} className="h-14 rounded-md bg-gray-50" />;
+                  }
+
+                  const dateKey = toDateKey(day);
+                  const jobsOnDate = scheduleJobsByDate[dateKey] || [];
+                  const isSelected = dateKey === selectedDateKey;
+                  const isToday = dateKey === todayKey;
+
+                  return (
+                    <button
+                      type="button"
+                      key={dateKey}
+                      onClick={() => setSelectedDateKey(dateKey)}
+                      className={`h-14 rounded-md border text-xs transition-colors ${
+                        isSelected
+                          ? 'border-blue-500 bg-blue-50 text-blue-700'
+                          : isToday
+                            ? 'border-blue-200 bg-blue-50/40 text-gray-800'
+                            : 'border-gray-200 hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <div className="leading-none">{day.getDate()}</div>
+                      {jobsOnDate.length > 0 && (
+                        <div className="mt-1 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-blue-100 px-1 text-[10px] font-semibold text-blue-700">
+                          {jobsOnDate.length}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div>
+                <div className="text-sm font-semibold text-gray-900 mb-2">{selectedDateLabel}</div>
+                {selectedDateJobs.length === 0 ? (
+                  <div className="text-sm text-gray-500">ไม่มีงานในวันนี้</div>
+                ) : (
+                  <div className="space-y-2">
+                    {selectedDateJobs.map((job) => {
+                      const location = [job.district, job.province].filter(Boolean).join(', ');
+                      return (
+                        <div key={`${job.id}-${job.job_status || job.status}`} className="p-3 border border-gray-200 rounded-lg">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-medium text-sm text-gray-900 line-clamp-1">{job.title}</div>
+                            <StatusBadge status={(job.job_status || job.status) as any} />
+                          </div>
+                          <div className="mt-1 text-xs text-gray-600">
+                            {formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}
+                          </div>
+                          <div className="mt-1 text-xs text-gray-500">ผู้รับการดูแล: {getRecipientName(job)}</div>
+                          {location && <div className="mt-1 text-xs text-gray-500">พื้นที่: {location}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </Modal>
         <ReasonModal
           isOpen={disputeOpen}
           onClose={() => setDisputeOpen(false)}
