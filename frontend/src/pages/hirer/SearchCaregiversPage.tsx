@@ -120,17 +120,17 @@ export default function SearchCaregiversPage() {
     try {
       const res = await appApi.toggleFavorite(caregiverId);
       if (res.success && res.data) {
+        const isFavorited = Boolean(res.data.favorited);
         setFavoritedIds((prev) => {
           const next = new Set(prev);
-          if (res.data!.favorited) {
+          if (isFavorited) {
             next.add(caregiverId);
-            toast.success('เพิ่มในรายการโปรดแล้ว');
           } else {
             next.delete(caregiverId);
-            toast.success('ลบออกจากรายการโปรดแล้ว');
           }
           return next;
         });
+        toast.success(isFavorited ? 'เพิ่มในรายการโปรดแล้ว' : 'ลบออกจากรายการโปรดแล้ว');
       }
     } catch {
       toast.error('ไม่สามารถบันทึกรายการโปรดได้');
@@ -162,6 +162,42 @@ export default function SearchCaregiversPage() {
   useEffect(() => {
     search(1);
   }, [trustFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const syncFavoriteState = async () => {
+      if (caregivers.length === 0) {
+        setFavoritedIds(new Set());
+        return;
+      }
+
+      const checks = await Promise.allSettled(
+        caregivers.map((cg) => appApi.checkFavorite(cg.id))
+      );
+
+      if (cancelled) return;
+
+      const next = new Set<string>();
+      checks.forEach((result, index) => {
+        if (
+          result.status === 'fulfilled' &&
+          result.value.success &&
+          result.value.data?.favorited
+        ) {
+          next.add(caregivers[index].id);
+        }
+      });
+
+      setFavoritedIds(next);
+    };
+
+    syncFavoriteState();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [caregivers]);
 
   const loadMyJobs = useCallback(async () => {
     setJobsLoading(true);
