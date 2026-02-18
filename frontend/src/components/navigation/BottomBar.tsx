@@ -38,7 +38,7 @@ export function BottomBar() {
             <TabLink to="/hirer/home" icon={Briefcase} label="งานของฉัน" paths={['/hirer/home', '/hirer/create-job', '/jobs']} />
             <TabLink to="/hirer/search-caregivers" icon={Search} label="ค้นหาผู้ดูแล" />
             <TabLink to="/hirer/care-recipients" icon={Users} label="ผู้รับการดูแล" paths={['/hirer/care-recipients']} />
-            <TabLink to="/hirer/wallet" icon={Wallet} label="กระเป๋าเงิน" paths={['/hirer/wallet']} />
+            <TabLink to="/hirer/wallet" icon={Wallet} label="กระเป๋าเงิน" paths={['/hirer/wallet', '/wallet/bank-accounts']} />
           </div>
         </div>
       </div>
@@ -53,7 +53,7 @@ export function BottomBar() {
           <div className="flex items-center justify-around h-16">
             <TabLink to="/caregiver/jobs/feed" icon={Search} label="ค้นหางาน" />
             <TabLink to="/caregiver/jobs/my-jobs" icon={Briefcase} label="งานของฉัน" />
-            <TabLink to="/caregiver/wallet" icon={Wallet} label="กระเป๋าเงิน" paths={['/caregiver/wallet']} />
+            <TabLink to="/caregiver/wallet" icon={Wallet} label="กระเป๋าเงิน" paths={['/caregiver/wallet', '/wallet/bank-accounts']} />
             <TabLink to="/profile" icon={User} label="โปรไฟล์" paths={['/profile', '/caregiver/profile', '/kyc', '/settings']} />
           </div>
         </div>

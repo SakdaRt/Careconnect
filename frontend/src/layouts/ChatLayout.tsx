@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { TopBar } from '../components/navigation/TopBar';
+import { BottomBar } from '../components/navigation/BottomBar';
 
 interface ChatLayoutProps {
   children: ReactNode;
@@ -10,12 +11,11 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     <div className="min-h-screen bg-white flex flex-col">
       <TopBar />
 
-      {/* Chat content fills remaining space */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden pb-16">
         {children}
       </main>
 
-      {/* No BottomBar in Chat Room */}
+      <BottomBar />
     </div>
   );
 }

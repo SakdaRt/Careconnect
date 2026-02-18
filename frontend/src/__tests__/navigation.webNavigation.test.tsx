@@ -57,6 +57,10 @@ vi.mock('../services/appApi', () => ({
     checkOut: async () => ({ success: true }),
     getWalletBalance: async () => ({ success: true, data: { available_balance: 1000 } }),
     listWalletTransactions: async () => ({ success: true, data: { data: [], totalPages: 1 } }),
+    topUpWallet: async () => ({ success: true, data: { topup_id: 'topup-1', amount: 1000, status: 'pending' } }),
+    getPendingTopups: async () => ({ success: true, data: [] }),
+    getTopupStatus: async () => ({ success: true, data: { id: 'topup-1', amount: 1000, status: 'pending' } }),
+    confirmTopupPayment: async () => ({ success: true, data: { topup: { id: 'topup-1', amount: 1000, status: 'succeeded' }, wallet: null } }),
     getBankAccounts: async () => ({ success: true, data: [] }),
     getWithdrawals: async () => ({ success: true, data: { data: [], totalPages: 1 } }),
     initiateWithdrawal: async () => ({ success: true }),
@@ -232,7 +236,7 @@ describe('Bottom bar navigation', () => {
     currentUser = { id: 'caregiver-1', role: 'caregiver', email: 'caregiver@test.com', trust_level: 'L1', name: 'Caregiver' };
     renderWithRouter(<BottomBar />, ['/caregiver/jobs/feed']);
     fireEvent.click(screen.getByRole('link', { name: 'โปรไฟล์' }));
-    expect(screen.getByTestId('location').textContent).toBe('/caregiver/profile');
+    expect(screen.getByTestId('location').textContent).toBe('/profile');
   });
 });
 

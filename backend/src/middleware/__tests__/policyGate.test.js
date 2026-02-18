@@ -16,6 +16,16 @@ describe('policy gate can()', () => {
     expect(result.allowed).toBe(true);
   });
 
+  test('allows hirer L0 to manage bank accounts', () => {
+    const result = can({ role: 'hirer', trust_level: 'L0' }, 'wallet:bank-add');
+    expect(result.allowed).toBe(true);
+  });
+
+  test('denies caregiver L0 to manage bank accounts', () => {
+    const result = can({ role: 'caregiver', trust_level: 'L0' }, 'wallet:bank-add');
+    expect(result.allowed).toBe(false);
+  });
+
   test('allows admin for any action', () => {
     const result = can({ role: 'admin', trust_level: 'L0' }, 'job:feed');
     expect(result.allowed).toBe(true);

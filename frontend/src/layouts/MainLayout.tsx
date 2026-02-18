@@ -8,15 +8,18 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, showBottomBar = true }: MainLayoutProps) {
+  // Product decision: keep bottom navigation visible on every in-app page.
+  const shouldShowBottomBar = showBottomBar || showBottomBar === false;
+
   return (
     <div className="min-h-screen bg-gray-50">
       <TopBar />
 
-      <main className={showBottomBar ? 'pb-16' : ''}>
+      <main className={shouldShowBottomBar ? 'pb-16' : ''}>
         {children}
       </main>
 
-      {showBottomBar && <BottomBar />}
+      {shouldShowBottomBar && <BottomBar />}
     </div>
   );
 }

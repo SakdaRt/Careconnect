@@ -314,6 +314,9 @@ export default function HirerWalletPage() {
             <Link to="/hirer/wallet/history">
               <Button variant="outline">ประวัติ</Button>
             </Link>
+            <Link to="/wallet/bank-accounts">
+              <Button variant="outline">บัญชีธนาคาร</Button>
+            </Link>
             <Button variant="outline" onClick={load}>
               รีเฟรช
             </Button>

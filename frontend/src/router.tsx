@@ -12,6 +12,7 @@ const NotificationsPage = lazy(() => import('./pages/shared/NotificationsPage'))
 const ProfilePage = lazy(() => import('./pages/shared/ProfilePage'));
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const KycPage = lazy(() => import('./pages/shared/KycPage'));
+const BankAccountsPage = lazy(() => import('./pages/shared/BankAccountsPage'));
 
 // Public Pages
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
@@ -446,6 +447,20 @@ export const router = createBrowserRouter([
         <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
           <KycPage />
         </Suspense>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/wallet/bank-accounts',
+    element: (
+      <RequireAuth>
+        <RequireRole roles={['hirer', 'caregiver']}>
+          <RequirePolicy>
+            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+              <BankAccountsPage />
+            </Suspense>
+          </RequirePolicy>
+        </RequireRole>
       </RequireAuth>
     ),
   },

@@ -241,12 +241,18 @@ export const can = (user, action) => {
   if (action === 'wallet:topup:pending') return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   if (action === 'wallet:topup:status') return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   if (action === 'wallet:bank-accounts') {
-    if (role !== 'caregiver') return { allowed: false, reason: 'Caregiver role required' };
-    return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required' };
+    if (!['hirer', 'caregiver'].includes(role)) return { allowed: false, reason: 'Hirer or caregiver role required' };
+    if (role === 'caregiver') {
+      return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required' };
+    }
+    return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   }
   if (action === 'wallet:bank-add') {
-    if (role !== 'caregiver') return { allowed: false, reason: 'Caregiver role required' };
-    return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required' };
+    if (!['hirer', 'caregiver'].includes(role)) return { allowed: false, reason: 'Hirer or caregiver role required' };
+    if (role === 'caregiver') {
+      return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required' };
+    }
+    return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   }
   if (action === 'wallet:withdrawals') return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   if (action === 'wallet:withdraw') {
