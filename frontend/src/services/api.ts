@@ -78,6 +78,13 @@ class ApiClient {
     ]);
   }
 
+  setSessionTokens(accessToken: string, refreshToken?: string): void {
+    this.setAuthToken(accessToken);
+    if (refreshToken) {
+      this.setRefreshToken(refreshToken);
+    }
+  }
+
   async request<T>(endpoint: string, options: RequestOptions = {}): Promise<ApiResponse<T>> {
     const { method = 'GET', body, headers = {}, requireAuth = true } = options;
 

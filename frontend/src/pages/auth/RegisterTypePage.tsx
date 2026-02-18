@@ -6,6 +6,18 @@ import { Button } from '../../components/ui';
 export default function RegisterTypePage() {
   const navigate = useNavigate();
 
+  const env = (import.meta as any).env as Record<string, string | undefined>;
+  const apiBase = (env.VITE_API_URL || env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+  const googleAuthUrl = apiBase
+    ? (apiBase.endsWith('/api') ? `${apiBase}/auth/google` : `${apiBase}/api/auth/google`)
+    : '/api/auth/google';
+
+  const handleGoogleRegister = () => {
+    if (typeof window !== 'undefined') {
+      window.location.href = googleAuthUrl;
+    }
+  };
+
   return (
     <AuthLayout>
       <div className="bg-white rounded-lg shadow-md p-8">
@@ -13,6 +25,20 @@ export default function RegisterTypePage() {
         <p className="text-gray-600 text-center mb-8">เลือกประเภทบัญชีที่คุณต้องการ</p>
 
         <div className="space-y-4">
+          {/* Google Account */}
+          <Button
+            variant="outline"
+            size="lg"
+            fullWidth
+            onClick={handleGoogleRegister}
+          >
+            สมัคร / เข้าสู่ระบบด้วย Google
+          </Button>
+
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+            <div className="relative flex justify-center text-sm"><span className="bg-white px-4 text-gray-500">หรือ</span></div>
+          </div>
           {/* Guest Account - Email */}
           <div className="border-2 border-blue-200 rounded-lg p-6 hover:border-blue-400 transition-colors">
             <div className="flex items-start gap-4 mb-4">

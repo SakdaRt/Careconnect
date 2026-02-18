@@ -4,6 +4,8 @@ import path from 'path';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import {
+  googleLogin,
+  googleCallback,
   registerGuest,
   registerMember,
   loginWithEmail,
@@ -202,6 +204,18 @@ router.post('/login/phone', authLimiter, validateBody(loginPhoneSchema), loginWi
  * Body: { refreshToken }
  */
 router.post('/refresh', authLimiter, validateBody(authSchemas.refreshToken), refreshToken);
+
+/**
+ * Start Google OAuth 2.0 login
+ * GET /api/auth/google
+ */
+router.get('/google', authLimiter, googleLogin);
+
+/**
+ * Google OAuth callback URL
+ * GET /api/auth/google/callback
+ */
+router.get('/google/callback', authLimiter, googleCallback);
 
 // ============================================================================
 // Protected Routes (Authentication required)

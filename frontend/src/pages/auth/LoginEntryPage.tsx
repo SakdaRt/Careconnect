@@ -3,6 +3,17 @@ import { Mail, Phone } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button } from '../../components/ui';
 export default function LoginEntryPage() {
+  const env = (import.meta as any).env as Record<string, string | undefined>;
+  const apiBase = (env.VITE_API_URL || env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+  const googleAuthUrl = apiBase
+    ? (apiBase.endsWith('/api') ? `${apiBase}/auth/google` : `${apiBase}/api/auth/google`)
+    : '/api/auth/google';
+
+  const handleGoogleLogin = () => {
+    if (typeof window !== 'undefined') {
+      window.location.href = googleAuthUrl;
+    }
+  };
 
   return (
     <AuthLayout>
@@ -11,6 +22,20 @@ export default function LoginEntryPage() {
         <p className="text-gray-600 text-center mb-8">เลือกวิธีการเข้าสู่ระบบ</p>
 
         <div className="space-y-4">
+          <Button
+            variant="outline"
+            size="lg"
+            fullWidth
+            onClick={handleGoogleLogin}
+          >
+            Sign in with Google
+          </Button>
+
+          <div className="relative my-2">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-200" /></div>
+            <div className="relative flex justify-center text-sm"><span className="bg-white px-4 text-gray-500">หรือ</span></div>
+          </div>
+
           <Link to="/login/email" className="block">
             <Button
               variant="primary"

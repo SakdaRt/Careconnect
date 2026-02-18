@@ -16,6 +16,7 @@ interface AuthContextType {
   isLoading: boolean;
   activeRole: UserRole | null;
   login: (email: string, password: string) => Promise<User>;
+  loginWithTokens: (accessToken: string, refreshToken?: string) => Promise<User>;
   loginWithPhone: (phone: string, password: string) => Promise<User>;
   registerGuest: (email: string, password: string, role: UserRole) => Promise<void>;
   registerMember: (phone: string, password: string, role: UserRole) => Promise<void>;
@@ -102,6 +103,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       removeScopedStorageItem('pendingAccountType');
       setActiveRole(null);
       return response.data.user;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loginWithTokens = async (accessToken: string, refreshToken?: string) => {
+    setIsLoading(true);
+    try {
+      api.clearTokens();
+      api.setSessionTokens(accessToken, refreshToken);
+
+      const response = await api.getCurrentUser();
+      if (!response.success || !response.data?.user) {
+        api.clearTokens();
+        throw new Error(response.error || 'OAuth login failed');
+      }
+
+      setUser(response.data.user);
+      removeScopedStorageItem('pendingRole');
+      removeScopedStorageItem('pendingAccountType');
+      setActiveRole(null);
+      return response.data.user;
+    } catch (error) {
+      api.clearTokens();
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -194,6 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         activeRole,
         login,
+        loginWithTokens,
         loginWithPhone,
         registerGuest,
         registerMember,

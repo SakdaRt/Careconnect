@@ -4,6 +4,8 @@ import {
   loginWithEmail as loginWithEmailService,
   loginWithPhone as loginWithPhoneService,
   refreshAccessToken,
+  generateAccessToken,
+  generateRefreshToken,
 } from '../services/authService.js';
 import { acceptPolicy, getPolicyAcceptances } from '../services/policyService.js';
 import User from '../models/User.js';
@@ -11,9 +13,107 @@ import { query } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 
 const GENERATED_DISPLAY_NAME_PATTERN = /^ผู้(?:ว่าจ้าง|ดูแล)\s+[A-Z0-9]{4}$/u;
 const DISPLAY_NAME_PATTERN = /^(\S+)\s+(\S)\.?$/u;
+const GOOGLE_OAUTH_STATE_COOKIE = 'google_oauth_state';
+const GOOGLE_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
+const GOOGLE_OAUTH_SCOPE = ['openid', 'email', 'profile'];
+
+let _OAuth2Client = null;
+
+const loadOAuth2Client = async () => {
+  if (_OAuth2Client) return _OAuth2Client;
+  try {
+    const mod = await import('google-auth-library');
+    _OAuth2Client = mod.OAuth2Client;
+    return _OAuth2Client;
+  } catch {
+    return null;
+  }
+};
+
+const getGoogleOAuthClient = async () => {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    return null;
+  }
+
+  const OAuth2Client = await loadOAuth2Client();
+  if (!OAuth2Client) {
+    console.error('[Auth Controller] google-auth-library is not installed');
+    return null;
+  }
+
+  return new OAuth2Client(clientId, clientSecret);
+};
+
+const getBaseUrl = (req) => {
+  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
+  return `${proto}://${host}`;
+};
+
+const getCallbackUrl = (req) => {
+  if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
+  return `${getBaseUrl(req)}/api/auth/google/callback`;
+};
+
+const getFrontendBaseUrl = (req) => {
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  if (req) {
+    const origin = req.get('origin');
+    if (origin) return origin;
+    const referer = req.get('referer');
+    if (referer) { try { return new URL(referer).origin; } catch { /* ignore */ } }
+  }
+  return 'http://localhost:5173';
+};
+
+const buildFrontendRedirectUrl = (pathname, params = {}, req = null) => {
+  const url = new URL(pathname, getFrontendBaseUrl(req));
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && value !== '') {
+      url.searchParams.set(key, String(value));
+    }
+  });
+  return url.toString();
+};
+
+const getOAuthStateCookieOptions = () => ({
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: GOOGLE_OAUTH_STATE_TTL_MS,
+  path: '/api/auth',
+});
+
+const clearOAuthStateCookie = (res) => {
+  const cookieOptions = getOAuthStateCookieOptions();
+  delete cookieOptions.maxAge;
+  res.clearCookie(GOOGLE_OAUTH_STATE_COOKIE, cookieOptions);
+};
+
+const parseCookieHeader = (cookieHeader = '') => cookieHeader
+  .split(';')
+  .map((part) => part.trim())
+  .filter(Boolean)
+  .reduce((acc, part) => {
+    const separatorIndex = part.indexOf('=');
+    if (separatorIndex === -1) return acc;
+    const key = part.slice(0, separatorIndex).trim();
+    const rawValue = part.slice(separatorIndex + 1);
+    if (!key) return acc;
+    try {
+      acc[key] = decodeURIComponent(rawValue);
+    } catch {
+      acc[key] = rawValue;
+    }
+    return acc;
+  }, {});
 
 const normalizePhoneNumber = (value) => {
   if (!value) return null;
@@ -208,6 +308,173 @@ const buildSafeUserResponse = async (userId) => {
   } catch (err) {
     console.error('[buildSafeUserResponse] Error:', err.message, err.stack);
     return null;
+  }
+};
+
+/**
+ * Start Google OAuth Authorization Code flow
+ * GET /api/auth/google
+ */
+export const googleLogin = async (req, res) => {
+  try {
+    const oauthClient = await getGoogleOAuthClient();
+    if (!oauthClient) {
+      console.error('[Auth Controller] Google OAuth is not configured');
+      return res.status(500).json({
+        error: 'Server error',
+        message: 'Google OAuth is not configured',
+      });
+    }
+
+    const callbackUrl = getCallbackUrl(req);
+    const state = crypto.randomBytes(32).toString('hex');
+    res.cookie(GOOGLE_OAUTH_STATE_COOKIE, state, getOAuthStateCookieOptions());
+
+    const authUrl = oauthClient.generateAuthUrl({
+      access_type: 'offline',
+      scope: GOOGLE_OAUTH_SCOPE,
+      state,
+      prompt: 'select_account',
+      redirect_uri: callbackUrl,
+    });
+
+    return res.redirect(authUrl);
+  } catch (error) {
+    console.error('[Auth Controller] Google login init error:', error);
+    return res.status(500).json({
+      error: 'Server error',
+      message: 'Failed to start Google login',
+    });
+  }
+};
+
+/**
+ * Handle Google OAuth callback
+ * GET /api/auth/google/callback
+ */
+export const googleCallback = async (req, res) => {
+  const redirectToOauthFailed = () => res.redirect(
+    buildFrontendRedirectUrl('/login', { error: 'oauth_failed' }, req)
+  );
+
+  try {
+    const oauthClient = await getGoogleOAuthClient();
+    if (!oauthClient) {
+      console.error('[Auth Controller] Google OAuth is not configured');
+      return redirectToOauthFailed();
+    }
+
+    const callbackUrl = getCallbackUrl(req);
+    const { code, state, error: oauthError } = req.query;
+    if (oauthError) {
+      console.warn(`[Auth Controller] Google callback returned error: ${String(oauthError)}`);
+      clearOAuthStateCookie(res);
+      return redirectToOauthFailed();
+    }
+
+    const cookies = parseCookieHeader(req.headers.cookie || '');
+    const storedState = cookies[GOOGLE_OAUTH_STATE_COOKIE];
+    clearOAuthStateCookie(res);
+
+    if (!code || typeof code !== 'string' || !state || typeof state !== 'string') {
+      console.warn('[Auth Controller] Missing OAuth callback code/state');
+      return redirectToOauthFailed();
+    }
+
+    if (!storedState || storedState !== state) {
+      console.warn('[Auth Controller] OAuth state mismatch');
+      return redirectToOauthFailed();
+    }
+
+    await ensureProfileSchema();
+    await ensureGoogleAuthSchema();
+
+    const tokenResult = await oauthClient.getToken({ code, redirect_uri: callbackUrl });
+    const idToken = tokenResult.tokens?.id_token;
+    if (!idToken) {
+      throw new Error('Google token exchange did not return id_token');
+    }
+
+    const ticket = await oauthClient.verifyIdToken({
+      idToken,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const googleId = payload?.sub ? String(payload.sub) : null;
+    const email = normalizeEmail(payload?.email);
+    const picture = typeof payload?.picture === 'string' ? payload.picture : null;
+    const isEmailVerified = payload?.email_verified !== false;
+
+    if (!googleId || !email) {
+      throw new Error('Google profile payload is missing required identity fields');
+    }
+
+    let user = await User.findOne({ google_id: googleId });
+
+    if (!user) {
+      const existingByEmail = await User.findByEmail(email);
+
+      if (existingByEmail) {
+        const linkedUser = await User.updateById(existingByEmail.id, {
+          google_id: googleId,
+          avatar: picture || existingByEmail.avatar || null,
+          is_email_verified: isEmailVerified || existingByEmail.is_email_verified,
+          email_verified_at: isEmailVerified ? new Date() : existingByEmail.email_verified_at || null,
+          last_login_at: new Date(),
+          updated_at: new Date(),
+        });
+        user = linkedUser || existingByEmail;
+      } else {
+        const generatedPassword = crypto.randomBytes(32).toString('hex');
+        const created = await registerGuestService({
+          email,
+          password: generatedPassword,
+          role: 'hirer',
+        });
+
+        const updatedCreatedUser = await User.updateById(created.user.id, {
+          google_id: googleId,
+          avatar: picture,
+          is_email_verified: isEmailVerified,
+          email_verified_at: isEmailVerified ? new Date() : null,
+          last_login_at: new Date(),
+          updated_at: new Date(),
+        });
+
+        user = updatedCreatedUser || created.user;
+      }
+    } else {
+      const updatedUser = await User.updateById(user.id, {
+        email: user.email || email,
+        avatar: picture || user.avatar || null,
+        is_email_verified: isEmailVerified || user.is_email_verified,
+        email_verified_at: isEmailVerified ? new Date() : user.email_verified_at || null,
+        last_login_at: new Date(),
+        updated_at: new Date(),
+      });
+
+      user = updatedUser || user;
+    }
+
+    if (!user || user.status !== 'active') {
+      console.warn('[Auth Controller] Google OAuth user is not active or not found');
+      return redirectToOauthFailed();
+    }
+
+    await ensureProfileExists(user.id, user.role);
+    const safeUser = await buildSafeUserResponse(user.id);
+    const tokenSource = safeUser || user;
+    const accessToken = generateAccessToken(tokenSource);
+    const refreshToken = generateRefreshToken(tokenSource);
+
+    return res.redirect(buildFrontendRedirectUrl('/auth/callback', {
+      token: accessToken,
+      refreshToken,
+    }, req));
+  } catch (error) {
+    console.error('[Auth Controller] Google callback error:', error);
+    return redirectToOauthFailed();
   }
 };
 
@@ -716,7 +983,25 @@ const normalizeNumber = (value) => {
   return Number.isFinite(num) ? num : null;
 };
 
+let googleAuthSchemaReady = false;
 let profileSchemaReady = false;
+
+const ensureGoogleAuthSchema = async () => {
+  if (googleAuthSchemaReady) return;
+
+  await query(`
+    ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)
+  `);
+
+  await query(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id
+    ON users(google_id)
+    WHERE google_id IS NOT NULL
+  `);
+
+  googleAuthSchemaReady = true;
+};
 
 const ensureProfileSchema = async () => {
   if (profileSchemaReady) return;
@@ -1111,6 +1396,8 @@ export const logout = async (req, res) => {
 };
 
 export default {
+  googleLogin,
+  googleCallback,
   registerGuest,
   registerMember,
   loginWithEmail,

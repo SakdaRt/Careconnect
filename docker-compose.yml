@@ -115,6 +115,12 @@ services:
       ADMIN_EMAIL: admin@careconnect.com
       ADMIN_PASSWORD: Admin1234!
 
+      # Google OAuth 2.0
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+
     ports:
       - "3000:3000"
     volumes:
@@ -179,6 +185,8 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
+      # Vite proxy target (Docker internal hostname)
+      VITE_API_TARGET: http://backend:3000
       # External/tunnel access for Vite HMR (opt-in via shell/.env only)
       VITE_PUBLIC_HOST: ${VITE_PUBLIC_HOST:-}
       VITE_PUBLIC_PROTOCOL: ${VITE_PUBLIC_PROTOCOL:-}

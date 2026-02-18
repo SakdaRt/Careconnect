@@ -24,6 +24,7 @@ const ContactPage = lazy(() => import('./pages/public/ContactPage'));
 const LoginEntryPage = lazy(() => import('./pages/auth/LoginEntryPage'));
 const LoginEmailPage = lazy(() => import('./pages/auth/LoginEmailPage'));
 const LoginPhonePage = lazy(() => import('./pages/auth/LoginPhonePage'));
+const AuthCallbackPage = lazy(() => import('./pages/auth/AuthCallbackPage'));
 const ForgotPasswordPage = lazy(() => import('./pages/auth/ForgotPasswordPage'));
 const RegisterTypePage = lazy(() => import('./pages/auth/RegisterTypePage'));
 const GuestRegisterPage = lazy(() => import('./pages/auth/GuestRegisterPage'));
@@ -136,6 +137,7 @@ export const router = createBrowserRouter([
   { path: '/login', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><LoginEntryPage /></Suspense> },
   { path: '/login/email', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><LoginEmailPage /></Suspense> },
   { path: '/login/phone', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><LoginPhonePage /></Suspense> },
+  { path: '/auth/callback', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AuthCallbackPage /></Suspense> },
   { path: '/forgot-password', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><ForgotPasswordPage /></Suspense> },
   { path: '/register', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><RegisterTypePage /></Suspense> },
   { path: '/register/guest', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><GuestRegisterPage /></Suspense> },
