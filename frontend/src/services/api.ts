@@ -1632,21 +1632,6 @@ export interface ChatMessage {
   created_at: string;
 }
 
-export interface CaregiverDocument {
-  id: string;
-  caregiver_id: string;
-  document_type: string;
-  file_key: string;
-  file_name: string;
-  file_size: number;
-  mime_type: string;
-  status: 'pending' | 'approved' | 'rejected';
-  verified_at?: string | null;
-  rejection_reason?: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 export interface Pagination {
   total: number;
   page: number;
