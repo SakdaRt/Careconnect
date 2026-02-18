@@ -1017,10 +1017,10 @@ class ApiClient {
     });
   }
 
-  async checkOut(jobId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }) {
+  async checkOut(jobId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }, evidenceNote?: string) {
     return this.request<{ job: Job }>(`/api/jobs/${jobId}/checkout`, {
       method: 'POST',
-      body: gpsData,
+      body: { ...gpsData, evidence_note: evidenceNote },
     });
   }
 
@@ -1029,6 +1029,38 @@ class ApiClient {
       method: 'POST',
       body: { reason },
     });
+  }
+
+  // Review endpoints
+  async createReview(jobId: string, caregiverId: string, rating: number, comment?: string) {
+    return this.request<{ review: any }>('/api/reviews', {
+      method: 'POST',
+      body: { job_id: jobId, caregiver_id: caregiverId, rating, comment },
+    });
+  }
+
+  async getCaregiverReviews(caregiverId: string, page = 1, limit = 20) {
+    return this.request<{ data: any[]; total: number; page: number; limit: number; totalPages: number; avg_rating: number; total_reviews: number }>(`/api/reviews/caregiver/${caregiverId}?page=${page}&limit=${limit}`);
+  }
+
+  async getJobReview(jobId: string) {
+    return this.request<{ review: any | null }>(`/api/reviews/job/${jobId}`);
+  }
+
+  // Favorites endpoints
+  async toggleFavorite(caregiverId: string) {
+    return this.request<{ favorited: boolean }>('/api/favorites/toggle', {
+      method: 'POST',
+      body: { caregiver_id: caregiverId },
+    });
+  }
+
+  async getFavorites(page = 1, limit = 20) {
+    return this.request<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(`/api/favorites?page=${page}&limit=${limit}`);
+  }
+
+  async checkFavorite(caregiverId: string) {
+    return this.request<{ favorited: boolean }>(`/api/favorites/check/${caregiverId}`);
   }
 
   // Chat endpoints

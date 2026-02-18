@@ -35,6 +35,7 @@ const SearchCaregiversPage = lazy(() => import('./pages/hirer/SearchCaregiversPa
 const CreateJobPage = lazy(() => import('./pages/hirer/CreateJobPage'));
 const HirerWalletPage = lazy(() => import('./pages/hirer/HirerWalletPage'));
 const CareRecipientsPage = lazy(() => import('./pages/hirer/CareRecipientsPage'));
+const FavoritesPage = lazy(() => import('./pages/hirer/FavoritesPage'));
 const CareRecipientFormPage = lazy(() => import('./pages/hirer/CareRecipientFormPage'));
 const HirerPaymentHistoryPage = lazy(() => import('./pages/hirer/HirerPaymentHistoryPage'));
 const JobReceiptPage = lazy(() => import('./pages/hirer/JobReceiptPage'));
@@ -228,6 +229,22 @@ export const router = createBrowserRouter([
             <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
               <CareRecipientFormPage />
             </Suspense>
+          </RequirePolicy>
+        </RequireRole>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/hirer/favorites',
+    element: (
+      <RequireAuth>
+        <RequireRole roles={['hirer']}>
+          <RequirePolicy>
+            <RequireProfile>
+              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+                <FavoritesPage />
+              </Suspense>
+            </RequireProfile>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>

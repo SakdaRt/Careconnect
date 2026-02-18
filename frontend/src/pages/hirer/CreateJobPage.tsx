@@ -294,11 +294,25 @@ export default function CreateJobPage() {
     return { tags };
   }, [selectedCareRecipient]);
 
+  const computedTotalHours = useMemo(() => {
+    if (!form.scheduled_start_at || !form.scheduled_end_at) return 0;
+    const start = new Date(form.scheduled_start_at).getTime();
+    const end = new Date(form.scheduled_end_at).getTime();
+    if (isNaN(start) || isNaN(end) || end <= start) return 0;
+    return Math.round(((end - start) / (1000 * 60 * 60)) * 100) / 100;
+  }, [form.scheduled_start_at, form.scheduled_end_at]);
+
+  useEffect(() => {
+    if (computedTotalHours > 0) {
+      setForm((prev) => ({ ...prev, total_hours: computedTotalHours }));
+    }
+  }, [computedTotalHours]);
+
   const totalAmount = useMemo(() => {
     const hourly = Number(form.hourly_rate) || 0;
-    const hours = Number(form.total_hours) || 0;
+    const hours = computedTotalHours || 0;
     return Math.round(hourly * hours);
-  }, [form.hourly_rate, form.total_hours]);
+  }, [form.hourly_rate, computedTotalHours]);
 
   const taskOptionsByRisk = useMemo(() => {
     const high = JOB_TASK_OPTIONS.filter((opt) => HIGH_RISK_TASK_VALUES.has(opt.v));
@@ -647,6 +661,11 @@ export default function CreateJobPage() {
                   required
                 />
               </div>
+              {computedTotalHours > 0 && (
+                <div className="mt-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                  ระยะเวลาทำงาน: <strong>{computedTotalHours}</strong> ชั่วโมง
+                </div>
+              )}
             </Card>
 
             <Card
@@ -1067,14 +1086,12 @@ export default function CreateJobPage() {
                 min={0}
                 required
               />
-              <Input
-                label="จำนวนชั่วโมงรวม"
-                type="number"
-                value={form.total_hours}
-                onChange={(e) => setForm({ ...form, total_hours: Number(e.target.value) })}
-                min={1}
-                required
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">จำนวนชั่วโมงรวม</label>
+                <div className="px-4 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700 text-sm">
+                  {computedTotalHours > 0 ? `${computedTotalHours} ชั่วโมง` : 'กรุณาเลือกวันเวลาเริ่ม-สิ้นสุด'}
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1137,6 +1154,12 @@ export default function CreateJobPage() {
               <div className="text-sm text-gray-800 mt-1">ประเภทงาน: {JOB_TYPE_LABEL[form.job_type]}</div>
               <div className="text-sm text-gray-800 mt-1">
                 ความเสี่ยง: {computedRisk.risk_level === 'high_risk' ? 'สูง' : 'ต่ำ'}
+              </div>
+              <div className="text-sm text-gray-800 mt-1">
+                ระยะเวลา: {computedTotalHours} ชั่วโมง ({form.hourly_rate.toLocaleString()} บาท/ชม.)
+              </div>
+              <div className="text-sm font-semibold text-blue-700 mt-1">
+                ราคารวมประมาณการ: {totalAmount.toLocaleString()} บาท
               </div>
               {computedRisk.reasons?.length ? (
                 <div className="text-xs text-gray-600 mt-2">

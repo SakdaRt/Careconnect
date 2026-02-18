@@ -51,6 +51,7 @@ const gpsSchema = Joi.object({
   lat: Joi.number(),
   lng: Joi.number(),
   accuracy_m: Joi.number(),
+  evidence_note: Joi.string().trim().max(2000).allow('', null),
 }).unknown(true);
 
 const cancelSchema = Joi.object({

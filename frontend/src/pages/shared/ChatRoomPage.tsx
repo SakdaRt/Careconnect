@@ -17,10 +17,14 @@ function formatDateTimeRange(startIso?: string | null, endIso?: string | null) {
   if (!startIso || !endIso) return '-';
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const date = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const startDate = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const endDate = end.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const timeStart = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  return `${date} ${timeStart} - ${timeEnd}`;
+  if (startDate === endDate) {
+    return `${startDate} ${timeStart} - ${timeEnd}`;
+  }
+  return `${startDate} ${timeStart} - ${endDate} ${timeEnd}`;
 }
 
 const toRadians = (value: number) => (value * Math.PI) / 180;
@@ -73,6 +77,7 @@ export default function ChatRoomPage() {
   const [text, setText] = useState('');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const listRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState<string>('');
@@ -244,18 +249,23 @@ export default function ChatRoomPage() {
     navigate(`/jobs/${viewJobDetailId}`);
   };
 
-  const handleCheckOut = async () => {
-    if (!jobId) return;
+  const handleCheckOut = async (evidenceNote: string) => {
+    if (!jobId || !evidenceNote.trim()) return;
     setActionLoading('checkout');
     try {
       const caregiverId = user?.id || 'demo-caregiver';
-      const gps = await getCurrentGps();
-      const res = await appApi.checkOut(jobId, caregiverId, gps);
+      let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
+      try {
+        const raw = await getCurrentGps();
+        gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
+      } catch { /* checkout allowed anywhere */ }
+      const res = await appApi.checkOut(jobId, caregiverId, gps, evidenceNote.trim());
       if (!res.success) {
         toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
         return;
       }
       toast.success('ส่งงานเสร็จแล้ว');
+      setCheckoutOpen(false);
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
@@ -435,7 +445,7 @@ export default function ChatRoomPage() {
                     size="sm"
                     disabled={!canCheckOut}
                     loading={actionLoading === 'checkout'}
-                    onClick={handleCheckOut}
+                    onClick={() => setCheckoutOpen(true)}
                   >
                     ส่งงานเสร็จ
                   </Button>
@@ -525,6 +535,18 @@ export default function ChatRoomPage() {
           confirmText="ยืนยันเปิดข้อพิพาท"
           variant="warning"
           loading={actionLoading === 'dispute'}
+          minLength={10}
+        />
+        <ReasonModal
+          isOpen={checkoutOpen}
+          onClose={() => setCheckoutOpen(false)}
+          onConfirm={handleCheckOut}
+          title="ส่งงานเสร็จ"
+          description="กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต"
+          placeholder="สรุปงานที่ทำ เช่น อาบน้ำ ป้อนอาหาร วัดความดัน..."
+          confirmText="ยืนยันส่งงาน"
+          variant="primary"
+          loading={actionLoading === 'checkout'}
           minLength={10}
         />
       </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { MessageCircle, User as UserIcon, FileText, ExternalLink } from 'lucide-react';
+import { MessageCircle, User as UserIcon, FileText, ExternalLink, Star } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
 import { JobPost, CaregiverDocument } from '../../services/api';
@@ -11,10 +11,14 @@ import { appApi } from '../../services/appApi';
 function formatDateTimeRange(startIso: string, endIso: string) {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const date = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const startDate = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const endDate = end.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const timeStart = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  return `${date} ${timeStart} - ${timeEnd}`;
+  if (startDate === endDate) {
+    return `${startDate} ${timeStart} - ${timeEnd}`;
+  }
+  return `${startDate} ${timeStart} - ${endDate} ${timeEnd}`;
 }
 
 function formatFullLocation(
@@ -53,6 +57,11 @@ export default function JobDetailPage() {
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState('');
   const [caregiverDocs, setCaregiverDocs] = useState<CaregiverDocument[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [existingReview, setExistingReview] = useState<any>(null);
+  const [reviewHover, setReviewHover] = useState(0);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -79,6 +88,15 @@ export default function JobDetailPage() {
           } catch { /* ignore */ } finally {
             setDocsLoading(false);
           }
+        }
+        // Load existing review
+        if (id) {
+          try {
+            const reviewRes = await appApi.getJobReview(id);
+            if (reviewRes.success && reviewRes.data?.review) {
+              setExistingReview(reviewRes.data.review);
+            }
+          } catch { /* ignore */ }
         }
         return;
       }
@@ -356,6 +374,77 @@ export default function JobDetailPage() {
                         <ExternalLink className="w-4 h-4 text-gray-400 flex-shrink-0" />
                       </a>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Review section for completed jobs */}
+            {!isCaregiverView && job.status === 'completed' && (job as any).caregiver_id && (
+              <div className="mt-5 p-4 bg-yellow-50 border border-yellow-100 rounded-lg">
+                <div className="text-sm font-semibold text-gray-900 mb-3">
+                  {existingReview ? 'รีวิวของคุณ' : 'รีวิวผู้ดูแล'}
+                </div>
+                {existingReview ? (
+                  <div>
+                    <div className="flex items-center gap-1 mb-2">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <Star key={i} className={`w-5 h-5 ${i < existingReview.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                      ))}
+                      <span className="text-sm text-gray-600 ml-2">{existingReview.rating}/5</span>
+                    </div>
+                    {existingReview.comment && (
+                      <p className="text-sm text-gray-700">{existingReview.comment}</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: 5 }, (_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onMouseEnter={() => setReviewHover(i + 1)}
+                          onMouseLeave={() => setReviewHover(0)}
+                          onClick={() => setReviewRating(i + 1)}
+                          className="p-0.5"
+                        >
+                          <Star className={`w-7 h-7 transition-colors ${
+                            i < (reviewHover || reviewRating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 hover:text-yellow-300'
+                          }`} />
+                        </button>
+                      ))}
+                      {reviewRating > 0 && <span className="text-sm text-gray-600 ml-2">{reviewRating}/5</span>}
+                    </div>
+                    <textarea
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-20"
+                      value={reviewComment}
+                      onChange={(e) => setReviewComment(e.target.value)}
+                      placeholder="แสดงความคิดเห็นเกี่ยวกับผู้ดูแล (ไม่บังคับ)"
+                    />
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={reviewRating === 0 || reviewSubmitting}
+                      loading={reviewSubmitting}
+                      onClick={async () => {
+                        if (!reviewRating || !(job as any).caregiver_id) return;
+                        setReviewSubmitting(true);
+                        try {
+                          const res = await appApi.createReview(job.id, (job as any).caregiver_id, reviewRating, reviewComment.trim() || undefined);
+                          if (res.success) {
+                            toast.success('บันทึกรีวิวแล้ว');
+                            setExistingReview({ rating: reviewRating, comment: reviewComment.trim() });
+                          } else {
+                            toast.error((res as any).error || 'ไม่สามารถบันทึกรีวิวได้');
+                          }
+                        } finally {
+                          setReviewSubmitting(false);
+                        }
+                      }}
+                    >
+                      ส่งรีวิว
+                    </Button>
                   </div>
                 )}
               </div>

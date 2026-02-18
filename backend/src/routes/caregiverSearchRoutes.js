@@ -189,6 +189,14 @@ router.post(
           .json({ success: false, error: "งานนี้ถูกยกเลิกแล้ว" });
       }
 
+      // Only allow direct assignment for unassigned (posted/draft) or completed jobs
+      const allowedStatuses = ["draft", "posted", "completed"];
+      if (!allowedStatuses.includes(job.status)) {
+        return res
+          .status(400)
+          .json({ success: false, error: "สามารถมอบหมายได้เฉพาะงานที่ยังไม่ได้รับมอบหมาย หรืองานที่เสร็จแล้วเท่านั้น" });
+      }
+
       // Verify caregiver exists and is active
       const cgResult = await query(
         `SELECT id, role, status, trust_level FROM users WHERE id = $1 AND role = 'caregiver' AND status = 'active'`,

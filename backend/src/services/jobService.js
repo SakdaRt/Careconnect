@@ -651,8 +651,8 @@ export const acceptJob = async (jobPostId, caregiverId) => {
 
     const isPreferredCaregiverFlow =
       Boolean(jobPost.preferred_caregiver_id) && jobPost.preferred_caregiver_id === caregiverId;
-    const nextJobStatus = isPreferredCaregiverFlow ? 'in_progress' : 'assigned';
-    const assignmentStartConfirmedAt = isPreferredCaregiverFlow ? new Date() : null;
+    const nextJobStatus = 'assigned';
+    const assignmentStartConfirmedAt = null;
 
     // Update job post status
     const jobPostUpdate = await client.query(
@@ -709,8 +709,8 @@ export const acceptJob = async (jobPostId, caregiverId) => {
 
     // Add system message
     const systemMessage = isPreferredCaregiverFlow
-      ? 'ผู้ดูแลตอบรับงานแล้ว และงานเริ่มดำเนินการ'
-      : 'Job has been assigned. Payment has been secured in escrow.';
+      ? 'ผู้ดูแลตอบรับงานที่มอบหมายแล้ว กรุณาเช็คอินเมื่อถึงสถานที่ทำงาน'
+      : 'ผู้ดูแลรับงานแล้ว เงินถูกพักไว้ในระบบ Escrow เรียบร้อย';
     await client.query(
       `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
        VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
@@ -1038,7 +1038,7 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
     if (threadResult.rows.length > 0) {
       await client.query(
         `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
-         VALUES ($1, $2, NULL, 'system', 'Job completed. Payment has been released to caregiver.', true, NOW())`,
+         VALUES ($1, $2, NULL, 'system', 'งานเสร็จสมบูรณ์ ระบบโอนเงินให้ผู้ดูแลเรียบร้อยแล้ว', true, NOW())`,
         [uuidv4(), threadResult.rows[0].id]
       );
     }

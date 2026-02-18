@@ -259,8 +259,19 @@ class Job extends BaseModel {
    * @returns {object} - Updated job data
    */
   async executeTransition(jobId, toState, userId, metadata = {}, transitionFn) {
-    // Get current job state
-    const currentJob = await this.findById(jobId);
+    // Get current job state - try job_posts first, then jobs table
+    let currentJob = await this.findById(jobId);
+    if (!currentJob) {
+      // Try looking up in jobs table (for check-in/check-out which use jobs.id)
+      const jobResult = await query(
+        `SELECT j.*, ja.caregiver_id
+         FROM jobs j
+         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         WHERE j.id = $1`,
+        [jobId]
+      );
+      currentJob = jobResult.rows[0] || null;
+    }
     if (!currentJob) {
       throw new Error('Job not found');
     }
@@ -668,7 +679,7 @@ class Job extends BaseModel {
       // Add system message
       await client.query(
         `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
-         VALUES ($1, $2, NULL, 'system', 'Job has been assigned', true, NOW())`,
+         VALUES ($1, $2, NULL, 'system', 'ผู้ดูแลได้รับมอบหมายงานแล้ว', true, NOW())`,
         [uuidv4(), threadId]
       );
 

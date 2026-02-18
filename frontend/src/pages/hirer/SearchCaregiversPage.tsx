@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Search, Star, Briefcase, Clock3 } from 'lucide-react';
+import { Search, Star, Briefcase, Clock3, Heart } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState, Modal } from '../../components/ui';
 import { JobPost } from '../../services/api';
@@ -114,6 +114,28 @@ export default function SearchCaregiversPage() {
   const [jobsLoading, setJobsLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailCaregiver, setDetailCaregiver] = useState<CaregiverResult | null>(null);
+  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
+
+  const handleToggleFavorite = async (caregiverId: string) => {
+    try {
+      const res = await appApi.toggleFavorite(caregiverId);
+      if (res.success && res.data) {
+        setFavoritedIds((prev) => {
+          const next = new Set(prev);
+          if (res.data!.favorited) {
+            next.add(caregiverId);
+            toast.success('เพิ่มในรายการโปรดแล้ว');
+          } else {
+            next.delete(caregiverId);
+            toast.success('ลบออกจากรายการโปรดแล้ว');
+          }
+          return next;
+        });
+      }
+    } catch {
+      toast.error('ไม่สามารถบันทึกรายการโปรดได้');
+    }
+  };
 
   const search = useCallback(async (p = 1) => {
     setLoading(true);
@@ -279,6 +301,11 @@ export default function SearchCaregiversPage() {
           <h1 className="text-2xl font-bold text-gray-900">ค้นหาผู้ดูแล</h1>
           <p className="text-sm text-gray-600">ค้นหาและเลือกผู้ดูแลที่เหมาะสม แล้วมอบหมายงานได้เลย</p>
         </div>
+        <div className="mb-4">
+          <Button variant="outline" size="sm" onClick={() => navigate('/hirer/favorites')}>
+            <Heart className="w-4 h-4 mr-1 inline" />ผู้ดูแลที่ชื่นชอบ
+          </Button>
+        </div>
 
         {/* Search bar */}
         <div className="flex gap-2 mb-4">
@@ -379,7 +406,15 @@ export default function SearchCaregiversPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2 flex-shrink-0">
+                  <div className="flex gap-2 flex-shrink-0 items-center">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleFavorite(cg.id)}
+                      className="p-2 rounded-full hover:bg-red-50 transition-colors"
+                      title={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+                    >
+                      <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                    </button>
                     <Button variant="outline" size="sm" onClick={() => handleOpenDetails(cg)}>
                       ดูรายละเอียด
                     </Button>

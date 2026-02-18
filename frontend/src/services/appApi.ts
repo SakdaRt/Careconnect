@@ -125,8 +125,8 @@ export const appApi = {
     return api.checkIn(jobId, gpsData);
   },
 
-  async checkOut(jobId: string, _caregiverId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }) {
-    return api.checkOut(jobId, gpsData);
+  async checkOut(jobId: string, _caregiverId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }, evidenceNote?: string) {
+    return api.checkOut(jobId, gpsData, evidenceNote);
   },
 
   async getChatThread(jobId: string) {
@@ -264,6 +264,32 @@ export const appApi = {
 
   async simulatePayment(paymentId: string) {
     return api.simulatePayment(paymentId);
+  },
+
+  // Reviews
+  async createReview(jobId: string, caregiverId: string, rating: number, comment?: string) {
+    return api.createReview(jobId, caregiverId, rating, comment);
+  },
+
+  async getCaregiverReviews(caregiverId: string, page = 1, limit = 20) {
+    return api.getCaregiverReviews(caregiverId, page, limit);
+  },
+
+  async getJobReview(jobId: string) {
+    return api.getJobReview(jobId);
+  },
+
+  // Favorites
+  async toggleFavorite(caregiverId: string) {
+    return api.toggleFavorite(caregiverId);
+  },
+
+  async getFavorites(page = 1, limit = 20) {
+    return api.getFavorites(page, limit);
+  },
+
+  async checkFavorite(caregiverId: string) {
+    return api.checkFavorite(caregiverId);
   },
 
   async searchCaregivers(params: { q?: string; page?: number; limit?: number; skills?: string; trust_level?: string }) {

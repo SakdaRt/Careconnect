@@ -97,7 +97,7 @@ export const createJob = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Job created successfully',
+      message: 'สร้างงานสำเร็จ',
       data: { job },
     });
   } catch (error) {
@@ -120,7 +120,7 @@ export const rejectAssignedJob = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Job rejected successfully',
+      message: 'ปฏิเสธงานสำเร็จ',
       data: result,
     });
   } catch (error) {
@@ -142,7 +142,7 @@ export const publishJob = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Job published successfully',
+      message: 'เผยแพร่งานสำเร็จ',
       data: { job },
     });
   } catch (error) {
@@ -324,7 +324,7 @@ export const acceptJob = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Job accepted successfully',
+      message: 'รับงานสำเร็จ',
       data: result,
     });
   } catch (error) {
@@ -348,7 +348,7 @@ export const checkIn = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Checked in successfully',
+      message: 'เช็คอินสำเร็จ',
       data: { job: result },
     });
   } catch (error) {
@@ -365,14 +365,21 @@ export const checkOut = async (req, res) => {
   try {
     const caregiverId = req.userId;
     const { jobId } = req.params;
-    const { lat, lng, accuracy_m } = req.body;
+    const { lat, lng, accuracy_m, evidence_note } = req.body;
+
+    if (!evidence_note || !String(evidence_note).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณากรอกหลักฐานการทำงาน (สรุปงานที่ทำ)',
+      });
+    }
 
     const gpsData = { lat, lng, accuracy_m };
     const result = await checkOutService(jobId, caregiverId, gpsData);
 
     res.status(200).json({
       success: true,
-      message: 'Checked out successfully. Payment released.',
+      message: 'เช็คเอาต์สำเร็จ ระบบจ่ายเงินเรียบร้อย',
       data: result,
     });
   } catch (error) {
@@ -402,7 +409,7 @@ export const cancelJob = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Job cancelled successfully',
+      message: 'ยกเลิกงานสำเร็จ',
       data: result,
     });
   } catch (error) {

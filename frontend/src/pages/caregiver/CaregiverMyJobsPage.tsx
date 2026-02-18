@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge } from '../../components/ui';
 import { CaregiverAssignedJob } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -13,10 +13,14 @@ type Filter = 'all' | 'offers' | 'upcoming' | 'in_progress' | 'completed' | 'can
 function formatDateTimeRange(startIso: string, endIso: string) {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const date = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const startDate = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const endDate = end.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const timeStart = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  return `${date} ${timeStart} - ${timeEnd}`;
+  if (startDate === endDate) {
+    return `${startDate} ${timeStart} - ${timeEnd}`;
+  }
+  return `${startDate} ${timeStart} - ${endDate} ${timeEnd}`;
 }
 
 function formatCompactLocation(addressLine1?: string | null, district?: string | null, province?: string | null) {
@@ -96,6 +100,8 @@ export default function CaregiverMyJobsPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [disputeReason, setDisputeReason] = useState('');
   const [disputeJobId, setDisputeJobId] = useState<string | null>(null);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutJobId, setCheckoutJobId] = useState<string | null>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleJobs, setScheduleJobs] = useState<CaregiverAssignedJob[]>([]);
@@ -291,16 +297,28 @@ export default function CaregiverMyJobsPage() {
     }
   };
 
-  const handleCheckOut = async (jobId: string) => {
-    setActionLoadingId(jobId);
+  const handleOpenCheckout = (jobId: string) => {
+    setCheckoutJobId(jobId);
+    setCheckoutOpen(true);
+  };
+
+  const handleConfirmCheckout = async (evidenceNote: string) => {
+    if (!checkoutJobId || !evidenceNote.trim()) return;
+    setActionLoadingId(checkoutJobId);
     try {
-      const gps = await getCurrentGps();
-      const res = await appApi.checkOut(jobId, caregiverId, gps);
+      let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
+      try {
+        const raw = await getCurrentGps();
+        gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
+      } catch { /* checkout allowed anywhere */ }
+      const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote.trim());
       if (!res.success) {
         toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
         return;
       }
       toast.success('ส่งงานเสร็จแล้ว');
+      setCheckoutOpen(false);
+      setCheckoutJobId(null);
       if (filter === 'completed') {
         await load();
       } else {
@@ -507,7 +525,7 @@ export default function CaregiverMyJobsPage() {
                             variant="primary"
                             size="sm"
                             loading={isLoading}
-                            onClick={() => handleCheckOut(job.id)}
+                            onClick={() => handleOpenCheckout(job.id)}
                           >
                             ส่งงานเสร็จ
                           </Button>
@@ -663,6 +681,19 @@ export default function CaregiverMyJobsPage() {
             />
           </div>
         </Modal>
+
+        <ReasonModal
+          isOpen={checkoutOpen}
+          onClose={() => { setCheckoutOpen(false); setCheckoutJobId(null); }}
+          onConfirm={handleConfirmCheckout}
+          title="ส่งงานเสร็จ"
+          description="กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต"
+          placeholder="สรุปงานที่ทำ เช่น อาบน้ำ ป้อนอาหาร วัดความดัน..."
+          confirmText="ยืนยันส่งงาน"
+          variant="primary"
+          loading={!!actionLoadingId}
+          minLength={10}
+        />
       </div>
     </MainLayout>
   );
