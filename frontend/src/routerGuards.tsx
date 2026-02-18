@@ -3,7 +3,12 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { LoadingState } from './components/ui';
 import { useAuth } from './contexts';
 import type { UserRole } from './contexts/AuthContext';
-import { isConfiguredDisplayName } from './utils/profileName';
+import { isConfiguredDisplayName, toDisplayNameFromFullName } from './utils/profileName';
+
+const hasConfiguredProfileName = (value?: string | null) => {
+  if (isConfiguredDisplayName(value)) return true;
+  return Boolean(toDisplayNameFromFullName(String(value || '')));
+};
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -98,7 +103,7 @@ export function RequirePolicy({ children }: { children: ReactNode }) {
 }
 
 /**
- * Require user to have a display_name set.
+ * Require user to have a configured profile name.
  * Redirects to /profile with a state flag if missing.
  */
 export function RequireProfile({ children }: { children: ReactNode }) {
@@ -118,8 +123,9 @@ export function RequireProfile({ children }: { children: ReactNode }) {
   // Admin users don't need a profile
   if (user.role === 'admin') return <>{children}</>;
 
-  // Require a configured display name (e.g. "สมชาย ใ.") before entering core flows.
-  if (!isConfiguredDisplayName(user.name)) {
+  // Require a configured profile name before entering core flows.
+  // Accept both legacy short names and full names (self-view format).
+  if (!hasConfiguredProfileName(user.name)) {
     return (
       <Navigate
         to="/profile"

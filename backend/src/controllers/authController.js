@@ -150,6 +150,20 @@ const normalizeDisplayNameInput = (value) => {
 
   return null;
 };
+
+const normalizeFullNameInput = (value) => {
+  const normalized = normalizeSpaces(value);
+  if (!normalized) return null;
+
+  if (GENERATED_DISPLAY_NAME_PATTERN.test(normalized)) {
+    return null;
+  }
+
+  const parts = normalized.split(' ').filter(Boolean);
+  if (parts.length < 2) return null;
+
+  return normalized;
+};
 /**
  * Auth Controller
  * Handles authentication-related HTTP requests
@@ -186,7 +200,9 @@ const buildSafeUserResponse = async (userId) => {
     const userWithProfile = await User.getUserWithProfile(userId);
     if (!userWithProfile) return null;
     const { profile, ...rest } = userWithProfile;
-    const name = profile?.display_name ? String(profile.display_name) : rest.name || null;
+    const name = profile?.full_name
+      ? String(profile.full_name)
+      : (profile?.display_name ? String(profile.display_name) : rest.name || null);
     delete rest.password_hash;
     return { ...rest, name };
   } catch (err) {
@@ -712,12 +728,14 @@ const ensureProfileSchema = async () => {
 
   await query(`
     ALTER TABLE hirer_profiles
+      ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
       ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION,
       ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION
   `);
 
   await query(`
     ALTER TABLE caregiver_profiles
+      ADD COLUMN IF NOT EXISTS full_name VARCHAR(255),
       ADD COLUMN IF NOT EXISTS is_public_profile BOOLEAN NOT NULL DEFAULT TRUE
   `);
 
@@ -857,6 +875,7 @@ export const updateMyProfile = async (req, res) => {
 
     const rawDisplayName = normalizeString(req.body?.display_name);
     const display_name = normalizeDisplayNameInput(rawDisplayName);
+    const full_name = normalizeFullNameInput(rawDisplayName);
     if (!display_name) {
       return res.status(400).json({
         error: 'Validation error',
@@ -871,6 +890,7 @@ export const updateMyProfile = async (req, res) => {
       const payload = {
         user_id: user.id,
         display_name,
+        full_name,
         address_line1: normalizeString(req.body?.address_line1),
         address_line2: normalizeString(req.body?.address_line2),
         district: normalizeString(req.body?.district),
@@ -883,10 +903,11 @@ export const updateMyProfile = async (req, res) => {
       const result = hasLatLngColumns
         ? await query(
             `INSERT INTO hirer_profiles
-              (user_id, display_name, address_line1, address_line2, district, province, postal_code, lat, lng, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+              (user_id, display_name, full_name, address_line1, address_line2, district, province, postal_code, lat, lng, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
              ON CONFLICT (user_id) DO UPDATE
              SET display_name = EXCLUDED.display_name,
+                 full_name = COALESCE(EXCLUDED.full_name, hirer_profiles.full_name),
                  address_line1 = EXCLUDED.address_line1,
                  address_line2 = EXCLUDED.address_line2,
                  district = EXCLUDED.district,
@@ -899,6 +920,7 @@ export const updateMyProfile = async (req, res) => {
             [
               payload.user_id,
               payload.display_name,
+              payload.full_name,
               payload.address_line1,
               payload.address_line2,
               payload.district,
@@ -910,10 +932,11 @@ export const updateMyProfile = async (req, res) => {
           )
         : await query(
             `INSERT INTO hirer_profiles
-              (user_id, display_name, address_line1, address_line2, district, province, postal_code, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+              (user_id, display_name, full_name, address_line1, address_line2, district, province, postal_code, updated_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
              ON CONFLICT (user_id) DO UPDATE
              SET display_name = EXCLUDED.display_name,
+                 full_name = COALESCE(EXCLUDED.full_name, hirer_profiles.full_name),
                  address_line1 = EXCLUDED.address_line1,
                  address_line2 = EXCLUDED.address_line2,
                  district = EXCLUDED.district,
@@ -924,6 +947,7 @@ export const updateMyProfile = async (req, res) => {
             [
               payload.user_id,
               payload.display_name,
+              payload.full_name,
               payload.address_line1,
               payload.address_line2,
               payload.district,
@@ -961,6 +985,7 @@ export const updateMyProfile = async (req, res) => {
     const payload = {
       user_id: user.id,
       display_name,
+      full_name,
       bio: normalizeString(req.body?.bio),
       experience_years: normalizeNumber(req.body?.experience_years),
       certifications: normalizeStringArray(req.body?.certifications),
@@ -980,10 +1005,11 @@ export const updateMyProfile = async (req, res) => {
 
       const result = await query(
         `INSERT INTO caregiver_profiles
-          (user_id, display_name, bio, experience_years, certifications, specializations, available_from, available_to, available_days, is_public_profile, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+          (user_id, display_name, full_name, bio, experience_years, certifications, specializations, available_from, available_to, available_days, is_public_profile, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
          ON CONFLICT (user_id) DO UPDATE
          SET display_name = EXCLUDED.display_name,
+             full_name = COALESCE(EXCLUDED.full_name, caregiver_profiles.full_name),
              bio = EXCLUDED.bio,
              experience_years = EXCLUDED.experience_years,
              certifications = EXCLUDED.certifications,
@@ -997,6 +1023,7 @@ export const updateMyProfile = async (req, res) => {
         [
           payload.user_id,
           payload.display_name,
+          payload.full_name,
           payload.bio,
           payload.experience_years,
           payload.certifications,
@@ -1016,10 +1043,11 @@ export const updateMyProfile = async (req, res) => {
 
     const result = await query(
       `INSERT INTO caregiver_profiles
-        (user_id, display_name, bio, experience_years, certifications, specializations, available_from, available_to, available_days, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        (user_id, display_name, full_name, bio, experience_years, certifications, specializations, available_from, available_to, available_days, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
        ON CONFLICT (user_id) DO UPDATE
        SET display_name = EXCLUDED.display_name,
+           full_name = COALESCE(EXCLUDED.full_name, caregiver_profiles.full_name),
            bio = EXCLUDED.bio,
            experience_years = EXCLUDED.experience_years,
            certifications = EXCLUDED.certifications,
@@ -1032,6 +1060,7 @@ export const updateMyProfile = async (req, res) => {
       [
         payload.user_id,
         payload.display_name,
+        payload.full_name,
         payload.bio,
         payload.experience_years,
         payload.certifications,

@@ -80,7 +80,7 @@ export default function ProfilePage() {
     }
     return `/uploads/${user.avatar}`;
   }, [user?.avatar]);
-  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} ระบบจะแสดงเป็น “ชื่อจริง น.” อัตโนมัติ`;
+  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} คนอื่นจะเห็นเป็น “ชื่อจริง น.” ก่อนมอบหมายงาน`;
 
   const handleAvatarFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -320,16 +320,16 @@ export default function ProfilePage() {
   const hirerDisplayNamePreview = useMemo(() => toDisplayNameFromFullName(hirerForm.display_name), [hirerForm.display_name]);
   const caregiverDisplayNamePreview = useMemo(() => toDisplayNameFromFullName(caregiverForm.display_name), [caregiverForm.display_name]);
 
-  const resolveDisplayNameForSave = useCallback((rawInput: string, previousDisplayName?: string | null) => {
+  const resolveNameInputForSave = useCallback((rawInput: string, previousDisplayName?: string | null) => {
     const trimmedInput = rawInput.trim();
     if (!trimmedInput) return null;
 
     const converted = toDisplayNameFromFullName(trimmedInput);
-    if (converted) return converted;
+    if (converted) return trimmedInput;
 
     const previous = (previousDisplayName || '').trim();
     if (previous && trimmedInput === previous && isConfiguredDisplayName(previous)) {
-      return previous;
+      return trimmedInput;
     }
 
     return null;
@@ -362,7 +362,7 @@ export default function ProfilePage() {
 
   const hydrateHirerForm = useCallback((profile: HirerProfile | null, fallbackName: string) => {
     setHirerForm({
-      display_name: profile?.display_name || fallbackName,
+      display_name: profile?.full_name || profile?.display_name || fallbackName,
       address_line1: profile?.address_line1 || '',
       address_line2: profile?.address_line2 || '',
       district: profile?.district || '',
@@ -375,7 +375,7 @@ export default function ProfilePage() {
 
   const hydrateCaregiverForm = useCallback((profile: CaregiverProfile | null, fallbackName: string) => {
     setCaregiverForm({
-      display_name: profile?.display_name || fallbackName,
+      display_name: profile?.full_name || profile?.display_name || fallbackName,
       bio: profile?.bio || '',
       experience_years: profile?.experience_years !== null && profile?.experience_years !== undefined ? String(profile.experience_years) : '',
       certifications: profile?.certifications || [],
@@ -432,13 +432,13 @@ export default function ProfilePage() {
     try {
       if (profileRole === 'hirer') {
         const previousDisplayName = (profileSnapshot as HirerProfile | null)?.display_name || null;
-        const displayName = resolveDisplayNameForSave(hirerForm.display_name, previousDisplayName);
-        if (!displayName) {
+        const fullNameInput = resolveNameInputForSave(hirerForm.display_name, previousDisplayName);
+        if (!fullNameInput) {
           toast.error(`${FULL_NAME_INPUT_GUIDE} แล้วระบบจะแสดงเป็นชื่อจริงและตัวแรกของนามสกุล`);
           return;
         }
         const res = await appApi.updateMyProfile({
-          display_name: displayName,
+          display_name: fullNameInput,
           address_line1: hirerForm.address_line1.trim() || null,
           address_line2: hirerForm.address_line2.trim() || null,
           district: hirerForm.district.trim() || null,
@@ -452,7 +452,7 @@ export default function ProfilePage() {
           return;
         }
         applyProfile('hirer', res.data.profile);
-        updateUser({ name: displayName });
+        updateUser({ name: (res.data.profile as any)?.full_name || res.data.profile.display_name || fullNameInput });
         toast.success('บันทึกแล้ว');
         if (profileRequired && returnTo) {
           navigate(returnTo, { replace: true });
@@ -461,8 +461,8 @@ export default function ProfilePage() {
       }
 
       const previousDisplayName = (profileSnapshot as CaregiverProfile | null)?.display_name || null;
-      const displayName = resolveDisplayNameForSave(caregiverForm.display_name, previousDisplayName);
-      if (!displayName) {
+      const fullNameInput = resolveNameInputForSave(caregiverForm.display_name, previousDisplayName);
+      if (!fullNameInput) {
         toast.error(`${FULL_NAME_INPUT_GUIDE} แล้วระบบจะแสดงเป็นชื่อจริงและตัวแรกของนามสกุล`);
         return;
       }
@@ -472,7 +472,7 @@ export default function ProfilePage() {
         .map((value) => Number(value))
         .filter((value) => Number.isInteger(value) && value >= 0 && value <= 6);
       const res = await appApi.updateMyProfile({
-        display_name: displayName,
+        display_name: fullNameInput,
         bio: caregiverForm.bio.trim() || null,
         experience_years: Number.isFinite(experienceValue) ? experienceValue : null,
         certifications: caregiverForm.certifications,
@@ -487,7 +487,7 @@ export default function ProfilePage() {
         return;
       }
       applyProfile('caregiver', res.data.profile);
-      updateUser({ name: displayName });
+      updateUser({ name: (res.data.profile as any)?.full_name || res.data.profile.display_name || fullNameInput });
       toast.success('บันทึกแล้ว');
       if (profileRequired && returnTo) {
         navigate(returnTo, { replace: true });

@@ -186,6 +186,7 @@ CREATE TABLE caregiver_profiles (
 
     -- Profile info
     display_name VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
     bio TEXT,
     experience_years INT CHECK (experience_years >= 0),
     certifications TEXT[], -- Array of certification names
@@ -223,6 +224,7 @@ CREATE TABLE hirer_profiles (
 
     -- Profile info
     display_name VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
     address_line1 VARCHAR(255),
     address_line2 VARCHAR(255),
     district VARCHAR(100),

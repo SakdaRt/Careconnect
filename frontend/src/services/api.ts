@@ -1149,6 +1149,7 @@ export interface CaregiverProfile {
   id: string;
   user_id: string;
   display_name: string;
+  full_name?: string | null;
   is_public_profile?: boolean | null;
   bio: string | null;
   experience_years: number | null;
@@ -1168,6 +1169,7 @@ export interface HirerProfile {
   id: string;
   user_id: string;
   display_name: string;
+  full_name?: string | null;
   address_line1: string | null;
   address_line2: string | null;
   district: string | null;

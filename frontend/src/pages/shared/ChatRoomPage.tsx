@@ -235,6 +235,15 @@ export default function ChatRoomPage() {
     }
   };
 
+  const viewJobDetailId = ((job as any)?.id as string | undefined)
+    || ((job as any)?.job_id as string | undefined)
+    || jobId;
+
+  const handleViewJobDetail = () => {
+    if (!viewJobDetailId) return;
+    navigate(`/jobs/${viewJobDetailId}`);
+  };
+
   const handleCheckOut = async () => {
     if (!jobId) return;
     setActionLoading('checkout');
@@ -385,8 +394,12 @@ export default function ChatRoomPage() {
               {disputeInfo?.reason && (
                 <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
               )}
-              {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
-                <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+                <Button variant="outline" size="sm" disabled={!viewJobDetailId} onClick={handleViewJobDetail}>
+                  ดูรายละเอียดงาน
+                </Button>
+                {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
+                  <>
                   {disputeInfo?.id && (
                     <Button variant="outline" size="sm" onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
                       ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
@@ -400,8 +413,9 @@ export default function ChatRoomPage() {
                   <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'cancel'} onClick={handleCancelJob}>
                     ยกเลิกงาน
                   </Button>
-                </div>
-              )}
+                  </>
+                )}
+              </div>
             </Card>
 
             {user?.role === 'caregiver' && (

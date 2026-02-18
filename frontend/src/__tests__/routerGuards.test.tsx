@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { RequireAuth, RequireRole, RequireAdmin } from '../routerGuards'
+import { RequireAuth, RequireRole, RequireProfile, RequireAdmin } from '../routerGuards'
 import { AuthProvider } from '../contexts/AuthContext'
 import type { User } from '../services/api'
 
@@ -261,6 +261,73 @@ describe('Route Guards', () => {
       )
 
       expect(screen.getByText('Admin Content')).toBeInTheDocument()
+    })
+  })
+
+  describe('RequireProfile', () => {
+    const baseUser: User = {
+      id: '1',
+      email: 'test@example.com',
+      phone_number: '+1234567890',
+      role: 'hirer',
+      account_type: 'member',
+      trust_level: 'L1',
+      trust_score: 75,
+      status: 'active',
+      is_email_verified: true,
+      is_phone_verified: true,
+      completed_jobs_count: 5,
+      first_job_waiver_used: false,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+    }
+
+    it('allows users with full name format', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          ...baseUser,
+          name: 'สมชาย ใจดี',
+        },
+        isLoading: false,
+        isAuthenticated: true,
+        activeRole: 'hirer',
+      } as any)
+
+      render(
+        <MemoryRouter>
+          <AuthProvider>
+            <RequireProfile>
+              <div>Profile Protected Content</div>
+            </RequireProfile>
+          </AuthProvider>
+        </MemoryRouter>
+      )
+
+      expect(screen.getByText('Profile Protected Content')).toBeInTheDocument()
+    })
+
+    it('redirects users with unconfigured generated name', () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          ...baseUser,
+          name: 'ผู้ว่าจ้าง A1B2',
+        },
+        isLoading: false,
+        isAuthenticated: true,
+        activeRole: 'hirer',
+      } as any)
+
+      render(
+        <MemoryRouter initialEntries={['/hirer/home']}>
+          <AuthProvider>
+            <RequireProfile>
+              <div>Profile Protected Content</div>
+            </RequireProfile>
+          </AuthProvider>
+        </MemoryRouter>
+      )
+
+      expect(screen.queryByText('Profile Protected Content')).not.toBeInTheDocument()
     })
   })
 
