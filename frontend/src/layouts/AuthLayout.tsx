@@ -11,7 +11,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       {/* Simple header with logo */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+          <div className="flex justify-between items-center h-12 sm:h-16">
             <Link to="/" className="flex items-center">
               <span className="text-2xl font-bold text-blue-600">Careconnect</span>
             </Link>
@@ -20,7 +20,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex-1 flex items-center justify-center py-4 sm:py-12 px-4 sm:px-6 lg:px-8">
         <div className="w-full max-w-md">
           {children}
         </div>

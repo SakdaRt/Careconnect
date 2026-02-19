@@ -133,15 +133,10 @@ export default function CareRecipientsPage() {
             <Button
               variant="primary"
               fullWidth
-              className="min-h-[56px] sm:min-h-0 sm:w-auto sm:px-6"
+              className="sm:w-auto whitespace-nowrap"
               onClick={() => navigate('/hirer/care-recipients/new')}
             >
-              <span className="block text-center leading-tight sm:hidden">
-                เพิ่มผู้รับ
-                <br />
-                การดูแล
-              </span>
-              <span className="hidden sm:block">เพิ่มผู้รับการดูแล</span>
+              เพิ่มผู้รับการดูแล
             </Button>
           </div>
         </div>
@@ -149,7 +144,7 @@ export default function CareRecipientsPage() {
         {loading ? (
           <LoadingState message="กำลังโหลด..." />
         ) : active.length === 0 ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="text-sm text-gray-700">ยังไม่มีผู้รับการดูแล</div>
             <div className="mt-4 flex gap-2">
               <Link to="/hirer/care-recipients/new">

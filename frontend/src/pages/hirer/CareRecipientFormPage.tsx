@@ -468,7 +468,7 @@ export default function CareRecipientFormPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-2">{title}</h1>
         {isEdit && data && <div className="text-xs text-gray-500 font-mono break-all mb-4">{data.id}</div>}
 
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="space-y-4">
             <Input
               label="ชื่อที่ใช้แสดง"

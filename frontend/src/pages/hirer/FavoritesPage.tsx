@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Heart, Star, Briefcase } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState } from '../../components/ui';
+import { Button, Card, LoadingState, Modal } from '../../components/ui';
+import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
+import { useAuth } from '../../contexts';
 
 interface FavoriteCaregiver {
   id: string;
@@ -31,12 +33,26 @@ const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> =
   L0: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'L0 ยังไม่ยืนยัน' },
 };
 
+const CREATE_NEW_JOB_OPTION = '__create_new_job__';
+
 export default function FavoritesPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const hirerId = user?.id || '';
   const [favorites, setFavorites] = useState<FavoriteCaregiver[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailCaregiver, setDetailCaregiver] = useState<FavoriteCaregiver | null>(null);
+
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [selectedCaregiver, setSelectedCaregiver] = useState<FavoriteCaregiver | null>(null);
+  const [myJobs, setMyJobs] = useState<JobPost[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  const [jobsLoading, setJobsLoading] = useState(false);
 
   const load = useCallback(async (p = 1) => {
     setLoading(true);
@@ -58,6 +74,21 @@ export default function FavoritesPage() {
     load(1);
   }, [load]);
 
+  const loadMyJobs = useCallback(async () => {
+    setJobsLoading(true);
+    try {
+      const res = await appApi.getMyJobs(hirerId);
+      if (res.success && res.data) {
+        const assignable = (res.data.data || []).filter(
+          (j: JobPost) => !['cancelled', 'completed', 'expired'].includes(j.status || '')
+        );
+        setMyJobs(assignable);
+      }
+    } finally {
+      setJobsLoading(false);
+    }
+  }, [hirerId]);
+
   const handleRemoveFavorite = async (caregiverId: string) => {
     try {
       const res = await appApi.toggleFavorite(caregiverId);
@@ -67,6 +98,96 @@ export default function FavoritesPage() {
       }
     } catch {
       toast.error('ไม่สามารถลบรายการโปรดได้');
+    }
+  };
+
+  const buildCreateJobPath = useCallback((caregiver?: FavoriteCaregiver | null) => {
+    const params = new URLSearchParams();
+    if (caregiver?.caregiver_id) {
+      params.set('preferred_caregiver_id', caregiver.caregiver_id);
+    }
+    if (caregiver?.display_name) {
+      params.set('preferred_caregiver_name', caregiver.display_name);
+    }
+    if (caregiver?.trust_level) {
+      params.set('preferred_caregiver_trust_level', caregiver.trust_level);
+    }
+    params.set('return_to_assign', '1');
+    return `/hirer/create-job?${params.toString()}`;
+  }, []);
+
+  const handleOpenDetails = (caregiver: FavoriteCaregiver) => {
+    setDetailCaregiver(caregiver);
+    setDetailOpen(true);
+  };
+
+  const handleOpenAssign = (caregiver: FavoriteCaregiver) => {
+    setSelectedCaregiver(caregiver);
+    setSelectedJobId(CREATE_NEW_JOB_OPTION);
+    setAssignOpen(true);
+    loadMyJobs();
+  };
+
+  const handleAssignFromDetails = () => {
+    if (!detailCaregiver) return;
+    setDetailOpen(false);
+    handleOpenAssign(detailCaregiver);
+  };
+
+  const handleOpenCreateJob = () => {
+    if (!selectedCaregiver) return;
+    setAssignOpen(false);
+    navigate(buildCreateJobPath(selectedCaregiver));
+  };
+
+  const handleConfirmAssign = async () => {
+    if (!selectedCaregiver) return;
+    if (selectedJobId === CREATE_NEW_JOB_OPTION) {
+      handleOpenCreateJob();
+      return;
+    }
+    if (!selectedJobId) return;
+
+    const selectedJob = myJobs.find((job) => job.id === selectedJobId);
+    setAssigning(true);
+    try {
+      if (selectedJob?.status === 'draft') {
+        const publishRes = await appApi.publishJob(selectedJob.id, hirerId);
+        if (!publishRes.success) {
+          const code = (publishRes as any).code as string | undefined;
+          const errMsg = String(publishRes.error || '');
+
+          if (code === 'INSUFFICIENT_BALANCE' || errMsg.includes('Insufficient')) {
+            toast.error('เงินในระบบไม่พอ กรุณาเติมเงินก่อนส่งงานให้ผู้ดูแล');
+            return;
+          }
+
+          if (
+            code === 'HIRER_TRUST_RESTRICTION' ||
+            code === 'POLICY_VIOLATION' ||
+            code === 'INSUFFICIENT_TRUST_LEVEL' ||
+            errMsg.includes('trust') ||
+            errMsg.includes('Trust') ||
+            errMsg.includes('policy')
+          ) {
+            toast.error('กรุณายืนยันตัวตนให้ครบตามระดับความเสี่ยงของงานก่อนส่งให้ผู้ดูแล');
+            return;
+          }
+
+          toast.error(publishRes.error || 'ไม่สามารถเผยแพร่งานเพื่อส่งให้ผู้ดูแลได้');
+          return;
+        }
+      }
+
+      const res = await appApi.assignCaregiverToJob(selectedJobId, selectedCaregiver.caregiver_id);
+      if (res.success) {
+        toast.success('ส่งงานให้ผู้ดูแลแล้ว รอการตอบรับ');
+        setAssignOpen(false);
+      } else {
+        toast.error(res.error || 'ไม่สามารถมอบหมายได้');
+      }
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -154,10 +275,13 @@ export default function FavoritesPage() {
                     >
                       <Heart className="w-5 h-5 fill-red-500 text-red-500" />
                     </button>
+                    <Button variant="outline" size="sm" onClick={() => handleOpenDetails(fav)}>
+                      ดูรายละเอียด
+                    </Button>
                     <Button
                       variant="primary"
                       size="sm"
-                      onClick={() => navigate(`/hirer/search-caregivers?q=${encodeURIComponent(fav.display_name || fav.caregiver_id)}`)}
+                      onClick={() => handleOpenAssign(fav)}
                     >
                       มอบหมายงาน
                     </Button>
@@ -175,6 +299,167 @@ export default function FavoritesPage() {
             <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => load(page + 1)}>ถัดไป</Button>
           </div>
         )}
+
+        <Modal
+          isOpen={detailOpen}
+          onClose={() => setDetailOpen(false)}
+          title={`รายละเอียดผู้ดูแล${detailCaregiver?.display_name ? `: ${detailCaregiver.display_name}` : ''}`}
+          size="md"
+          footer={
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setDetailOpen(false)}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                ปิด
+              </button>
+              <Button variant="primary" size="sm" onClick={handleAssignFromDetails} disabled={!detailCaregiver}>
+                มอบหมายงาน
+              </Button>
+            </div>
+          }
+        >
+          {detailCaregiver && (() => {
+            const tl = TRUST_STYLE[detailCaregiver.trust_level || 'L0'] || TRUST_STYLE.L0;
+            const tags = Array.from(new Set([...(detailCaregiver.specializations || []), ...(detailCaregiver.certifications || [])]));
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-base font-semibold text-gray-900">{detailCaregiver.display_name || 'ผู้ดูแล'}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded ${tl.bg} ${tl.text}`}>{tl.label}</span>
+                </div>
+
+                {detailCaregiver.bio && (
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{detailCaregiver.bio}</p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+                  {detailCaregiver.experience_years != null && (
+                    <div>ประสบการณ์: {detailCaregiver.experience_years} ปี</div>
+                  )}
+                  {(detailCaregiver.completed_jobs_count ?? 0) > 0 && (
+                    <div>จำนวนงานที่ทำแล้ว: {detailCaregiver.completed_jobs_count} งาน</div>
+                  )}
+                  {(detailCaregiver.total_reviews ?? 0) > 0 && (
+                    <div>คะแนนเฉลี่ย: {(detailCaregiver.avg_rating || 0).toFixed(1)} ({detailCaregiver.total_reviews} รีวิว)</div>
+                  )}
+                  {detailCaregiver.email && <div>อีเมล: {detailCaregiver.email}</div>}
+                </div>
+
+                {tags.length > 0 && (
+                  <div>
+                    <div className="text-sm font-medium text-gray-900 mb-2">ความเชี่ยวชาญ</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {tags.map((tag) => (
+                        <span key={tag} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+        </Modal>
+
+        <Modal
+          isOpen={assignOpen}
+          onClose={() => setAssignOpen(false)}
+          title={`มอบหมายงานให้ ${selectedCaregiver?.display_name || 'ผู้ดูแล'}`}
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setAssignOpen(false)}
+                disabled={assigning}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                ยกเลิก
+              </button>
+              <button
+                onClick={handleConfirmAssign}
+                disabled={assigning || !selectedJobId}
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {selectedJobId === CREATE_NEW_JOB_OPTION
+                  ? 'ไปสร้างงานใหม่'
+                  : assigning
+                    ? 'กำลังมอบหมาย...'
+                    : 'ยืนยันมอบหมาย'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-sm text-gray-600">เลือกงานที่ต้องการมอบหมายให้ผู้ดูแลคนนี้</p>
+            {jobsLoading ? (
+              <div className="text-center py-4 text-sm text-gray-500">กำลังโหลดรายการงาน...</div>
+            ) : myJobs.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500 mb-2">ยังไม่มีงานที่สามารถมอบหมายได้</p>
+                <Button variant="primary" size="sm" onClick={handleOpenCreateJob}>
+                  สร้างงานใหม่ทันที
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                <label
+                  className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedJobId === CREATE_NEW_JOB_OPTION ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="assign-job"
+                    value={CREATE_NEW_JOB_OPTION}
+                    checked={selectedJobId === CREATE_NEW_JOB_OPTION}
+                    onChange={() => setSelectedJobId(CREATE_NEW_JOB_OPTION)}
+                    className="mt-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sm text-gray-900">สร้างงานใหม่</div>
+                    <p className="text-xs text-gray-500 mt-0.5">ไปหน้าสร้างงานโพสต์ แล้วกลับมาเลือกมอบหมายผู้ดูแลคนนี้อัตโนมัติ</p>
+                  </div>
+                </label>
+                {myJobs.map((job) => (
+                  <label
+                    key={job.id}
+                    className={`flex items-start gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                      selectedJobId === job.id ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="assign-job"
+                      value={job.id}
+                      checked={selectedJobId === job.id}
+                      onChange={() => setSelectedJobId(job.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm text-gray-900 truncate">{job.title || 'งานไม่มีชื่อ'}</span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded ${
+                          job.status === 'draft' ? 'bg-gray-100 text-gray-600' :
+                          job.status === 'posted' ? 'bg-green-100 text-green-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                          {job.status === 'draft' ? 'แบบร่าง' : job.status === 'posted' ? 'เผยแพร่แล้ว' : job.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {job.total_amount ? `฿${job.total_amount.toLocaleString()}` : ''}
+                        {job.scheduled_start_at ? ` · ${new Date(job.scheduled_start_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' })}` : ''}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </Modal>
       </div>
     </MainLayout>
   );

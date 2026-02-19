@@ -393,43 +393,48 @@ export default function CaregiverMyJobsPage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+        <div className="mb-5 space-y-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
             <p className="text-sm text-gray-600">งานที่มอบหมายจะขึ้นก่อน พร้อมตัวเลือกตอบรับหรือปฏิเสธ</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
             <Button
               variant="outline"
-              className="whitespace-nowrap"
+              className="w-full sm:w-auto whitespace-nowrap"
               leftIcon={<CalendarDays className="w-4 h-4" />}
               onClick={handleOpenSchedule}
             >
               ดูตารางงาน
             </Button>
-            <Button variant="outline" onClick={handleRefresh}>
+            <Button variant="outline" className="w-full sm:w-auto whitespace-nowrap" onClick={handleRefresh}>
               รีเฟรช
             </Button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-5">
-          {filters.map((f) => (
-            <Button
-              key={f.key}
-              size="sm"
-              variant={filter === f.key ? 'primary' : 'outline'}
-              onClick={() => setFilter(f.key)}
-            >
-              {f.label}
-            </Button>
-          ))}
+        <div className="mb-5">
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-1.5">
+              {filters.map((f) => (
+                <Button
+                  key={f.key}
+                  size="sm"
+                  variant={filter === f.key ? 'primary' : 'outline'}
+                  className="whitespace-nowrap"
+                  onClick={() => setFilter(f.key)}
+                >
+                  {f.label}
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <p className="text-gray-700">{emptyMessageByFilter[filter]}</p>
             <div className="mt-4">
               <Link to="/caregiver/jobs/feed">
@@ -586,7 +591,7 @@ export default function CaregiverMyJobsPage() {
               <div className="grid grid-cols-7 gap-1">
                 {calendarCells.map((day, index) => {
                   if (!day) {
-                    return <div key={`empty-${index}`} className="h-14 rounded-md bg-gray-50" />;
+                    return <div key={`empty-${index}`} className="h-8 rounded bg-gray-50" />;
                   }
 
                   const dateKey = toDateKey(day);
@@ -599,7 +604,7 @@ export default function CaregiverMyJobsPage() {
                       type="button"
                       key={dateKey}
                       onClick={() => setSelectedDateKey(dateKey)}
-                      className={`h-14 rounded-md border text-xs transition-colors ${
+                      className={`h-8 rounded border text-[11px] transition-colors ${
                         isSelected
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
                           : isToday
@@ -609,7 +614,7 @@ export default function CaregiverMyJobsPage() {
                     >
                       <div className="leading-none">{day.getDate()}</div>
                       {jobsOnDate.length > 0 && (
-                        <div className="mt-1 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-blue-100 px-1 text-[10px] font-semibold text-blue-700">
+                        <div className="mt-px inline-flex min-w-[14px] h-3.5 items-center justify-center rounded-full bg-blue-100 px-0.5 text-[9px] font-semibold text-blue-700">
                           {jobsOnDate.length}
                         </div>
                       )}

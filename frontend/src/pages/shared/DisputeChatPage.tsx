@@ -120,12 +120,12 @@ export default function DisputeChatPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดข้อพิพาท..." />
         ) : !dispute ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="text-sm text-gray-700">ไม่พบข้อพิพาท</div>
           </Card>
         ) : (
           <div className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sm text-gray-500">ข้อพิพาท</div>
@@ -157,7 +157,7 @@ export default function DisputeChatPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ข้อความ</h2>
               {messages.length === 0 ? (
                 <div className="text-sm text-gray-600">ยังไม่มีข้อความ</div>
@@ -195,7 +195,7 @@ export default function DisputeChatPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Timeline</h2>
               {events.length === 0 ? (
                 <div className="text-sm text-gray-600">ยังไม่มีเหตุการณ์</div>

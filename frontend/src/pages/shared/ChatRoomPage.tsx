@@ -362,7 +362,7 @@ export default function ChatRoomPage() {
   if (!jobId) {
     return (
       <ChatLayout>
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <p className="text-gray-700">ไม่พบรหัสงาน</p>
         </Card>
       </ChatLayout>
@@ -375,7 +375,7 @@ export default function ChatRoomPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดแชท..." />
         ) : !thread ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <p className="text-gray-700">ยังไม่มีห้องแชทสำหรับงานนี้</p>
             <p className="text-sm text-gray-500 mt-2">งานต้องถูก “รับงาน” ก่อนถึงจะเริ่มแชทได้</p>
           </Card>

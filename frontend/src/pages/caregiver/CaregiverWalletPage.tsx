@@ -381,19 +381,16 @@ export default function CaregiverWalletPage() {
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="mb-6 space-y-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">กระเป๋าเงิน</h1>
-            <p className="text-sm text-gray-600">เติมเงินสำหรับค่าประกันงาน และถอนรายได้</p>
+            <p className="text-sm text-gray-600 leading-6 mt-1">เติมเงินสำหรับค่าประกันงาน และถอนรายได้</p>
           </div>
-          <div className="flex gap-2">
-            <Link to="/caregiver/wallet/history">
-              <Button variant="outline">ประวัติ</Button>
+          <div className="flex gap-2 sm:justify-end">
+            <Link to="/caregiver/wallet/history" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">ประวัติ</Button>
             </Link>
-            <Link to="/wallet/bank-accounts">
-              <Button variant="outline">บัญชีธนาคาร</Button>
-            </Link>
-            <Button variant="outline" onClick={load}>
+            <Button variant="outline" onClick={load} className="flex-1 sm:flex-none">
               รีเฟรช
             </Button>
           </div>
@@ -403,7 +400,7 @@ export default function CaregiverWalletPage() {
           <LoadingState message="กำลังโหลดกระเป๋าเงิน..." />
         ) : (
           <div className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">คงเหลือ</div>
@@ -427,7 +424,7 @@ export default function CaregiverWalletPage() {
             </Card>
 
             {active && (
-              <Card className="p-6">
+              <Card className="p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">มีรายการรอชำระเงิน</h2>
                 <div className="text-sm text-gray-700 space-y-1">
                   <div>
@@ -463,7 +460,7 @@ export default function CaregiverWalletPage() {
               </Card>
             )}
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">เติมเงินค่าประกันงาน</h2>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input
@@ -481,7 +478,7 @@ export default function CaregiverWalletPage() {
               <p className="text-xs text-gray-500 mt-2">ยอดนี้ใช้เป็นเงินค้ำประกันงานได้ และระบบใช้ QR จำลองในโหมดทดสอบ</p>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">บัญชีธนาคารสำหรับถอนเงิน</h2>
                 <Link to="/wallet/bank-accounts">
@@ -547,7 +544,7 @@ export default function CaregiverWalletPage() {
               </div>
             )}
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ถอนเงิน</h2>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input
@@ -567,7 +564,7 @@ export default function CaregiverWalletPage() {
               </p>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">รายการถอนเงิน</h2>
                 <div className="flex items-center gap-2">
@@ -637,7 +634,7 @@ export default function CaregiverWalletPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ธุรกรรมล่าสุด</h2>
               <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <div className="flex flex-col gap-1">

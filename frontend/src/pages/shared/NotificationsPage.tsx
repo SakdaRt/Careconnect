@@ -125,31 +125,54 @@ export default function NotificationsPage() {
         </div>
 
         {!user ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="text-sm text-gray-700">กรุณาเข้าสู่ระบบเพื่อดูการแจ้งเตือน</div>
           </Card>
         ) : (
           <>
             <Card className="p-4 mb-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm text-gray-700">ยังไม่อ่าน: {unreadCount}</div>
-                <div className="flex items-center gap-2">
+              <div className="space-y-3">
+                <div className="inline-flex items-center gap-2 text-sm text-gray-700 whitespace-nowrap">
+                  <span>ยังไม่อ่าน</span>
+                  <span className="inline-flex items-center justify-center min-w-7 h-7 px-2 rounded-full bg-gray-100 text-gray-900 font-semibold">
+                    {unreadCount}
+                  </span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <Button
                     variant={filter === 'unread' ? 'primary' : 'outline'}
                     size="sm"
+                    className="whitespace-nowrap"
                     onClick={() => setFilter('unread')}
                   >
                     ยังไม่อ่าน
                   </Button>
-                  <Button variant={filter === 'all' ? 'primary' : 'outline'} size="sm" onClick={() => setFilter('all')}>
+                  <Button
+                    variant={filter === 'all' ? 'primary' : 'outline'}
+                    size="sm"
+                    className="whitespace-nowrap"
+                    onClick={() => setFilter('all')}
+                  >
                     ทั้งหมด
                   </Button>
                   {unreadCount > 0 && (
-                    <Button variant="ghost" size="sm" onClick={handleMarkAllRead} disabled={actionLoading}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="whitespace-nowrap"
+                      onClick={handleMarkAllRead}
+                      disabled={actionLoading}
+                    >
                       อ่านทั้งหมด
                     </Button>
                   )}
-                  <Button variant="outline" size="sm" onClick={handleClear} disabled={actionLoading || items.length === 0}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="whitespace-nowrap"
+                    onClick={handleClear}
+                    disabled={actionLoading || items.length === 0}
+                  >
                     {filter === 'unread' ? 'ล้างยังไม่อ่าน' : 'ล้างข้อความ'}
                   </Button>
                 </div>
@@ -183,7 +206,7 @@ export default function NotificationsPage() {
                       <Card className={`p-4 hover:bg-gray-50 transition-colors ${isRead ? '' : 'border-blue-200 bg-blue-50/30'}`}>
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="text-sm font-semibold text-gray-900">{n.title}</div>
+                            <div className="text-sm font-semibold text-gray-900 truncate">{n.title}</div>
                             <div className="text-sm text-gray-700 mt-1">{n.body}</div>
                             <div className="text-xs text-gray-500 mt-2">{formatDate(n.created_at)}</div>
                           </div>

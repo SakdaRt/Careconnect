@@ -106,7 +106,7 @@ export default function CaregiverJobFeedPage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="mb-5 space-y-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">ค้นหางาน</h1>
             <p className="text-sm text-gray-600">งานที่เปิดรับสมัครอยู่</p>
@@ -114,9 +114,11 @@ export default function CaregiverJobFeedPage() {
               <Badge variant="warning">การ์ดสีส้ม = ผู้ว่าจ้างอยากจ้างคุณโดยตรง</Badge>
             </div>
           </div>
-          <Button variant="outline" onClick={load}>
-            รีเฟรช
-          </Button>
+          <div className="flex sm:justify-end">
+            <Button variant="outline" onClick={load}>
+              รีเฟรช
+            </Button>
+          </div>
         </div>
 
         {/* Profile Visibility Toggle */}
@@ -211,7 +213,7 @@ export default function CaregiverJobFeedPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <p className="text-gray-700">ยังไม่มีงานในขณะนี้</p>
           </Card>
         ) : (

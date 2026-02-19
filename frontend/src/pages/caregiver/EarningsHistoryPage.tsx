@@ -59,7 +59,7 @@ export default function EarningsHistoryPage() {
         {loading ? (
           <LoadingState message="กำลังโหลด..." />
         ) : (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div className="flex flex-col gap-1">
                 <label className="text-xs text-gray-500">ประเภท</label>

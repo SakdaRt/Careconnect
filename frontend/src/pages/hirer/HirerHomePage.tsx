@@ -587,10 +587,10 @@ export default function HirerHomePage() {
     }
   };
 
-  const filters: { key: JobStatusFilter; label: string }[] = [
+  const filters: { key: JobStatusFilter; label: string; mobileLabel?: string }[] = [
     { key: 'all', label: 'งานทั้งหมด' },
     { key: 'waiting_response', label: 'รอตอบรับ' },
-    { key: 'in_progress', label: 'อยู่ระหว่างการดำเนินงาน' },
+    { key: 'in_progress', label: 'อยู่ระหว่างการดำเนินงาน', mobileLabel: 'กำลังทำ' },
     { key: 'completed', label: 'เสร็จแล้ว' },
     { key: 'cancelled', label: 'ยกเลิก' },
   ];
@@ -598,21 +598,21 @@ export default function HirerHomePage() {
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-6">
+        <div className="mb-5 space-y-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
             <p className="text-sm text-gray-600">จัดการงานทั้งหมดของคุณ</p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
             <Button
               variant="outline"
-              className="whitespace-nowrap"
+              className="w-full sm:w-auto whitespace-nowrap"
               leftIcon={<CalendarDays className="w-4 h-4" />}
               onClick={handleOpenSchedule}
             >
               ดูตารางงาน
             </Button>
-            <Button variant="outline" onClick={handleRefresh}>
+            <Button variant="outline" className="w-full sm:w-auto whitespace-nowrap" onClick={handleRefresh}>
               รีเฟรช
             </Button>
           </div>
@@ -620,26 +620,35 @@ export default function HirerHomePage() {
 
         {/* Quick Actions */}
         <div className="mb-5">
-          <Link
-            to="/hirer/create-job"
-            className="w-full flex items-center justify-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"
-          >
-            <PlusCircle className="w-5 h-5 text-blue-600" />
-            <span className="text-sm font-semibold text-blue-700">สร้างงาน</span>
+          <Link to="/hirer/create-job" className="block w-full">
+            <Button
+              variant="primary"
+              className="w-full py-2 rounded-xl"
+              leftIcon={<PlusCircle className="w-4 h-4" />}
+            >
+              สร้างงาน
+            </Button>
           </Link>
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-5">
-          {filters.map((f) => (
-            <Button
-              key={f.key}
-              size="sm"
-              variant={status === f.key ? 'primary' : 'outline'}
-              onClick={() => setStatus(f.key)}
-            >
-              {f.label}
-            </Button>
-          ))}
+        <div className="mb-5">
+          <div className="text-xs font-medium text-gray-500 mb-2">สถานะงาน</div>
+          <div className="overflow-x-auto pb-1">
+            <div className="flex min-w-max gap-1.5">
+              {filters.map((f) => (
+                <Button
+                  key={f.key}
+                  size="sm"
+                  variant={status === f.key ? 'primary' : 'outline'}
+                  className="whitespace-nowrap"
+                  onClick={() => setStatus(f.key)}
+                >
+                  <span className="sm:hidden">{f.mobileLabel || f.label}</span>
+                  <span className="hidden sm:inline">{f.label}</span>
+                </Button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {showKycPrompt && (
@@ -665,12 +674,14 @@ export default function HirerHomePage() {
         {loading ? (
           <LoadingState message="กำลังโหลดรายการงาน..." />
         ) : jobs.length === 0 ? (
-          <Card className="p-6">
-            <p className="text-gray-700">ยังไม่มีงานในสถานะนี้</p>
-            <div className="mt-4">
-              <Link to="/hirer/create-job">
-                <Button variant="primary">สร้างงานแรก</Button>
-              </Link>
+          <Card className="p-4 sm:p-6">
+            <div className="text-center">
+              <p className="text-gray-700">ยังไม่มีงานในสถานะนี้</p>
+              <div className="mt-4">
+                <Link to="/hirer/create-job">
+                  <Button variant="primary">สร้างงานแรก</Button>
+                </Link>
+              </div>
             </div>
           </Card>
         ) : (
@@ -748,7 +759,7 @@ export default function HirerHomePage() {
               <div className="grid grid-cols-7 gap-1">
                 {calendarCells.map((day, index) => {
                   if (!day) {
-                    return <div key={`empty-${index}`} className="h-14 rounded-md bg-gray-50" />;
+                    return <div key={`empty-${index}`} className="h-8 rounded bg-gray-50" />;
                   }
 
                   const dateKey = toDateKey(day);
@@ -761,7 +772,7 @@ export default function HirerHomePage() {
                       type="button"
                       key={dateKey}
                       onClick={() => setSelectedDateKey(dateKey)}
-                      className={`h-14 rounded-md border text-xs transition-colors ${
+                      className={`h-8 rounded border text-[11px] transition-colors ${
                         isSelected
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
                           : isToday
@@ -771,7 +782,7 @@ export default function HirerHomePage() {
                     >
                       <div className="leading-none">{day.getDate()}</div>
                       {jobsOnDate.length > 0 && (
-                        <div className="mt-1 inline-flex min-w-[20px] h-5 items-center justify-center rounded-full bg-blue-100 px-1 text-[10px] font-semibold text-blue-700">
+                        <div className="mt-px inline-flex min-w-[14px] h-3.5 items-center justify-center rounded-full bg-blue-100 px-0.5 text-[9px] font-semibold text-blue-700">
                           {jobsOnDate.length}
                         </div>
                       )}

@@ -150,7 +150,7 @@ export function OTPInput({ length = 6, value, onChange, error }: OTPInputProps) 
             onKeyDown={(e) => handleKeyDown(index, e)}
             onPaste={handlePaste}
             className={cn(
-              'w-12 h-12 text-center text-xl font-semibold border-2 rounded-lg transition-colors',
+              'w-10 h-10 sm:w-12 sm:h-12 text-center text-lg sm:text-xl font-semibold border-2 rounded-lg transition-colors',
               'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
               error ? 'border-red-500' : 'border-gray-300 hover:border-gray-400'
             )}

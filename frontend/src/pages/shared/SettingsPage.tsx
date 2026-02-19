@@ -11,7 +11,7 @@ export default function SettingsPage() {
           <p className="text-sm text-gray-600">การตั้งค่าพื้นฐานและลิงก์ช่วยเหลือ</p>
         </div>
 
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="text-sm font-semibold text-gray-900 mb-3">ช่วยเหลือ</div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Link to="/faq">
@@ -26,7 +26,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="text-sm font-semibold text-gray-900 mb-3">การแจ้งเตือน</div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Link to="/notifications">
@@ -35,7 +35,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <div className="text-sm font-semibold text-gray-900 mb-3">ยืนยันตัวตน</div>
           <div className="flex flex-col sm:flex-row gap-2">
             <Link to="/kyc">

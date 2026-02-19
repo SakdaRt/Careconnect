@@ -75,53 +75,53 @@ export default function RoleSelectionPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
+      <div className="bg-white rounded-lg shadow-md p-5 sm:p-8">
+        <h1 className="text-2xl font-bold text-gray-900 text-center mb-1">
           เลือกบทบาทของคุณ
         </h1>
-        <p className="text-gray-600 text-center mb-8">
+        <p className="text-sm text-gray-600 text-center mb-5">
           คุณต้องการใช้บริการในฐานะอะไร?
         </p>
 
-        <div className="space-y-4">
+        <div className="space-y-3">
           {/* Hirer Role */}
           <div
             onClick={() => setSelectedRole('hirer')}
-            className={`border-2 rounded-lg p-6 cursor-pointer transition-all ${
+            className={`border-2 rounded-lg p-4 cursor-pointer transition-all ${
               selectedRole === 'hirer'
                 ? 'border-blue-500 bg-blue-50'
                 : 'border-gray-200 hover:border-blue-300'
             }`}
           >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Briefcase className="w-6 h-6 text-blue-600" />
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Briefcase className="w-4.5 h-4.5 text-blue-600" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-xl font-bold text-gray-900">ผู้ว่าจ้าง</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-gray-900">ผู้ว่าจ้าง</h3>
                   {selectedRole === 'hirer' && (
                     <span className="text-blue-600 text-sm">✓ เลือกแล้ว</span>
                   )}
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-xs text-gray-600 mb-2">
                   สร้างงานและจ้างผู้ดูแลสำหรับคนในครอบครัวหรือผู้สูงอายุ
                 </p>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-0.5">•</span>
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-blue-600">•</span>
                     <span>สร้างและจัดการงานดูแลผู้สูงอายุ</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-0.5">•</span>
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-blue-600">•</span>
                     <span>ค้นหาผู้ดูแลที่เหมาะสม</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-0.5">•</span>
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-blue-600">•</span>
                     <span>ชำระเงินผ่านระบบที่ปลอดภัย</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-blue-600 mt-0.5">•</span>
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-blue-600">•</span>
                     <span>ติดตามงานและประเมินผู้ดูแล</span>
                   </div>
                 </div>
@@ -138,7 +138,7 @@ export default function RoleSelectionPage() {
               }
               setSelectedRole('caregiver');
             }}
-            className={`border-2 rounded-lg p-6 transition-all ${
+            className={`border-2 rounded-lg p-4 transition-all ${
               !canSelectCaregiver
                 ? 'opacity-50 cursor-not-allowed border-gray-200 bg-gray-50'
                 : selectedRole === 'caregiver'
@@ -146,13 +146,13 @@ export default function RoleSelectionPage() {
                 : 'border-gray-200 hover:border-green-300 cursor-pointer'
             }`}
           >
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Heart className="w-6 h-6 text-green-600" />
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Heart className="w-4.5 h-4.5 text-green-600" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-xl font-bold text-gray-900">ผู้ดูแล</h3>
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="text-lg font-bold text-gray-900">ผู้ดูแล</h3>
                   {selectedRole === 'caregiver' && (
                     <span className="text-green-600 text-sm">✓ เลือกแล้ว</span>
                   )}
@@ -162,24 +162,24 @@ export default function RoleSelectionPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-xs text-gray-600 mb-2">
                   รับงานดูแลผู้สูงอายุและสร้างรายได้
                 </p>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-600 mt-0.5">•</span>
+                <div className="space-y-1">
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-green-600">•</span>
                     <span>ค้นหางานที่เหมาะกับคุณ</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-600 mt-0.5">•</span>
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-green-600">•</span>
                     <span>รับค่าจ้างผ่านระบบที่โปร่งใส</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-600 mt-0.5">•</span>
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-green-600">•</span>
                     <span>สร้างโปรไฟล์และรับรีวิว</span>
                   </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-700">
-                    <span className="text-green-600 mt-0.5">•</span>
+                  <div className="flex items-start gap-1.5 text-xs text-gray-700">
+                    <span className="text-green-600">•</span>
                     <span>ยืนยันตัวตนเพื่อสร้างความน่าเชื่อถือ</span>
                   </div>
                 </div>
@@ -206,18 +206,17 @@ export default function RoleSelectionPage() {
         {/* Continue Button */}
         <Button
           variant="primary"
-          size="lg"
           fullWidth
           disabled={!selectedRole || changing}
           onClick={handleContinue}
-          className="mt-6"
+          className="mt-4"
         >
           ดำเนินการต่อ
         </Button>
 
         {/* Can change later info */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-gray-500">
+        <div className="mt-3 text-center">
+          <p className="text-xs text-gray-500">
             💡 คุณสามารถเปลี่ยนบทบาทได้ในภายหลังจากการตั้งค่าบัญชี
           </p>
         </div>

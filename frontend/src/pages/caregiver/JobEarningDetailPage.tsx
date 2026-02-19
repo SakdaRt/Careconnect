@@ -106,7 +106,7 @@ export default function JobEarningDetailPage() {
         {loading ? (
           <LoadingState message="กำลังโหลด..." />
         ) : !job ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="text-sm text-gray-700">ไม่พบข้อมูลงาน</div>
             <div className="mt-4">
               <Link to="/caregiver/wallet/history">
@@ -116,7 +116,7 @@ export default function JobEarningDetailPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="text-sm text-gray-500">รายละเอียดรายได้จากงาน</div>
               <div className="text-xl font-bold text-gray-900 mt-1">{job.title}</div>
               <div className="text-xs text-gray-600 mt-2">{formatDateTimeRange(job.scheduled_start_at, job.scheduled_end_at)}</div>
@@ -126,7 +126,7 @@ export default function JobEarningDetailPage() {
               <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">job_post: {job.id}</div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">สรุปรายได้</h2>
               <div className="flex items-center justify-between text-sm">
                 <div className="text-gray-700">ยอดที่ได้รับจากงานนี้</div>
@@ -134,7 +134,7 @@ export default function JobEarningDetailPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ธุรกรรมที่เกี่ยวข้อง</h2>
               {txs.length === 0 ? (
                 <div className="text-sm text-gray-600">ยังไม่พบธุรกรรมที่เกี่ยวข้อง</div>

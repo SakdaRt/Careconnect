@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState, Modal } from '../../components/ui';
-import { TopupIntent, TopupResult, Transaction, WalletBalance } from '../../services/api';
+import { BankAccount, TopupIntent, TopupResult, Transaction, WalletBalance, WithdrawalRequest } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 
@@ -107,13 +107,22 @@ export default function HirerWalletPage() {
   const [typeFilter, setTypeFilter] = useState<'all' | Transaction['type']>('all');
   const [refFilter, setRefFilter] = useState<'all' | Transaction['reference_type']>('all');
   const [amount, setAmount] = useState(1000);
+  const [withdrawAmount, setWithdrawAmount] = useState(500);
   const [submitting, setSubmitting] = useState(false);
+  const [submittingWithdraw, setSubmittingWithdraw] = useState(false);
   const [pendingTopups, setPendingTopups] = useState<TopupIntent[]>([]);
   const [activeTopupId, setActiveTopupId] = useState<string | null>(null);
   const [activeTopup, setActiveTopup] = useState<TopupIntent | null>(null);
   const [latestTopupResult, setLatestTopupResult] = useState<TopupResult | null>(null);
   const [showTopupModal, setShowTopupModal] = useState(false);
   const [confirmingTopup, setConfirmingTopup] = useState(false);
+
+  const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string | null>(null);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
+  const [wdPage, setWdPage] = useState(1);
+  const [wdTotalPages, setWdTotalPages] = useState(1);
+  const [wdStatus, setWdStatus] = useState<'all' | string>('all');
 
   const clearActiveTopup = useCallback(() => {
     const closingTopupId = activeTopupId;
@@ -160,6 +169,8 @@ export default function HirerWalletPage() {
         setTransactions([]);
         setTxTotalPages(1);
         setPendingTopups([]);
+        setBankAccounts([]);
+        setWithdrawals([]);
         toast.error(wRes.error || 'โหลดกระเป๋าเงินไม่สำเร็จ');
         return;
       }
@@ -171,10 +182,22 @@ export default function HirerWalletPage() {
 
       const pRes = await appApi.getPendingTopups();
       setPendingTopups(pRes.success && pRes.data ? pRes.data : []);
+
+      const bRes = await appApi.getBankAccounts();
+      const list = bRes.success && bRes.data ? bRes.data : [];
+      setBankAccounts(list);
+      const primary = list.find((b) => b.is_primary) || list[0];
+      if (!selectedBankAccountId || (selectedBankAccountId && !list.some((b) => b.id === selectedBankAccountId))) {
+        setSelectedBankAccountId(primary ? primary.id : null);
+      }
+
+      const wds = await appApi.getWithdrawals({ page: wdPage, limit: 10, status: wdStatus === 'all' ? undefined : wdStatus });
+      setWithdrawals(wds.success && wds.data ? wds.data.data : []);
+      setWdTotalPages(wds.success && wds.data ? wds.data.totalPages : 1);
     } finally {
       setLoading(false);
     }
-  }, [txPage, userId]);
+  }, [selectedBankAccountId, txPage, wdPage, wdStatus, userId]);
 
   const applyResolvedTopupStatus = useCallback(
     async (topup: TopupIntent | null) => {
@@ -275,6 +298,54 @@ export default function HirerWalletPage() {
     }
   };
 
+  const handleWithdraw = async () => {
+    const value = Number(withdrawAmount);
+    if (!value || value <= 0) {
+      toast.error('กรุณาระบุจำนวนเงินที่ถูกต้อง');
+      return;
+    }
+    setSubmittingWithdraw(true);
+    try {
+      if (!selectedBankAccountId) {
+        toast.error('กรุณาเลือกบัญชีธนาคารก่อนถอนเงิน');
+        return;
+      }
+
+      const res = await appApi.initiateWithdrawal(value, selectedBankAccountId);
+      if (!res.success) {
+        const code = (res as any).code as string | undefined;
+        const errMsg = String(res.error || '');
+        if (code === 'POLICY_VIOLATION' || code === 'INSUFFICIENT_TRUST_LEVEL' || errMsg.includes('trust') || errMsg.includes('Trust') || errMsg.includes('L2')) {
+          toast.error('ต้องยืนยันตัวตน KYC ก่อนถอนเงิน (Trust Level L2+)');
+        } else {
+          toast.error(res.error || 'ถอนเงินไม่สำเร็จ');
+        }
+        return;
+      }
+      toast.success(res.data?.message || 'ส่งคำขอถอนเงินแล้ว');
+      await load();
+    } finally {
+      setSubmittingWithdraw(false);
+    }
+  };
+
+  const selectedBank = useMemo(
+    () => bankAccounts.find((b) => b.id === selectedBankAccountId) || null,
+    [bankAccounts, selectedBankAccountId]
+  );
+
+  const handleCancelWithdrawal = async (withdrawalId: string) => {
+    const res = await appApi.cancelWithdrawal(withdrawalId);
+    if (!res.success) {
+      toast.error(res.error || 'ยกเลิกไม่สำเร็จ');
+      return;
+    }
+    toast.success(res.data?.message || 'ยกเลิกแล้ว');
+    await load();
+  };
+
+  const formatDateTime = (iso: string) => new Date(iso).toLocaleString('th-TH');
+
   const filtered = transactions.filter((t) => {
     if (typeFilter !== 'all' && t.type !== typeFilter) return false;
     if (refFilter !== 'all' && t.reference_type !== refFilter) return false;
@@ -305,19 +376,16 @@ export default function HirerWalletPage() {
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex items-start justify-between gap-3 mb-6">
+        <div className="mb-6 space-y-3">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">กระเป๋าเงิน</h1>
-            <p className="text-sm text-gray-600">เติมเงินและดูประวัติธุรกรรม</p>
+            <p className="text-sm text-gray-600 leading-6 mt-1">เติมเงินและถอนเงินได้ รวมถึงดูประวัติธุรกรรม</p>
           </div>
-          <div className="flex gap-2">
-            <Link to="/hirer/wallet/history">
-              <Button variant="outline">ประวัติ</Button>
+          <div className="flex gap-2 sm:justify-end">
+            <Link to="/hirer/wallet/history" className="flex-1 sm:flex-none">
+              <Button variant="outline" className="w-full">ประวัติ</Button>
             </Link>
-            <Link to="/wallet/bank-accounts">
-              <Button variant="outline">บัญชีธนาคาร</Button>
-            </Link>
-            <Button variant="outline" onClick={load}>
+            <Button variant="outline" onClick={load} className="flex-1 sm:flex-none">
               รีเฟรช
             </Button>
           </div>
@@ -327,7 +395,7 @@ export default function HirerWalletPage() {
           <LoadingState message="กำลังโหลดกระเป๋าเงิน..." />
         ) : (
           <div className="space-y-4">
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">คงเหลือ</div>
@@ -351,7 +419,7 @@ export default function HirerWalletPage() {
             </Card>
 
             {active && (
-              <Card className="p-6">
+              <Card className="p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">มีรายการรอชำระเงิน</h2>
                 <div className="text-sm text-gray-700 space-y-1">
                   <div>
@@ -391,7 +459,7 @@ export default function HirerWalletPage() {
               </Card>
             )}
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">เติมเงิน</h2>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input
@@ -409,7 +477,129 @@ export default function HirerWalletPage() {
               <p className="text-xs text-gray-500 mt-2">ระบบจำลอง: เมื่อกดเติมเงิน จะเปิด popup QR และให้กดยืนยันหลังชำระเสร็จ</p>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">บัญชีธนาคารสำหรับถอนเงิน</h2>
+                <Link to="/wallet/bank-accounts">
+                  <Button variant="outline" size="sm">ไปหน้าจัดการบัญชี</Button>
+                </Link>
+              </div>
+              {bankAccounts.length === 0 ? (
+                <div className="text-sm text-gray-600">ยังไม่มีบัญชีธนาคาร กรุณาเพิ่มจากหน้าจัดการบัญชี</div>
+              ) : (
+                <div className="space-y-2">
+                  {bankAccounts.map((b) => (
+                    <label key={b.id} className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg">
+                      <input
+                        type="radio"
+                        name="bank_account"
+                        checked={selectedBankAccountId === b.id}
+                        onChange={() => setSelectedBankAccountId(b.id)}
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900">
+                          {b.bank_name || b.bank_code} • •••• {b.account_number_last4}
+                        </div>
+                        <div className="text-xs text-gray-600">{b.account_name}</div>
+                      </div>
+                      <div className="text-xs text-gray-600">{b.is_verified ? 'verified' : 'pending'}</div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card className="p-4 sm:p-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">ถอนเงิน</h2>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Input
+                  label="จำนวนเงิน (บาท)"
+                  type="number"
+                  value={withdrawAmount}
+                  onChange={(e) => setWithdrawAmount(Number(e.target.value))}
+                />
+                <div className="sm:self-end">
+                  <Button variant="primary" loading={submittingWithdraw} onClick={handleWithdraw}>
+                    ถอนเงิน
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                บัญชีที่เลือก: {selectedBank ? `${selectedBank.bank_name || selectedBank.bank_code} •••• ${selectedBank.account_number_last4}` : '-'}
+              </p>
+            </Card>
+
+            <Card className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h2 className="text-lg font-semibold text-gray-900">รายการถอนเงิน</h2>
+                <div className="flex items-center gap-2">
+                  <select
+                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                    value={wdStatus}
+                    onChange={(e) => {
+                      setWdStatus(e.target.value);
+                      setWdPage(1);
+                    }}
+                  >
+                    <option value="all">ทั้งหมด</option>
+                    <option value="queued">queued</option>
+                    <option value="review">review</option>
+                    <option value="approved">approved</option>
+                    <option value="paid">paid</option>
+                    <option value="rejected">rejected</option>
+                    <option value="cancelled">cancelled</option>
+                  </select>
+                  <Button variant="outline" size="sm" onClick={load}>
+                    รีเฟรช
+                  </Button>
+                </div>
+              </div>
+
+              {withdrawals.length === 0 ? (
+                <div className="text-sm text-gray-600">ยังไม่มีรายการถอนเงิน</div>
+              ) : (
+                <div className="divide-y divide-gray-200">
+                  {withdrawals.map((w) => (
+                    <div key={w.id} className="py-3 flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-gray-900">
+                          {w.status} • {Number(w.amount).toLocaleString()} บาท
+                        </div>
+                        <div className="text-xs text-gray-600">
+                          {w.bank_name ? `${w.bank_name} •••• ${w.account_number_last4 || '-'}` : `bank_account_id: ${w.bank_account_id}`}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">{formatDateTime(w.created_at)}</div>
+                        <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">{w.id}</div>
+                      </div>
+                      {w.status === 'queued' && (
+                        <Button variant="outline" size="sm" onClick={() => handleCancelWithdrawal(w.id)}>
+                          ยกเลิก
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex items-center justify-between gap-3 mt-4">
+                <Button variant="outline" size="sm" disabled={wdPage <= 1} onClick={() => setWdPage((p) => Math.max(1, p - 1))}>
+                  ก่อนหน้า
+                </Button>
+                <div className="text-xs text-gray-600">
+                  หน้า {wdPage} / {wdTotalPages}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={wdPage >= wdTotalPages}
+                  onClick={() => setWdPage((p) => Math.min(wdTotalPages, p + 1))}
+                >
+                  ถัดไป
+                </Button>
+              </div>
+            </Card>
+
+            <Card className="p-4 sm:p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ธุรกรรมล่าสุด</h2>
               <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <div className="flex flex-col gap-1">

@@ -348,11 +348,11 @@ export default function JobDetailPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดรายละเอียดงาน..." />
         ) : !job ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <p className="text-gray-700">ไม่พบงานนี้</p>
           </Card>
         ) : (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>

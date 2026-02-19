@@ -626,7 +626,7 @@ export default function ProfilePage() {
         )}
 
         {user && user.role !== 'admin' && (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="text-sm font-semibold text-gray-900 mb-3">ระดับความน่าเชื่อถือ</div>
             <div className="flex items-center gap-3 mb-3">
               {(['L2', 'L3'].includes(user.trust_level || 'L0'))
@@ -673,12 +673,12 @@ export default function ProfilePage() {
         )}
 
         {!user ? (
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="text-sm text-gray-700">กรุณาเข้าสู่ระบบก่อน</div>
           </Card>
         ) : (
           <>
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="text-sm font-semibold text-gray-900 mb-3">ข้อมูลโปรไฟล์</div>
               {profileRole === 'admin' ? (
                 <div className="text-sm text-gray-600">บัญชีแอดมินไม่มีข้อมูลโปรไฟล์ที่แก้ไขได้</div>
@@ -839,7 +839,7 @@ export default function ProfilePage() {
 
             {/* ─── Caregiver Certification Documents ─── */}
             {profileRole === 'caregiver' && (
-              <Card className="p-6">
+              <Card className="p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">เอกสารรับรองความสามารถ</div>
@@ -1003,7 +1003,7 @@ export default function ProfilePage() {
               </Card>
             )}
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">บทบาท</div>
@@ -1020,7 +1020,7 @@ export default function ProfilePage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4 sm:p-6">
               <div className="text-sm font-semibold text-gray-900 mb-3">การยืนยัน</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="flex items-center justify-between gap-3">
