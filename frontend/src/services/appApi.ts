@@ -292,13 +292,23 @@ export const appApi = {
     return api.checkFavorite(caregiverId);
   },
 
-  async searchCaregivers(params: { q?: string; page?: number; limit?: number; skills?: string; trust_level?: string }) {
+  async searchCaregivers(params: {
+    q?: string;
+    page?: number;
+    limit?: number;
+    skills?: string;
+    trust_level?: string;
+    min_experience_years?: number;
+    available_day?: number;
+  }) {
     const qs = new URLSearchParams();
     if (params.q) qs.set('q', params.q);
     if (params.page) qs.set('page', String(params.page));
     if (params.limit) qs.set('limit', String(params.limit));
     if (params.skills) qs.set('skills', params.skills);
     if (params.trust_level) qs.set('trust_level', params.trust_level);
+    if (typeof params.min_experience_years === 'number') qs.set('min_experience_years', String(params.min_experience_years));
+    if (typeof params.available_day === 'number') qs.set('available_day', String(params.available_day));
     return api.request<{ data: any[]; total: number; page: number; limit: number; totalPages: number }>(`/api/caregivers/search?${qs.toString()}`);
   },
 

@@ -1557,6 +1557,10 @@ export interface JobPost {
   platform_fee_amount: number;
   min_trust_level: string;
   required_certifications: string[];
+  job_tasks_flags?: string[] | null;
+  required_skills_flags?: string[] | null;
+  equipment_available_flags?: string[] | null;
+  precautions_flags?: string[] | null;
   is_urgent: boolean;
   created_at: string;
   posted_at?: string | null;

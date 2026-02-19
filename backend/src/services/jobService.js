@@ -91,6 +91,10 @@ export const createJob = async (hirerId, jobData) => {
 
   const taskOptions = new Set([
     'companionship',
+    'hospital_companion',
+    'hospital_registration_support',
+    'hospital_transport_coordination',
+    'medication_pickup',
     'meal_prep',
     'light_housekeeping',
     'mobility_assist',

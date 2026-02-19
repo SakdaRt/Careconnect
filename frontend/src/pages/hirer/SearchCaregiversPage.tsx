@@ -69,6 +69,60 @@ const DAY_LABELS: Record<number, string> = {
   6: 'ส',
 };
 
+const DAY_FULL_LABELS: Record<number, string> = {
+  0: 'วันอาทิตย์',
+  1: 'วันจันทร์',
+  2: 'วันอังคาร',
+  3: 'วันพุธ',
+  4: 'วันพฤหัสบดี',
+  5: 'วันศุกร์',
+  6: 'วันเสาร์',
+};
+
+type JobCategoryKey =
+  | 'hospital_transport_support'
+  | 'general_patient_care'
+  | 'post_surgery_recovery'
+  | 'dementia_supervision'
+  | 'bedbound_high_dependency'
+  | 'medical_device_home_care';
+
+const JOB_CATEGORY_FILTERS: Record<JobCategoryKey, { label: string; skills: string[] }> = {
+  hospital_transport_support: {
+    label: 'พาไปโรงพยาบาล / ไปส่ง',
+    skills: ['hospital_companion', 'hospital_registration_support', 'hospital_transport_coordination', 'medication_pickup', 'companionship'],
+  },
+  general_patient_care: {
+    label: 'ดูแลทั่วไป',
+    skills: ['companionship', 'personal_care', 'basic_first_aid'],
+  },
+  post_surgery_recovery: {
+    label: 'ดูแลหลังผ่าตัด',
+    skills: ['post_surgery', 'post_surgery_care', 'wound_care'],
+  },
+  dementia_supervision: {
+    label: 'ดูแลสมองเสื่อม',
+    skills: ['dementia_care'],
+  },
+  bedbound_high_dependency: {
+    label: 'ผู้ป่วยติดเตียง/พึ่งพาสูง',
+    skills: ['personal_care', 'safe_transfer', 'tube_feeding_care', 'catheter_care'],
+  },
+  medical_device_home_care: {
+    label: 'ดูแลอุปกรณ์แพทย์ที่บ้าน',
+    skills: ['medical_monitoring', 'vitals_monitoring', 'medication_management', 'tube_feeding_care', 'catheter_care', 'oxygen_monitoring'],
+  },
+};
+
+const JOB_CATEGORY_ORDER: JobCategoryKey[] = [
+  'hospital_transport_support',
+  'general_patient_care',
+  'post_surgery_recovery',
+  'dementia_supervision',
+  'bedbound_high_dependency',
+  'medical_device_home_care',
+];
+
 const CREATE_NEW_JOB_OPTION = '__create_new_job__';
 
 function formatTime(time?: string) {
@@ -91,6 +145,17 @@ function formatAvailability(days?: Array<number | string>, from?: string, to?: s
   return dayText || timeText;
 }
 
+function buildSkillsFilterFromCategories(categories: JobCategoryKey[]) {
+  if (!categories.length) return '';
+  return categories
+    .map((category) => {
+      const skills = JOB_CATEGORY_FILTERS[category]?.skills || [];
+      return Array.from(new Set(skills)).join(',');
+    })
+    .filter(Boolean)
+    .join(';');
+}
+
 export default function SearchCaregiversPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -102,6 +167,9 @@ export default function SearchCaregiversPage() {
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [trustFilter, setTrustFilter] = useState('');
+  const [jobCategoryFilters, setJobCategoryFilters] = useState<JobCategoryKey[]>([]);
+  const [experienceFilter, setExperienceFilter] = useState('');
+  const [availableDayFilter, setAvailableDayFilter] = useState('');
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
 
@@ -137,14 +205,33 @@ export default function SearchCaregiversPage() {
     }
   };
 
-  const search = useCallback(async (p = 1) => {
+  const search = useCallback(async (
+    p = 1,
+    overrides?: {
+      q?: string;
+      trust_level?: string;
+      job_categories?: JobCategoryKey[];
+      min_experience_years?: string;
+      available_day?: string;
+    }
+  ) => {
+    const q = (overrides?.q ?? searchText).trim();
+    const trustLevel = overrides?.trust_level ?? trustFilter;
+    const selectedCategories = overrides?.job_categories ?? jobCategoryFilters;
+    const skills = buildSkillsFilterFromCategories(selectedCategories);
+    const minExperienceYears = overrides?.min_experience_years ?? experienceFilter;
+    const availableDay = overrides?.available_day ?? availableDayFilter;
+
     setLoading(true);
     try {
       const res = await appApi.searchCaregivers({
-        q: searchText.trim(),
+        q,
         page: p,
         limit: 20,
-        trust_level: trustFilter || undefined,
+        trust_level: trustLevel || undefined,
+        skills: skills || undefined,
+        min_experience_years: minExperienceYears ? Number(minExperienceYears) : undefined,
+        available_day: availableDay ? Number(availableDay) : undefined,
       });
       if (res.success && res.data) {
         setCaregivers(res.data.data || []);
@@ -157,11 +244,11 @@ export default function SearchCaregiversPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText, trustFilter]);
+  }, [searchText, trustFilter, jobCategoryFilters, experienceFilter, availableDayFilter]);
 
   useEffect(() => {
     search(1);
-  }, [trustFilter]);
+  }, [trustFilter, jobCategoryFilters, experienceFilter, availableDayFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -360,26 +447,91 @@ export default function SearchCaregiversPage() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          <select
-            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
-            value={trustFilter}
-            onChange={(e) => setTrustFilter(e.target.value)}
-          >
-            <option value="">ทุกระดับความเชื่อถือ</option>
-            <option value="L3">L3 เชื่อถือสูง</option>
-            <option value="L2">L2 ยืนยันแล้ว</option>
-            <option value="L1">L1 พื้นฐาน</option>
-          </select>
-          {(trustFilter || searchText) && (
-            <button
-              onClick={() => { setTrustFilter(''); setSearchText(''); setTimeout(() => search(1), 0); }}
-              className="text-xs text-blue-600 hover:underline px-2"
+        <div className="mb-4 space-y-2">
+          <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+            <select
+              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+              value={trustFilter}
+              onChange={(e) => setTrustFilter(e.target.value)}
             >
-              ล้างตัวกรอง
-            </button>
-          )}
-          <span className="text-sm text-gray-500 ml-auto">พบ {total} คน</span>
+              <option value="">ทุกระดับความเชื่อถือ</option>
+              <option value="L3">L3 เชื่อถือสูง</option>
+              <option value="L2">L2 ยืนยันแล้ว</option>
+              <option value="L1">L1 พื้นฐาน</option>
+            </select>
+            <select
+              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+              value={experienceFilter}
+              onChange={(e) => setExperienceFilter(e.target.value)}
+            >
+              <option value="">ประสบการณ์ทุกระดับ</option>
+              <option value="1">อย่างน้อย 1 ปี</option>
+              <option value="3">อย่างน้อย 3 ปี</option>
+              <option value="5">อย่างน้อย 5 ปี</option>
+              <option value="8">อย่างน้อย 8 ปี</option>
+            </select>
+            <select
+              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+              value={availableDayFilter}
+              onChange={(e) => setAvailableDayFilter(e.target.value)}
+            >
+              <option value="">ทุกวันที่พร้อมรับงาน</option>
+              {Object.entries(DAY_FULL_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <div className="flex items-center justify-end gap-2">
+              {(trustFilter || jobCategoryFilters.length > 0 || experienceFilter || availableDayFilter || searchText) && (
+                <button
+                  onClick={() => {
+                    setTrustFilter('');
+                    setJobCategoryFilters([]);
+                    setExperienceFilter('');
+                    setAvailableDayFilter('');
+                    setSearchText('');
+                    search(1, {
+                      q: '',
+                      trust_level: '',
+                      job_categories: [],
+                      min_experience_years: '',
+                      available_day: '',
+                    });
+                  }}
+                  className="text-xs text-blue-600 hover:underline px-2"
+                >
+                  ล้างตัวกรอง
+                </button>
+              )}
+              <span className="text-sm text-gray-500">พบ {total} คน</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-600">ประเภทงาน:</span>
+            {JOB_CATEGORY_ORDER.map((category) => {
+              const isSelected = jobCategoryFilters.includes(category);
+              return (
+                <button
+                  key={category}
+                  type="button"
+                  onClick={() => {
+                    setJobCategoryFilters((prev) => (
+                      prev.includes(category)
+                        ? prev.filter((value) => value !== category)
+                        : [...prev, category]
+                    ));
+                  }}
+                  className={`px-3 py-1.5 rounded-full border text-xs transition ${
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600 text-white'
+                      : 'bg-white border-gray-300 text-gray-700 hover:border-blue-400'
+                  }`}
+                >
+                  {JOB_CATEGORY_FILTERS[category].label}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* Results */}

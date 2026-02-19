@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MessageCircle, User as UserIcon, FileText, ExternalLink, Star } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
 import { JobPost, CaregiverDocument } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -38,6 +38,100 @@ const JOB_TYPE_LABEL: Record<string, string> = {
   dementia_care: 'ดูแลผู้ป่วยสมองเสื่อม',
   post_surgery: 'ดูแลหลังผ่าตัด',
   emergency: 'เร่งด่วน',
+};
+
+type OptionItem = { v: string; label: string };
+
+const JOB_TASK_OPTIONS: OptionItem[] = [
+  { v: 'companionship', label: 'เพื่อนคุย/ดูแลทั่วไป' },
+  { v: 'hospital_companion', label: 'พาไปโรงพยาบาลเป็นเพื่อน' },
+  { v: 'hospital_registration_support', label: 'ช่วยลงทะเบียน/ประสานงานโรงพยาบาล' },
+  { v: 'hospital_transport_coordination', label: 'ช่วยประสานการเดินทางไป-กลับ' },
+  { v: 'medication_pickup', label: 'รับยา/รับผลตรวจแทนตามที่มอบหมาย' },
+  { v: 'meal_prep', label: 'เตรียมอาหาร/จัดมื้ออาหาร' },
+  { v: 'light_housekeeping', label: 'งานบ้านเบา ๆ' },
+  { v: 'mobility_assist', label: 'ช่วยพยุงเดิน' },
+  { v: 'transfer_assist', label: 'ช่วยย้ายท่า/ขึ้นลงเตียง' },
+  { v: 'bathing', label: 'อาบน้ำ/เช็ดตัว' },
+  { v: 'dressing', label: 'แต่งตัว' },
+  { v: 'toileting', label: 'เข้าห้องน้ำ' },
+  { v: 'diaper_change', label: 'เปลี่ยนผ้าอ้อม' },
+  { v: 'feeding', label: 'ช่วยป้อนอาหาร' },
+  { v: 'tube_feeding', label: 'ให้อาหารทางสาย' },
+  { v: 'medication_reminder', label: 'เตือนกินยา' },
+  { v: 'medication_administration', label: 'ช่วยให้ยาตามแผนแพทย์' },
+  { v: 'vitals_check', label: 'วัดสัญญาณชีพ' },
+  { v: 'blood_sugar_check', label: 'วัดน้ำตาลปลายนิ้ว' },
+  { v: 'wound_dressing', label: 'ทำแผล/เปลี่ยนผ้าพันแผล' },
+  { v: 'catheter_care', label: 'ดูแลสายสวนปัสสาวะ' },
+  { v: 'oxygen_monitoring', label: 'ดูแล/เฝ้าระวังออกซิเจน' },
+  { v: 'dementia_supervision', label: 'ดูแลใกล้ชิด (สมองเสื่อม/หลงเดิน)' },
+];
+
+const SKILL_OPTIONS: OptionItem[] = [
+  { v: 'basic_first_aid', label: 'ปฐมพยาบาลเบื้องต้น' },
+  { v: 'safe_transfer', label: 'ย้ายท่าอย่างปลอดภัย' },
+  { v: 'vitals_monitoring', label: 'วัด/ติดตามสัญญาณชีพ' },
+  { v: 'medication_management', label: 'จัดยา/ดูแลการใช้ยา' },
+  { v: 'dementia_care', label: 'ดูแลผู้ป่วยสมองเสื่อม' },
+  { v: 'post_surgery_care', label: 'ดูแลหลังผ่าตัด' },
+  { v: 'wound_care', label: 'ทำแผล' },
+  { v: 'catheter_care', label: 'ดูแลสายสวน' },
+  { v: 'tube_feeding_care', label: 'ดูแลการให้อาหารทางสาย' },
+];
+
+const EQUIPMENT_OPTIONS: OptionItem[] = [
+  { v: 'wheelchair', label: 'รถเข็น' },
+  { v: 'walker', label: 'Walker/ไม้เท้า' },
+  { v: 'hospital_bed', label: 'เตียงผู้ป่วย' },
+  { v: 'patient_lift', label: 'เครื่องยกพยุงผู้ป่วย' },
+  { v: 'thermometer', label: 'เครื่องวัดไข้' },
+  { v: 'bp_monitor', label: 'เครื่องวัดความดัน' },
+  { v: 'pulse_oximeter', label: 'เครื่องวัดออกซิเจนปลายนิ้ว' },
+  { v: 'glucometer', label: 'เครื่องวัดน้ำตาล' },
+  { v: 'oxygen_concentrator', label: 'เครื่องให้ออกซิเจน' },
+  { v: 'feeding_tube_supplies', label: 'อุปกรณ์สายให้อาหาร' },
+  { v: 'wound_care_supplies', label: 'อุปกรณ์ทำแผล' },
+];
+
+const PRECAUTION_OPTIONS: OptionItem[] = [
+  { v: 'fall_risk', label: 'เสี่ยงหกล้ม' },
+  { v: 'aspiration_risk', label: 'เสี่ยงสำลัก' },
+  { v: 'infection_control', label: 'ต้องระวังการติดเชื้อ' },
+  { v: 'pressure_ulcer_risk', label: 'เสี่ยงแผลกดทับ' },
+  { v: 'behavioral_risk', label: 'เสี่ยงพฤติกรรม' },
+  { v: 'allergy_precaution', label: 'ต้องระวังการแพ้' },
+  { v: 'lifting_precaution', label: 'ต้องระวังการยกพยุง' },
+];
+
+const DETAIL_MARKER = 'รายละเอียดเพิ่มเติมจากประเภทงาน';
+
+const labelsByValues = (options: OptionItem[], values?: string[] | null) => {
+  if (!values?.length) return [];
+  const map = new Map(options.map((o) => [o.v, o.label]));
+  return values.map((v) => map.get(v) || v);
+};
+
+const parseDescription = (description?: string | null) => {
+  const text = String(description || '').trim();
+  if (!text) {
+    return { main: '', dynamicDetails: [] as string[] };
+  }
+
+  const lines = text.split('\n');
+  const markerIndex = lines.findIndex((line) => line.trim() === DETAIL_MARKER);
+  if (markerIndex < 0) {
+    return { main: text, dynamicDetails: [] as string[] };
+  }
+
+  const main = lines.slice(0, markerIndex).join('\n').trim();
+  const dynamicDetails = lines
+    .slice(markerIndex + 1)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => (line.startsWith('- ') ? line.slice(2).trim() : line));
+
+  return { main, dynamicDetails };
 };
 
 export default function JobDetailPage() {
@@ -117,6 +211,12 @@ export default function JobDetailPage() {
     if (!job) return '';
     return formatFullLocation(job.address_line1, job.address_line2, job.district, job.province, job.postal_code);
   }, [job]);
+
+  const descriptionParts = useMemo(() => parseDescription(job?.description), [job?.description]);
+  const selectedTaskLabels = useMemo(() => labelsByValues(JOB_TASK_OPTIONS, job?.job_tasks_flags), [job?.job_tasks_flags]);
+  const selectedSkillLabels = useMemo(() => labelsByValues(SKILL_OPTIONS, job?.required_skills_flags), [job?.required_skills_flags]);
+  const selectedEquipmentLabels = useMemo(() => labelsByValues(EQUIPMENT_OPTIONS, job?.equipment_available_flags), [job?.equipment_available_flags]);
+  const selectedPrecautionLabels = useMemo(() => labelsByValues(PRECAUTION_OPTIONS, job?.precautions_flags), [job?.precautions_flags]);
 
   const mapLink = useMemo(() => {
     if (!job) return '';
@@ -297,8 +397,58 @@ export default function JobDetailPage() {
               </div>
               <div>
                 <span className="font-semibold">รายละเอียด:</span>
-                <div className="mt-1 whitespace-pre-wrap text-gray-800">{job.description}</div>
+                <div className="mt-1 whitespace-pre-wrap text-gray-800">{descriptionParts.main || job.description}</div>
+                {descriptionParts.dynamicDetails.length > 0 && (
+                  <div className="mt-2 rounded-md border border-blue-100 bg-blue-50 p-3">
+                    <div className="text-xs font-semibold text-blue-800">รายละเอียดจากคำตอบที่เลือก</div>
+                    <ul className="mt-1 space-y-1 text-xs text-blue-900 list-disc pl-5">
+                      {descriptionParts.dynamicDetails.map((line, idx) => (
+                        <li key={`${line}-${idx}`}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
+              {selectedTaskLabels.length > 0 && (
+                <div>
+                  <span className="font-semibold">งานที่เลือก:</span>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {selectedTaskLabels.map((label, idx) => (
+                      <Badge key={`task-${label}-${idx}`} variant="info">{label}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedSkillLabels.length > 0 && (
+                <div>
+                  <span className="font-semibold">ทักษะที่ต้องมี:</span>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {selectedSkillLabels.map((label, idx) => (
+                      <Badge key={`skill-${label}-${idx}`} variant="default">{label}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedEquipmentLabels.length > 0 && (
+                <div>
+                  <span className="font-semibold">อุปกรณ์ที่มีให้:</span>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {selectedEquipmentLabels.map((label, idx) => (
+                      <Badge key={`equipment-${label}-${idx}`} variant="success">{label}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedPrecautionLabels.length > 0 && (
+                <div>
+                  <span className="font-semibold">ข้อควรระวัง:</span>
+                  <div className="mt-1 flex flex-wrap gap-2">
+                    {selectedPrecautionLabels.map((label, idx) => (
+                      <Badge key={`precaution-${label}-${idx}`} variant="warning">{label}</Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
               {job.status === 'cancelled' && cancelReasonDisplay && (
                 <div className="text-red-700">
                   <span className="font-semibold">เหตุผลยกเลิก:</span> {cancelReasonDisplay}

@@ -24,6 +24,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import caregiverDocumentRoutes from './routes/caregiverDocumentRoutes.js';
 import caregiverSearchRoutes from './routes/caregiverSearchRoutes.js';
 import reviewRoutes from './routes/reviewRoutes.js';
+import Job from './models/Job.js';
 import { initChatSocket } from './sockets/chatSocket.js';
 import { setSocketServer } from './sockets/realtimeHub.js';
 
@@ -151,6 +152,100 @@ const DEV_MOCK_CAREGIVERS = [
   },
 ];
 
+const HOSPITAL_COMPANION_MOCK_NAMES = [
+  'นลินี',
+  'อาทิตยา',
+  'สุภาภรณ์',
+  'จิราภา',
+  'ณัฐกานต์',
+  'ขวัญชนก',
+  'พิชญ์สินี',
+  'ชนิศา',
+  'สุชานันท์',
+  'อมรรัตน์',
+];
+
+const DEV_HOSPITAL_COMPANION_MOCK_CAREGIVERS = HOSPITAL_COMPANION_MOCK_NAMES.map((name, index) => {
+  const sequence = index + 1;
+  const hasMedicationSupport = index % 3 === 0;
+  const baseScore = 72 + (index * 2);
+
+  return {
+    email: `caregiver.hospital${sequence}@careconnect.local`,
+    display_name: `mock ${name} ผู้ช่วยพาไปโรงพยาบาล`,
+    bio: 'ถนัดพาผู้สูงอายุไปโรงพยาบาล ช่วยลงทะเบียน นัดหมาย และประสานการเดินทางไป-กลับ',
+    experience_years: 2 + (index % 4),
+    certifications: hasMedicationSupport
+      ? ['basic_first_aid', 'medication_management']
+      : ['basic_first_aid', 'safe_transfer'],
+    specializations: ['companionship', 'medical_monitoring', 'hospital_companion'],
+    available_from: index % 2 === 0 ? '06:30' : '07:30',
+    available_to: index % 2 === 0 ? '17:30' : '19:00',
+    available_days: [1, 2, 3, 4, 5, 6],
+    trust_level: hasMedicationSupport ? 'L2' : 'L1',
+    trust_score: baseScore,
+    completed_jobs_count: 12 + (index * 3),
+  };
+});
+
+DEV_MOCK_CAREGIVERS.push(...DEV_HOSPITAL_COMPANION_MOCK_CAREGIVERS);
+
+const DEV_MOCK_HIRERS = [
+  { email: 'hirer.mock.hospital1@careconnect.local', display_name: 'mock ญาติคุณพิม' },
+  { email: 'hirer.mock.hospital2@careconnect.local', display_name: 'mock ครอบครัวคุณวินัย' },
+  { email: 'hirer.mock.hospital3@careconnect.local', display_name: 'mock ลูกสาวคุณดาวเรือง' },
+  { email: 'hirer.mock.hospital4@careconnect.local', display_name: 'mock ทีมดูแลผู้สูงวัย' },
+];
+
+const HOSPITAL_ESCORT_JOB_LOCATIONS = [
+  { hospital: 'รพ.ศิริราช', address_line1: 'ท่าพระจันทร์', district: 'บางกอกน้อย', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.จุฬาลงกรณ์', address_line1: 'สามย่าน', district: 'ปทุมวัน', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.รามาธิบดี', address_line1: 'ราชเทวี', district: 'ราชเทวี', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.พระมงกุฎ', address_line1: 'อนุสาวรีย์ชัย', district: 'ราชเทวี', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.กรุงเทพ', address_line1: 'เพชรบุรีตัดใหม่', district: 'ห้วยขวาง', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.เปาโลสมุทรปราการ', address_line1: 'ปากน้ำ', district: 'เมืองสมุทรปราการ', province: 'สมุทรปราการ' },
+  { hospital: 'รพ.ศรีนครินทร์', address_line1: 'ศรีนครินทร์', district: 'บางพลี', province: 'สมุทรปราการ' },
+  { hospital: 'รพ.บางปะกอก 9', address_line1: 'สุขสวัสดิ์', district: 'ราษฎร์บูรณะ', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.เกษมราษฎร์บางแค', address_line1: 'เพชรเกษม', district: 'บางแค', province: 'กรุงเทพมหานคร' },
+  { hospital: 'รพ.พญาไท 2', address_line1: 'พหลโยธิน', district: 'พญาไท', province: 'กรุงเทพมหานคร' },
+];
+
+const DEV_MOCK_ESCORT_JOB_TEMPLATES = HOSPITAL_ESCORT_JOB_LOCATIONS.map((location, index) => {
+  const shouldIncludeTransport = index % 2 === 0;
+  const shouldIncludeMedicationPickup = index % 3 === 0;
+  const jobTasksFlags = ['hospital_companion', 'hospital_registration_support'];
+
+  if (shouldIncludeTransport) {
+    jobTasksFlags.push('hospital_transport_coordination');
+  }
+  if (shouldIncludeMedicationPickup) {
+    jobTasksFlags.push('medication_pickup');
+  }
+
+  return {
+    title: `mock งานพาไป${location.hospital} #${index + 1}`,
+    description: shouldIncludeMedicationPickup
+      ? `ช่วยพาผู้รับการดูแลไป ${location.hospital} ลงทะเบียน พบแพทย์ และรับยากลับบ้าน`
+      : `ช่วยพาผู้รับการดูแลไป ${location.hospital} และประสานงานหน้างานจนเสร็จสิ้น`,
+    address_line1: location.address_line1,
+    district: location.district,
+    province: location.province,
+    hourly_rate: 320 + ((index % 4) * 20),
+    total_hours: shouldIncludeTransport ? 6 : 4,
+    is_urgent: index % 4 === 0,
+    risk_level: shouldIncludeMedicationPickup ? 'high_risk' : 'low_risk',
+    min_trust_level: shouldIncludeMedicationPickup ? 'L2' : 'L1',
+    job_tasks_flags: jobTasksFlags,
+    required_skills_flags: shouldIncludeMedicationPickup
+      ? ['basic_first_aid', 'medication_management']
+      : ['basic_first_aid'],
+    equipment_available_flags: shouldIncludeTransport ? ['wheelchair'] : [],
+    precautions_flags: shouldIncludeMedicationPickup
+      ? ['fall_risk', 'allergy_precaution']
+      : ['fall_risk'],
+  };
+});
+
 async function ensureCaregiverPublicProfileColumn() {
   await query(`ALTER TABLE caregiver_profiles ADD COLUMN IF NOT EXISTS is_public_profile BOOLEAN NOT NULL DEFAULT TRUE`);
 }
@@ -252,6 +347,164 @@ async function ensureMockCaregivers() {
         caregiver.available_days,
       ],
     );
+  }
+}
+
+function buildScheduleWindow(startAfterHours, durationHours) {
+  const now = new Date();
+  const start = new Date(now.getTime() + (startAfterHours * 60 * 60 * 1000));
+  start.setMinutes(0, 0, 0);
+  const end = new Date(start.getTime() + (durationHours * 60 * 60 * 1000));
+
+  return {
+    startIso: start.toISOString(),
+    endIso: end.toISOString(),
+  };
+}
+
+async function ensureMockHirers() {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const enabled = process.env.SEED_MOCK_JOBS !== 'false';
+  if (!isDev || !enabled) return new Map();
+
+  const mockPasswordHash = await bcrypt.hash(process.env.MOCK_HIRER_PASSWORD || 'DemoHirer123!', 10);
+  const hirerIdsByEmail = new Map();
+
+  for (const hirer of DEV_MOCK_HIRERS) {
+    const userResult = await query(
+      `INSERT INTO users (
+         id,
+         email,
+         password_hash,
+         account_type,
+         role,
+         status,
+         is_email_verified,
+         trust_level,
+         trust_score,
+         completed_jobs_count,
+         created_at,
+         updated_at
+       )
+       VALUES (
+         gen_random_uuid(),
+         $1,
+         $2,
+         'guest',
+         'hirer',
+         'active',
+         TRUE,
+         'L1',
+         70,
+         0,
+         NOW(),
+         NOW()
+       )
+       ON CONFLICT (email) DO UPDATE
+       SET role = 'hirer',
+           status = 'active',
+           account_type = 'guest',
+           is_email_verified = TRUE,
+           trust_level = EXCLUDED.trust_level,
+           trust_score = GREATEST(users.trust_score, EXCLUDED.trust_score),
+           updated_at = NOW()
+       RETURNING id`,
+      [hirer.email, mockPasswordHash],
+    );
+
+    const userId = userResult.rows[0]?.id;
+    if (!userId) continue;
+
+    hirerIdsByEmail.set(hirer.email, userId);
+
+    await query(
+      `INSERT INTO hirer_profiles (
+         user_id,
+         display_name,
+         updated_at
+       )
+       VALUES ($1, $2, NOW())
+       ON CONFLICT (user_id) DO UPDATE
+       SET display_name = EXCLUDED.display_name,
+           updated_at = NOW()`,
+      [userId, hirer.display_name],
+    );
+  }
+
+  return hirerIdsByEmail;
+}
+
+async function ensureMockEscortJobs(hirerIdsByEmail) {
+  const isDev = process.env.NODE_ENV !== 'production';
+  const enabled = process.env.SEED_MOCK_JOBS !== 'false';
+  if (!isDev || !enabled) return;
+  if (!hirerIdsByEmail || hirerIdsByEmail.size === 0) return;
+
+  for (let index = 0; index < DEV_MOCK_ESCORT_JOB_TEMPLATES.length; index += 1) {
+    const template = DEV_MOCK_ESCORT_JOB_TEMPLATES[index];
+    const hirerSeed = DEV_MOCK_HIRERS[index % DEV_MOCK_HIRERS.length];
+    const hirerId = hirerIdsByEmail.get(hirerSeed.email);
+    if (!hirerId) continue;
+
+    const existingResult = await query(
+      `SELECT id, status
+       FROM job_posts
+       WHERE hirer_id = $1
+         AND title = $2
+       LIMIT 1`,
+      [hirerId, template.title],
+    );
+
+    if (existingResult.rows.length > 0) {
+      const existing = existingResult.rows[0];
+      if (existing.status !== 'posted') {
+        await query(
+          `UPDATE job_posts
+           SET status = 'posted',
+               posted_at = COALESCE(posted_at, NOW()),
+               updated_at = NOW()
+           WHERE id = $1`,
+          [existing.id],
+        );
+      }
+      continue;
+    }
+
+    const schedule = buildScheduleWindow(8 + (index * 4), template.total_hours);
+
+    const jobPost = await Job.createJobPost({
+      hirer_id: hirerId,
+      title: template.title,
+      description: template.description,
+      job_type: 'companionship',
+      risk_level: template.risk_level,
+      scheduled_start_at: schedule.startIso,
+      scheduled_end_at: schedule.endIso,
+      address_line1: template.address_line1,
+      district: template.district,
+      province: template.province,
+      hourly_rate: template.hourly_rate,
+      total_hours: template.total_hours,
+      min_trust_level: template.min_trust_level,
+      required_certifications: [],
+      is_urgent: template.is_urgent,
+      job_tasks_flags: template.job_tasks_flags,
+      required_skills_flags: template.required_skills_flags,
+      equipment_available_flags: template.equipment_available_flags,
+      precautions_flags: template.precautions_flags,
+      patient_profile_id: null,
+    });
+
+    if (jobPost?.id) {
+      await query(
+        `UPDATE job_posts
+         SET status = 'posted',
+             posted_at = COALESCE(posted_at, NOW()),
+             updated_at = NOW()
+         WHERE id = $1`,
+        [jobPost.id],
+      );
+    }
   }
 }
 
@@ -361,7 +614,11 @@ testConnection().then((connected) => {
   // Start server
   const PORT = process.env.PORT || 3000;
   ensureAdmin()
-    .then(() => ensureMockCaregivers())
+    .then(async () => {
+      await ensureMockCaregivers();
+      const hirerIdsByEmail = await ensureMockHirers();
+      await ensureMockEscortJobs(hirerIdsByEmail);
+    })
     .catch((error) => {
       console.error('[Backend] Bootstrap failed:', error);
     })

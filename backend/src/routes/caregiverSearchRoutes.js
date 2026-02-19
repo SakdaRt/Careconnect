@@ -16,6 +16,8 @@ const searchQuery = Joi.object({
   limit: Joi.number().integer().min(1).max(50).default(20),
   skills: Joi.string().trim().max(500).allow(""),
   trust_level: Joi.string().valid("L0", "L1", "L2", "L3").allow(""),
+  min_experience_years: Joi.number().integer().min(0).max(60),
+  available_day: Joi.number().integer().min(0).max(6),
 });
 
 const assignBody = Joi.object({
@@ -54,6 +56,14 @@ router.get(
       const q = String(req.query.q || "").trim();
       const skills = String(req.query.skills || "").trim();
       const trustLevel = String(req.query.trust_level || "").trim();
+      const minExperienceYears =
+        req.query.min_experience_years === undefined
+          ? null
+          : Number(req.query.min_experience_years);
+      const availableDay =
+        req.query.available_day === undefined
+          ? null
+          : Number(req.query.available_day);
 
       const where = [
         `u.role = 'caregiver'`,
@@ -76,17 +86,30 @@ router.get(
         values.push(trustLevel);
         where.push(`u.trust_level = $${idx++}`);
       }
+      if (Number.isInteger(minExperienceYears) && minExperienceYears >= 0) {
+        values.push(minExperienceYears);
+        where.push(`COALESCE(cp.experience_years, 0) >= $${idx++}`);
+      }
       if (skills) {
-        const skillList = skills
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean);
-        if (skillList.length > 0) {
-          values.push(skillList);
-          where.push(
-            `(cp.specializations && $${idx++}::text[] OR cp.certifications && $${idx - 1}::text[])`,
-          );
+        const skillGroups = skills
+          .split(";")
+          .map((group) => group
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean))
+          .filter((group) => group.length > 0);
+        if (skillGroups.length > 0) {
+          skillGroups.forEach((group) => {
+            values.push(group);
+            where.push(
+              `(cp.specializations && $${idx++}::text[] OR cp.certifications && $${idx - 1}::text[])`,
+            );
+          });
         }
+      }
+      if (Number.isInteger(availableDay) && availableDay >= 0 && availableDay <= 6) {
+        values.push(availableDay);
+        where.push(`cp.available_days IS NOT NULL AND $${idx++}::int = ANY(cp.available_days)`);
       }
 
       const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
