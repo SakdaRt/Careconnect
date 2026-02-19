@@ -147,7 +147,7 @@ export default function KycPage() {
     switch (step) {
       case 'document': return !!docFront;
       case 'selfie': return !!selfieFile;
-      case 'info': return fullName.trim().length > 0 && nationalId.trim().length > 0;
+      case 'info': return fullName.trim().length > 0 && (docType === 'national_id' ? nationalId.length === 13 : nationalId.trim().length > 0);
       case 'review': return true;
       default: return false;
     }
@@ -166,6 +166,10 @@ export default function KycPage() {
   const handleSubmit = async () => {
     if (!docFront || !selfieFile || !fullName.trim() || !nationalId.trim()) {
       toast.error('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+    if (docType === 'national_id' && nationalId.trim().length !== 13) {
+      toast.error('เลขบัตรประชาชนต้องมี 13 หลัก');
       return;
     }
 
@@ -485,8 +489,16 @@ export default function KycPage() {
                 <Input
                   label={docType === 'national_id' ? 'เลขบัตรประชาชน (13 หลัก)' : 'เลขหนังสือเดินทาง'}
                   value={nationalId}
-                  onChange={(e) => setNationalId(e.target.value)}
+                  onChange={(e) => {
+                    if (docType === 'national_id') {
+                      setNationalId(e.target.value.replace(/\D/g, '').slice(0, 13));
+                    } else {
+                      setNationalId(e.target.value);
+                    }
+                  }}
+                  inputMode={docType === 'national_id' ? 'numeric' : undefined}
                   placeholder={docType === 'national_id' ? '1234567890123' : 'AA1234567'}
+                  error={docType === 'national_id' && nationalId.length > 0 && nationalId.length < 13 ? `กรอกแล้ว ${nationalId.length}/13 หลัก` : undefined}
                   required
                 />
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800">

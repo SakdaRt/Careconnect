@@ -10,6 +10,7 @@ import {
 import { acceptPolicy, getPolicyAcceptances } from '../services/policyService.js';
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
+import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
@@ -1329,6 +1330,9 @@ export const updateMyProfile = async (req, res) => {
         ]
       );
 
+      // Trigger trust score recalculation after caregiver profile update (fire-and-forget)
+      triggerUserTrustUpdate(user.id, 'profile_updated').catch(() => {});
+
       return res.status(200).json({
         success: true,
         data: { profile: result.rows[0] },
@@ -1364,6 +1368,9 @@ export const updateMyProfile = async (req, res) => {
         payload.available_days,
       ]
     );
+
+    // Trigger trust score recalculation after caregiver profile update (fire-and-forget)
+    triggerUserTrustUpdate(user.id, 'profile_updated').catch(() => {});
 
     return res.status(200).json({
       success: true,

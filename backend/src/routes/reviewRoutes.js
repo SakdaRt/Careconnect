@@ -3,6 +3,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { query } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import Joi from 'joi';
+import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 
 const router = Router();
 
@@ -115,6 +116,9 @@ router.post(
         success: true,
         data: { review: { id, job_id: actualJobId, caregiver_id, rating, comment } },
       });
+
+      // Trigger trust score recalculation for the reviewed caregiver (fire-and-forget)
+      triggerUserTrustUpdate(caregiver_id, 'review_created').catch(() => {});
     } catch (error) {
       console.error('[Review] Create error:', error);
       res.status(500).json({ success: false, error: 'ไม่สามารถบันทึกรีวิวได้' });

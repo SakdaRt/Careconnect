@@ -190,44 +190,48 @@ function JobPostCard({
             </div>
           )}
 
-          <div className="mt-4 flex flex-wrap items-start justify-between gap-2 pt-3 border-t border-gray-100">
-            <div className="flex flex-wrap gap-2">
-              <Link to={`/jobs/${job.id}`}>
-                <Button variant="outline" size="sm">
-                  ดูรายละเอียด
-                </Button>
-              </Link>
-
-              {canChat && (
-                <Link to={`/chat/${job.job_id}`}>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="whitespace-nowrap"
-                    leftIcon={<MessageCircle className="w-4 h-4" />}
-                  >
-                    แชท
+          <div className="mt-4 pt-3 border-t border-gray-100 space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
+                <Link to={`/jobs/${job.id}`}>
+                  <Button variant="outline" size="sm">
+                    ดูรายละเอียด
                   </Button>
                 </Link>
-              )}
 
-              {canDispute && (
-                <Button variant="outline" size="sm" onClick={onOpenDispute}>
-                  เปิดข้อพิพาท
-                </Button>
-              )}
+                {canChat && (
+                  <Link to={`/chat/${job.job_id}`}>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="whitespace-nowrap"
+                      leftIcon={<MessageCircle className="w-4 h-4" />}
+                    >
+                      แชท
+                    </Button>
+                  </Link>
+                )}
 
-              {canCancel && (
-                <Button variant="danger" size="sm" onClick={onCancel}>
-                  ยกเลิกงาน
+                {canCancel && (
+                  <Button variant="danger" size="sm" onClick={onCancel}>
+                    ยกเลิกงาน
+                  </Button>
+                )}
+              </div>
+
+              {canPublish && (
+                <Button variant="primary" size="sm" onClick={onPublish}>
+                  เผยแพร่
                 </Button>
               )}
             </div>
 
-            {canPublish && (
-              <Button variant="primary" size="sm" onClick={onPublish}>
-                เผยแพร่
-              </Button>
+            {canDispute && (
+              <div className="pt-2 border-t border-orange-100">
+                <Button variant="outline" size="sm" onClick={onOpenDispute} className="border-orange-300 text-orange-700 hover:bg-orange-50">
+                  เปิดข้อพิพาท
+                </Button>
+              </div>
             )}
           </div>
         </div>

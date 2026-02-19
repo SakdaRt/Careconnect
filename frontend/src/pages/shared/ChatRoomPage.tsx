@@ -404,26 +404,30 @@ export default function ChatRoomPage() {
               {disputeInfo?.reason && (
                 <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
               )}
-              <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
-                <Button variant="outline" size="sm" disabled={!viewJobDetailId} onClick={handleViewJobDetail}>
-                  ดูรายละเอียดงาน
-                </Button>
-                {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
-                  <>
-                  {disputeInfo?.id && (
-                    <Button variant="outline" size="sm" onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
-                      ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" size="sm" disabled={!viewJobDetailId} onClick={handleViewJobDetail}>
+                    ดูรายละเอียดงาน
+                  </Button>
+                  {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
+                    <>
+                    {disputeInfo?.id && (
+                      <Button variant="outline" size="sm" onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
+                        ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'cancel'} onClick={handleCancelJob}>
+                      ยกเลิกงาน
                     </Button>
+                    </>
                   )}
-                  {!disputeInfo?.id && job?.job_id && (
-                    <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'dispute'} onClick={handleOpenDispute}>
+                </div>
+                {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && !disputeInfo?.id && job?.job_id && (
+                  <div className="pt-2 border-t border-orange-100">
+                    <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'dispute'} onClick={handleOpenDispute} className="border-orange-300 text-orange-700 hover:bg-orange-50">
                       เปิดข้อพิพาท
                     </Button>
-                  )}
-                  <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'cancel'} onClick={handleCancelJob}>
-                    ยกเลิกงาน
-                  </Button>
-                  </>
+                  </div>
                 )}
               </div>
             </Card>

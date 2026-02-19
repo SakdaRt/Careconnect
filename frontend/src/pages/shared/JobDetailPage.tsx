@@ -616,12 +616,16 @@ export default function JobDetailPage() {
                   ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
                 </Button>
               )}
-              {!disputeInfo?.id && job.job_id && job.status !== 'draft' && job.status !== 'cancelled' && job.status !== 'completed' && (
-                <Button variant="outline" loading={actionLoading} onClick={handleOpenDispute}>
+            </div>
+
+            {!disputeInfo?.id && job.job_id && job.status !== 'draft' && job.status !== 'cancelled' && job.status !== 'completed' && (
+              <div className="mt-4 pt-4 border-t border-orange-100">
+                <Button variant="outline" loading={actionLoading} onClick={handleOpenDispute} className="border-orange-300 text-orange-700 hover:bg-orange-50">
                   เปิดข้อพิพาท
                 </Button>
-              )}
-            </div>
+                <p className="text-xs text-gray-400 mt-1">การเปิดข้อพิพาทจะแจ้งให้ทุกฝ่ายทราบและแอดมินจะเข้ามาตรวจสอบ</p>
+              </div>
+            )}
           </Card>
         )}
         <ReasonModal

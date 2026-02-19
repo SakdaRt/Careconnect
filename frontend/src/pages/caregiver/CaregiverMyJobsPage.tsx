@@ -469,71 +469,78 @@ export default function CaregiverMyJobsPage() {
                         <div>ค่าจ้างรวม: {job.total_amount.toLocaleString()} บาท</div>
                       </div>
 
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {targetJobPostId && (
-                          <Link to={`/jobs/${targetJobPostId}`}>
-                            <Button variant="outline" size="sm">
-                              ดูรายละเอียดงาน
-                            </Button>
-                          </Link>
-                        )}
-                        {isAwaitingResponse ? (
-                          <>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex flex-wrap gap-2">
+                          {targetJobPostId && (
+                            <Link to={`/jobs/${targetJobPostId}`}>
+                              <Button variant="outline" size="sm">
+                                ดูรายละเอียดงาน
+                              </Button>
+                            </Link>
+                          )}
+                          {isAwaitingResponse ? (
+                            <>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                loading={isLoading}
+                                onClick={() => handleAcceptAssignedOffer(job)}
+                              >
+                                ตอบรับงาน
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                loading={isLoading}
+                                onClick={() => handleRejectAssignedOffer(job)}
+                              >
+                                ปฏิเสธงาน
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Link to={`/chat/${job.id}`}>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  className="whitespace-nowrap"
+                                  leftIcon={<MessageCircle className="w-4 h-4" />}
+                                >
+                                  แชท
+                                </Button>
+                              </Link>
+                            </>
+                          )}
+
+                          {job.status === 'assigned' && !isAwaitingResponse && (
                             <Button
                               variant="primary"
                               size="sm"
                               loading={isLoading}
-                              onClick={() => handleAcceptAssignedOffer(job)}
+                              onClick={() => handleCheckIn(job)}
                             >
-                              ตอบรับงาน
+                              มาถึงที่หมายแล้ว
                             </Button>
+                          )}
+
+                          {job.status === 'in_progress' && (
                             <Button
-                              variant="outline"
+                              variant="primary"
                               size="sm"
                               loading={isLoading}
-                              onClick={() => handleRejectAssignedOffer(job)}
+                              onClick={() => handleOpenCheckout(job.id)}
                             >
-                              ปฏิเสธงาน
+                              ส่งงานเสร็จ
                             </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Link to={`/chat/${job.id}`}>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                className="whitespace-nowrap"
-                                leftIcon={<MessageCircle className="w-4 h-4" />}
-                              >
-                                แชท
-                              </Button>
-                            </Link>
-                            <Button variant="outline" size="sm" loading={isLoading} onClick={() => handleOpenDispute(job.id)}>
+                          )}
+                        </div>
+
+                        {!isAwaitingResponse && (job.status === 'assigned' || job.status === 'in_progress') && (
+                          <div className="pt-2 border-t border-orange-100">
+                            <Button variant="outline" size="sm" loading={isLoading} onClick={() => handleOpenDispute(job.id)} className="border-orange-300 text-orange-700 hover:bg-orange-50">
                               เปิดข้อพิพาท
                             </Button>
-                          </>
-                        )}
-
-                        {job.status === 'assigned' && !isAwaitingResponse && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            loading={isLoading}
-                            onClick={() => handleCheckIn(job)}
-                          >
-                            มาถึงที่หมายแล้ว
-                          </Button>
-                        )}
-
-                        {job.status === 'in_progress' && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            loading={isLoading}
-                            onClick={() => handleOpenCheckout(job.id)}
-                          >
-                            ส่งงานเสร็จ
-                          </Button>
+                          </div>
                         )}
                       </div>
                       {!isAwaitingResponse && (job.status === 'assigned' || job.status === 'in_progress') && (

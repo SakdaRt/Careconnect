@@ -60,10 +60,23 @@ async function calculateTrustScore(userId) {
   const completedJobs = parseInt(completedJobsResult.rows[0].count) || 0;
   breakdown.completedJobs = Math.min(completedJobs * SCORE_WEIGHTS.COMPLETED_JOB, 30);
 
-  // Get reviews (if job_reviews table exists)
-  // TODO: Implement when job_reviews table is created
-  // For now, reviews don't affect the score
-  breakdown.reviews = 0;
+  // Get reviews from caregiver_reviews table
+  try {
+    const reviewsResult = await query(
+      `SELECT rating FROM caregiver_reviews WHERE caregiver_id = $1`,
+      [userId]
+    );
+    let reviewPoints = 0;
+    for (const row of reviewsResult.rows) {
+      const r = parseInt(row.rating);
+      if (r >= 4) reviewPoints += SCORE_WEIGHTS.GOOD_REVIEW;
+      else if (r === 3) reviewPoints += SCORE_WEIGHTS.AVERAGE_REVIEW;
+      else reviewPoints += SCORE_WEIGHTS.BAD_REVIEW;
+    }
+    breakdown.reviews = Math.max(Math.min(reviewPoints, 20), -20);
+  } catch {
+    breakdown.reviews = 0;
+  }
 
   // Get cancellations (as caregiver)
   const cancellationsResult = await query(

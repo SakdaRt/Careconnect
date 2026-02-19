@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { computeRiskLevel } from '../utils/risk.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
 import { notifyJobAccepted, notifyCheckIn, notifyCheckOut, notifyJobCancelled } from './notificationService.js';
+import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 
 /**
  * Job Service
@@ -846,7 +847,7 @@ export const checkIn = async (jobId, caregiverId, gpsData = {}) => {
  */
 export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
   // Use transaction for checkout + financial settlement
-  return await transaction(async (client) => {
+  const checkoutResult = await transaction(async (client) => {
     // Use FOR UPDATE OF j to avoid Postgres lock errors with LEFT JOIN LATERAL
     let jobResult = await client.query(
       `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_id AS jp_hirer_id
@@ -1173,6 +1174,13 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
       platform_fee: platformFee,
     };
   });
+
+  // Trigger trust score recalculation after job completion (fire-and-forget)
+  if (checkoutResult?.status === 'completed' && !checkoutResult?.already_completed) {
+    triggerUserTrustUpdate(caregiverId, 'job_completed').catch(() => {});
+  }
+
+  return checkoutResult;
 };
 
 /**

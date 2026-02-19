@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { ShieldCheck, BadgeCheck, Shield, Upload, FileText, Trash2, ExternalLink } from 'lucide-react';
+import { ShieldCheck, BadgeCheck, Shield, Upload, FileText, Trash2, ExternalLink, Star, Landmark } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Avatar, Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
@@ -71,6 +71,15 @@ export default function ProfilePage() {
   const [certForm, setCertForm] = useState({ title: '', document_type: 'certification', description: '', issuer: '', issued_date: '', expiry_date: '' });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+
+  // Bank verification
+  const [bankVerified, setBankVerified] = useState<boolean | null>(null);
+
+  // Reviews (caregiver only)
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsAvg, setReviewsAvg] = useState<number>(0);
+  const [reviewsTotal, setReviewsTotal] = useState<number>(0);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
 
   const primaryId = useMemo(() => user?.email || user?.phone_number || '-', [user]);
   const avatarSrc = useMemo(() => {
@@ -523,6 +532,39 @@ export default function ProfilePage() {
 
   useEffect(() => { loadCertDocs(); }, [loadCertDocs]);
 
+  // Load bank verification status
+  useEffect(() => {
+    if (!user || user.role === 'admin') return;
+    let active = true;
+    appApi.getBankAccounts().then((res) => {
+      if (!active) return;
+      if (res.success && res.data) {
+        const accounts: any[] = (res.data as any)?.accounts || (Array.isArray(res.data) ? res.data : []);
+        setBankVerified(accounts.some((a: any) => a.is_verified));
+      } else {
+        setBankVerified(false);
+      }
+    }).catch(() => setBankVerified(false));
+    return () => { active = false; };
+  }, [user]);
+
+  // Load reviews for caregiver profile
+  useEffect(() => {
+    if (!user || user.role !== 'caregiver') return;
+    let active = true;
+    setReviewsLoading(true);
+    appApi.getCaregiverReviews(user.id, 1, 20).then((res) => {
+      if (!active) return;
+      if (res.success && res.data) {
+        const data = res.data as any;
+        setReviews(data.data || []);
+        setReviewsAvg(parseFloat(data.avg_rating) || 0);
+        setReviewsTotal(data.total_reviews || 0);
+      }
+    }).catch(() => {}).finally(() => { if (active) setReviewsLoading(false); });
+    return () => { active = false; };
+  }, [user]);
+
   const handleCertUpload = async () => {
     if (!certFile || !certForm.title.trim()) {
       toast.error('กรุณาระบุชื่อเอกสารและเลือกไฟล์');
@@ -659,7 +701,7 @@ export default function ProfilePage() {
                 <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.trust_level === 'L3' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
                   {user.trust_level === 'L3' ? '✓' : '3'}
                 </div>
-                <span className={user.trust_level === 'L3' ? 'text-green-700' : 'text-gray-600'}>บัญชีธนาคาร + คะแนน ≥80 {user.trust_level === 'L3' ? '✓' : ''}</span>
+                <span className={user.trust_level === 'L3' ? 'text-green-700' : 'text-gray-600'}>บัญชีธนาคารยืนยันแล้ว + Trust Score ≥80 {user.trust_level === 'L3' ? '✓' : ''}</span>
               </div>
             </div>
             {!['L2', 'L3'].includes(user.trust_level || 'L0') && (
@@ -668,6 +710,44 @@ export default function ProfilePage() {
                   <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
                 </Link>
               </div>
+            )}
+          </Card>
+        )}
+
+        {user && user.role !== 'admin' && (
+          <Card className="p-4 sm:p-6">
+            <div className="text-sm font-semibold text-gray-900 mb-3">Trust Score</div>
+            <div className="flex items-end gap-2 mb-2">
+              <div className="text-3xl font-bold text-gray-900">{user.trust_score ?? 0}</div>
+              <div className="text-sm text-gray-400 mb-1">/ 100</div>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+              <div
+                className={`h-2 rounded-full transition-all ${(user.trust_score ?? 0) >= 80 ? 'bg-green-500' : (user.trust_score ?? 0) >= 50 ? 'bg-blue-500' : 'bg-amber-500'}`}
+                style={{ width: `${Math.min(100, Math.max(0, user.trust_score ?? 0))}%` }}
+              />
+            </div>
+            <div className="text-xs text-gray-500">คะแนนคำนวณจากงานที่เสร็จสิ้น รีวิว ความตรงเวลา และความครบถ้วนของโปรไฟล์</div>
+          </Card>
+        )}
+
+        {user && user.role !== 'admin' && (
+          <Card className="p-4 sm:p-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-semibold text-gray-900">บัญชีธนาคาร</div>
+              <Link to={user.role === 'caregiver' ? '/caregiver/wallet' : '/hirer/wallet'}>
+                <Button variant="outline" size="sm">จัดการบัญชีธนาคาร</Button>
+              </Link>
+            </div>
+            <div className="flex items-center gap-2">
+              <Landmark className={`w-5 h-5 ${bankVerified ? 'text-green-600' : 'text-gray-400'}`} />
+              <span className={`text-sm ${bankVerified ? 'text-green-700 font-semibold' : 'text-gray-500'}`}>
+                {bankVerified === null ? 'กำลังโหลด...' : bankVerified ? 'ยืนยันบัญชีธนาคารแล้ว' : 'ยังไม่มีบัญชีธนาคารที่ยืนยัน'}
+              </span>
+              {bankVerified && <span className="text-green-500 text-sm">✓</span>}
+            </div>
+            {!bankVerified && bankVerified !== null && (
+              <p className="text-xs text-gray-500 mt-2">เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรด Trust Level เป็น L3</p>
             )}
           </Card>
         )}
@@ -995,6 +1075,50 @@ export default function ProfilePage() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
+
+            {profileRole === 'caregiver' && (
+              <Card className="p-4 sm:p-6">
+                <div className="text-sm font-semibold text-gray-900 mb-3">รีวิวจากผู้ว่าจ้าง</div>
+                {reviewsLoading ? (
+                  <div className="text-sm text-gray-500 py-2">กำลังโหลดรีวิว...</div>
+                ) : reviewsTotal === 0 ? (
+                  <div className="text-center py-4 text-gray-400">
+                    <Star className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <div className="text-sm">ยังไม่มีรีวิว</div>
+                    <div className="text-xs mt-1">รีวิวจะปรากฏที่นี่หลังจากงานเสร็จสิ้น</div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3 mb-4 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                      <div className="text-3xl font-bold text-gray-900">{reviewsAvg.toFixed(1)}</div>
+                      <div>
+                        <div className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star key={i} className={`w-4 h-4 ${i < Math.round(reviewsAvg) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                          ))}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-0.5">{reviewsTotal} รีวิว</div>
+                      </div>
+                    </div>
+                    {reviews.map((review) => (
+                      <div key={review.id} className="p-3 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-1 mb-1">
+                          {Array.from({ length: 5 }, (_, i) => (
+                            <Star key={i} className={`w-3.5 h-3.5 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                          ))}
+                          <span className="text-xs text-gray-500 ml-1">{review.rating}/5</span>
+                        </div>
+                        {review.comment && <p className="text-sm text-gray-700 mt-1">{review.comment}</p>}
+                        <div className="text-xs text-gray-400 mt-1.5">
+                          {review.reviewer_name && <span>{review.reviewer_name} · </span>}
+                          {new Date(review.created_at).toLocaleDateString('th-TH')}
                         </div>
                       </div>
                     ))}
