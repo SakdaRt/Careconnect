@@ -25,6 +25,17 @@ interface CaregiverResult {
   available_from?: string;
   available_to?: string;
   is_public_profile?: boolean;
+  avg_rating?: number;
+  total_reviews?: number;
+  is_favorited?: boolean;
+}
+
+interface CaregiverReview {
+  id: string;
+  rating: number;
+  comment?: string;
+  reviewer_name?: string;
+  created_at: string;
 }
 
 const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> = {
@@ -182,6 +193,10 @@ export default function SearchCaregiversPage() {
   const [jobsLoading, setJobsLoading] = useState(false);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailCaregiver, setDetailCaregiver] = useState<CaregiverResult | null>(null);
+  const [detailReviews, setDetailReviews] = useState<CaregiverReview[]>([]);
+  const [detailReviewsLoading, setDetailReviewsLoading] = useState(false);
+  const [detailAvgRating, setDetailAvgRating] = useState(0);
+  const [detailTotalReviews, setDetailTotalReviews] = useState(0);
   const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set());
 
   const handleToggleFavorite = async (caregiverId: string) => {
@@ -256,6 +271,18 @@ export default function SearchCaregiversPage() {
     const syncFavoriteState = async () => {
       if (caregivers.length === 0) {
         setFavoritedIds(new Set());
+        return;
+      }
+
+      // Use is_favorited from search results if available (avoids N+1 API calls)
+      const hasServerFavData = caregivers.some((cg) => cg.is_favorited !== undefined);
+      if (hasServerFavData) {
+        if (cancelled) return;
+        const next = new Set<string>();
+        caregivers.forEach((cg) => {
+          if (cg.is_favorited) next.add(cg.id);
+        });
+        setFavoritedIds(next);
         return;
       }
 
@@ -350,9 +377,23 @@ export default function SearchCaregiversPage() {
     loadMyJobs();
   };
 
-  const handleOpenDetails = (cg: CaregiverResult) => {
+  const handleOpenDetails = async (cg: CaregiverResult) => {
     setDetailCaregiver(cg);
+    setDetailReviews([]);
+    setDetailAvgRating(cg.avg_rating || 0);
+    setDetailTotalReviews(cg.total_reviews || 0);
     setDetailOpen(true);
+    setDetailReviewsLoading(true);
+    try {
+      const res = await appApi.getCaregiverReviews(cg.id, 1, 10);
+      if (res.success && res.data) {
+        setDetailReviews((res.data.data || []) as CaregiverReview[]);
+        setDetailAvgRating(res.data.avg_rating || cg.avg_rating || 0);
+        setDetailTotalReviews(res.data.total_reviews || cg.total_reviews || 0);
+      }
+    } catch { /* ignore */ } finally {
+      setDetailReviewsLoading(false);
+    }
   };
 
   const handleAssignFromDetails = () => {
@@ -563,9 +604,15 @@ export default function SearchCaregiversPage() {
                     )}
 
                     <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                      {(cg.avg_rating ?? 0) > 0 && (
+                        <span className="flex items-center gap-1 text-yellow-600">
+                          <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                          {Number(cg.avg_rating).toFixed(1)} ({cg.total_reviews} รีวิว)
+                        </span>
+                      )}
                       {cg.experience_years != null && (
                         <span className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5" />ประสบการณ์ {cg.experience_years} ปี
+                          <Briefcase className="w-3.5 h-3.5" />ประสบการณ์ {cg.experience_years} ปี
                         </span>
                       )}
                       {(cg.completed_jobs_count ?? 0) > 0 && (
@@ -694,6 +741,44 @@ export default function SearchCaregiversPage() {
                     </div>
                   </div>
                 )}
+
+                {/* Reviews section */}
+                <div>
+                  <div className="text-sm font-medium text-gray-900 mb-2 flex items-center gap-2">
+                    รีวิวจากผู้ว่าจ้าง
+                    {detailTotalReviews > 0 && (
+                      <span className="text-xs font-normal text-yellow-600 flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                        {Number(detailAvgRating).toFixed(1)} ({detailTotalReviews} รีวิว)
+                      </span>
+                    )}
+                  </div>
+                  {detailReviewsLoading ? (
+                    <div className="text-xs text-gray-400 py-2">กำลังโหลดรีวิว...</div>
+                  ) : detailReviews.length === 0 ? (
+                    <div className="text-xs text-gray-400 py-2">ยังไม่มีรีวิว</div>
+                  ) : (
+                    <div className="space-y-3 max-h-48 overflow-y-auto">
+                      {detailReviews.map((review) => (
+                        <div key={review.id} className="p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                          <div className="flex items-center gap-1 mb-1">
+                            {Array.from({ length: 5 }, (_, i) => (
+                              <Star key={i} className={`w-3.5 h-3.5 ${i < review.rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
+                            ))}
+                            <span className="text-xs text-gray-500 ml-1">{review.rating}/5</span>
+                          </div>
+                          {review.comment && (
+                            <p className="text-sm text-gray-700">{review.comment}</p>
+                          )}
+                          <div className="text-xs text-gray-400 mt-1">
+                            {review.reviewer_name || 'ผู้ว่าจ้าง'}
+                            {review.created_at && ` · ${new Date(review.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}`}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })()}

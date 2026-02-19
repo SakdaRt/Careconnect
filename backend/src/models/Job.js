@@ -357,6 +357,7 @@ class Job extends BaseModel {
       risk_level,
       is_urgent,
       exclude_hirer_id,
+      caregiver_id,
       page = 1,
       limit = 20,
     } = options;
@@ -392,9 +393,12 @@ class Job extends BaseModel {
     const result = await query(
       `SELECT * FROM job_posts
        WHERE ${whereClause}
-       ORDER BY is_urgent DESC, scheduled_start_at ASC
+       ORDER BY
+         ${caregiver_id ? `(CASE WHEN preferred_caregiver_id = $${paramIndex++} THEN 0 ELSE 1 END) ASC,` : ''}
+         (CASE WHEN title LIKE 'mock %' THEN 1 ELSE 0 END) ASC,
+         is_urgent DESC, scheduled_start_at ASC
        LIMIT $${paramIndex++} OFFSET $${paramIndex++}`,
-      [...values, limit, offset]
+      [...values, ...(caregiver_id ? [caregiver_id] : []), limit, offset]
     );
 
     const countResult = await query(
@@ -450,7 +454,13 @@ class Job extends BaseModel {
                 pp.patient_display_name
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN LATERAL (
+           SELECT caregiver_id, status
+           FROM job_assignments
+           WHERE job_id = j.id AND status IN ('active', 'completed')
+           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
+           LIMIT 1
+         ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
          LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
          LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
@@ -467,7 +477,13 @@ class Job extends BaseModel {
                 NULL::text as patient_display_name
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN LATERAL (
+           SELECT caregiver_id, status
+           FROM job_assignments
+           WHERE job_id = j.id AND status IN ('active', 'completed')
+           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
+           LIMIT 1
+         ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
          WHERE ${whereClause}
          ORDER BY jp.created_at DESC
@@ -515,7 +531,13 @@ class Job extends BaseModel {
           hp.display_name as hirer_name
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN LATERAL (
+           SELECT caregiver_id, status
+           FROM job_assignments
+           WHERE job_id = j.id AND status IN ('active', 'completed')
+           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
+           LIMIT 1
+         ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
          LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
          LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
@@ -536,7 +558,13 @@ class Job extends BaseModel {
           hp.display_name as hirer_name
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN LATERAL (
+           SELECT caregiver_id, status
+           FROM job_assignments
+           WHERE job_id = j.id AND status IN ('active', 'completed')
+           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
+           LIMIT 1
+         ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
          LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
          LEFT JOIN patient_profiles pp ON pp.id = jpr.patient_id
@@ -569,7 +597,13 @@ class Job extends BaseModel {
           hp.display_name as hirer_name
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN LATERAL (
+           SELECT caregiver_id, status
+           FROM job_assignments
+           WHERE job_id = j.id AND status IN ('active', 'completed')
+           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
+           LIMIT 1
+         ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
          LEFT JOIN LATERAL (
            SELECT
@@ -600,7 +634,13 @@ class Job extends BaseModel {
           hp.display_name as hirer_name
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+         LEFT JOIN LATERAL (
+           SELECT caregiver_id, status
+           FROM job_assignments
+           WHERE job_id = j.id AND status IN ('active', 'completed')
+           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
+           LIMIT 1
+         ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
          LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
          WHERE jp.id = $1 OR j.id = $1`,
@@ -706,7 +746,7 @@ class Job extends BaseModel {
        JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
        JOIN job_posts jp ON jp.id = j.job_post_id
        WHERE j.id = $1 OR jp.id = $1`,
-      [jobId, jobId]
+      [jobId]
     );
 
     if (!jobQuery.rows[0]) {
@@ -810,7 +850,7 @@ class Job extends BaseModel {
        FROM jobs j
        JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
        WHERE j.id = $1 OR j.job_post_id = $1`,
-      [jobId, jobId]
+      [jobId]
     );
 
     if (!jobQuery.rows[0]) {

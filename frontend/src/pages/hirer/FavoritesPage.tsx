@@ -65,6 +65,8 @@ export default function FavoritesPage() {
       } else {
         setFavorites([]);
       }
+    } catch {
+      setFavorites([]);
     } finally {
       setLoading(false);
     }
@@ -242,7 +244,7 @@ export default function FavoritesPage() {
                       {(fav.total_reviews ?? 0) > 0 && (
                         <span className="flex items-center gap-1">
                           {renderStars(fav.avg_rating || 0)}
-                          <span className="ml-1">{(fav.avg_rating || 0).toFixed(1)} ({fav.total_reviews} รีวิว)</span>
+                          <span className="ml-1">{Number(fav.avg_rating || 0).toFixed(1)} ({fav.total_reviews} รีวิว)</span>
                         </span>
                       )}
                       {fav.experience_years != null && (
@@ -342,7 +344,7 @@ export default function FavoritesPage() {
                     <div>จำนวนงานที่ทำแล้ว: {detailCaregiver.completed_jobs_count} งาน</div>
                   )}
                   {(detailCaregiver.total_reviews ?? 0) > 0 && (
-                    <div>คะแนนเฉลี่ย: {(detailCaregiver.avg_rating || 0).toFixed(1)} ({detailCaregiver.total_reviews} รีวิว)</div>
+                    <div>คะแนนเฉลี่ย: {Number(detailCaregiver.avg_rating || 0).toFixed(1)} ({detailCaregiver.total_reviews} รีวิว)</div>
                   )}
                   {detailCaregiver.email && <div>อีเมล: {detailCaregiver.email}</div>}
                 </div>

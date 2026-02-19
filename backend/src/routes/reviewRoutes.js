@@ -81,6 +81,36 @@ router.post(
         [id, actualJobId, jobPostId, reviewerId, caregiver_id, rating, comment || null]
       );
 
+      // Recalculate and update caregiver's trust_score based on average review rating
+      try {
+        const avgResult = await query(
+          `SELECT AVG(rating)::numeric(3,2) as avg_rating, COUNT(*)::int as total_reviews
+           FROM caregiver_reviews WHERE caregiver_id = $1`,
+          [caregiver_id]
+        );
+        const avgRating = parseFloat(avgResult.rows[0]?.avg_rating) || 0;
+        // Scale: avg_rating (1-5) → trust_score (0-100), weighted with existing score
+        const reviewScore = Math.round(avgRating * 20); // 5 stars = 100
+        const totalReviews = avgResult.rows[0]?.total_reviews || 0;
+
+        // Blend: more reviews = more weight on review score
+        // Formula: trust_score = base_score * (1 - weight) + review_score * weight
+        // weight = min(total_reviews / 10, 0.7) — caps at 70% review influence
+        const weight = Math.min(totalReviews / 10, 0.7);
+        const currentUser = await query(`SELECT trust_score FROM users WHERE id = $1`, [caregiver_id]);
+        const currentScore = parseFloat(currentUser.rows[0]?.trust_score) || 50;
+        const baseScore = totalReviews <= 1 ? currentScore : currentScore; // preserve base
+        const newScore = Math.round(baseScore * (1 - weight) + reviewScore * weight);
+        const clampedScore = Math.max(0, Math.min(100, newScore));
+
+        await query(
+          `UPDATE users SET trust_score = $1, updated_at = NOW() WHERE id = $2`,
+          [clampedScore, caregiver_id]
+        );
+      } catch (scoreErr) {
+        console.error('[Review] Failed to update trust_score:', scoreErr.message);
+      }
+
       res.status(201).json({
         success: true,
         data: { review: { id, job_id: actualJobId, caregiver_id, rating, comment } },

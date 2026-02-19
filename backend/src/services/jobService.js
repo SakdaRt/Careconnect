@@ -380,6 +380,7 @@ export const getJobFeed = async (caregiverId, options = {}) => {
   const jobs = await Job.getJobFeed({
     ...options,
     exclude_hirer_id: caregiverId,
+    caregiver_id: caregiverId,
   });
 
   // Mark each job with eligibility based on trust level
@@ -846,8 +847,9 @@ export const checkIn = async (jobId, caregiverId, gpsData = {}) => {
 export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
   // Use transaction for checkout + financial settlement
   return await transaction(async (client) => {
+    // Use FOR UPDATE OF j to avoid Postgres lock errors with LEFT JOIN LATERAL
     let jobResult = await client.query(
-      `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount
+      `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_id AS jp_hirer_id
        FROM jobs j
        JOIN job_posts jp ON jp.id = j.job_post_id
        LEFT JOIN LATERAL (
@@ -858,13 +860,13 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
          LIMIT 1
        ) ja ON true
        WHERE j.id = $1
-       FOR UPDATE`,
+       FOR UPDATE OF j`,
       [jobId]
     );
 
     if (jobResult.rows.length === 0) {
       jobResult = await client.query(
-        `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount
+        `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_id AS jp_hirer_id
          FROM jobs j
          JOIN job_posts jp ON jp.id = j.job_post_id
          LEFT JOIN LATERAL (
@@ -875,7 +877,7 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
            LIMIT 1
          ) ja ON true
          WHERE j.job_post_id = $1
-         FOR UPDATE`,
+         FOR UPDATE OF j`,
         [jobId]
       );
     }
@@ -886,6 +888,15 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
 
     const job = jobResult.rows[0];
     const actualJobId = job.id;
+    const hirerId = job.jp_hirer_id || job.hirer_id;
+
+    // Safe number parsing with fallback to 0
+    const totalAmountRaw = Number(job.total_amount);
+    const platformFeeRaw = Number(job.platform_fee_amount);
+    const totalAmount = Number.isFinite(totalAmountRaw) && totalAmountRaw >= 0 ? totalAmountRaw : 0;
+    const platformFee = Number.isFinite(platformFeeRaw) && platformFeeRaw >= 0 ? platformFeeRaw : 0;
+    const caregiverPayment = totalAmount;
+    const settlementAmount = caregiverPayment + platformFee;
 
     if (job.caregiver_id !== caregiverId) {
       throw new Error('Not authorized to check out from this job');
@@ -933,24 +944,118 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
       );
     }
 
-    // Financial settlement
-    // Get escrow wallet
-    const escrowWalletResult = await client.query(
+    // ── Financial settlement ──
+    // Get escrow wallet (legacy fallback: create from hirer wallet if missing)
+    let escrowWalletResult = await client.query(
       `SELECT * FROM wallets WHERE job_id = $1 AND wallet_type = 'escrow' FOR UPDATE`,
       [actualJobId]
     );
 
     if (escrowWalletResult.rows.length === 0) {
-      throw new Error('Escrow wallet not found');
+      // Legacy job without escrow — pull funds from hirer wallet
+      const hirerWalletResult = await client.query(
+        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
+        [hirerId]
+      );
+
+      if (hirerWalletResult.rows.length === 0) {
+        throw new Error('Hirer wallet not found');
+      }
+
+      const hirerWallet = hirerWalletResult.rows[0];
+      const hirerAvailable = Number(hirerWallet.available_balance) || 0;
+      const hirerHeld = Number(hirerWallet.held_balance) || 0;
+
+      if (hirerAvailable + hirerHeld < settlementAmount) {
+        throw new Error('Insufficient balance in hirer wallet');
+      }
+
+      const useHeld = Math.min(hirerHeld, settlementAmount);
+      const useAvailable = settlementAmount - useHeld;
+
+      if (useHeld > 0) {
+        await client.query(
+          `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
+          [useHeld, hirerWallet.id]
+        );
+      }
+      if (useAvailable > 0) {
+        await client.query(
+          `UPDATE wallets SET available_balance = available_balance - $1, updated_at = NOW() WHERE id = $2`,
+          [useAvailable, hirerWallet.id]
+        );
+      }
+
+      const escrowWalletId = uuidv4();
+      await client.query(
+        `INSERT INTO wallets (id, job_id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
+         VALUES ($1, $2, 'escrow', 0, $3, 'THB', NOW(), NOW())`,
+        [escrowWalletId, actualJobId, settlementAmount]
+      );
+
+      await client.query(
+        `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+         VALUES ($1, $2, $3, $4, 'hold', 'job', $5, 'Legacy escrow hold during checkout', NOW())`,
+        [uuidv4(), hirerWallet.id, escrowWalletId, settlementAmount, actualJobId]
+      );
+
+      escrowWalletResult = await client.query(
+        `SELECT * FROM wallets WHERE id = $1 FOR UPDATE`,
+        [escrowWalletId]
+      );
     }
 
     const escrowWallet = escrowWalletResult.rows[0];
-    const totalAmount = parseInt(job.total_amount);
-    const platformFee = parseInt(job.platform_fee_amount);
-    const caregiverPayment = totalAmount; // Caregiver gets total_amount, platform fee is separate
-    const escrowHeld = parseInt(escrowWallet.held_balance);
+    let escrowHeld = Number(escrowWallet.held_balance) || 0;
 
-    if (escrowHeld < caregiverPayment + platformFee) {
+    // Top up escrow if it has less than needed (partial legacy hold)
+    if (escrowHeld < settlementAmount) {
+      const shortfall = settlementAmount - escrowHeld;
+
+      const hirerWalletResult = await client.query(
+        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
+        [hirerId]
+      );
+
+      if (hirerWalletResult.rows.length > 0) {
+        const hirerWallet = hirerWalletResult.rows[0];
+        const hirerAvailable = Number(hirerWallet.available_balance) || 0;
+        const hirerHeld = Number(hirerWallet.held_balance) || 0;
+
+        if (hirerAvailable + hirerHeld >= shortfall) {
+          const useHeld = Math.min(hirerHeld, shortfall);
+          const useAvailable = shortfall - useHeld;
+
+          if (useHeld > 0) {
+            await client.query(
+              `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
+              [useHeld, hirerWallet.id]
+            );
+          }
+          if (useAvailable > 0) {
+            await client.query(
+              `UPDATE wallets SET available_balance = available_balance - $1, updated_at = NOW() WHERE id = $2`,
+              [useAvailable, hirerWallet.id]
+            );
+          }
+
+          await client.query(
+            `UPDATE wallets SET held_balance = held_balance + $1, updated_at = NOW() WHERE id = $2`,
+            [shortfall, escrowWallet.id]
+          );
+
+          await client.query(
+            `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+             VALUES ($1, $2, $3, $4, 'hold', 'job', $5, 'Escrow top-up during checkout', NOW())`,
+            [uuidv4(), hirerWallet.id, escrowWallet.id, shortfall, actualJobId]
+          );
+
+          escrowHeld += shortfall;
+        }
+      }
+    }
+
+    if (escrowHeld < settlementAmount) {
       throw new Error('Insufficient escrow balance for settlement');
     }
 
@@ -961,7 +1066,6 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
     );
 
     if (caregiverWalletResult.rows.length === 0) {
-      // Create caregiver wallet if doesn't exist
       const caregiverWalletId = uuidv4();
       await client.query(
         `INSERT INTO wallets (id, user_id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
@@ -976,26 +1080,28 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
 
     const caregiverWallet = caregiverWalletResult.rows[0];
 
-    // Get or create platform wallet
-    let platformWalletResult = await client.query(
-      `SELECT * FROM wallets WHERE wallet_type = 'platform' AND user_id IS NULL FOR UPDATE`
-    );
+    // Get or create platform wallet (only when fee > 0)
+    let platformWallet = null;
+    if (platformFee > 0) {
+      let platformWalletResult = await client.query(
+        `SELECT * FROM wallets WHERE wallet_type = 'platform' ORDER BY created_at ASC LIMIT 1 FOR UPDATE`
+      );
 
-    if (platformWalletResult.rows.length === 0) {
-      // Create platform wallet if doesn't exist
-      const platformWalletId = uuidv4();
-      await client.query(
-        `INSERT INTO wallets (id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
-         VALUES ($1, 'platform', 0, 0, 'THB', NOW(), NOW())`,
-        [platformWalletId]
-      );
-      platformWalletResult = await client.query(
-        `SELECT * FROM wallets WHERE id = $1`,
-        [platformWalletId]
-      );
+      if (platformWalletResult.rows.length === 0) {
+        const platformWalletId = uuidv4();
+        await client.query(
+          `INSERT INTO wallets (id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
+           VALUES ($1, 'platform', 0, 0, 'THB', NOW(), NOW())`,
+          [platformWalletId]
+        );
+        platformWalletResult = await client.query(
+          `SELECT * FROM wallets WHERE id = $1`,
+          [platformWalletId]
+        );
+      }
+
+      platformWallet = platformWalletResult.rows[0];
     }
-
-    const platformWallet = platformWalletResult.rows[0];
 
     // Transfer to caregiver
     await client.query(
@@ -1015,23 +1121,25 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
       [uuidv4(), escrowWallet.id, caregiverWallet.id, caregiverPayment, actualJobId]
     );
 
-    // Transfer platform fee
-    await client.query(
-      `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
-      [platformFee, escrowWallet.id]
-    );
+    // Transfer platform fee (only when fee > 0)
+    if (platformFee > 0 && platformWallet) {
+      await client.query(
+        `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
+        [platformFee, escrowWallet.id]
+      );
 
-    await client.query(
-      `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
-      [platformFee, platformWallet.id]
-    );
+      await client.query(
+        `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
+        [platformFee, platformWallet.id]
+      );
 
-    // Record platform fee
-    await client.query(
-      `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-       VALUES ($1, $2, $3, $4, 'debit', 'fee', $5, 'Platform service fee', NOW())`,
-      [uuidv4(), escrowWallet.id, platformWallet.id, platformFee, actualJobId]
-    );
+      // Record platform fee
+      await client.query(
+        `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+         VALUES ($1, $2, $3, $4, 'debit', 'fee', $5, 'Platform service fee', NOW())`,
+        [uuidv4(), escrowWallet.id, platformWallet.id, platformFee, actualJobId]
+      );
+    }
 
     // Add system message
     const threadResult = await client.query(

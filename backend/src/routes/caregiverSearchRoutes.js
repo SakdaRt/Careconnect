@@ -117,6 +117,13 @@ router.get(
         ? `COALESCE(cp.is_public_profile, TRUE) AS is_public_profile`
         : `TRUE AS is_public_profile`;
 
+      // Save WHERE-only values for count query before adding hirerId
+      const whereValues = [...values];
+
+      const hirerId = req.user?.id || null;
+      const favJoinParam = hirerId ? `$${idx++}` : null;
+      if (hirerId) values.push(hirerId);
+
       const result = await query(
         `SELECT
          u.id,
@@ -134,11 +141,22 @@ router.get(
          cp.available_from,
          cp.available_to,
          cp.available_days,
-         ${publicProfileSelect}
+         ${publicProfileSelect},
+         ${hirerId ? `(cf.id IS NOT NULL) AS is_favorited` : `FALSE AS is_favorited`},
+         COALESCE(rv.avg_rating, 0) AS avg_rating,
+         COALESCE(rv.total_reviews, 0)::int AS total_reviews
        FROM users u
        LEFT JOIN caregiver_profiles cp ON cp.user_id = u.id
+       ${hirerId ? `LEFT JOIN caregiver_favorites cf ON cf.caregiver_id = u.id AND cf.hirer_id = ${favJoinParam}` : ''}
+       LEFT JOIN LATERAL (
+         SELECT AVG(cr.rating)::numeric(3,2) AS avg_rating, COUNT(*)::int AS total_reviews
+         FROM caregiver_reviews cr WHERE cr.caregiver_id = u.id
+       ) rv ON true
        ${whereSql}
-       ORDER BY u.trust_score DESC NULLS LAST, u.completed_jobs_count DESC
+       ORDER BY
+         ${hirerId ? '(CASE WHEN cf.id IS NOT NULL THEN 0 ELSE 1 END) ASC,' : ''}
+         (CASE WHEN u.email LIKE '%mock%@careconnect.local' THEN 1 ELSE 0 END) ASC,
+         u.trust_score DESC NULLS LAST, u.completed_jobs_count DESC
        LIMIT $${idx++} OFFSET $${idx++}`,
         [...values, limit, offset],
       );
@@ -148,7 +166,7 @@ router.get(
        FROM users u
        LEFT JOIN caregiver_profiles cp ON cp.user_id = u.id
        ${whereSql}`,
-        values,
+        whereValues,
       );
 
       const total = countResult.rows[0]?.total || 0;
