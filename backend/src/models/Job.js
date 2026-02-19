@@ -100,11 +100,14 @@ const getDistanceMeters = (lat1, lng1, lat2, lng2) => {
   return earthRadius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
-const isMissingPatientProfileColumnError = (error) => {
+const isMissingColumnError = (error, columnName) => {
   const code = String(error?.code || '').toUpperCase();
   const message = String(error?.message || '').toLowerCase();
-  return code === '42703' && message.includes('patient_profile_id');
+  return code === '42703' && message.includes(columnName);
 };
+
+const isMissingPatientProfileColumnError = (error) => isMissingColumnError(error, 'patient_profile_id');
+const isMissingPreferredCaregiverColumnError = (error) => isMissingColumnError(error, 'preferred_caregiver_id');
 
 const isRecipientSchemaCompatibilityError = (error) => {
   const code = String(error?.code || '').toUpperCase();
@@ -240,10 +243,19 @@ class Job extends BaseModel {
     try {
       return await this.create(payload);
     } catch (error) {
+      if (isMissingPreferredCaregiverColumnError(error)) {
+        const { preferred_caregiver_id: _pc, ...withoutPreferred } = payload;
+        try {
+          return await this.create(withoutPreferred);
+        } catch (innerError) {
+          if (!isMissingPatientProfileColumnError(innerError)) throw innerError;
+          const { patient_profile_id: _pp, ...legacyPayload } = withoutPreferred;
+          return await this.create(legacyPayload);
+        }
+      }
       if (!isMissingPatientProfileColumnError(error)) {
         throw error;
       }
-
       const { patient_profile_id: _ignored, ...legacyPayload } = payload;
       return await this.create(legacyPayload);
     }
