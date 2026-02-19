@@ -7,6 +7,10 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const { loginWithTokens } = useAuth();
   const handledRef = useRef(false);
+  const loginWithTokensRef = useRef(loginWithTokens);
+  const navigateRef = useRef(navigate);
+  loginWithTokensRef.current = loginWithTokens;
+  navigateRef.current = navigate;
 
   useEffect(() => {
     if (handledRef.current) return;
@@ -19,34 +23,23 @@ export default function AuthCallbackPage() {
     window.history.replaceState({}, document.title, window.location.pathname);
 
     if (!token) {
-      navigate('/login?error=oauth_failed', { replace: true });
+      navigateRef.current('/login?error=oauth_failed', { replace: true });
       return;
     }
 
-    let cancelled = false;
-
-    const completeOAuthLogin = async () => {
-      try {
-        const user = await loginWithTokens(token, refreshToken);
-        if (cancelled) return;
-
+    loginWithTokensRef.current(token, refreshToken)
+      .then((user) => {
         const destination = user.role === 'admin' ? '/admin/dashboard' : '/select-role';
-        navigate(destination, {
+        navigateRef.current(destination, {
           replace: true,
           state: user.role === 'admin' ? undefined : { mode: 'login' },
         });
-      } catch {
-        if (cancelled) return;
-        navigate('/login?error=oauth_failed', { replace: true });
-      }
-    };
-
-    completeOAuthLogin();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [loginWithTokens, navigate]);
+      })
+      .catch(() => {
+        navigateRef.current('/login?error=oauth_failed', { replace: true });
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AuthLayout>

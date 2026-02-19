@@ -18,6 +18,7 @@ import crypto from 'crypto';
 const GENERATED_DISPLAY_NAME_PATTERN = /^ผู้(?:ว่าจ้าง|ดูแล)\s+[A-Z0-9]{4}$/u;
 const DISPLAY_NAME_PATTERN = /^(\S+)\s+(\S)\.?$/u;
 const GOOGLE_OAUTH_STATE_COOKIE = 'google_oauth_state';
+const GOOGLE_OAUTH_FRONTEND_COOKIE = 'google_oauth_frontend';
 const GOOGLE_OAUTH_STATE_TTL_MS = 10 * 60 * 1000;
 const GOOGLE_OAUTH_SCOPE = ['openid', 'email', 'profile'];
 
@@ -73,8 +74,9 @@ const getFrontendBaseUrl = (req) => {
   return 'http://localhost:5173';
 };
 
-const buildFrontendRedirectUrl = (pathname, params = {}, req = null) => {
-  const url = new URL(pathname, getFrontendBaseUrl(req));
+const buildFrontendRedirectUrl = (pathname, params = {}, req = null, baseUrl = null) => {
+  const base = baseUrl || getFrontendBaseUrl(req);
+  const url = new URL(pathname, base);
   Object.entries(params).forEach(([key, value]) => {
     if (value !== null && value !== undefined && value !== '') {
       url.searchParams.set(key, String(value));
@@ -327,8 +329,11 @@ export const googleLogin = async (req, res) => {
     }
 
     const callbackUrl = getCallbackUrl(req);
+    const frontendUrl = getFrontendBaseUrl(req);
     const state = crypto.randomBytes(32).toString('hex');
-    res.cookie(GOOGLE_OAUTH_STATE_COOKIE, state, getOAuthStateCookieOptions());
+    const cookieOpts = getOAuthStateCookieOptions();
+    res.cookie(GOOGLE_OAUTH_STATE_COOKIE, state, cookieOpts);
+    res.cookie(GOOGLE_OAUTH_FRONTEND_COOKIE, frontendUrl, cookieOpts);
 
     const authUrl = oauthClient.generateAuthUrl({
       access_type: 'offline',
@@ -353,8 +358,13 @@ export const googleLogin = async (req, res) => {
  * GET /api/auth/google/callback
  */
 export const googleCallback = async (req, res) => {
+  const cookies = parseCookieHeader(req.headers.cookie || '');
+  const savedFrontendUrl = cookies[GOOGLE_OAUTH_FRONTEND_COOKIE] || null;
+  res.clearCookie(GOOGLE_OAUTH_FRONTEND_COOKIE, { path: '/api/auth' });
+
+  const redirectBase = savedFrontendUrl || getFrontendBaseUrl(req);
   const redirectToOauthFailed = () => res.redirect(
-    buildFrontendRedirectUrl('/login', { error: 'oauth_failed' }, req)
+    buildFrontendRedirectUrl('/login', { error: 'oauth_failed' }, null, redirectBase)
   );
 
   try {
@@ -372,7 +382,6 @@ export const googleCallback = async (req, res) => {
       return redirectToOauthFailed();
     }
 
-    const cookies = parseCookieHeader(req.headers.cookie || '');
     const storedState = cookies[GOOGLE_OAUTH_STATE_COOKIE];
     clearOAuthStateCookie(res);
 
@@ -471,7 +480,7 @@ export const googleCallback = async (req, res) => {
     return res.redirect(buildFrontendRedirectUrl('/auth/callback', {
       token: accessToken,
       refreshToken,
-    }, req));
+    }, null, redirectBase));
   } catch (error) {
     console.error('[Auth Controller] Google callback error:', error);
     return redirectToOauthFailed();
