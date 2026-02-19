@@ -563,22 +563,15 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       });
     }
 
-    // Enforce caregiver certifications for L2+ and job-specific requirements
+    // Check job-specific required certifications set by the hirer
     const profileRes = await client.query(
       `SELECT certifications FROM caregiver_profiles WHERE user_id = $1 LIMIT 1`,
       [caregiverId]
     );
     const caregiverCerts = Array.isArray(profileRes.rows[0]?.certifications) ? profileRes.rows[0].certifications : [];
 
-    if (jobPost.min_trust_level === 'L2' || jobPost.min_trust_level === 'L3') {
-      if (caregiverCerts.length === 0) {
-        throw new ValidationError('Caregiver must provide certifications for L2+ jobs', {
-          code: 'CERTIFICATIONS_REQUIRED',
-          section: 'caregiver_profile',
-        });
-      }
-    }
-
+    // L2 trust level is sufficient for all job types.
+    // Only enforce job-specific required_certifications set by the hirer (not a blanket rule).
     const requiredCerts = Array.isArray(jobPost.required_certifications) ? jobPost.required_certifications : [];
     if (requiredCerts.length > 0) {
       const caregiverSet = new Set(caregiverCerts.map((s) => String(s || '').trim().toLowerCase()));
