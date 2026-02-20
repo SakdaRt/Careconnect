@@ -54,6 +54,7 @@ export default function ProfilePage() {
   const [emailOtpError, setEmailOtpError] = useState('');
   const [emailError, setEmailError] = useState('');
   const [emailResendCooldown, setEmailResendCooldown] = useState(0);
+  const [emailOtpSecondsLeft, setEmailOtpSecondsLeft] = useState(5 * 60);
   const emailCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [phoneValue, setPhoneValue] = useState('');
   const [otpCode, setOtpCode] = useState('');
@@ -72,6 +73,15 @@ export default function ProfilePage() {
   const [certForm, setCertForm] = useState({ title: '', document_type: 'certification', description: '', issuer: '', issued_date: '', expiry_date: '' });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+
+  useEffect(() => {
+    if (!emailOtpId) return;
+    setEmailOtpSecondsLeft(5 * 60);
+    const interval = setInterval(() => {
+      setEmailOtpSecondsLeft(s => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [emailOtpId]);
 
   const startEmailCooldown = () => {
     setEmailResendCooldown(60);
@@ -1200,6 +1210,11 @@ export default function ProfilePage() {
                       <Button variant="primary" loading={emailOtpLoading} onClick={handleVerifyEmailOtp}>
                         ยืนยันอีเมล
                       </Button>
+                      <p className={`text-xs text-center ${emailOtpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-400'}`}>
+                        {emailOtpSecondsLeft > 0
+                          ? `รหัสหมดอายุใน ${Math.floor(emailOtpSecondsLeft / 60)}:${String(emailOtpSecondsLeft % 60).padStart(2, '0')} นาที`
+                          : 'รหัส OTP หมดอายุแล้ว'}
+                      </p>
                     </div>
                   )}
                 </div>
