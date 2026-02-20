@@ -53,7 +53,7 @@ export default function GuestRegisterPage() {
       } catch {
         if (logout) logout();
       } finally {
-        navigate('/login', { replace: true });
+        navigate('/register', { replace: true });
       }
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
