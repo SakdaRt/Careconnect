@@ -25,6 +25,7 @@ export default function GuestRegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resendCooldown, setResendCooldown] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef<Step>('credentials');
   const verifiedRef = useRef(false);
 
@@ -33,31 +34,31 @@ export default function GuestRegisterPage() {
   }, [step]);
 
   useEffect(() => {
-    const sendCancelBeacon = () => {
-      if (stepRef.current !== 'otp' || verifiedRef.current) return;
-      const token = sessionStorage.getItem('careconnect_token') || localStorage.getItem('careconnect_token');
-      if (!token) return;
-      const blob = new Blob([], { type: 'application/json' });
-      navigator.sendBeacon(
-        `/api/auth/cancel-registration?_token=${encodeURIComponent(token)}`,
-        blob
-      );
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden') sendCancelBeacon();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (otpTimerRef.current) clearTimeout(otpTimerRef.current);
       if (stepRef.current === 'otp' && !verifiedRef.current) {
         api.cancelUnverifiedAccount().catch(() => {});
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (step !== 'otp') return;
+    const timer = setTimeout(async () => {
+      if (verifiedRef.current) return;
+      try {
+        await api.cancelUnverifiedAccount();
+        if (logout) logout();
+      } catch {
+        if (logout) logout();
+      } finally {
+        navigate('/login', { replace: true });
+      }
+    }, 5 * 60 * 1000);
+    otpTimerRef.current = timer;
+    return () => clearTimeout(timer);
+  }, [step]);
 
   const handleCancelRegistration = async () => {
     try {
