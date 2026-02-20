@@ -1416,7 +1416,7 @@ export const cancelUnverifiedAccount = async (req, res) => {
     const userId = req.userId;
 
     const userResult = await query(
-      `SELECT id, is_email_verified, account_type FROM users WHERE id = $1`,
+      `SELECT id, is_email_verified, is_phone_verified, account_type FROM users WHERE id = $1`,
       [userId]
     );
 
@@ -1425,7 +1425,7 @@ export const cancelUnverifiedAccount = async (req, res) => {
       return res.status(404).json({ error: 'Not found', message: 'User not found' });
     }
 
-    if (user.is_email_verified) {
+    if (user.is_email_verified || user.is_phone_verified) {
       return res.status(403).json({
         error: 'Forbidden',
         message: 'Cannot delete an already-verified account via this endpoint',
