@@ -15,6 +15,11 @@ const MOCK_PROVIDER_URL = process.env.MOCK_PROVIDER_URL || 'http://mock-provider
 const OTP_EXPIRY_MINUTES = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'mock';
+const SMS_PROVIDER = process.env.SMS_PROVIDER || 'mock';
+const SMSOK_API_URL = process.env.SMSOK_API_URL || 'https://smsok.co/api/v1/s';
+const SMSOK_API_KEY = process.env.SMSOK_API_KEY || '';
+const SMSOK_API_SECRET = process.env.SMSOK_API_SECRET || '';
+const SMSOK_SENDER = process.env.SMSOK_SENDER || 'CareConnect';
 
 // In-memory OTP storage (for development)
 // In production, this should be stored in Redis or database
@@ -123,10 +128,6 @@ async function sendEmailOtp(userId, email) {
  * @returns {object} - OTP result with otp_id
  */
 async function sendPhoneOtp(userId, phoneNumber) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Mock provider is disabled in production');
-  }
-
   const otpCode = generateOtpCode();
   const otpId = uuidv4();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -142,32 +143,58 @@ async function sendPhoneOtp(userId, phoneNumber) {
     verified: false,
   });
 
-  // Send via mock provider (in production, use real SMS service)
   try {
-    const response = await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone_number: phoneNumber, otp_code: otpCode }),
-    });
+    if (SMS_PROVIDER === 'smsok') {
+      // Send via SMSOK API (BasicAuth)
+      const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
+      const response = await fetch(SMSOK_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': '*/*',
+          'Authorization': `Basic ${credentials}`,
+        },
+        body: JSON.stringify({
+          sender: SMSOK_SENDER,
+          text: `รหัส OTP CareConnect ของคุณคือ: ${otpCode} (หมดอายุใน ${OTP_EXPIRY_MINUTES} นาที)`,
+          destinations: [{ destination: phoneNumber }],
+        }),
+      });
 
-    const result = await response.json();
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`SMSOK API error ${response.status}: ${errText}`);
+      }
 
-    if (!result.success) {
-      throw new Error('Failed to send SMS OTP');
+      const result = await response.json();
+      console.log(`[OTP Service] SMS OTP sent via SMSOK to ${phoneNumber}`, result);
+    } else {
+      // Send via mock provider
+      const response = await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phoneNumber, otp_code: otpCode }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error('Failed to send SMS OTP');
+      }
+
+      console.log(`[OTP Service] SMS OTP sent via mock to ${phoneNumber}: ${otpCode}`);
     }
-
-    console.log(`[OTP Service] SMS OTP sent to ${phoneNumber}: ${otpCode}`);
 
     return {
       success: true,
       otp_id: otpId,
       phone_number: phoneNumber,
       expires_in: OTP_EXPIRY_MINUTES * 60,
-      // In development, include the code for testing
       ...(process.env.NODE_ENV === 'development' && { debug_code: otpCode }),
     };
   } catch (error) {
     console.error('[OTP Service] Failed to send SMS OTP:', error);
+    otpStore.delete(otpId);
     throw error;
   }
 }
