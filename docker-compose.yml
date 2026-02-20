@@ -94,7 +94,7 @@ services:
       BANK_TRANSFER_PROVIDER: mock
 
       # SMS - SMSOK
-      SMSOK_API_URL: ${SMSOK_API_URL:-https://smsok.co/api/v1/s}
+      SMSOK_API_URL: ${SMSOK_API_URL:-https://api.smsok.co/s}
       SMSOK_API_KEY: ${SMSOK_API_KEY:-}
       SMSOK_API_SECRET: ${SMSOK_API_SECRET:-}
       SMSOK_SENDER: ${SMSOK_SENDER:-CareConnect}
