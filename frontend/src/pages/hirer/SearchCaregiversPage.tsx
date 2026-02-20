@@ -180,7 +180,7 @@ export default function SearchCaregiversPage() {
   const [trustFilter, setTrustFilter] = useState('');
   const [jobCategoryFilters, setJobCategoryFilters] = useState<JobCategoryKey[]>([]);
   const [experienceFilter, setExperienceFilter] = useState('');
-  const [availableDayFilter, setAvailableDayFilter] = useState('');
+  const [availableDayFilters, setAvailableDayFilters] = useState<number[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
 
@@ -227,7 +227,6 @@ export default function SearchCaregiversPage() {
       trust_level?: string;
       job_categories?: JobCategoryKey[];
       min_experience_years?: string;
-      available_day?: string;
     }
   ) => {
     const q = (overrides?.q ?? searchText).trim();
@@ -235,8 +234,6 @@ export default function SearchCaregiversPage() {
     const selectedCategories = overrides?.job_categories ?? jobCategoryFilters;
     const skills = buildSkillsFilterFromCategories(selectedCategories);
     const minExperienceYears = overrides?.min_experience_years ?? experienceFilter;
-    const availableDay = overrides?.available_day ?? availableDayFilter;
-
     setLoading(true);
     try {
       const res = await appApi.searchCaregivers({
@@ -246,7 +243,6 @@ export default function SearchCaregiversPage() {
         trust_level: trustLevel || undefined,
         skills: skills || undefined,
         min_experience_years: minExperienceYears ? Number(minExperienceYears) : undefined,
-        available_day: availableDay ? Number(availableDay) : undefined,
       });
       if (res.success && res.data) {
         setCaregivers(res.data.data || []);
@@ -259,11 +255,11 @@ export default function SearchCaregiversPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchText, trustFilter, jobCategoryFilters, experienceFilter, availableDayFilter]);
+  }, [searchText, trustFilter, jobCategoryFilters, experienceFilter]);
 
   useEffect(() => {
     search(1);
-  }, [trustFilter, jobCategoryFilters, experienceFilter, availableDayFilter]);
+  }, [trustFilter, jobCategoryFilters, experienceFilter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -511,31 +507,46 @@ export default function SearchCaregiversPage() {
               <option value="5">อย่างน้อย 5 ปี</option>
               <option value="8">อย่างน้อย 8 ปี</option>
             </select>
-            <select
-              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
-              value={availableDayFilter}
-              onChange={(e) => setAvailableDayFilter(e.target.value)}
-            >
-              <option value="">ทุกวันที่พร้อมรับงาน</option>
-              {Object.entries(DAY_FULL_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-1">
+              <div className="text-xs text-gray-500 font-medium">วันที่พร้อมรับงาน</div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                {Object.entries(DAY_FULL_LABELS).map(([value]) => {
+                  const dayNum = Number(value);
+                  const checked = availableDayFilters.includes(dayNum);
+                  return (
+                    <label key={value} className="flex items-center gap-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          setAvailableDayFilters((prev) =>
+                            prev.includes(dayNum)
+                              ? prev.filter((d) => d !== dayNum)
+                              : [...prev, dayNum]
+                          );
+                        }}
+                        className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="text-xs text-gray-700">{DAY_LABELS[dayNum]}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <div className="flex items-center justify-end gap-2">
-              {(trustFilter || jobCategoryFilters.length > 0 || experienceFilter || availableDayFilter || searchText) && (
+              {(trustFilter || jobCategoryFilters.length > 0 || experienceFilter || availableDayFilters.length > 0 || searchText) && (
                 <button
                   onClick={() => {
                     setTrustFilter('');
                     setJobCategoryFilters([]);
                     setExperienceFilter('');
-                    setAvailableDayFilter('');
+                    setAvailableDayFilters([]);
                     setSearchText('');
                     search(1, {
                       q: '',
                       trust_level: '',
                       job_categories: [],
                       min_experience_years: '',
-                      available_day: '',
                     });
                   }}
                   className="text-xs text-blue-600 hover:underline px-2"
@@ -578,14 +589,22 @@ export default function SearchCaregiversPage() {
         {/* Results */}
         {loading ? (
           <LoadingState message="กำลังค้นหา..." />
-        ) : caregivers.length === 0 ? (
+        ) : caregivers.filter((cg) => {
+            if (availableDayFilters.length === 0) return true;
+            const days = (cg.available_days || []).map(Number);
+            return availableDayFilters.every((d) => days.includes(d));
+          }).length === 0 ? (
           <Card className="text-center py-12">
             <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">ไม่พบผู้ดูแลที่ตรงกับเงื่อนไข</p>
           </Card>
         ) : (
           <div className="space-y-3">
-            {caregivers.map((cg) => {
+            {caregivers.filter((cg) => {
+              if (availableDayFilters.length === 0) return true;
+              const days = (cg.available_days || []).map(Number);
+              return availableDayFilters.every((d) => days.includes(d));
+            }).map((cg) => {
               const tl = TRUST_STYLE[cg.trust_level] || TRUST_STYLE.L0;
               const tags = Array.from(
                 new Set([...(cg.specializations || []), ...(cg.certifications || []), ...(cg.skills || [])])

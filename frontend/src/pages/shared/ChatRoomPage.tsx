@@ -81,6 +81,7 @@ export default function ChatRoomPage() {
   const listRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState<string>('');
+  const [headerCollapsed, setHeaderCollapsed] = useState(false);
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -371,101 +372,116 @@ export default function ChatRoomPage() {
 
   return (
     <ChatLayout>
-      <div className="max-w-3xl mx-auto px-4 py-4">
+      <div className="max-w-3xl mx-auto w-full flex flex-col h-full min-h-0">
         {loading ? (
-          <LoadingState message="กำลังโหลดแชท..." />
+          <div className="flex-1 flex items-center justify-center px-4">
+            <LoadingState message="กำลังโหลดแชท..." />
+          </div>
         ) : !thread ? (
-          <Card className="p-4 sm:p-6">
-            <p className="text-gray-700">ยังไม่มีห้องแชทสำหรับงานนี้</p>
-            <p className="text-sm text-gray-500 mt-2">งานต้องถูก “รับงาน” ก่อนถึงจะเริ่มแชทได้</p>
-          </Card>
+          <div className="flex-1 px-4 py-4">
+            <Card className="p-4 sm:p-6">
+              <p className="text-gray-700">ยังไม่มีห้องแชทสำหรับงานนี้</p>
+              <p className="text-sm text-gray-500 mt-2">งานต้องถูก "รับงาน" ก่อนถึงจะเริ่มแชทได้</p>
+            </Card>
+          </div>
         ) : (
-          <div className="flex flex-col gap-3">
-            <Card className="p-4">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="min-w-0 flex-1">
-                  <div className="text-lg font-semibold text-gray-900 line-clamp-1">{job?.title || 'งาน'}</div>
-                  <div className="text-xs text-gray-600 mt-1">
-                    {user?.role === 'caregiver'
-                      ? (hirerName ? `ผู้ว่าจ้าง: ${hirerName}` : '')
-                      : (caregiverName ? `ผู้ดูแล: ${caregiverName}` : '')}
-                    {patientDisplayName ? ` • ผู้รับการดูแล: ${patientDisplayName}` : ''}
+          <>
+            {/* Fixed top cards (non-scrolling) */}
+            <div className="flex-shrink-0 px-4 pt-3 space-y-3">
+              {/* Job detail card - collapsible */}
+              <Card className="p-3">
+                <div
+                  className="flex items-center justify-between gap-2 cursor-pointer"
+                  onClick={() => setHeaderCollapsed((v) => !v)}
+                >
+                  <div className="min-w-0 flex-1 flex items-center gap-2">
+                    <div className="font-semibold text-sm text-gray-900 line-clamp-1">{job?.title || 'งาน'}</div>
+                    {jobStatus && <StatusBadge status={jobStatus as any} />}
                   </div>
+                  <span className="text-xs text-gray-400 flex-shrink-0">{headerCollapsed ? '▼ แสดง' : '▲ ซ่อน'}</span>
                 </div>
-                {jobStatus && <StatusBadge status={jobStatus as any} />}
-              </div>
-              <div className="text-xs text-gray-600 space-y-0.5">
-                <div>{formatDateTimeRange(job?.scheduled_start_at, job?.scheduled_end_at)}</div>
-                {location && <div>{location}</div>}
-              </div>
-              {jobStatus === 'cancelled' && cancelReasonDisplay && (
-                <div className="text-xs text-red-700 mt-2">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
-              )}
-              {disputeInfo?.reason && (
-                <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
-              )}
-              <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" disabled={!viewJobDetailId} onClick={handleViewJobDetail}>
-                    ดูรายละเอียดงาน
-                  </Button>
-                  {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
-                    <>
-                    {disputeInfo?.id && (
-                      <Button variant="outline" size="sm" onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
-                        ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
-                      </Button>
+
+                {!headerCollapsed && (
+                  <div className="mt-2">
+                    <div className="text-xs text-gray-600">
+                      {user?.role === 'caregiver'
+                        ? (hirerName ? `ผู้ว่าจ้าง: ${hirerName}` : '')
+                        : (caregiverName ? `ผู้ดูแล: ${caregiverName}` : '')}
+                      {patientDisplayName ? ` • ผู้รับการดูแล: ${patientDisplayName}` : ''}
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                      <div>{formatDateTimeRange(job?.scheduled_start_at, job?.scheduled_end_at)}</div>
+                      {location && <div>{location}</div>}
+                    </div>
+                    {jobStatus === 'cancelled' && cancelReasonDisplay && (
+                      <div className="text-xs text-red-700 mt-1">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
                     )}
-                    <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'cancel'} onClick={handleCancelJob}>
-                      ยกเลิกงาน
-                    </Button>
-                    </>
-                  )}
-                </div>
-                {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && !disputeInfo?.id && job?.job_id && (
-                  <div className="pt-2 border-t border-orange-100">
-                    <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'dispute'} onClick={handleOpenDispute} className="border-orange-300 text-orange-700 hover:bg-orange-50">
-                      เปิดข้อพิพาท
-                    </Button>
+                    {disputeInfo?.reason && (
+                      <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
+                    )}
+                    <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" disabled={!viewJobDetailId} onClick={handleViewJobDetail}>
+                          ดูรายละเอียดงาน
+                        </Button>
+                        {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && (
+                          <>
+                          {disputeInfo?.id && (
+                            <Button variant="outline" size="sm" onClick={() => navigate(`/dispute/${disputeInfo.id}`)}>
+                              ไปข้อพิพาท{disputeInfo.status ? ` (${disputeInfo.status})` : ''}
+                            </Button>
+                          )}
+                          <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'cancel'} onClick={handleCancelJob}>
+                            ยกเลิกงาน
+                          </Button>
+                          </>
+                        )}
+                      </div>
+                      {jobStatus && jobStatus !== 'completed' && jobStatus !== 'cancelled' && !disputeInfo?.id && job?.job_id && (
+                        <div className="pt-1 border-t border-orange-100">
+                          <Button variant="outline" size="sm" disabled={!job} loading={actionLoading === 'dispute'} onClick={handleOpenDispute} className="border-orange-300 text-orange-700 hover:bg-orange-50">
+                            เปิดข้อพิพาท
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
-              </div>
-            </Card>
-
-            {user?.role === 'caregiver' && (
-              <Card className="p-3">
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={!canCheckIn}
-                    loading={actionLoading === 'checkin'}
-                    onClick={handleCheckIn}
-                  >
-                    มาถึงที่หมายแล้ว
-                  </Button>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    disabled={!canCheckOut}
-                    loading={actionLoading === 'checkout'}
-                    onClick={() => setCheckoutOpen(true)}
-                  >
-                    ส่งงานเสร็จ
-                  </Button>
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  สถานะงาน: {jobStatusLabel}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  {caregiverActionHint}
-                </div>
               </Card>
-            )}
 
+              {user?.role === 'caregiver' && (
+                <Card className="p-3">
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!canCheckIn}
+                      loading={actionLoading === 'checkin'}
+                      onClick={handleCheckIn}
+                    >
+                      มาถึงที่หมายแล้ว
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={!canCheckOut}
+                      loading={actionLoading === 'checkout'}
+                      onClick={() => setCheckoutOpen(true)}
+                    >
+                      ส่งงานเสร็จ
+                    </Button>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">สถานะงาน: {jobStatusLabel}</div>
+                  <div className="text-xs text-gray-500 mt-1">{caregiverActionHint}</div>
+                </Card>
+              )}
+
+            </div>
+
+            {/* Scrollable messages area */}
             <div
               ref={listRef}
-              className="bg-white border border-gray-200 rounded-lg h-[60vh] overflow-y-auto p-4 space-y-3"
+              className="flex-1 overflow-y-auto min-h-0 px-4 py-3 space-y-3"
             >
               {grouped.length === 0 ? (
                 <div className="text-center text-sm text-gray-500">ยังไม่มีข้อความ</div>
@@ -494,28 +510,31 @@ export default function ChatRoomPage() {
               )}
             </div>
 
-            <div className="flex gap-2">
-              <Input
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={isChatLocked ? 'ไม่สามารถส่งข้อความได้' : 'พิมพ์ข้อความ...'}
-                fullWidth
-                disabled={sending || isChatLocked}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-              />
-              <Button variant="primary" loading={sending} disabled={isChatLocked} onClick={handleSend}>
-                ส่ง
-              </Button>
+            {/* Sticky bottom input bar */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-white px-4 py-3 space-y-1">
+              {isChatLocked && (
+                <div className="text-xs text-red-600">{chatLockMessage}</div>
+              )}
+              <div className="flex gap-2">
+                <Input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={isChatLocked ? 'ไม่สามารถส่งข้อความได้' : 'พิมพ์ข้อความ...'}
+                  fullWidth
+                  disabled={sending || isChatLocked}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                />
+                <Button variant="primary" loading={sending} disabled={isChatLocked} onClick={handleSend}>
+                  ส่ง
+                </Button>
+              </div>
             </div>
-            {isChatLocked && (
-              <div className="text-xs text-red-600">{chatLockMessage}</div>
-            )}
-          </div>
+          </>
         )}
         <ReasonModal
           isOpen={cancelOpen}

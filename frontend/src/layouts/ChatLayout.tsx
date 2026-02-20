@@ -8,10 +8,10 @@ interface ChatLayoutProps {
 
 export function ChatLayout({ children }: ChatLayoutProps) {
   return (
-    <div className="min-h-screen bg-white flex flex-col">
+    <div className="h-dvh bg-white flex flex-col overflow-hidden">
       <TopBar />
 
-      <main className="flex-1 flex flex-col overflow-hidden pb-16">
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 min-h-0">
         {children}
       </main>
 

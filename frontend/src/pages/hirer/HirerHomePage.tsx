@@ -814,6 +814,15 @@ export default function HirerHomePage() {
                           </div>
                           <div className="mt-1 text-xs text-gray-500">ผู้รับการดูแล: {getRecipientName(job)}</div>
                           {location && <div className="mt-1 text-xs text-gray-500">พื้นที่: {location}</div>}
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              onClick={() => { setScheduleOpen(false); navigate(`/jobs/${job.id}`); }}
+                              className="text-xs text-blue-600 hover:underline"
+                            >
+                              ดูรายละเอียดงาน →
+                            </button>
+                          </div>
                         </div>
                       );
                     })}

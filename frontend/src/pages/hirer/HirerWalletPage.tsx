@@ -412,7 +412,7 @@ export default function HirerWalletPage() {
                 <div>
                   <div className="text-xs text-gray-500">รวม</div>
                   <div className="text-xl font-bold text-gray-900">
-                    {(wallet?.total_balance || 0).toLocaleString()} บาท
+                    {((wallet?.available_balance || 0) + (wallet?.held_balance || 0)).toLocaleString()} บาท
                   </div>
                 </div>
               </div>
