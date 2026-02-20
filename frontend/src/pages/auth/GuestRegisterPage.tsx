@@ -24,6 +24,7 @@ export default function GuestRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resendCooldown, setResendCooldown] = useState(0);
+  const [otpTimerKey, setOtpTimerKey] = useState(0);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef<Step>('credentials');
@@ -58,7 +59,7 @@ export default function GuestRegisterPage() {
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
-  }, [step]);
+  }, [step, otpTimerKey]);
 
   const handleCancelRegistration = async () => {
     try {
@@ -195,6 +196,7 @@ export default function GuestRegisterPage() {
 
       setOtpId(response.data.otp_id);
       setFormData({ ...formData, otp: '' });
+      setOtpTimerKey(k => k + 1);
       startCooldown();
       toast.success('New OTP sent');
     } catch (error: any) {

@@ -25,6 +25,7 @@ export default function MemberRegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [otpId, setOtpId] = useState('');
 
+  const [otpTimerKey, setOtpTimerKey] = useState(0);
   const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef(step);
   const verifiedRef = useRef(false);
@@ -57,7 +58,7 @@ export default function MemberRegisterPage() {
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
-  }, [step]);
+  }, [step, otpTimerKey]);
 
   const handleCancelRegistration = async () => {
     try {
@@ -140,6 +141,7 @@ export default function MemberRegisterPage() {
           return;
         }
         setOtpId(response.data.otp_id);
+        setOtpTimerKey(k => k + 1);
         toast.success('ส่งรหัส OTP แล้ว');
         return;
       }
@@ -150,6 +152,7 @@ export default function MemberRegisterPage() {
       }
       setOtpId(response.data.otp_id);
       setFormData({ ...formData, otp: '' });
+      setOtpTimerKey(k => k + 1);
       toast.success('ส่งรหัส OTP ใหม่แล้ว');
     } catch (error: any) {
       toast.error('เกิดข้อผิดพลาด');
