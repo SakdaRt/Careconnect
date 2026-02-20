@@ -89,9 +89,15 @@ services:
       # Mock Provider URLs
       MOCK_PROVIDER_BASE_URL: http://mock-provider:4000
       PAYMENT_PROVIDER: mock
-      SMS_PROVIDER: mock
+      SMS_PROVIDER: ${SMS_PROVIDER:-mock}
       KYC_PROVIDER: mock
       BANK_TRANSFER_PROVIDER: mock
+
+      # SMS - SMSOK
+      SMSOK_API_URL: ${SMSOK_API_URL:-https://smsok.co/api/v1/s}
+      SMSOK_API_KEY: ${SMSOK_API_KEY:-}
+      SMSOK_API_SECRET: ${SMSOK_API_SECRET:-}
+      SMSOK_SENDER: ${SMSOK_SENDER:-CareConnect}
 
       # Webhooks (backend receives from mock provider)
       WEBHOOK_BASE_URL: http://backend:3000
