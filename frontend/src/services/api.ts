@@ -374,6 +374,12 @@ class ApiClient {
     return response;
   }
 
+  async cancelUnverifiedAccount() {
+    const response = await this.request('/api/auth/me', { method: 'DELETE' });
+    this.clearTokens();
+    return response;
+  }
+
   // OTP endpoints
   async sendEmailOtp() {
     return this.request<{ otp_id: string; email: string; expires_in: number }>(

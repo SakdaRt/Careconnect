@@ -9,13 +9,31 @@ import { query } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import crypto from 'crypto';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
+import nodemailer from 'nodemailer';
 
 const MOCK_PROVIDER_URL = process.env.MOCK_PROVIDER_URL || 'http://mock-provider:4000';
 const OTP_EXPIRY_MINUTES = 5;
+const RESEND_COOLDOWN_SECONDS = 60;
+const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'mock';
 
 // In-memory OTP storage (for development)
 // In production, this should be stored in Redis or database
 const otpStore = new Map();
+
+/**
+ * Create a nodemailer SMTP transporter from environment variables
+ */
+function createSmtpTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 /**
  * Generate a random 6-digit OTP
@@ -32,10 +50,6 @@ function generateOtpCode() {
  * @returns {object} - OTP result with otp_id
  */
 async function sendEmailOtp(userId, email) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Mock provider is disabled in production');
-  }
-
   const otpCode = generateOtpCode();
   const otpId = uuidv4();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
@@ -47,24 +61,45 @@ async function sendEmailOtp(userId, email) {
     email,
     code: otpCode,
     expiresAt,
+    sentAt: new Date(),
     verified: false,
   });
 
-  // Send via mock provider (in production, use real email service)
   try {
-    const response = await fetch(`${MOCK_PROVIDER_URL}/email/send-otp`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, otp_code: otpCode }),
-    });
+    if (EMAIL_PROVIDER === 'smtp') {
+      // Send via real SMTP (nodemailer)
+      const transporter = createSmtpTransporter();
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || 'noreply@careconnect.local',
+        to: email,
+        subject: 'รหัส OTP ยืนยัน Email — CareConnect',
+        text: `รหัส OTP ของคุณคือ: ${otpCode}\n\nรหัสนี้จะหมดอายุใน ${OTP_EXPIRY_MINUTES} นาที\nหากคุณไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้`,
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px">
+            <h2 style="color:#2563eb;margin-bottom:8px">CareConnect</h2>
+            <p style="color:#374151">รหัส OTP สำหรับยืนยัน Email ของคุณ:</p>
+            <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#111827;text-align:center;padding:16px 0">${otpCode}</div>
+            <p style="color:#6b7280;font-size:14px">รหัสนี้จะหมดอายุใน <strong>${OTP_EXPIRY_MINUTES} นาที</strong></p>
+            <p style="color:#6b7280;font-size:12px">หากคุณไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้</p>
+          </div>`,
+      });
+      console.log(`[OTP Service] Email OTP sent via SMTP to ${email}`);
+    } else {
+      // Send via mock provider
+      const response = await fetch(`${MOCK_PROVIDER_URL}/email/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp_code: otpCode }),
+      });
 
-    const result = await response.json();
+      const result = await response.json();
 
-    if (!result.success) {
-      throw new Error('Failed to send email OTP');
+      if (!result.success) {
+        throw new Error('Failed to send email OTP');
+      }
+
+      console.log(`[OTP Service] Email OTP sent via mock to ${email}: ${otpCode}`);
     }
-
-    console.log(`[OTP Service] Email OTP sent to ${email}: ${otpCode}`);
 
     return {
       success: true,
@@ -76,6 +111,7 @@ async function sendEmailOtp(userId, email) {
     };
   } catch (error) {
     console.error('[OTP Service] Failed to send email OTP:', error);
+    otpStore.delete(otpId);
     throw error;
   }
 }
@@ -102,6 +138,7 @@ async function sendPhoneOtp(userId, phoneNumber) {
     phoneNumber,
     code: otpCode,
     expiresAt,
+    sentAt: new Date(),
     verified: false,
   });
 
@@ -215,6 +252,17 @@ async function resendOtp(otpId) {
 
   if (!otpData) {
     return { success: false, error: 'OTP not found' };
+  }
+
+  // Cooldown check: must wait RESEND_COOLDOWN_SECONDS before resending
+  const secondsSinceSent = (Date.now() - new Date(otpData.sentAt).getTime()) / 1000;
+  if (secondsSinceSent < RESEND_COOLDOWN_SECONDS) {
+    const remainingSeconds = Math.ceil(RESEND_COOLDOWN_SECONDS - secondsSinceSent);
+    return {
+      success: false,
+      error: 'Please wait before requesting a new OTP',
+      retry_after_seconds: remainingSeconds,
+    };
   }
 
   // Delete old OTP

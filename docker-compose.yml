@@ -101,9 +101,14 @@ services:
       UPLOAD_DIR: /app/uploads
       MAX_FILE_SIZE_MB: 10
 
-      # Email (SendGrid or Resend - configure later)
-      EMAIL_PROVIDER: mock
-      EMAIL_FROM: noreply@careconnect.local
+      # Email
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mock}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@careconnect.local}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
 
       # Push Notifications (FCM - configure later)
       PUSH_PROVIDER: mock

@@ -53,7 +53,8 @@ export default function ProfilePage() {
   const [emailOtpLoading, setEmailOtpLoading] = useState(false);
   const [emailOtpError, setEmailOtpError] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [emailOtpDebugCode, setEmailOtpDebugCode] = useState<string | undefined>(undefined);
+  const [emailResendCooldown, setEmailResendCooldown] = useState(0);
+  const emailCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [phoneValue, setPhoneValue] = useState('');
   const [otpCode, setOtpCode] = useState('');
   const [otpId, setOtpId] = useState('');
@@ -71,6 +72,16 @@ export default function ProfilePage() {
   const [certForm, setCertForm] = useState({ title: '', document_type: 'certification', description: '', issuer: '', issued_date: '', expiry_date: '' });
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
+
+  const startEmailCooldown = () => {
+    setEmailResendCooldown(60);
+    emailCooldownRef.current = setInterval(() => {
+      setEmailResendCooldown((prev) => {
+        if (prev <= 1) { clearInterval(emailCooldownRef.current!); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // Bank verification
   const [bankVerified, setBankVerified] = useState<boolean | null>(null);
@@ -151,9 +162,8 @@ export default function ProfilePage() {
         return;
       }
       setEmailOtpId(response.data.otp_id);
-      const dbg = (response.data as any).debug_code as string | undefined;
-      setEmailOtpDebugCode(dbg);
-      toast.success(dbg ? `ส่งรหัส OTP แล้ว (โค้ดทดสอบ: ${dbg})` : 'ส่งรหัส OTP แล้ว');
+      toast.success('ส่งรหัส OTP แล้ว');
+      startEmailCooldown();
     } catch (error: any) {
       toast.error(error.message || 'เกิดข้อผิดพลาด');
     } finally {
@@ -175,9 +185,8 @@ export default function ProfilePage() {
         return;
       }
       setEmailOtpId(response.data.otp_id);
-      const dbg = (response.data as any).debug_code as string | undefined;
-      setEmailOtpDebugCode(dbg);
       setEmailOtpCode('');
+      startEmailCooldown();
       toast.success('ส่งรหัส OTP ใหม่แล้ว');
     } catch (error: any) {
       toast.error('เกิดข้อผิดพลาด');
@@ -207,7 +216,6 @@ export default function ProfilePage() {
       await refreshUser();
       setEmailOtpId('');
       setEmailOtpCode('');
-      setEmailOtpDebugCode(undefined);
       toast.success('ยืนยันอีเมลสำเร็จ');
     } catch (error: any) {
       toast.error(error.message || 'เกิดข้อผิดพลาด');
@@ -1175,8 +1183,13 @@ export default function ProfilePage() {
                       ส่งรหัส OTP
                     </Button>
                     {emailOtpId && (
-                      <Button variant="outline" loading={emailOtpLoading} onClick={handleResendEmailOtp}>
-                        ส่งใหม่อีกครั้ง
+                      <Button
+                        variant="outline"
+                        loading={emailOtpLoading}
+                        disabled={emailResendCooldown > 0}
+                        onClick={handleResendEmailOtp}
+                      >
+                        {emailResendCooldown > 0 ? `ส่งใหม่ได้ใน ${emailResendCooldown} วิ` : 'ส่งใหม่อีกครั้ง'}
                       </Button>
                     )}
                   </div>
@@ -1187,17 +1200,6 @@ export default function ProfilePage() {
                       <Button variant="primary" loading={emailOtpLoading} onClick={handleVerifyEmailOtp}>
                         ยืนยันอีเมล
                       </Button>
-                      <div className="text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        {emailOtpDebugCode ? (
-                          <>
-                            โหมดพัฒนา: โค้ดทดสอบ <span className="bg-yellow-100 px-1 rounded">{emailOtpDebugCode}</span>
-                          </>
-                        ) : (
-                          <>
-                            โหมดพัฒนา: ใช้โค้ด <span className="bg-yellow-100 px-1 rounded">123456</span>
-                          </>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>

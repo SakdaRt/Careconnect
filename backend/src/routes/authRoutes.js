@@ -20,6 +20,7 @@ import {
   updateMyProfile,
   updateAvatar,
   logout,
+  cancelUnverifiedAccount,
 } from '../controllers/authController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
 import { validateBody, authSchemas, commonSchemas } from '../utils/validation.js';
@@ -259,5 +260,19 @@ router.post('/role', requireAuth, requirePolicy('auth:role'), validateBody(Joi.o
  * Note: JWT is stateless, actual logout happens client-side
  */
 router.post('/logout', requireAuth, requirePolicy('auth:logout'), logout);
+
+/**
+ * Cancel (delete) unverified guest account
+ * DELETE /api/auth/me
+ * Headers: Authorization: Bearer <token>
+ */
+router.delete('/me', requireAuth, cancelUnverifiedAccount);
+
+/**
+ * Cancel (delete) unverified guest account via POST (for sendBeacon on browser close)
+ * POST /api/auth/cancel-registration
+ * Headers: Authorization: Bearer <token>
+ */
+router.post('/cancel-registration', requireAuth, cancelUnverifiedAccount);
 
 export default router;

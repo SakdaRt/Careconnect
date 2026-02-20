@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Mail, ArrowLeft, Shield } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button, Input, OTPInput, PasswordInput } from '../../components/ui';
@@ -12,7 +12,7 @@ type Step = 'credentials' | 'otp';
 
 export default function GuestRegisterPage() {
   const navigate = useNavigate();
-  const { registerGuest, refreshUser } = useAuth();
+  const { registerGuest, refreshUser, logout } = useAuth();
   const [step, setStep] = useState<Step>('credentials');
   const [formData, setFormData] = useState({
     email: '',
@@ -21,9 +21,63 @@ export default function GuestRegisterPage() {
     otp: '',
   });
   const [otpId, setOtpId] = useState('');
-  const [debugCode, setDebugCode] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stepRef = useRef<Step>('credentials');
+  const verifiedRef = useRef(false);
+
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+
+  useEffect(() => {
+    const sendCancelBeacon = () => {
+      if (stepRef.current !== 'otp' || verifiedRef.current) return;
+      const token = sessionStorage.getItem('careconnect_token') || localStorage.getItem('careconnect_token');
+      if (!token) return;
+      const blob = new Blob([], { type: 'application/json' });
+      navigator.sendBeacon(
+        `/api/auth/cancel-registration?_token=${encodeURIComponent(token)}`,
+        blob
+      );
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') sendCancelBeacon();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      if (cooldownRef.current) clearInterval(cooldownRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (stepRef.current === 'otp' && !verifiedRef.current) {
+        api.cancelUnverifiedAccount().catch(() => {});
+      }
+    };
+  }, []);
+
+  const handleCancelRegistration = async () => {
+    try {
+      await api.cancelUnverifiedAccount();
+      if (logout) logout();
+    } catch {
+      // ignore errors — account may already be gone
+    }
+    navigate('/register', { replace: true });
+  };
+
+  const startCooldown = () => {
+    setResendCooldown(60);
+    cooldownRef.current = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) { clearInterval(cooldownRef.current!); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+  };
 
   // Step 1: Validate credentials
   const validateCredentials = () => {
@@ -66,15 +120,13 @@ export default function GuestRegisterPage() {
       if (!otpResponse.success || !otpResponse.data) {
         toast.error('ส่งรหัสยืนยันไม่สำเร็จ กรุณากดส่งใหม่อีกครั้ง');
         setOtpId('');
-        setDebugCode(undefined);
         setStep('otp');
         return;
       }
 
       setOtpId(otpResponse.data.otp_id);
-      const dbg = (otpResponse.data as any).debug_code as string | undefined;
-      setDebugCode(dbg);
-      toast.success(dbg ? `OTP sent to your email (debug: ${dbg})` : 'OTP sent to your email');
+      toast.success('OTP sent to your email');
+      startCooldown();
       setStep('otp');
     } catch (error: any) {
       toast.error(error.message || 'Registration failed');
@@ -103,6 +155,7 @@ export default function GuestRegisterPage() {
       // Refresh user to get updated trust level
       await refreshUser();
 
+      verifiedRef.current = true;
       toast.success('Email verified successfully!');
       setScopedStorageItem('pendingRole', 'hirer');
       navigate('/register/consent', { replace: true });
@@ -124,9 +177,8 @@ export default function GuestRegisterPage() {
           return;
         }
         setOtpId(response.data.otp_id);
-        const dbg = (response.data as any).debug_code as string | undefined;
-        setDebugCode(dbg);
-        toast.success(dbg ? `OTP sent to your email (debug: ${dbg})` : 'OTP sent to your email');
+        toast.success('OTP sent to your email');
+        startCooldown();
         setLoading(false);
         return;
       }
@@ -140,9 +192,8 @@ export default function GuestRegisterPage() {
       }
 
       setOtpId(response.data.otp_id);
-      const dbg = (response.data as any).debug_code as string | undefined;
-      setDebugCode(dbg);
       setFormData({ ...formData, otp: '' });
+      startCooldown();
       toast.success('New OTP sent');
     } catch (error: any) {
       toast.error('Failed to resend OTP');
@@ -154,13 +205,23 @@ export default function GuestRegisterPage() {
   return (
     <AuthLayout>
       <div className="bg-white rounded-lg shadow-md p-8">
-        <Link
-          to="/register"
-          className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          <span className="text-sm">Back</span>
-        </Link>
+        {step === 'otp' ? (
+          <button
+            onClick={handleCancelRegistration}
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            <span className="text-sm">Back</span>
+          </button>
+        ) : (
+          <Link
+            to="/register"
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            <span className="text-sm">Back</span>
+          </Link>
+        )}
 
         <div className="flex items-center justify-center mb-6">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
@@ -299,27 +360,13 @@ export default function GuestRegisterPage() {
             <div className="flex items-center justify-between text-sm">
               <button
                 onClick={handleResendOTP}
-                disabled={loading}
-                className="text-blue-600 hover:text-blue-700"
+                disabled={loading || resendCooldown > 0}
+                className={resendCooldown > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-700'}
               >
-                Didn't receive code? Resend
+                {resendCooldown > 0 ? `ส่งใหม่ได้ใน ${resendCooldown} วินาที` : "Didn't receive code? Resend"}
               </button>
             </div>
 
-            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-xs text-yellow-800">
-                <strong>Dev mode:</strong>{' '}
-                {debugCode ? (
-                  <>
-                    Use code <code className="bg-yellow-100 px-1 rounded">{debugCode}</code> to verify
-                  </>
-                ) : (
-                  <>
-                    Use code <code className="bg-yellow-100 px-1 rounded">123456</code> to verify
-                  </>
-                )}
-              </p>
-            </div>
           </div>
         )}
 

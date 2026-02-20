@@ -16,17 +16,21 @@ import { v4 as uuidv4 } from 'uuid';
 const extractToken = (req) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return null;
+  if (authHeader) {
+    // Check for "Bearer TOKEN" format
+    if (authHeader.startsWith('Bearer ')) {
+      return authHeader.substring(7);
+    }
+    // Direct token (fallback)
+    return authHeader;
   }
 
-  // Check for "Bearer TOKEN" format
-  if (authHeader.startsWith('Bearer ')) {
-    return authHeader.substring(7);
+  // Fallback: _token query param (used by sendBeacon which cannot set headers)
+  if (req.query._token) {
+    return req.query._token;
   }
 
-  // Direct token (fallback)
-  return authHeader;
+  return null;
 };
 
 /**

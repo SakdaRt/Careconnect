@@ -1428,4 +1428,40 @@ export default {
   updateMyProfile,
   updateAvatar,
   logout,
+  cancelUnverifiedAccount,
+};
+
+/**
+ * Cancel (delete) the current user's account if email is not yet verified.
+ * Used when a guest user abandons the OTP verification step.
+ * DELETE /api/auth/me
+ */
+export const cancelUnverifiedAccount = async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const userResult = await query(
+      `SELECT id, is_email_verified, account_type FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    const user = userResult.rows[0];
+    if (!user) {
+      return res.status(404).json({ error: 'Not found', message: 'User not found' });
+    }
+
+    if (user.is_email_verified) {
+      return res.status(403).json({
+        error: 'Forbidden',
+        message: 'Cannot delete an already-verified account via this endpoint',
+      });
+    }
+
+    await query(`DELETE FROM users WHERE id = $1`, [userId]);
+
+    res.json({ success: true, message: 'Unverified account deleted' });
+  } catch (error) {
+    console.error('[Auth Controller] Cancel unverified account error:', error);
+    res.status(500).json({ error: 'Server error', message: 'Failed to delete account' });
+  }
 };
