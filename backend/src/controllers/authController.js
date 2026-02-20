@@ -1411,31 +1411,6 @@ export const logout = async (req, res) => {
   }
 };
 
-export default {
-  googleLogin,
-  googleCallback,
-  registerGuest,
-  registerMember,
-  loginWithEmail,
-  loginWithPhone,
-  refreshToken,
-  acceptPolicyConsent,
-  updateRole,
-  updatePhoneNumber,
-  updateEmailAddress,
-  getCurrentUser,
-  getMyProfile,
-  updateMyProfile,
-  updateAvatar,
-  logout,
-  cancelUnverifiedAccount,
-};
-
-/**
- * Cancel (delete) the current user's account if email is not yet verified.
- * Used when a guest user abandons the OTP verification step.
- * DELETE /api/auth/me
- */
 export const cancelUnverifiedAccount = async (req, res) => {
   try {
     const userId = req.userId;
@@ -1464,4 +1439,24 @@ export const cancelUnverifiedAccount = async (req, res) => {
     console.error('[Auth Controller] Cancel unverified account error:', error);
     res.status(500).json({ error: 'Server error', message: 'Failed to delete account' });
   }
+};
+
+export default {
+  googleLogin,
+  googleCallback,
+  registerGuest,
+  registerMember,
+  loginWithEmail,
+  loginWithPhone,
+  refreshToken,
+  acceptPolicyConsent,
+  updateRole,
+  updatePhoneNumber,
+  updateEmailAddress,
+  getCurrentUser,
+  getMyProfile,
+  updateMyProfile,
+  updateAvatar,
+  logout,
+  cancelUnverifiedAccount,
 };
