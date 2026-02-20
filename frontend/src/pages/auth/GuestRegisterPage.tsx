@@ -25,6 +25,7 @@ export default function GuestRegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resendCooldown, setResendCooldown] = useState(0);
   const [otpTimerKey, setOtpTimerKey] = useState(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(5 * 60);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef<Step>('credentials');
@@ -59,6 +60,15 @@ export default function GuestRegisterPage() {
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
+  }, [step, otpTimerKey]);
+
+  useEffect(() => {
+    if (step !== 'otp') return;
+    setOtpSecondsLeft(5 * 60);
+    const interval = setInterval(() => {
+      setOtpSecondsLeft(s => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
   }, [step, otpTimerKey]);
 
   const handleCancelRegistration = async () => {
@@ -370,6 +380,12 @@ export default function GuestRegisterPage() {
                 {resendCooldown > 0 ? `ส่งใหม่ได้ใน ${resendCooldown} วินาที` : "Didn't receive code? Resend"}
               </button>
             </div>
+
+            <p className={`text-xs text-center ${otpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-400'}`}>
+              {otpSecondsLeft > 0
+                ? `รหัสหมดอายุใน ${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, '0')} นาที`
+                : 'รหัส OTP หมดอายุแล้ว'}
+            </p>
 
           </div>
         )}

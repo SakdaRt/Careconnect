@@ -26,6 +26,7 @@ export default function MemberRegisterPage() {
   const [otpId, setOtpId] = useState('');
 
   const [otpTimerKey, setOtpTimerKey] = useState(0);
+  const [otpSecondsLeft, setOtpSecondsLeft] = useState(5 * 60);
   const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef(step);
   const verifiedRef = useRef(false);
@@ -58,6 +59,15 @@ export default function MemberRegisterPage() {
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
+  }, [step, otpTimerKey]);
+
+  useEffect(() => {
+    if (step !== 'otp') return;
+    setOtpSecondsLeft(5 * 60);
+    const interval = setInterval(() => {
+      setOtpSecondsLeft(s => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
   }, [step, otpTimerKey]);
 
   const handleCancelRegistration = async () => {
@@ -362,6 +372,12 @@ export default function MemberRegisterPage() {
                 ไม่ได้รับรหัส? ส่งใหม่อีกครั้ง
               </button>
             </div>
+
+            <p className={`text-xs text-center ${otpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-400'}`}>
+              {otpSecondsLeft > 0
+                ? `รหัสหมดอายุใน ${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, '0')} นาที`
+                : 'รหัส OTP หมดอายุแล้ว'}
+            </p>
           </div>
         )}
 
