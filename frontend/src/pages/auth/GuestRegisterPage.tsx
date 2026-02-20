@@ -64,9 +64,10 @@ export default function GuestRegisterPage() {
       await api.cancelUnverifiedAccount();
       if (logout) logout();
     } catch {
-      // ignore errors — account may already be gone
+      if (logout) logout();
+    } finally {
+      navigate('/register', { replace: true });
     }
-    navigate('/register', { replace: true });
   };
 
   const startCooldown = () => {
