@@ -213,8 +213,15 @@ export default function CaregiverJobFeedPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
-          <Card className="p-4 sm:p-6">
-            <p className="text-gray-700">ยังไม่มีงานในขณะนี้</p>
+          <Card className="p-6 sm:p-8 text-center">
+            <div className="text-4xl mb-3">📋</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">{typeFilter ? 'ไม่พบงานประเภทนี้' : 'ยังไม่มีงานเปิดรับในขณะนี้'}</h3>
+            <p className="text-sm text-gray-600 mb-4">{typeFilter ? 'ลองเปลี่ยนตัวกรองหรือรอสักครู่' : 'ผู้ว่าจ้างยังไม่ได้โพสต์งานใหม่ ลองกลับมาดูใหม่ภายหลัง'}</p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {typeFilter && <Button variant="outline" size="sm" onClick={() => setTypeFilter('')}>ล้างตัวกรอง</Button>}
+              <Button variant="outline" size="sm" onClick={load}>รีเฟรช</Button>
+              <Link to="/profile"><Button variant="primary" size="sm">ปรับปรุงโปรไฟล์</Button></Link>
+            </div>
           </Card>
         ) : (
           <div className="space-y-3">

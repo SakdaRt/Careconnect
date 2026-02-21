@@ -59,6 +59,13 @@ export const appApi = {
     return api.updateRole(role);
   },
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    return api.request('/api/auth/change-password', {
+      method: 'POST',
+      body: { current_password: currentPassword, new_password: newPassword },
+    });
+  },
+
   async sendEmailOtp() {
     return api.sendEmailOtp();
   },

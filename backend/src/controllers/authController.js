@@ -774,6 +774,37 @@ export const refreshToken = async (req, res) => {
   }
 };
 
+export const changePassword = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { current_password, new_password } = req.body;
+
+    if (!new_password || new_password.length < 6) {
+      return res.status(400).json({ success: false, error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'ไม่พบผู้ใช้' });
+    }
+
+    // If user has a password (email-based), verify current password
+    if (user.password_hash && current_password) {
+      const valid = await User.verifyPassword(userId, current_password);
+      if (!valid) {
+        return res.status(401).json({ success: false, error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' });
+      }
+    }
+
+    await User.updatePassword(userId, new_password);
+
+    res.json({ success: true, message: 'เปลี่ยนรหัสผ่านสำเร็จ' });
+  } catch (error) {
+    console.error('[Auth Controller] Change password error:', error);
+    res.status(500).json({ success: false, error: 'เปลี่ยนรหัสผ่านไม่สำเร็จ' });
+  }
+};
+
 export const updatePhoneNumber = async (req, res) => {
   try {
     const userId = req.userId;

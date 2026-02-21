@@ -21,6 +21,7 @@ import {
   updateAvatar,
   logout,
   cancelUnverifiedAccount,
+  changePassword,
 } from '../controllers/authController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
 import { validateBody, authSchemas, commonSchemas } from '../utils/validation.js';
@@ -246,6 +247,11 @@ router.put('/profile', requireAuth, requirePolicy('auth:profile:update'), valida
 router.post('/avatar', requireAuth, requirePolicy('auth:profile:update'), avatarUploadMiddleware, updateAvatar);
 
 router.post('/phone', requireAuth, requirePolicy('auth:phone'), validateBody(updatePhoneSchema), updatePhoneNumber);
+
+router.post('/change-password', requireAuth, validateBody(Joi.object({
+  current_password: Joi.string().allow('', null).optional(),
+  new_password: Joi.string().min(6).required(),
+})), changePassword);
 
 router.post('/email', requireAuth, requirePolicy('auth:email'), validateBody(Joi.object({ email: Joi.string().email().required() })), updateEmailAddress);
 

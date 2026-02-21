@@ -635,6 +635,49 @@ export default function HirerHomePage() {
           </Link>
         </div>
 
+        {/* Onboarding Checklist */}
+        {(() => {
+          const tl = user?.trust_level || 'L0';
+          const steps = [
+            { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
+            { done: !!(user?.name && user.name.length > 0), label: 'ตั้งชื่อโปรไฟล์', sub: 'ใช้แสดงต่อผู้ดูแล', link: '/profile' },
+            { done: tl !== 'L0', label: 'ยืนยันเบอร์โทร (L1)', sub: 'เพื่อเผยแพร่งาน', link: '/profile' },
+            { done: tl === 'L2' || tl === 'L3', label: 'ยืนยันตัวตน KYC (L2)', sub: 'เผยแพร่งานทุกประเภท', link: '/kyc' },
+            { done: careRecipients.length > 0, label: 'เพิ่มผู้รับการดูแล', sub: 'ข้อมูลผู้ที่จะได้รับการดูแล', link: '/hirer/care-recipients/new' },
+          ];
+          const doneCount = steps.filter((s) => s.done).length;
+          if (doneCount >= steps.length) return null;
+          return (
+            <Card className="mb-5 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-bold text-gray-900">เริ่มต้นใช้งาน</div>
+                <span className="text-xs text-gray-500">{doneCount}/{steps.length}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+              </div>
+              <div className="space-y-2">
+                {steps.map((s, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {s.done ? '✓' : i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm ${s.done ? 'text-gray-400 line-through' : 'text-gray-800 font-medium'}`}>{s.label}</div>
+                      {!s.done && <div className="text-[11px] text-gray-500">{s.sub}</div>}
+                    </div>
+                    {!s.done && s.link && (
+                      <Link to={s.link}>
+                        <Button variant="outline" size="sm" className="text-xs shrink-0">ไปเลย</Button>
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
+
         <div className="mb-5">
           <div className="text-xs font-medium text-gray-500 mb-2">สถานะงาน</div>
           <div className="overflow-x-auto pb-1">

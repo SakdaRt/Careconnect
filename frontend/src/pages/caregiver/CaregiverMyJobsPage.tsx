@@ -434,12 +434,15 @@ export default function CaregiverMyJobsPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
-          <Card className="p-4 sm:p-6">
-            <p className="text-gray-700">{emptyMessageByFilter[filter]}</p>
-            <div className="mt-4">
-              <Link to="/caregiver/jobs/feed">
-                <Button variant="primary">ไปค้นหางาน</Button>
-              </Link>
+          <Card className="p-6 sm:p-8 text-center">
+            <div className="text-4xl mb-3">{filter === 'all' ? '🔍' : filter === 'completed' ? '🎉' : '📭'}</div>
+            <h3 className="text-lg font-bold text-gray-900 mb-1">{emptyMessageByFilter[filter]}</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {filter === 'all' ? 'เริ่มค้นหางานที่เหมาะกับคุณได้เลย' : 'ลองเปลี่ยนตัวกรองดู หรือไปค้นหางานใหม่'}
+            </p>
+            <div className="flex flex-wrap justify-center gap-2">
+              {filter !== 'all' && <Button variant="outline" size="sm" onClick={() => setFilter('all')}>ดูงานทั้งหมด</Button>}
+              <Link to="/caregiver/jobs/feed"><Button variant="primary" size="sm">ค้นหางาน</Button></Link>
             </div>
           </Card>
         ) : (

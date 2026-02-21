@@ -1,11 +1,12 @@
-import { Link } from 'react-router-dom';
-import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { api, AppNotification } from '../../services/api';
-import { getScopedStorageItem } from '../../utils/authStorage';
+import { appApi } from '../../services/appApi';
+import { getScopedStorageItem, setScopedStorageItem } from '../../utils/authStorage';
 
 const UNREAD_POLL_INTERVAL_MS = 5000;
 
@@ -51,8 +52,10 @@ function trustLevelStyle(level: string) {
 }
 
 export function TopBar() {
-  const { user, logout, activeRole } = useAuth();
+  const { user, logout, activeRole, setActiveRole, updateUser } = useAuth();
+  const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
+  const [switchingRole, setSwitchingRole] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const seenRealtimeNotificationIds = useRef<Set<string>>(new Set());
 
@@ -150,6 +153,32 @@ export function TopBar() {
 
   const resolvedRole = user.role === 'admin' ? 'admin' : (activeRole || user.role);
   const homePath = resolvedRole === 'caregiver' ? '/caregiver/jobs/feed' : resolvedRole === 'admin' ? '/admin/dashboard' : '/hirer/home';
+  const canSwitchRole = resolvedRole !== 'admin' && user.account_type !== 'guest' && user.is_phone_verified;
+  const targetRole = resolvedRole === 'hirer' ? 'caregiver' : 'hirer';
+  const targetRoleLabel = targetRole === 'hirer' ? 'ผู้ว่าจ้าง' : 'ผู้ดูแล';
+
+  const handleSwitchRole = async () => {
+    if (switchingRole) return;
+    setSwitchingRole(true);
+    try {
+      const res = await appApi.updateRole(targetRole);
+      if (!res.success) {
+        toast.error(res.error || 'ไม่สามารถเปลี่ยนบทบาทได้');
+        return;
+      }
+      if (res.data?.user) updateUser(res.data.user);
+      setActiveRole(targetRole);
+      setScopedStorageItem('careconnect_active_role', targetRole);
+      setShowMenu(false);
+      const dest = targetRole === 'caregiver' ? '/caregiver/jobs/feed' : '/hirer/home';
+      navigate(dest, { replace: true });
+      toast.success(`เปลี่ยนเป็น${targetRoleLabel}แล้ว`);
+    } catch {
+      toast.error('ไม่สามารถเปลี่ยนบทบาทได้');
+    } finally {
+      setSwitchingRole(false);
+    }
+  };
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
@@ -286,6 +315,17 @@ export function TopBar() {
                           )}
                         </div>
                       </Link>
+                    )}
+
+                    {canSwitchRole && (
+                      <button
+                        onClick={handleSwitchRole}
+                        disabled={switchingRole}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                      >
+                        <ArrowLeftRight className="w-5 h-5" />
+                        <span>{switchingRole ? 'กำลังเปลี่ยน...' : `เปลี่ยนเป็น${targetRoleLabel}`}</span>
+                      </button>
                     )}
 
                     <Link
