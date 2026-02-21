@@ -121,7 +121,7 @@ export default function AdminUsersPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
-  const [role, setRole] = useState<'all' | 'hirer' | 'caregiver' | 'admin'>('all');
+  const [regType, setRegType] = useState<'all' | 'email' | 'phone'>('all');
   const [status, setStatus] = useState<'all' | 'active' | 'suspended' | 'deleted'>('all');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [walletData, setWalletData] = useState<any>(null);
@@ -131,20 +131,19 @@ export default function AdminUsersPage() {
 
   const statusBadge = (s: string) => s === 'active' ? 'bg-green-100 text-green-800' : s === 'suspended' ? 'bg-yellow-100 text-yellow-800' : s === 'deleted' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
   const trustBadge = (t: string) => t === 'L3' ? 'bg-purple-100 text-purple-800' : t === 'L2' ? 'bg-blue-100 text-blue-800' : t === 'L1' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600';
-  const roleLabel = (r: string) => r === 'hirer' ? 'ผู้ว่าจ้าง' : r === 'caregiver' ? 'ผู้ดูแล' : 'แอดมิน';
   const displayPrimary = (u: any) => u.email || u.phone_number || '-';
   const fmt = (iso?: string | null) => iso ? new Date(iso).toLocaleString('th-TH') : '-';
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.adminGetUsers({ q: q.trim() || undefined, role: role === 'all' ? undefined : role, status: status === 'all' ? undefined : status, page, limit: 20 });
+      const res = await api.adminGetUsers({ q: q.trim() || undefined, reg_type: regType === 'all' ? undefined : regType, status: status === 'all' ? undefined : status, page, limit: 20 });
       if (!res.success || !res.data) { setUsers([]); setTotalPages(1); setTotal(0); return; }
       setUsers(res.data.data || []);
       setTotalPages(res.data.totalPages || 1);
       setTotal(res.data.total || 0);
     } finally { setLoading(false); }
-  }, [page, q, role, status]);
+  }, [page, q, regType, status]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -195,13 +194,12 @@ export default function AdminUsersPage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); load(); } }} />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">Role</label>
-              <select className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" value={role}
-                onChange={(e) => { setRole(e.target.value as any); setPage(1); }}>
+              <label className="text-xs text-gray-500">ลงทะเบียนด้วย</label>
+              <select className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" value={regType}
+                onChange={(e) => { setRegType(e.target.value as any); setPage(1); }}>
                 <option value="all">ทั้งหมด</option>
-                <option value="hirer">ผู้ว่าจ้าง</option>
-                <option value="caregiver">ผู้ดูแล</option>
-                <option value="admin">แอดมิน</option>
+                <option value="email">อีเมล</option>
+                <option value="phone">เบอร์โทร</option>
               </select>
             </div>
             <div className="flex flex-col gap-1">
@@ -216,7 +214,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="flex gap-2 items-end">
               <Button variant="primary" size="sm" onClick={() => { setPage(1); load(); }}>ค้นหา</Button>
-              <Button variant="outline" size="sm" onClick={() => { setQ(''); setRole('all'); setStatus('all'); setPage(1); }}>ล้าง</Button>
+              <Button variant="outline" size="sm" onClick={() => { setQ(''); setRegType('all'); setStatus('all'); setPage(1); }}>ล้าง</Button>
               <Button variant="outline" size="sm" onClick={load}>↺</Button>
               {total > 0 && <span className="text-xs text-gray-400 pb-0.5">พบ {total.toLocaleString()} คน</span>}
             </div>
@@ -236,7 +234,6 @@ export default function AdminUsersPage() {
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">ผู้ใช้</th>
-                      <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Role</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Trust</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">Status</th>
                       <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500">แบน</th>
@@ -253,7 +250,6 @@ export default function AdminUsersPage() {
                           <div className="font-medium text-gray-900 truncate max-w-[150px]">{(u as any).display_name || displayPrimary(u)}</div>
                           <div className="text-[11px] text-gray-400 truncate max-w-[150px]">{u.email || u.phone_number || '-'}</div>
                         </td>
-                        <td className="px-3 py-2.5 text-xs text-gray-600">{roleLabel(u.role)}</td>
                         <td className="px-3 py-2.5">
                           <span className={`text-[11px] px-1.5 py-0.5 rounded font-semibold ${trustBadge(u.trust_level)}`}>
                             {u.trust_level} · {(u as any).trust_score ?? 0}
@@ -303,7 +299,7 @@ export default function AdminUsersPage() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(selectedUser.status)}`}>{selectedUser.status}</span>
                       <span className={`text-xs px-2 py-0.5 rounded font-semibold ${trustBadge(selectedUser.trust_level)}`}>{selectedUser.trust_level} · {selectedUser.trust_score ?? 0}pt</span>
                     </div>
-                    <div className="text-xs text-gray-500 mt-1">{roleLabel(selectedUser.role)} · {selectedUser.account_type}</div>
+                    <div className="text-xs text-gray-500 mt-1">{selectedUser.role} · {selectedUser.account_type}</div>
                     <div className="text-[10px] text-gray-400 font-mono mt-0.5 break-all">{selectedUser.id}</div>
                   </div>
                   <button onClick={() => setSelectedUser(null)} className="text-gray-400 hover:text-gray-700 text-lg leading-none shrink-0 mt-0.5">✕</button>

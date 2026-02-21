@@ -35,6 +35,7 @@ export const listUsers = async (req, res) => {
     const q = String(req.query.q || '').trim();
     const role = String(req.query.role || '').trim();
     const status = String(req.query.status || '').trim();
+    const regType = String(req.query.reg_type || '').trim();
 
     const where = [];
     const values = [];
@@ -47,6 +48,11 @@ export const listUsers = async (req, res) => {
     if (status) {
       values.push(status);
       where.push(`u.status = $${idx++}`);
+    }
+    if (regType === 'email') {
+      where.push(`u.email IS NOT NULL AND u.email <> ''`);
+    } else if (regType === 'phone') {
+      where.push(`(u.email IS NULL OR u.email = '') AND u.phone_number IS NOT NULL AND u.phone_number <> ''`);
     }
     if (q) {
       values.push(`%${q}%`);

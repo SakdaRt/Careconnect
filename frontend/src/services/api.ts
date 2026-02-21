@@ -622,11 +622,12 @@ class ApiClient {
     return { success: true, data: { withdrawal: raw.withdrawal } } as ApiResponse<{ withdrawal: WithdrawalRequest }>;
   }
 
-  async adminGetUsers(options?: { q?: string; role?: string; status?: string; page?: number; limit?: number }) {
+  async adminGetUsers(options?: { q?: string; role?: string; status?: string; reg_type?: string; page?: number; limit?: number }) {
     const params = new URLSearchParams();
     if (options?.q) params.append('q', options.q);
     if (options?.role) params.append('role', options.role);
     if (options?.status) params.append('status', options.status);
+    if (options?.reg_type) params.append('reg_type', options.reg_type);
     if (options?.page) params.append('page', String(options.page));
     if (options?.limit) params.append('limit', String(options.limit));
     const query = params.toString() ? `?${params.toString()}` : '';
