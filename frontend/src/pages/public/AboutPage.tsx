@@ -182,7 +182,7 @@ export default function AboutPage() {
             เข้าร่วมกับเราวันนี้ เพื่อประสบการณ์การดูแลที่ดีกว่า
           </p>
           <Link to="/register">
-            <Button variant="secondary" size="lg" className="bg-white text-blue-600 hover:bg-gray-100">
+            <Button variant="outline" size="lg">
               สมัครสมาชิก
             </Button>
           </Link>

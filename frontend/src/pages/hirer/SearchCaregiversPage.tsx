@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, Star, Briefcase, Clock3, Heart } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, Modal } from '../../components/ui';
+import { Button, Card, LoadingState, Modal, Select } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -486,8 +486,8 @@ export default function SearchCaregiversPage() {
         {/* Filters */}
         <div className="mb-4 space-y-2">
           <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <select
-              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+            <Select
+              aria-label="กรองตามระดับความเชื่อถือ"
               value={trustFilter}
               onChange={(e) => setTrustFilter(e.target.value)}
             >
@@ -495,9 +495,9 @@ export default function SearchCaregiversPage() {
               <option value="L3">L3 เชื่อถือสูง</option>
               <option value="L2">L2 ยืนยันแล้ว</option>
               <option value="L1">L1 พื้นฐาน</option>
-            </select>
-            <select
-              className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+            </Select>
+            <Select
+              aria-label="กรองตามประสบการณ์"
               value={experienceFilter}
               onChange={(e) => setExperienceFilter(e.target.value)}
             >
@@ -506,7 +506,7 @@ export default function SearchCaregiversPage() {
               <option value="3">อย่างน้อย 3 ปี</option>
               <option value="5">อย่างน้อย 5 ปี</option>
               <option value="8">อย่างน้อย 8 ปี</option>
-            </select>
+            </Select>
             <div className="flex flex-col gap-1">
               <div className="text-xs text-gray-500 font-medium">วันที่พร้อมรับงาน</div>
               <div className="flex flex-wrap gap-x-3 gap-y-1">

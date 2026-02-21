@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, Select, StatusBadge } from '../../components/ui';
 import { CaregiverProfile, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -153,7 +153,7 @@ export default function CaregiverJobFeedPage() {
               <div className="space-y-2">
                 {steps.map((s, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                       {s.done ? '✓' : i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -207,8 +207,8 @@ export default function CaregiverJobFeedPage() {
         )}
 
         <div className="flex flex-wrap gap-2 mb-4">
-          <select
-            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+          <Select
+            aria-label="กรองตามประเภทงาน"
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value as TypeFilter)}
           >
@@ -216,16 +216,16 @@ export default function CaregiverJobFeedPage() {
             {Object.entries(TYPE_LABELS).map(([v, l]) => (
               <option key={v} value={v}>{l}</option>
             ))}
-          </select>
-          <select
-            className="px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm"
+          </Select>
+          <Select
+            aria-label="เรียงตาม"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as SortOption)}
           >
             <option value="newest">ล่าสุด</option>
             <option value="pay_high">ค่าจ้างสูง → ต่ำ</option>
             <option value="pay_low">ค่าจ้างต่ำ → สูง</option>
-          </select>
+          </Select>
           {typeFilter && (
             <button onClick={() => setTypeFilter('')} className="text-xs text-blue-600 hover:underline">ล้างตัวกรอง</button>
           )}

@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MessageCircle, User as UserIcon, FileText, ExternalLink, Star } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, ReasonModal, StatusBadge, Textarea } from '../../components/ui';
 import { JobPost, CaregiverDocument } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -566,11 +566,12 @@ export default function JobDetailPage() {
                       ))}
                       {reviewRating > 0 && <span className="text-sm text-gray-600 ml-2">{reviewRating}/5</span>}
                     </div>
-                    <textarea
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-20"
+                    <Textarea
+                      fullWidth
                       value={reviewComment}
                       onChange={(e) => setReviewComment(e.target.value)}
                       placeholder="แสดงความคิดเห็นเกี่ยวกับผู้ดูแล (ไม่บังคับ)"
+                      className="min-h-20"
                     />
                     <Button
                       variant="primary"

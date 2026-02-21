@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Heart, Mail, Phone, MapPin, Clock } from 'lucide-react';
-import { Button, Input } from '../../components/ui';
+import { Button, Input, Textarea } from '../../components/ui';
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 
@@ -162,19 +162,16 @@ export default function ContactPage() {
                     required
                   />
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">
-                      ข้อความ <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={formData.message}
-                      onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                      placeholder="รายละเอียดที่ต้องการสอบถาม"
-                      rows={6}
-                      required
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    />
-                  </div>
+                  <Textarea
+                    label="ข้อความ"
+                    fullWidth
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
+                    placeholder="รายละเอียดที่ต้องการสอบถาม"
+                    rows={6}
+                    required
+                    className="resize-none"
+                  />
 
                   <Button type="submit" variant="primary" size="lg" fullWidth>
                     ส่งข้อความ

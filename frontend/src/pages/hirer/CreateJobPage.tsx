@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, Input, Modal, type BadgeProps } from '../../components/ui';
+import { Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
@@ -1424,11 +1424,10 @@ export default function CreateJobPage() {
                   id="section-patient"
                   className={cn('flex flex-col gap-1 p-3 border rounded-lg', errorSection === 'patient' ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white')}
                 >
-                  <label className="text-sm font-semibold text-gray-700">ผู้รับการดูแล</label>
-                  <select className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" value={careRecipientId} onChange={(e) => setCareRecipientId(e.target.value)}>
+                  <Select label="ผู้รับการดูแล" value={careRecipientId} onChange={(e) => setCareRecipientId(e.target.value)}>
                     <option value="">ยังไม่ได้เลือก</option>
                     {careRecipients.map((p) => (<option key={p.id} value={p.id}>{p.patient_display_name}</option>))}
-                  </select>
+                  </Select>
                   {careRecipients.length === 0 && !showQuickAddRecipient && <div className="text-xs text-red-600">ยังไม่มีผู้รับการดูแล</div>}
                   <div className="flex flex-wrap gap-2">
                     {!showQuickAddRecipient && (
@@ -1447,25 +1446,25 @@ export default function CreateJobPage() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       />
                       <div className="grid grid-cols-3 gap-2">
-                        <select className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" value={quickRecipientGender} onChange={(e) => setQuickRecipientGender(e.target.value)}>
+                        <Select aria-label="เพศ" value={quickRecipientGender} onChange={(e) => setQuickRecipientGender(e.target.value)}>
                           <option value="female">หญิง</option>
                           <option value="male">ชาย</option>
                           <option value="other">อื่นๆ</option>
-                        </select>
-                        <select className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" value={quickRecipientAge} onChange={(e) => setQuickRecipientAge(e.target.value)}>
+                        </Select>
+                        <Select aria-label="ช่วงอายุ" value={quickRecipientAge} onChange={(e) => setQuickRecipientAge(e.target.value)}>
                           <option value="0_12">เด็ก (0-12)</option>
                           <option value="13_17">วัยรุ่น (13-17)</option>
                           <option value="18_59">ผู้ใหญ่ (18-59)</option>
                           <option value="60_74">ผู้สูงอายุ (60-74)</option>
                           <option value="75_89">ผู้สูงอายุ (75-89)</option>
                           <option value="90_plus">ผู้สูงอายุ (90+)</option>
-                        </select>
-                        <select className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" value={quickRecipientMobility} onChange={(e) => setQuickRecipientMobility(e.target.value)}>
+                        </Select>
+                        <Select aria-label="การเคลื่อนไหว" value={quickRecipientMobility} onChange={(e) => setQuickRecipientMobility(e.target.value)}>
                           <option value="walk_independent">เดินได้เอง</option>
                           <option value="walk_assisted">ต้องพยุง</option>
                           <option value="wheelchair">รถเข็น</option>
                           <option value="bedbound">ติดเตียง</option>
-                        </select>
+                        </Select>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="primary" size="sm" onClick={handleQuickAddRecipient} loading={quickRecipientSaving}>บันทึก</Button>
@@ -1491,17 +1490,14 @@ export default function CreateJobPage() {
                 <Card id="section-job_basic" className={cn(errorSection === 'job_basic' ? 'border-red-400 bg-red-50' : undefined)}>
                   <div className="text-sm font-semibold text-gray-900 mb-3">ข้อมูลงาน</div>
                   <Input label="ชื่องาน" value={form.title} error={fieldErrors.title} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, title: '' })); setForm({ ...form, title: e.target.value }); }} placeholder="เช่น ดูแลผู้สูงอายุช่วงเช้า" required />
-                  <div className="flex flex-col gap-1 mt-3">
-                    <label className="text-sm font-semibold text-gray-700">รายละเอียดงาน</label>
-                    <textarea className={cn('w-full px-4 py-2 border rounded-lg transition-colors', 'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent', fieldErrors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 hover:border-gray-400', 'min-h-28')} value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="อธิบายสิ่งที่ต้องทำ ข้อควรระวัง อุปกรณ์ ฯลฯ" />
-                    {fieldErrors.description && <div className="text-sm text-red-600">{fieldErrors.description}</div>}
+                  <div className="mt-3">
+                    <Textarea label="รายละเอียดงาน" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="อธิบายสิ่งที่ต้องทำ ข้อควรระวัง อุปกรณ์ ฯลฯ" error={fieldErrors.description} className="min-h-28" />
                   </div>
 
                   <div className="flex flex-col gap-1 mt-3">
-                    <label className="text-sm font-semibold text-gray-700">ประเภทงานหลัก</label>
-                    <select className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white" value={form.detailed_job_type} onChange={(e) => handleDetailedTypeSelection(e.target.value as DetailedJobType)}>
+                    <Select label="ประเภทงานหลัก" value={form.detailed_job_type} onChange={(e) => handleDetailedTypeSelection(e.target.value as DetailedJobType)}>
                       {DETAILED_JOB_TYPE_ORDER.map((value) => (<option key={value} value={value}>{DETAILED_JOB_TEMPLATES[value].label}</option>))}
-                    </select>
+                    </Select>
                     <div className="text-xs text-gray-500 mt-1">{currentDetailedTemplate.helper}</div>
                     {SPECIALIZED_TYPE_DIFFERENCE_HINT[form.detailed_job_type] && (
                       <div className="text-xs text-amber-700 mt-1">
@@ -1695,21 +1691,8 @@ export default function CreateJobPage() {
                   const optLabel = q.options.find((o) => o.value === ans)?.label || ans;
                   return <div key={q.id} className="text-sm text-gray-800 mt-1">{q.label}: {optLabel}</div>;
                 })}
-                <div className="flex flex-col gap-1 mt-3">
-                  <label className="text-sm font-semibold text-gray-700">รายละเอียดงานที่ต้องการสื่อสาร</label>
-                  <textarea
-                    className={cn(
-                      'w-full px-4 py-2 border rounded-lg transition-colors',
-                      'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                      fieldErrors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 hover:border-gray-400',
-                      'min-h-28'
-                    )}
-                    value={form.description}
-                    onChange={(e) => handleDescriptionChange(e.target.value)}
-                    placeholder="เขียนรายละเอียดงานเพิ่มเติมเพื่อสื่อสารกับผู้ดูแลให้ชัดเจน"
-                  />
-                  {fieldErrors.description && <div className="text-sm text-red-600">{fieldErrors.description}</div>}
-                  <div className="text-xs text-gray-500">ข้อความนี้จะแสดงเป็นรายละเอียดงานหลัก และระบบจะเติมสรุปจากประเภทงานให้อัตโนมัติท้ายข้อความ</div>
+                <div className="mt-3">
+                  <Textarea label="รายละเอียดงานที่ต้องการสื่อสาร" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="เขียนรายละเอียดงานเพิ่มเติมเพื่อสื่อสารกับผู้ดูแลให้ชัดเจน" error={fieldErrors.description} className="min-h-28" helperText="ข้อความนี้จะแสดงเป็นรายละเอียดงานหลัก และระบบจะเติมสรุปจากประเภทงานให้อัตโนมัติท้ายข้อความ" />
                 </div>
                 <div className="text-sm text-gray-800 mt-1">วันเวลา: {form.scheduled_start_at || '-'} ถึง {form.scheduled_end_at || '-'}</div>
                 <div className="text-sm text-gray-800 mt-1">ที่อยู่: {form.address_line1 || '-'}</div>
@@ -1818,21 +1801,8 @@ export default function CreateJobPage() {
                 const optLabel = q.options.find((o) => o.value === ans)?.label || ans;
                 return <div key={q.id} className="text-sm text-gray-800 mt-1">{q.label}: {optLabel}</div>;
               })}
-              <div className="flex flex-col gap-1 mt-3">
-                <label className="text-sm font-semibold text-gray-700">รายละเอียดงาน (แก้ไขได้ก่อนบันทึก)</label>
-                <textarea
-                  className={cn(
-                    'w-full px-4 py-2 border rounded-lg transition-colors',
-                    'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                    fieldErrors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 hover:border-gray-400',
-                    'min-h-28'
-                  )}
-                  value={form.description}
-                  onChange={(e) => handleDescriptionChange(e.target.value)}
-                  placeholder="เขียนสิ่งที่ต้องการสื่อสารเพิ่มเติมกับผู้ดูแล"
-                />
-                {fieldErrors.description && <div className="text-sm text-red-600">{fieldErrors.description}</div>}
-                <div className="text-xs text-gray-500">ระบบจะต่อท้ายด้วยสรุปจากประเภทงานที่คุณเลือกให้อัตโนมัติ</div>
+              <div className="mt-3">
+                <Textarea label="รายละเอียดงาน (แก้ไขได้ก่อนบันทึก)" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="เขียนสิ่งที่ต้องการสื่อสารเพิ่มเติมกับผู้ดูแล" error={fieldErrors.description} className="min-h-28" helperText="ระบบจะต่อท้ายด้วยสรุปจากประเภทงานที่คุณเลือกให้อัตโนมัติ" />
               </div>
               <div className="text-sm text-gray-800 mt-1">
                 ความเสี่ยง: {computedRisk.risk_level === 'high_risk' ? 'สูง' : 'ต่ำ'}

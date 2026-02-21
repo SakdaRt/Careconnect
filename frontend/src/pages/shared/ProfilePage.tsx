@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { ShieldCheck, BadgeCheck, Shield, Upload, FileText, Trash2, ExternalLink, Star, Landmark } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Avatar, Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput } from '../../components/ui';
+import { Avatar, Button, Card, CheckboxGroup, Input, OTPInput, PhoneInput, Select, Textarea } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -704,19 +704,19 @@ export default function ProfilePage() {
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex items-center gap-2">
-                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.is_phone_verified ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.is_phone_verified ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
                   {user.is_phone_verified ? '✓' : '1'}
                 </div>
                 <span className={user.is_phone_verified ? 'text-green-700' : 'text-gray-600'}>ยืนยันเบอร์โทร {user.is_phone_verified ? '✓' : ''}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${['L2', 'L3'].includes(user.trust_level || 'L0') ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${['L2', 'L3'].includes(user.trust_level || 'L0') ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
                   {['L2', 'L3'].includes(user.trust_level || 'L0') ? '✓' : '2'}
                 </div>
                 <span className={['L2', 'L3'].includes(user.trust_level || 'L0') ? 'text-green-700' : 'text-gray-600'}>ยืนยันตัวตน KYC {['L2', 'L3'].includes(user.trust_level || 'L0') ? '✓' : ''}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.trust_level === 'L3' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'}`}>
+                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.trust_level === 'L3' ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-700'}`}>
                   {user.trust_level === 'L3' ? '✓' : '3'}
                 </div>
                 <span className={user.trust_level === 'L3' ? 'text-green-700' : 'text-gray-600'}>บัญชีธนาคารยืนยันแล้ว + Trust Score ≥80 {user.trust_level === 'L3' ? '✓' : ''}</span>
@@ -876,15 +876,14 @@ export default function ProfilePage() {
                           onChange={(e) => setCaregiverForm({ ...caregiverForm, available_to: e.target.value })}
                         />
                       </div>
-                      <div className="flex flex-col gap-1">
-                        <label className="text-sm font-semibold text-gray-700">แนะนำตัว</label>
-                        <textarea
-                          className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
-                          value={caregiverForm.bio}
-                          onChange={(e) => setCaregiverForm({ ...caregiverForm, bio: e.target.value })}
-                          placeholder="เล่าประสบการณ์หรือความถนัดของคุณ"
-                        />
-                      </div>
+                      <Textarea
+                        label="แนะนำตัว"
+                        fullWidth
+                        value={caregiverForm.bio}
+                        onChange={(e) => setCaregiverForm({ ...caregiverForm, bio: e.target.value })}
+                        placeholder="เล่าประสบการณ์หรือความถนัดของคุณ"
+                        className="min-h-28"
+                      />
                       <CheckboxGroup
                         label="ทักษะ/ใบรับรอง"
                         layout="grid"
@@ -962,19 +961,12 @@ export default function ProfilePage() {
                         placeholder="เช่น ใบรับรองปฐมพยาบาล"
                       />
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div className="flex flex-col gap-1">
-                          <label className="text-sm font-semibold text-gray-700">ประเภทเอกสาร</label>
-                          <select
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                            value={certForm.document_type}
-                            onChange={(e) => setCertForm({ ...certForm, document_type: e.target.value })}
-                          >
-                            <option value="certification">ใบรับรอง/ใบประกาศ</option>
-                            <option value="license">ใบอนุญาต</option>
-                            <option value="training">ใบผ่านการอบรม</option>
-                            <option value="other">อื่นๆ</option>
-                          </select>
-                        </div>
+                        <Select label="ประเภทเอกสาร" value={certForm.document_type} onChange={(e) => setCertForm({ ...certForm, document_type: e.target.value })}>
+                          <option value="certification">ใบรับรอง/ใบประกาศ</option>
+                          <option value="license">ใบอนุญาต</option>
+                          <option value="training">ใบผ่านการอบรม</option>
+                          <option value="other">อื่นๆ</option>
+                        </Select>
                         <Input
                           label="หน่วยงานที่ออก"
                           value={certForm.issuer}

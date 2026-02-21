@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '../../layouts';
-import { Button, Card, Input, LoadingState, Modal, StatusBadge } from '../../components/ui';
+import { Button, Card, Input, LoadingState, Modal, StatusBadge, Textarea } from '../../components/ui';
 import api, { AdminJobListItem } from '../../services/api';
 
 function formatDateTime(iso?: string | null) {
@@ -349,12 +349,13 @@ export default function AdminJobsPage() {
         }
       >
         <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700">เหตุผลที่ยกเลิกงาน</label>
-          <textarea
-            className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
+          <Textarea
+            label="เหตุผลที่ยกเลิกงาน"
+            fullWidth
             value={cancelReason}
             onChange={(e) => setCancelReason(e.target.value)}
             placeholder="อธิบายเหตุผลในการยกเลิกงาน"
+            className="min-h-28"
           />
         </div>
       </Modal>

@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle, ShieldCheck, User as UserIcon, PlusCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, Modal, ReasonModal, Select, StatusBadge } from '../../components/ui';
 import { CareRecipient, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -677,7 +677,7 @@ export default function HirerHomePage() {
               <div className="space-y-2">
                 {steps.map((s, i) => (
                   <div key={i} className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                       {s.done ? '✓' : i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -774,23 +774,22 @@ export default function HirerHomePage() {
           ) : (
             <div className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-[260px_1fr] gap-3 sm:items-end">
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs text-gray-500">เลือกผู้รับการดูแล</label>
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                    value={selectedRecipientId}
-                    onChange={(e) => setSelectedRecipientId(e.target.value)}
-                  >
-                    {recipientOptions.map((option) => (
-                      <option key={option.id} value={option.id}>{option.label}</option>
+                <div>
+                  <Select label="เลือกผู้รับการดูแล" value={selectedRecipientId} onChange={(e) => setSelectedRecipientId(e.target.value)}>
+                    <option value="">ทุกคน</option>
+                    {careRecipients.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.patient_display_name}
+                      </option>
                     ))}
-                  </select>
+                  </Select>
                 </div>
                 <div className="text-xs text-gray-500 sm:text-right">
                   งานทั้งหมดในมุมมองนี้: {filteredScheduleJobs.length}
                 </div>
               </div>
 
+// ... rest of your code ...
               {filteredScheduleJobs.length === 0 && (
                 <div className="text-xs text-gray-500">ยังไม่มีงานสถานะมอบหมายหรือกำลังทำในมุมมองนี้</div>
               )}

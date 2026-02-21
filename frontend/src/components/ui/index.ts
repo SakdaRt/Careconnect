@@ -31,3 +31,9 @@ export type { EmptyStateProps } from './EmptyState';
 
 export { RadioGroup, CheckboxGroup } from './ChoiceGroup';
 export type { ChoiceOption } from './ChoiceGroup';
+
+export { Select } from './Select';
+export type { SelectProps } from './Select';
+
+export { Textarea } from './Textarea';
+export type { TextareaProps } from './Textarea';

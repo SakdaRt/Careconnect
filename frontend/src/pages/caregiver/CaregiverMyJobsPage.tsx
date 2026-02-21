@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge, Textarea } from '../../components/ui';
 import { CaregiverAssignedJob } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -696,12 +696,13 @@ export default function CaregiverMyJobsPage() {
           }
         >
           <div className="flex flex-col gap-2">
-            <label className="text-sm font-semibold text-gray-700">เหตุผลที่เปิดข้อพิพาท</label>
-            <textarea
-              className="w-full px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent border-gray-300 hover:border-gray-400 min-h-28"
+            <Textarea
+              label="เหตุผลที่เปิดข้อพิพาท"
+              fullWidth
               value={disputeReason}
               onChange={(e) => setDisputeReason(e.target.value)}
               placeholder="อธิบายเหตุผลในการเปิดข้อพิพาท"
+              className="min-h-28"
             />
           </div>
         </Modal>

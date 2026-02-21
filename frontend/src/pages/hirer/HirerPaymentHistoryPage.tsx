@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState } from '../../components/ui';
+import { Button, Card, LoadingState, Select } from '../../components/ui';
 import { Transaction } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -61,37 +61,22 @@ export default function HirerPaymentHistoryPage() {
         ) : (
           <Card className="p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500">ประเภท</label>
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as any)}
-                >
+              <div>
+                <Select label="ประเภท" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)}>
                   <option value="all">ทั้งหมด</option>
-                  <option value="credit">credit</option>
-                  <option value="debit">debit</option>
-                  <option value="hold">hold</option>
-                  <option value="release">release</option>
-                  <option value="reversal">reversal</option>
-                </select>
+                  <option value="topup">เติมเงิน</option>
+                  <option value="withdraw">ถอนเงิน</option>
+                  <option value="payment">ชำระค่าจ้าง</option>
+                  <option value="refund">คืนเงิน</option>
+                </Select>
               </div>
-              <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-500">อ้างอิง</label>
-                <select
-                  className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
-                  value={refFilter}
-                  onChange={(e) => setRefFilter(e.target.value as any)}
-                >
+              <div>
+                <Select label="อ้างอิง" value={refFilter} onChange={(e) => setRefFilter(e.target.value as any)}>
                   <option value="all">ทั้งหมด</option>
-                  <option value="topup">topup</option>
-                  <option value="job">job</option>
-                  <option value="fee">fee</option>
-                  <option value="withdrawal">withdrawal</option>
-                  <option value="refund">refund</option>
-                  <option value="dispute">dispute</option>
-                  <option value="penalty">penalty</option>
-                </select>
+                  <option value="job">งาน</option>
+                  <option value="withdraw">ถอนเงิน</option>
+                  <option value="topup">เติมเงิน</option>
+                </Select>
               </div>
             </div>
 

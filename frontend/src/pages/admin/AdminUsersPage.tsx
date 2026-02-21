@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { AdminLayout } from '../../layouts';
-import { Button, Card, Input, LoadingState } from '../../components/ui';
+import { Button, Card, Input, LoadingState, Select } from '../../components/ui';
 import api, { AdminUserListItem } from '../../services/api';
 
 type BanType = 'suspend' | 'delete' | 'ban_login' | 'ban_job_create' | 'ban_job_accept' | 'ban_withdraw';
@@ -193,24 +193,22 @@ export default function AdminUsersPage() {
                 placeholder="id / email / phone / ชื่อ"
                 onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); load(); } }} />
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">ลงทะเบียนด้วย</label>
-              <select className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" value={regType}
+            <div>
+              <Select label="ลงทะเบียนด้วย" value={regType}
                 onChange={(e) => { setRegType(e.target.value as any); setPage(1); }}>
                 <option value="all">ทั้งหมด</option>
                 <option value="email">อีเมล</option>
                 <option value="phone">เบอร์โทร</option>
-              </select>
+              </Select>
             </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-gray-500">Status</label>
-              <select className="px-2 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" value={status}
+            <div>
+              <Select label="Status" value={status}
                 onChange={(e) => { setStatus(e.target.value as any); setPage(1); }}>
                 <option value="all">ทั้งหมด</option>
                 <option value="active">active</option>
                 <option value="suspended">suspended</option>
                 <option value="deleted">deleted</option>
-              </select>
+              </Select>
             </div>
             <div className="flex gap-2 items-end">
               <Button variant="primary" size="sm" onClick={() => { setPage(1); load(); }}>ค้นหา</Button>
@@ -394,7 +392,7 @@ export default function AdminUsersPage() {
                                 <span className="text-gray-400 ml-1">•••• {b.account_number_last4}</span>
                                 <div className="text-gray-400 text-[11px]">{b.account_name}</div>
                               </div>
-                              <span className={`text-[11px] px-1.5 py-0.5 rounded ${b.is_verified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                              <span className={`text-[11px] px-1.5 py-0.5 rounded ${b.is_verified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
                                 {b.is_verified ? 'ยืนยันแล้ว' : 'ยังไม่ยืนยัน'}
                               </span>
                             </div>

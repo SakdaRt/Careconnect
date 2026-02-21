@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
-import { Button, Card, Input, LoadingState, Modal } from '../../components/ui';
+import { Button, Card, Input, LoadingState, Modal, Select } from '../../components/ui';
 import { BankAccount, TopupIntent, TopupResult, Transaction, WalletBalance, WithdrawalRequest } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -533,11 +533,10 @@ export default function HirerWalletPage() {
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">รายการถอนเงิน</h2>
                 <div className="flex items-center gap-2">
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                  <Select
                     value={wdStatus}
                     onChange={(e) => {
-                      setWdStatus(e.target.value);
+                      setWdStatus(e.target.value as any);
                       setWdPage(1);
                     }}
                   >
@@ -548,7 +547,7 @@ export default function HirerWalletPage() {
                     <option value="paid">paid</option>
                     <option value="rejected">rejected</option>
                     <option value="cancelled">cancelled</option>
-                  </select>
+                  </Select>
                   <Button variant="outline" size="sm" onClick={load}>
                     รีเฟรช
                   </Button>
@@ -604,8 +603,7 @@ export default function HirerWalletPage() {
               <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-500">ประเภท</label>
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                  <Select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value as any)}
                   >
@@ -615,12 +613,11 @@ export default function HirerWalletPage() {
                     <option value="hold">hold</option>
                     <option value="release">release</option>
                     <option value="reversal">reversal</option>
-                  </select>
+                  </Select>
                 </div>
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-500">อ้างอิง</label>
-                  <select
-                    className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                  <Select
                     value={refFilter}
                     onChange={(e) => setRefFilter(e.target.value as any)}
                   >
@@ -632,7 +629,7 @@ export default function HirerWalletPage() {
                     <option value="refund">refund</option>
                     <option value="dispute">dispute</option>
                     <option value="penalty">penalty</option>
-                  </select>
+                  </Select>
                 </div>
               </div>
 

@@ -1,5 +1,4 @@
-import { HTMLAttributes } from 'react';
-import { User } from 'lucide-react';
+import { HTMLAttributes, useState } from 'react';
 import { cn } from '../../contexts/ThemeContext';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -21,54 +20,47 @@ const sizeStyles: Record<AvatarSize, { container: string; icon: string; text: st
 
 export function Avatar({ src, name, size = 'md', alt, className, ...props }: AvatarProps) {
   const styles = sizeStyles[size];
+  const [imgError, setImgError] = useState(false);
 
   // Generate initials from name
   const getInitials = (name?: string) => {
-    if (!name) return '';
+    if (!name) return '?';
     const parts = name.trim().split(' ');
     if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
   };
 
-  // Generate color from name (for consistent coloring)
-  const getColorFromName = (name?: string) => {
-    if (!name) return 'bg-gray-300 text-gray-700';
-
-    const colors = [
-      'bg-blue-500 text-white',
-      'bg-green-500 text-white',
-      'bg-purple-500 text-white',
-      'bg-pink-500 text-white',
-      'bg-indigo-500 text-white',
-      'bg-teal-500 text-white',
-      'bg-orange-500 text-white',
-      'bg-red-500 text-white',
-    ];
-
-    const hash = name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
   const initials = getInitials(name);
-  const colorClass = getColorFromName(name);
 
+  // Show default avatar if no src or image failed to load
+  if (!src || imgError) {
+    return (
+      <div 
+        className={cn(
+          'relative inline-flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden',
+          styles.container,
+          // Always use a visible background
+          'bg-blue-500 text-white',
+          className
+        )} 
+        {...props}
+      >
+        <span className={cn('font-bold select-none', styles.text)}>
+          {initials}
+        </span>
+      </div>
+    );
+  }
+
+  // Try to load image
   return (
-    <div
-      className={cn(
-        'relative inline-flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden',
-        styles.container,
-        !src && colorClass,
-        className
-      )}
-      {...props}
-    >
-      {src ? (
-        <img src={src} alt={alt || name || 'Avatar'} className="w-full h-full object-cover" />
-      ) : initials ? (
-        <span className={cn('font-semibold select-none', styles.text)}>{initials}</span>
-      ) : (
-        <User className={cn('text-current', styles.icon)} />
-      )}
+    <div className={cn('relative inline-flex items-center justify-center flex-shrink-0 rounded-full overflow-hidden', styles.container, className)} {...props}>
+      <img 
+        src={src} 
+        alt={alt || name || 'Avatar'} 
+        className="w-full h-full object-cover"
+        onError={() => setImgError(true)}
+      />
     </div>
   );
 }

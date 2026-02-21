@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { BadgeCheck, ShieldCheck, Camera, Upload, FileText, CheckCircle, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, Input, LoadingState } from '../../components/ui';
+import { Button, Card, Input, LoadingState, Select } from '../../components/ui';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
 import type { KycStatus } from '../../services/api';
@@ -333,7 +333,7 @@ export default function KycPage() {
                 <button
                   onClick={() => { if (isDone) setStep(s.key); }}
                   className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium w-full justify-center transition-colors
-                    ${isActive ? 'bg-blue-100 text-blue-700' : isDone ? 'bg-green-50 text-green-700 cursor-pointer hover:bg-green-100' : 'bg-gray-50 text-gray-400'}`}
+                    ${isActive ? 'bg-blue-100 text-blue-700' : isDone ? 'bg-green-50 text-green-700 cursor-pointer hover:bg-green-100' : 'bg-gray-50 text-gray-600'}`}
                 >
                   {isDone ? <CheckCircle className="w-3.5 h-3.5" /> : <Icon className="w-3.5 h-3.5" />}
                   <span className="hidden sm:inline">{s.label}</span>
@@ -353,17 +353,10 @@ export default function KycPage() {
               <h2 className="text-lg font-bold text-gray-900 mb-1">อัปโหลดเอกสาร</h2>
               <p className="text-sm text-gray-600 mb-4">ถ่ายรูปหรือเลือกรูปบัตรประชาชน / หนังสือเดินทาง</p>
 
-              <div className="mb-4">
-                <label className="text-sm font-semibold text-gray-700 block mb-1">ประเภทเอกสาร</label>
-                <select
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white text-sm"
-                  value={docType}
-                  onChange={(e) => setDocType(e.target.value)}
-                >
-                  <option value="national_id">บัตรประชาชน</option>
-                  <option value="passport">หนังสือเดินทาง</option>
-                </select>
-              </div>
+              <Select label="ประเภทเอกสาร" value={docType} onChange={(e) => setDocType(e.target.value)}>
+                <option value="national_id">บัตรประชาชน</option>
+                <option value="passport">หนังสือเดินทาง</option>
+              </Select>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {/* Front */}

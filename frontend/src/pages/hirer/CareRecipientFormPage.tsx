@@ -2,12 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
-import { Button, Card, CheckboxGroup, Input, LoadingState } from '../../components/ui';
+import { Button, Card, CheckboxGroup, Input, LoadingState, Textarea } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient } from '../../services/api';
 import { appApi } from '../../services/appApi';
-import { cn } from '../../contexts/ThemeContext';
-
 type SelectOption = {
   value: string;
   label: string;
@@ -637,20 +635,14 @@ export default function CareRecipientFormPage() {
               options={ALLERGY_OPTIONS}
             />
 
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-semibold text-gray-700">สรุปสุขภาพโดยรวม</label>
-              <textarea
-                className={cn(
-                  'w-full px-4 py-2 border rounded-lg transition-colors',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent',
-                  'border-gray-300 hover:border-gray-400',
-                  'min-h-28'
-                )}
-                value={form.general_health_summary}
-                onChange={(e) => setForm((prev) => ({ ...prev, general_health_summary: e.target.value }))}
-                placeholder="เช่น โรคประจำตัว, ข้อควรระวัง, อาการสำคัญ"
-              />
-            </div>
+            <Textarea
+              label="สรุปสุขภาพโดยรวม"
+              fullWidth
+              value={form.general_health_summary}
+              onChange={(e) => setForm((prev) => ({ ...prev, general_health_summary: e.target.value }))}
+              placeholder="เช่น โรคประจำตัว, ข้อควรระวัง, อาการสำคัญ"
+              className="min-h-28"
+            />
 
             <div className="flex gap-3 pt-2">
               <Button variant="outline" fullWidth onClick={() => navigate(-1)} disabled={saving}>
