@@ -197,6 +197,35 @@ export const setUserStatus = async (req, res) => {
   }
 };
 
+export const editUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const allowed = ['email', 'phone_number', 'trust_level', 'trust_score', 'is_email_verified', 'is_phone_verified', 'two_factor_enabled', 'admin_note'];
+    const updates = {};
+    for (const key of allowed) {
+      if (req.body[key] !== undefined) updates[key] = req.body[key];
+    }
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: 'Validation error', message: 'No valid fields to update' });
+    }
+
+    const target = await query(`SELECT id, role FROM users WHERE id = $1`, [id]);
+    if (!target.rows[0]) return res.status(404).json({ error: 'Not Found', message: 'User not found' });
+
+    updates.updated_at = new Date();
+    const setClauses = Object.keys(updates).map((k, i) => `${k} = $${i + 2}`).join(', ');
+    const vals = [id, ...Object.values(updates)];
+    const updated = await query(`UPDATE users SET ${setClauses} WHERE id = $1 RETURNING *`, vals);
+
+    await logAdminAction(req.userId, 'user:edit', { target_user_id: id, fields: Object.keys(updates) });
+
+    res.json({ success: true, message: 'อัปเดตข้อมูลแล้ว', data: { user: safeUser(updated.rows[0]) } });
+  } catch (error) {
+    console.error('[Admin Users] Edit user error:', error);
+    res.status(500).json({ error: 'Server error', message: 'Failed to edit user' });
+  }
+};
+
 export const getUserWallet = async (req, res) => {
   try {
     const { id } = req.params;

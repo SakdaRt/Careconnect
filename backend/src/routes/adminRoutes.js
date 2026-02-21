@@ -3,7 +3,7 @@ import Joi from 'joi';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { validateParams, validateQuery, validateBody, commonSchemas } from '../utils/validation.js';
 import { runTrustLevelWorker, triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
-import { listUsers, getUser, setUserStatus, getUserWallet, setBan, getReportsSummary } from '../controllers/adminUserController.js';
+import { listUsers, getUser, setUserStatus, editUser, getUserWallet, setBan, getReportsSummary } from '../controllers/adminUserController.js';
 import { listJobs, getJob, cancelJob } from '../controllers/adminJobController.js';
 import { listLedgerTransactions } from '../controllers/adminLedgerController.js';
 import { getHealth } from '../controllers/adminHealthController.js';
@@ -54,6 +54,17 @@ const setUserStatusBody = Joi.object({
   status: Joi.string().valid('active', 'suspended', 'deleted').required(),
   reason: Joi.string().trim().max(500).allow(''),
 });
+
+const editUserBody = Joi.object({
+  email: Joi.string().email({ tlds: { allow: false } }).allow('', null),
+  phone_number: Joi.string().trim().max(20).allow('', null),
+  trust_level: Joi.string().valid('L0', 'L1', 'L2', 'L3'),
+  trust_score: Joi.number().integer().min(0).max(100),
+  is_email_verified: Joi.boolean(),
+  is_phone_verified: Joi.boolean(),
+  two_factor_enabled: Joi.boolean(),
+  admin_note: Joi.string().trim().max(1000).allow('', null),
+}).min(1);
 
 const setBanBody = Joi.object({
   ban_type: Joi.string().valid('suspend', 'delete', 'ban_login', 'ban_job_create', 'ban_job_accept', 'ban_withdraw').required(),
@@ -198,6 +209,7 @@ router.get('/stats', async (req, res) => {
 router.get('/users', validateQuery(adminUserQuery), listUsers);
 router.get('/users/:id', validateParams(uuidParams), getUser);
 router.post('/users/:id/status', validateParams(uuidParams), validateBody(setUserStatusBody), setUserStatus);
+router.patch('/users/:id/edit', validateParams(uuidParams), validateBody(editUserBody), editUser);
 router.get('/users/:id/wallet', validateParams(uuidParams), getUserWallet);
 router.post('/users/:id/ban', validateParams(uuidParams), validateBody(setBanBody), setBan);
 

@@ -644,6 +644,22 @@ class ApiClient {
     });
   }
 
+  async adminEditUser(userId: string, fields: {
+    email?: string | null;
+    phone_number?: string | null;
+    trust_level?: 'L0' | 'L1' | 'L2' | 'L3';
+    trust_score?: number;
+    is_email_verified?: boolean;
+    is_phone_verified?: boolean;
+    two_factor_enabled?: boolean;
+    admin_note?: string | null;
+  }) {
+    return this.request<{ user: any }>(`/api/admin/users/${userId}/edit`, {
+      method: 'PATCH',
+      body: fields,
+    });
+  }
+
   async adminGetUserWallet(userId: string) {
     return this.request<{ wallets: any[]; bank_accounts: any[]; recent_transactions: any[] }>(`/api/admin/users/${userId}/wallet`);
   }
