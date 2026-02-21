@@ -7,6 +7,7 @@ import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge } fr
 import { CareRecipient, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
+import { isConfiguredDisplayName } from '../../utils/profileName';
 
 type HirerJob = JobPost & {
   caregiver_name?: string | null;
@@ -638,13 +639,30 @@ export default function HirerHomePage() {
         {/* Onboarding Checklist */}
         {(() => {
           const tl = user?.trust_level || 'L0';
-          const steps = [
+          const isGuest = user?.account_type === 'guest';
+          const hasName = isConfiguredDisplayName(user?.name);
+          const hasPhone = !!user?.is_phone_verified;
+          const hasEmail = !!user?.is_email_verified;
+          const hasRecipient = careRecipients.length > 0;
+          const hasJob = jobs.length > 0;
+
+          const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
             { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
-            { done: !!(user?.name && user.name.length > 0), label: 'ตั้งชื่อโปรไฟล์', sub: 'ใช้แสดงต่อผู้ดูแล', link: '/profile' },
-            { done: tl !== 'L0', label: 'ยืนยันเบอร์โทร (L1)', sub: 'เพื่อเผยแพร่งาน', link: '/profile' },
-            { done: tl === 'L2' || tl === 'L3', label: 'ยืนยันตัวตน KYC (L2)', sub: 'เผยแพร่งานทุกประเภท', link: '/kyc' },
-            { done: careRecipients.length > 0, label: 'เพิ่มผู้รับการดูแล', sub: 'ข้อมูลผู้ที่จะได้รับการดูแล', link: '/hirer/care-recipients/new' },
+            { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ดูแลจะเห็น', link: '/profile' },
           ];
+
+          if (isGuest) {
+            steps.push({ done: hasPhone, label: 'เพิ่มและยืนยันเบอร์โทร', sub: 'เพื่อให้ผู้ดูแลติดต่อได้ + เลื่อนเป็น L1', link: '/profile' });
+          } else {
+            steps.push({ done: hasEmail, label: 'เพิ่มอีเมล', sub: 'เพิ่มช่องทางการติดต่อ', link: '/profile' });
+          }
+
+          steps.push(
+            { done: tl === 'L2' || tl === 'L3', label: 'ยืนยันตัวตน KYC (L2)', sub: 'เผยแพร่งานทุกประเภท', link: '/kyc' },
+            { done: hasRecipient, label: 'เพิ่มผู้รับการดูแล', sub: 'ข้อมูลผู้ที่จะได้รับบริการ', link: '/hirer/care-recipients/new' },
+            { done: hasJob, label: 'สร้างงานแรก', sub: 'สร้างงานแล้วเลือกผู้ดูแล', link: '/hirer/create-job' },
+          );
+
           const doneCount = steps.filter((s) => s.done).length;
           if (doneCount >= steps.length) return null;
           return (

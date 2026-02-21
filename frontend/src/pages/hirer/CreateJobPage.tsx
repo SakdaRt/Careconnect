@@ -701,7 +701,7 @@ export default function CreateJobPage() {
         mobility_level: quickRecipientMobility,
       });
       if (res.success && res.data?.id) {
-        setCareRecipients((prev) => [...prev, res.data]);
+        setCareRecipients((prev) => [...prev, res.data!]);
         setCareRecipientId(res.data.id);
         setShowQuickAddRecipient(false);
         setQuickRecipientName('');

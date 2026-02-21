@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, ShieldCheck, Eye, EyeOff, UserCircle } from 'lucide-react';
+import { Shield, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, LoadingState, StatusBadge } from '../../components/ui';
 import { CaregiverProfile, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
+import { isConfiguredDisplayName } from '../../utils/profileName';
 import toast from 'react-hot-toast';
 
 function formatDate(startIso: string) {
@@ -121,23 +122,55 @@ export default function CaregiverJobFeedPage() {
           </div>
         </div>
 
-        {/* Profile completion prompt */}
-        {user && !user.name?.includes('.') && (
-          <Card className="mb-4 p-4 border-blue-200 bg-blue-50">
-            <div className="flex items-start gap-3">
-              <UserCircle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-blue-900">ตั้งชื่อโปรไฟล์ของคุณ</div>
-                <div className="text-xs text-blue-700 mt-0.5">กรอกชื่อ-นามสกุลเพื่อให้ผู้ว่าจ้างเห็นโปรไฟล์ของคุณ และเพื่อรับงาน</div>
-                <div className="mt-2">
-                  <Link to="/profile" state={{ profileRequired: true }}>
-                    <Button variant="primary" size="sm">ตั้งชื่อโปรไฟล์</Button>
-                  </Link>
-                </div>
+        {/* Onboarding Checklist */}
+        {(() => {
+          const tl = user?.trust_level || 'L0';
+          const hasName = isConfiguredDisplayName(user?.name);
+          const hasPhone = !!user?.is_phone_verified;
+          const hasProfile = !!(profile?.bio || (profile?.specializations || []).length > 0);
+          const hasAvailability = !!((profile?.available_days || []).length > 0);
+
+          const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
+            { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
+            { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ว่าจ้างจะเห็น', link: '/profile' },
+            { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: 'เพื่อรับงานและเลื่อนเป็น L1', link: '/profile' },
+            { done: hasProfile, label: 'กรอกข้อมูลโปรไฟล์', sub: 'bio ความเชี่ยวชาญ ประสบการณ์', link: '/caregiver/profile' },
+            { done: hasAvailability, label: 'ตั้งวัน/เวลาว่าง', sub: 'ให้ผู้ว่าจ้างหาคุณเจอง่ายขึ้น', link: '/caregiver/profile' },
+            { done: tl === 'L2' || tl === 'L3', label: 'ยืนยันตัวตน KYC (L2)', sub: 'รับงานทุกประเภท', link: '/kyc' },
+          ];
+
+          const doneCount = steps.filter((s) => s.done).length;
+          if (doneCount >= steps.length) return null;
+          return (
+            <Card className="mb-4 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-sm font-bold text-gray-900">เริ่มต้นใช้งาน</div>
+                <span className="text-xs text-gray-500">{doneCount}/{steps.length}</span>
               </div>
-            </div>
-          </Card>
-        )}
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3">
+                <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+              </div>
+              <div className="space-y-2">
+                {steps.map((s, i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${s.done ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'}`}>
+                      {s.done ? '✓' : i + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`text-sm ${s.done ? 'text-gray-400 line-through' : 'text-gray-800 font-medium'}`}>{s.label}</div>
+                      {!s.done && <div className="text-[11px] text-gray-500">{s.sub}</div>}
+                    </div>
+                    {!s.done && s.link && (
+                      <Link to={s.link}>
+                        <Button variant="outline" size="sm" className="text-xs shrink-0">ไปเลย</Button>
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
 
         {/* Profile Visibility Toggle */}
         {user?.role === 'caregiver' && profile && (

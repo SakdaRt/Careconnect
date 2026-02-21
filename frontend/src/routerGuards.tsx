@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { LoadingState } from './components/ui';
 import { useAuth } from './contexts';
 import type { UserRole } from './contexts/AuthContext';
@@ -126,6 +127,7 @@ export function RequireProfile({ children }: { children: ReactNode }) {
   // Require a configured profile name before entering core flows.
   // Accept both legacy short names and full names (self-view format).
   if (!hasConfiguredProfileName(user.name)) {
+    toast('กรุณาตั้งชื่อ-นามสกุลก่อนใช้งานส่วนนี้', { icon: '✏️', id: 'profile-required' });
     return (
       <Navigate
         to="/profile"
