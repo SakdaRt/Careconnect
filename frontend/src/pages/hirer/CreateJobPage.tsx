@@ -1410,7 +1410,7 @@ export default function CreateJobPage() {
                     >
                       <div className="text-xs font-semibold">{step.id}</div>
                       <div className="text-sm font-semibold text-gray-900 mt-0.5">{step.title}</div>
-                      <div className="text-[11px] text-gray-600 mt-0.5 hidden sm:block">{step.helper}</div>
+                      <div className="text-xs text-gray-600 mt-0.5 hidden sm:block">{step.helper}</div>
                     </button>
                   );
                 })}

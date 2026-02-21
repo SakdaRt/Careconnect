@@ -499,10 +499,10 @@ export default function ChatRoomPage() {
                     <div key={m.id} className={`flex ${align}`}>
                       <div className={`max-w-[80%] rounded-2xl px-4 py-2 ${bubble}`}>
                         {m.sender_id !== null && !isMine && (
-                          <div className="text-[11px] opacity-80 mb-1">{(m as any).sender_role === 'hirer' ? 'ผู้ว่าจ้าง' : (m as any).sender_role === 'caregiver' ? 'ผู้ดูแล' : (m.sender_name || 'ผู้ใช้')}</div>
+                          <div className="text-xs opacity-80 mb-1">{(m as any).sender_role === 'hirer' ? 'ผู้ว่าจ้าง' : (m as any).sender_role === 'caregiver' ? 'ผู้ดูแล' : (m.sender_name || 'ผู้ใช้')}</div>
                         )}
                         <div className="text-sm whitespace-pre-wrap break-words">{m.content}</div>
-                        <div className="text-[11px] opacity-70 mt-1 text-right">{formatTime(m.created_at)}</div>
+                        <div className="text-xs opacity-70 mt-1 text-right">{formatTime(m.created_at)}</div>
                       </div>
                     </div>
                   );

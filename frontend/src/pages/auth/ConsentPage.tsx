@@ -120,7 +120,7 @@ export default function ConsentPage() {
                     type="checkbox"
                     checked={consents.terms}
                     onChange={(e) => setConsents({ ...consents, terms: e.target.checked })}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                   />
                   <span className="text-sm text-gray-700">
                     ข้าพเจ้ายอมรับเงื่อนไขการให้บริการ
@@ -161,7 +161,7 @@ export default function ConsentPage() {
                     type="checkbox"
                     checked={consents.privacy}
                     onChange={(e) => setConsents({ ...consents, privacy: e.target.checked })}
-                    className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                   />
                   <span className="text-sm text-gray-700">
                     ข้าพเจ้ายอมรับนโยบายความเป็นส่วนตัว
@@ -204,7 +204,7 @@ export default function ConsentPage() {
                     onChange={(e) =>
                       setConsents({ ...consents, dataProcessing: e.target.checked })
                     }
-                    className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
                   />
                   <span className="text-sm text-gray-700">
                     ข้าพเจ้ายินยอมให้ประมวลผลข้อมูลส่วนบุคคล

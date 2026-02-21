@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users, ArrowLeftRight } from 'lucide-react';
 import { useAuth } from '../../contexts';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { api, AppNotification } from '../../services/api';
@@ -182,6 +182,13 @@ export function TopBar() {
 
   return (
     <div className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      {/* Skip Navigation Link — a11y: ข้ามไปเนื้อหาหลักสำหรับผู้ใช้ keyboard */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-[100] focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-lg focus:text-sm focus:font-semibold"
+      >
+        ข้ามไปเนื้อหาหลัก
+      </a>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
@@ -194,9 +201,10 @@ export function TopBar() {
             {/* Notifications */}
             <Link
               to="/notifications"
+              aria-label={`การแจ้งเตือน${unreadCount > 0 ? ` (${unreadCount} ยังไม่อ่าน)` : ''}`}
               className="relative p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
             >
-              <Bell className="w-6 h-6" />
+              <Bell className="w-6 h-6" aria-hidden="true" />
               {unreadCount > 0 && (
                 <span className="absolute top-0 right-0 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-semibold">
                   {unreadCount > 9 ? "9+" : unreadCount}
@@ -208,9 +216,12 @@ export function TopBar() {
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="flex items-center gap-2 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                aria-label="เมนูผู้ใช้"
+                aria-expanded={showMenu}
+                aria-haspopup="true"
+                className="flex items-center gap-2 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1"
               >
-                <Menu className="w-6 h-6" />
+                <Menu className="w-6 h-6" aria-hidden="true" />
               </button>
 
               {/* Dropdown Menu */}
@@ -223,7 +234,12 @@ export function TopBar() {
                   />
 
                   {/* Menu */}
-                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50">
+                  <div
+                    className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                    role="menu"
+                    aria-label="เมนูผู้ใช้"
+                    onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Escape') setShowMenu(false); }}
+                  >
                     {/* User Info */}
                     <div className="px-4 py-3 border-b border-gray-200">
                       <p className="text-sm font-semibold text-gray-900">
@@ -321,7 +337,7 @@ export function TopBar() {
                       <button
                         onClick={handleSwitchRole}
                         disabled={switchingRole}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50 focus:outline-none focus:bg-blue-50"
                       >
                         <ArrowLeftRight className="w-5 h-5" />
                         <span>{switchingRole ? 'กำลังเปลี่ยน...' : `เปลี่ยนเป็น${targetRoleLabel}`}</span>

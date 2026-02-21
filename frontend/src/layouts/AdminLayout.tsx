@@ -60,9 +60,11 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+            aria-label={sidebarOpen ? 'ซ่อนเมนู' : 'แสดงเมนู'}
+            aria-expanded={sidebarOpen}
+            className="p-2 rounded-lg hover:bg-gray-800 transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-gray-900"
           >
-            {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {sidebarOpen ? <X className="w-6 h-6" aria-hidden="true" /> : <Menu className="w-6 h-6" aria-hidden="true" />}
           </button>
         </div>
 
@@ -119,7 +121,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto p-6">
+        <main id="main-content" className="flex-1 overflow-auto p-6">
           {children}
         </main>
       </div>

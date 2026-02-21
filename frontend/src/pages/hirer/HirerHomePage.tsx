@@ -682,7 +682,7 @@ export default function HirerHomePage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className={`text-sm ${s.done ? 'text-gray-400 line-through' : 'text-gray-800 font-medium'}`}>{s.label}</div>
-                      {!s.done && <div className="text-[11px] text-gray-500">{s.sub}</div>}
+                      {!s.done && <div className="text-xs text-gray-500">{s.sub}</div>}
                     </div>
                     {!s.done && s.link && (
                       <Link to={s.link}>
