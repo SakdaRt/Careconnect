@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Heart, Shield, Clock, Users, ArrowRight, Star, Briefcase } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Heart, Shield, Clock, Users, ArrowRight, Star, Briefcase, LogIn } from 'lucide-react';
 import { Button } from '../../components/ui';
 import { appApi } from '../../services/appApi';
+import { useAuth } from '../../contexts';
 
 interface FeaturedCaregiver {
   id: string;
@@ -32,7 +33,15 @@ const SKILL_LABELS: Record<string, string> = {
 };
 
 export default function LandingPage() {
+  const { user, activeRole } = useAuth();
+  const navigate = useNavigate();
   const [caregivers, setCaregivers] = useState<FeaturedCaregiver[]>([]);
+  const isLoggedIn = !!user;
+
+  const homePath = activeRole === 'caregiver' ? '/caregiver/jobs/feed' : '/hirer/home';
+  const roleName = activeRole === 'caregiver' ? 'ผู้ดูแล' : 'ผู้ว่าจ้าง';
+
+  const goHome = () => navigate(homePath);
 
   useEffect(() => {
     appApi.getFeaturedCaregivers(6).then((res) => {
@@ -109,12 +118,20 @@ export default function LandingPage() {
             </nav>
 
             <div className="flex gap-3">
-              <Link to="/login">
-                <Button variant="ghost">เข้าสู่ระบบ</Button>
-              </Link>
-              <Link to="/register">
-                <Button variant="primary">สมัครสมาชิก</Button>
-              </Link>
+              {isLoggedIn ? (
+                <Button variant="primary" onClick={goHome} rightIcon={<ArrowRight className="w-4 h-4" />}>
+                  เข้าหน้าหลัก ({roleName})
+                </Button>
+              ) : (
+                <>
+                  <Link to="/login">
+                    <Button variant="ghost" leftIcon={<LogIn className="w-4 h-4" />}>เข้าสู่ระบบ</Button>
+                  </Link>
+                  <Link to="/register">
+                    <Button variant="primary">สมัครสมาชิก</Button>
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -136,16 +153,27 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register">
-              <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
-                เริ่มต้นใช้งาน
-              </Button>
-            </Link>
-            <Link to="/about">
-              <Button variant="outline" size="lg">
-                เรียนรู้เพิ่มเติม
-              </Button>
-            </Link>
+            {isLoggedIn ? (
+              <>
+                <Button variant="primary" size="lg" onClick={goHome} rightIcon={<ArrowRight className="w-5 h-5" />}>
+                  เข้าหน้าหลัก ({roleName})
+                </Button>
+                <Link to="/about">
+                  <Button variant="outline" size="lg">เรียนรู้เพิ่มเติม</Button>
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link to="/register">
+                  <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
+                    เริ่มต้นใช้งาน
+                  </Button>
+                </Link>
+                <Link to="/about">
+                  <Button variant="outline" size="lg">เรียนรู้เพิ่มเติม</Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Stats */}
@@ -225,11 +253,17 @@ export default function LandingPage() {
           </div>
 
           <div className="text-center mt-12">
-            <Link to="/register">
-              <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
-                เริ่มต้นเลยวันนี้
+            {isLoggedIn ? (
+              <Button variant="primary" size="lg" onClick={goHome} rightIcon={<ArrowRight className="w-5 h-5" />}>
+                ไปหน้าหลัก
               </Button>
-            </Link>
+            ) : (
+              <Link to="/register">
+                <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
+                  เริ่มต้นเลยวันนี้
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -286,11 +320,19 @@ export default function LandingPage() {
             </div>
 
             <div className="text-center mt-10">
-              <Link to="/register">
-                <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
-                  สมัครเพื่อดูผู้ดูแลทั้งหมด
-                </Button>
-              </Link>
+              {isLoggedIn ? (
+                <Link to="/hirer/search-caregivers">
+                  <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
+                    ค้นหาผู้ดูแลทั้งหมด
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/register">
+                  <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
+                    สมัครเพื่อดูผู้ดูแลทั้งหมด
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         </section>
@@ -305,23 +347,26 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/register">
-              <Button
-                variant="secondary"
-                size="lg"
-              >
-                สมัครเป็นผู้ว่าจ้าง
+            {isLoggedIn ? (
+              <Button variant="secondary" size="lg" onClick={goHome} rightIcon={<ArrowRight className="w-5 h-5" />}>
+                เข้าหน้าหลัก
               </Button>
-            </Link>
-            <Link to="/register">
-              <Button
-                variant="outline"
-                size="lg"
-                className="bg-white border-white text-blue-700 hover:bg-blue-50 hover:text-blue-800"
-              >
-                สมัครเป็นผู้ดูแล
-              </Button>
-            </Link>
+            ) : (
+              <>
+                <Link to="/register">
+                  <Button variant="secondary" size="lg">สมัครเป็นผู้ว่าจ้าง</Button>
+                </Link>
+                <Link to="/register">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="bg-white border-white text-blue-700 hover:bg-blue-50 hover:text-blue-800"
+                  >
+                    สมัครเป็นผู้ดูแล
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </section>
@@ -362,16 +407,33 @@ export default function LandingPage() {
             <div>
               <h3 className="text-white font-semibold mb-4">สำหรับผู้ใช้</h3>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <Link to="/register" className="hover:text-white transition-colors">
-                    สมัครสมาชิก
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/login" className="hover:text-white transition-colors">
-                    เข้าสู่ระบบ
-                  </Link>
-                </li>
+                {isLoggedIn ? (
+                  <>
+                    <li>
+                      <Link to={homePath} className="hover:text-white transition-colors">
+                        หน้าหลัก ({roleName})
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/settings" className="hover:text-white transition-colors">
+                        ตั้งค่าบัญชี
+                      </Link>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li>
+                      <Link to="/register" className="hover:text-white transition-colors">
+                        สมัครสมาชิก
+                      </Link>
+                    </li>
+                    <li>
+                      <Link to="/login" className="hover:text-white transition-colors">
+                        เข้าสู่ระบบ
+                      </Link>
+                    </li>
+                  </>
+                )}
               </ul>
             </div>
 
