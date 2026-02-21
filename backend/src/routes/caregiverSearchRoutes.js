@@ -10,6 +10,53 @@ import {
 
 const router = express.Router();
 
+/**
+ * Public featured caregivers for landing page (no auth)
+ * GET /api/caregivers/public/featured
+ */
+router.get("/public/featured", async (req, res) => {
+  try {
+    const limit = Math.min(6, Math.max(1, parseInt(req.query.limit) || 6));
+    const hasPublicProfileColumn = await hasCaregiverPublicProfileColumn();
+    const publicFilter = hasPublicProfileColumn
+      ? `AND COALESCE(cp.is_public_profile, TRUE) = TRUE`
+      : '';
+
+    const result = await query(
+      `SELECT
+         u.id,
+         u.trust_level,
+         u.completed_jobs_count,
+         cp.display_name,
+         cp.bio,
+         cp.specializations,
+         cp.experience_years,
+         COALESCE(rv.avg_rating, 0) AS avg_rating,
+         COALESCE(rv.total_reviews, 0)::int AS total_reviews
+       FROM users u
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = u.id
+       LEFT JOIN LATERAL (
+         SELECT AVG(cr.rating)::numeric(3,2) AS avg_rating, COUNT(*)::int AS total_reviews
+         FROM caregiver_reviews cr WHERE cr.caregiver_id = u.id
+       ) rv ON true
+       WHERE u.role = 'caregiver'
+         AND u.status = 'active'
+         AND cp.display_name IS NOT NULL
+         AND cp.display_name <> ''
+         AND u.email NOT LIKE '%mock%@careconnect.local'
+         ${publicFilter}
+       ORDER BY rv.total_reviews DESC NULLS LAST, u.trust_score DESC NULLS LAST
+       LIMIT $1`,
+      [limit],
+    );
+
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error("[Caregiver Public Featured] Error:", error);
+    res.status(500).json({ success: false, error: "Failed to load featured caregivers" });
+  }
+});
+
 const searchQuery = Joi.object({
   q: Joi.string().trim().max(200).allow(""),
   page: Joi.number().integer().min(1).default(1),

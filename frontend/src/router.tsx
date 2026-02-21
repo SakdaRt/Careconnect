@@ -153,11 +153,9 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['hirer']}>
           <RequirePolicy>
-            <RequireProfile>
-              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-                <HirerHomePage />
-              </Suspense>
-            </RequireProfile>
+            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+              <HirerHomePage />
+            </Suspense>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -257,11 +255,9 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['hirer']}>
           <RequirePolicy>
-            <RequireProfile>
-              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-                <FavoritesPage />
-              </Suspense>
-            </RequireProfile>
+            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+              <FavoritesPage />
+            </Suspense>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -317,11 +313,9 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['caregiver']}>
           <RequirePolicy>
-            <RequireProfile>
-              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-                <CaregiverJobFeedPage />
-              </Suspense>
-            </RequireProfile>
+            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+              <CaregiverJobFeedPage />
+            </Suspense>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>
@@ -333,11 +327,9 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <RequireRole roles={['caregiver']}>
           <RequirePolicy>
-            <RequireProfile>
-              <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-                <CaregiverMyJobsPage />
-              </Suspense>
-            </RequireProfile>
+            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+              <CaregiverMyJobsPage />
+            </Suspense>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>

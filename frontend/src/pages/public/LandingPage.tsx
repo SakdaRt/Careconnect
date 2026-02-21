@@ -1,8 +1,44 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Shield, Clock, Users, ArrowRight } from 'lucide-react';
+import { Heart, Shield, Clock, Users, ArrowRight, Star, Briefcase } from 'lucide-react';
 import { Button } from '../../components/ui';
+import { appApi } from '../../services/appApi';
+
+interface FeaturedCaregiver {
+  id: string;
+  trust_level: string;
+  completed_jobs_count?: number;
+  display_name?: string;
+  bio?: string;
+  specializations?: string[];
+  experience_years?: number;
+  avg_rating?: number;
+  total_reviews?: number;
+}
+
+const TRUST_LABEL: Record<string, string> = {
+  L3: 'เชื่อถือสูง',
+  L2: 'ยืนยันแล้ว',
+  L1: 'พื้นฐาน',
+};
+
+const SKILL_LABELS: Record<string, string> = {
+  companionship: 'ดูแลทั่วไป',
+  personal_care: 'ช่วยกิจวัตร',
+  medical_monitoring: 'ดูแลยา/สัญญาณชีพ',
+  dementia_care: 'ดูแลสมองเสื่อม',
+  post_surgery: 'ดูแลหลังผ่าตัด',
+  emergency: 'ฉุกเฉิน',
+};
 
 export default function LandingPage() {
+  const [caregivers, setCaregivers] = useState<FeaturedCaregiver[]>([]);
+
+  useEffect(() => {
+    appApi.getFeaturedCaregivers(6).then((res) => {
+      if (res.success && Array.isArray(res.data)) setCaregivers(res.data);
+    }).catch(() => {});
+  }, []);
   const features = [
     {
       icon: <Shield className="w-8 h-8" />,
@@ -197,6 +233,68 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Featured Caregivers */}
+      {caregivers.length > 0 && (
+        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-4xl font-bold text-gray-900 mb-4">ผู้ดูแลมืออาชีพของเรา</h2>
+              <p className="text-xl text-gray-600">พบกับผู้ดูแลที่ผ่านการตรวจสอบ พร้อมให้บริการ</p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {caregivers.map((cg) => (
+                <div key={cg.id} className="bg-gray-50 rounded-xl p-5 hover:shadow-lg transition-shadow">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">
+                      {(cg.display_name || '?')[0]}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-gray-900">{cg.display_name || 'ผู้ดูแล'}</div>
+                      {TRUST_LABEL[cg.trust_level] && (
+                        <span className="text-xs text-blue-600">{TRUST_LABEL[cg.trust_level]}</span>
+                      )}
+                    </div>
+                  </div>
+                  {cg.bio && <p className="text-sm text-gray-600 line-clamp-2 mb-3">{cg.bio}</p>}
+                  <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+                    {(cg.avg_rating ?? 0) > 0 && (
+                      <span className="flex items-center gap-1 text-yellow-600">
+                        <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
+                        {Number(cg.avg_rating).toFixed(1)} ({cg.total_reviews})
+                      </span>
+                    )}
+                    {cg.experience_years != null && (
+                      <span className="flex items-center gap-1">
+                        <Briefcase className="w-3.5 h-3.5" />
+                        {cg.experience_years} ปี
+                      </span>
+                    )}
+                  </div>
+                  {(cg.specializations || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {(cg.specializations || []).slice(0, 3).map((s) => (
+                        <span key={s} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">
+                          {SKILL_LABELS[s] || s}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="text-center mt-10">
+              <Link to="/register">
+                <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-5 h-5" />}>
+                  สมัครเพื่อดูผู้ดูแลทั้งหมด
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-blue-600 text-white">

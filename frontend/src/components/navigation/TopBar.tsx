@@ -8,7 +8,7 @@ import { api, AppNotification } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { getScopedStorageItem, setScopedStorageItem } from '../../utils/authStorage';
 
-const UNREAD_POLL_INTERVAL_MS = 5000;
+const UNREAD_POLL_INTERVAL_MS = 60_000;
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");

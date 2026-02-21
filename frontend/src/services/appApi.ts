@@ -303,6 +303,10 @@ export const appApi = {
     return api.request<any>(`/api/caregivers/${caregiverId}`);
   },
 
+  async getFeaturedCaregivers(limit = 6) {
+    return api.request<any[]>(`/api/caregivers/public/featured?limit=${limit}`);
+  },
+
   async searchCaregivers(params: {
     q?: string;
     page?: number;
