@@ -315,4 +315,59 @@ router.post(
   },
 );
 
+/**
+ * Get a single caregiver's public profile
+ * GET /api/caregivers/:id
+ */
+router.get(
+  "/:id",
+  requireAuth,
+  async (req, res) => {
+    try {
+      const { id: caregiverId } = req.params;
+      const hirerId = req.user?.id || null;
+
+      const result = await query(
+        `SELECT
+           u.id,
+           u.email,
+           u.phone_number,
+           u.trust_level,
+           u.trust_score,
+           u.completed_jobs_count,
+           u.created_at,
+           cp.display_name,
+           cp.bio,
+           cp.certifications,
+           cp.specializations,
+           cp.experience_years,
+           cp.available_from,
+           cp.available_to,
+           cp.available_days,
+           COALESCE(cp.is_public_profile, TRUE) AS is_public_profile,
+           ${hirerId ? `(SELECT EXISTS(SELECT 1 FROM caregiver_favorites cf WHERE cf.caregiver_id = u.id AND cf.hirer_id = $2)) AS is_favorited` : `FALSE AS is_favorited`},
+           COALESCE(rv.avg_rating, 0) AS avg_rating,
+           COALESCE(rv.total_reviews, 0)::int AS total_reviews
+         FROM users u
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = u.id
+         LEFT JOIN LATERAL (
+           SELECT AVG(cr.rating)::numeric(3,2) AS avg_rating, COUNT(*)::int AS total_reviews
+           FROM caregiver_reviews cr WHERE cr.caregiver_id = u.id
+         ) rv ON true
+         WHERE u.id = $1 AND u.role = 'caregiver' AND u.status = 'active'`,
+        hirerId ? [caregiverId, hirerId] : [caregiverId],
+      );
+
+      if (!result.rows.length) {
+        return res.status(404).json({ success: false, error: "ไม่พบผู้ดูแลนี้" });
+      }
+
+      res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+      console.error("[Caregiver Profile] Error:", error);
+      res.status(500).json({ success: false, error: "ไม่สามารถโหลดข้อมูลผู้ดูแลได้" });
+    }
+  },
+);
+
 export default router;

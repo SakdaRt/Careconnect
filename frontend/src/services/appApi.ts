@@ -299,6 +299,10 @@ export const appApi = {
     return api.checkFavorite(caregiverId);
   },
 
+  async getCaregiverProfile(caregiverId: string) {
+    return api.request<any>(`/api/caregivers/${caregiverId}`);
+  },
+
   async searchCaregivers(params: {
     q?: string;
     page?: number;

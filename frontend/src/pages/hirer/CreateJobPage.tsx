@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, Input, Modal, type BadgeProps } from '../../components/ui';
@@ -664,6 +664,25 @@ export default function CreateJobPage() {
     }
   }, [currentStep, maxVisitedStep]);
 
+  // Unsaved changes warning
+  const hasUnsavedChanges = useCallback(() => {
+    return currentStep > 1 || form.title.trim().length > 0 || form.description.trim().length > 0;
+  }, [currentStep, form.title, form.description]);
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [hasUnsavedChanges]);
+
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => {
+    return hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname;
+  });
+
   const currentDetailedTemplate = useMemo(() => {
     return DETAILED_JOB_TEMPLATES[form.detailed_job_type];
   }, [form.detailed_job_type]);
@@ -1310,6 +1329,19 @@ export default function CreateJobPage() {
 
   return (
     <MainLayout showBottomBar={false}>
+      {/* Unsaved changes blocker modal */}
+      {blocker.state === 'blocked' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">ออกจากหน้านี้?</h3>
+            <p className="text-sm text-gray-600 mb-4">ข้อมูลที่กรอกไว้จะหายไป คุณแน่ใจหรือไม่?</p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" size="sm" onClick={() => blocker.reset?.()}>อยู่ต่อ</Button>
+              <Button variant="danger" size="sm" onClick={() => blocker.proceed?.()}>ออกจากหน้านี้</Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="max-w-3xl mx-auto px-4 py-6">
         <div className="flex items-center justify-between gap-3 mb-2">
           <h1 className="text-2xl font-bold text-gray-900">สร้างงานใหม่</h1>

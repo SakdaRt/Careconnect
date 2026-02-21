@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, Star, Briefcase, Clock3, Heart } from 'lucide-react';
 import { MainLayout } from '../../layouts';
@@ -614,7 +614,7 @@ export default function SearchCaregiversPage() {
                 <Card key={cg.id} className="flex flex-col sm:flex-row gap-4 items-start">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold text-gray-900">{cg.display_name || 'ผู้ดูแล'}</span>
+                      <button type="button" onClick={() => handleOpenDetails(cg)} className="font-semibold text-gray-900 hover:text-blue-600 hover:underline transition-colors text-left">{cg.display_name || 'ผู้ดูแล'}</button>
                       <span className={`text-xs px-2 py-0.5 rounded ${tl.bg} ${tl.text}`}>{tl.label}</span>
                     </div>
 
@@ -669,9 +669,9 @@ export default function SearchCaregiversPage() {
                     >
                       <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
                     </button>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenDetails(cg)}>
-                      ดูรายละเอียด
-                    </Button>
+                    <Link to={`/hirer/caregiver/${cg.id}`}>
+                      <Button variant="outline" size="sm">ดูโปรไฟล์</Button>
+                    </Link>
                     <Button variant="primary" size="sm" onClick={() => handleOpenAssign(cg)}>
                       มอบหมายงาน
                     </Button>
