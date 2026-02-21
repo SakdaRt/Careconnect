@@ -414,7 +414,7 @@ export default function ChatRoomPage() {
                       {location && <div>{location}</div>}
                     </div>
                     {jobStatus === 'cancelled' && cancelReasonDisplay && (
-                      <div className="text-xs text-red-700 mt-1">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
+                      <div className="text-xs text-red-600 mt-1">เหตุผลการยกเลิก: {cancelReasonDisplay}</div>
                     )}
                     {disputeInfo?.reason && (
                       <div className="text-xs text-orange-700 mt-1">เหตุผลข้อพิพาท: {disputeInfo.reason}</div>
