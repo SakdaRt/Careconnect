@@ -634,6 +634,12 @@ export default function CreateJobPage() {
   const [templateSwitchOpen, setTemplateSwitchOpen] = useState(false);
   const [dynamicAnswers, setDynamicAnswers] = useState<Record<string, string>>({});
   const [showExtraTasks, setShowExtraTasks] = useState(false);
+  const [showQuickAddRecipient, setShowQuickAddRecipient] = useState(false);
+  const [quickRecipientName, setQuickRecipientName] = useState('');
+  const [quickRecipientGender, setQuickRecipientGender] = useState('female');
+  const [quickRecipientAge, setQuickRecipientAge] = useState('60_74');
+  const [quickRecipientMobility, setQuickRecipientMobility] = useState('walk_independent');
+  const [quickRecipientSaving, setQuickRecipientSaving] = useState(false);
 
   const [form, setForm] = useState({
     title: '',
@@ -682,6 +688,30 @@ export default function CreateJobPage() {
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
     return hasUnsavedChanges() && currentLocation.pathname !== nextLocation.pathname;
   });
+
+  const handleQuickAddRecipient = async () => {
+    const name = quickRecipientName.trim();
+    if (!name) { toast.error('กรุณากรอกชื่อผู้รับการดูแล'); return; }
+    setQuickRecipientSaving(true);
+    try {
+      const res = await appApi.createCareRecipient({
+        patient_display_name: name,
+        gender: quickRecipientGender,
+        age_band: quickRecipientAge,
+        mobility_level: quickRecipientMobility,
+      });
+      if (res.success && res.data?.id) {
+        setCareRecipients((prev) => [...prev, res.data]);
+        setCareRecipientId(res.data.id);
+        setShowQuickAddRecipient(false);
+        setQuickRecipientName('');
+        toast.success('เพิ่มผู้รับการดูแลแล้ว');
+      } else {
+        toast.error(res.error || 'เพิ่มผู้รับการดูแลไม่สำเร็จ');
+      }
+    } catch { toast.error('เพิ่มผู้รับการดูแลไม่สำเร็จ'); }
+    finally { setQuickRecipientSaving(false); }
+  };
 
   const currentDetailedTemplate = useMemo(() => {
     return DETAILED_JOB_TEMPLATES[form.detailed_job_type];
@@ -1399,9 +1429,51 @@ export default function CreateJobPage() {
                     <option value="">ยังไม่ได้เลือก</option>
                     {careRecipients.map((p) => (<option key={p.id} value={p.id}>{p.patient_display_name}</option>))}
                   </select>
-                  {careRecipients.length === 0 && <div className="text-xs text-red-600">ยังไม่มีผู้รับการดูแล กรุณาเพิ่มก่อนสร้างงาน</div>}
-                  <div className="text-xs text-gray-500">ถ้ายังไม่มีผู้รับการดูแล ให้ไปเพิ่มที่เมนู &quot;ผู้รับการดูแล&quot;</div>
-                  <div><Button variant="outline" size="sm" onClick={() => navigate('/hirer/care-recipients')}>จัดการผู้รับการดูแล</Button></div>
+                  {careRecipients.length === 0 && !showQuickAddRecipient && <div className="text-xs text-red-600">ยังไม่มีผู้รับการดูแล</div>}
+                  <div className="flex flex-wrap gap-2">
+                    {!showQuickAddRecipient && (
+                      <Button variant="primary" size="sm" onClick={() => setShowQuickAddRecipient(true)}>+ เพิ่มเร็ว</Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={() => navigate('/hirer/care-recipients')}>จัดการผู้รับการดูแล</Button>
+                  </div>
+                  {showQuickAddRecipient && (
+                    <div className="mt-2 p-3 border border-blue-200 bg-blue-50/50 rounded-lg space-y-2">
+                      <div className="text-xs font-semibold text-blue-800">เพิ่มผู้รับการดูแลแบบเร็ว</div>
+                      <input
+                        type="text"
+                        value={quickRecipientName}
+                        onChange={(e) => setQuickRecipientName(e.target.value)}
+                        placeholder="ชื่อผู้รับการดูแล เช่น คุณแม่สมศรี"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      <div className="grid grid-cols-3 gap-2">
+                        <select className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" value={quickRecipientGender} onChange={(e) => setQuickRecipientGender(e.target.value)}>
+                          <option value="female">หญิง</option>
+                          <option value="male">ชาย</option>
+                          <option value="other">อื่นๆ</option>
+                        </select>
+                        <select className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" value={quickRecipientAge} onChange={(e) => setQuickRecipientAge(e.target.value)}>
+                          <option value="0_12">เด็ก (0-12)</option>
+                          <option value="13_17">วัยรุ่น (13-17)</option>
+                          <option value="18_59">ผู้ใหญ่ (18-59)</option>
+                          <option value="60_74">ผู้สูงอายุ (60-74)</option>
+                          <option value="75_89">ผู้สูงอายุ (75-89)</option>
+                          <option value="90_plus">ผู้สูงอายุ (90+)</option>
+                        </select>
+                        <select className="px-2 py-1.5 border border-gray-300 rounded-lg text-xs bg-white" value={quickRecipientMobility} onChange={(e) => setQuickRecipientMobility(e.target.value)}>
+                          <option value="walk_independent">เดินได้เอง</option>
+                          <option value="walk_assisted">ต้องพยุง</option>
+                          <option value="wheelchair">รถเข็น</option>
+                          <option value="bedbound">ติดเตียง</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="primary" size="sm" onClick={handleQuickAddRecipient} loading={quickRecipientSaving}>บันทึก</Button>
+                        <Button variant="outline" size="sm" onClick={() => setShowQuickAddRecipient(false)}>ยกเลิก</Button>
+                      </div>
+                      <div className="text-[10px] text-gray-500">แก้ไขรายละเอียดเพิ่มเติมได้ภายหลังที่เมนู "ผู้รับการดูแล"</div>
+                    </div>
+                  )}
                 </div>
 
                 {selectedCareRecipient && patientSummary && (

@@ -92,6 +92,21 @@ export default function SettingsPage() {
               <span className="text-gray-500">Trust Level</span>
               <span className={`text-xs px-2 py-0.5 rounded font-medium ${tl.cls}`}>{tl.label}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Trust Score</span>
+              <div className="flex items-center gap-2">
+                <div className="w-24 bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${Math.min(100, user?.trust_score ?? 0)}%` }} />
+                </div>
+                <span className="text-gray-900 font-medium text-xs">{user?.trust_score ?? 0}/100</span>
+              </div>
+            </div>
+            {(user?.completed_jobs_count ?? 0) > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">งานที่เสร็จสิ้น</span>
+                <span className="text-gray-900 font-medium">{user?.completed_jobs_count} งาน</span>
+              </div>
+            )}
           </div>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link to="/profile"><Button variant="outline" size="sm">แก้ไขโปรไฟล์</Button></Link>
