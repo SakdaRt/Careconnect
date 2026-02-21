@@ -3,7 +3,7 @@ import Joi from 'joi';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { validateParams, validateQuery, validateBody, commonSchemas } from '../utils/validation.js';
 import { runTrustLevelWorker, triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
-import { listUsers, getUser, setUserStatus } from '../controllers/adminUserController.js';
+import { listUsers, getUser, setUserStatus, getUserWallet, setBan, getReportsSummary } from '../controllers/adminUserController.js';
 import { listJobs, getJob, cancelJob } from '../controllers/adminJobController.js';
 import { listLedgerTransactions } from '../controllers/adminLedgerController.js';
 import { getHealth } from '../controllers/adminHealthController.js';
@@ -53,6 +53,17 @@ const adminLedgerQuery = paginationQuery.keys({
 const setUserStatusBody = Joi.object({
   status: Joi.string().valid('active', 'suspended', 'deleted').required(),
   reason: Joi.string().trim().max(500).allow(''),
+});
+
+const setBanBody = Joi.object({
+  ban_type: Joi.string().valid('suspend', 'delete', 'ban_login', 'ban_job_create', 'ban_job_accept', 'ban_withdraw').required(),
+  value: Joi.boolean().default(true),
+  reason: Joi.string().trim().max(500).allow(''),
+});
+
+const reportsSummaryQuery = Joi.object({
+  from: Joi.string().isoDate().allow(''),
+  to: Joi.string().isoDate().allow(''),
 });
 
 const cancelJobBody = Joi.object({
@@ -187,6 +198,10 @@ router.get('/stats', async (req, res) => {
 router.get('/users', validateQuery(adminUserQuery), listUsers);
 router.get('/users/:id', validateParams(uuidParams), getUser);
 router.post('/users/:id/status', validateParams(uuidParams), validateBody(setUserStatusBody), setUserStatus);
+router.get('/users/:id/wallet', validateParams(uuidParams), getUserWallet);
+router.post('/users/:id/ban', validateParams(uuidParams), validateBody(setBanBody), setBan);
+
+router.get('/reports/summary', validateQuery(reportsSummaryQuery), getReportsSummary);
 
 router.get('/jobs', validateQuery(adminJobQuery), listJobs);
 router.get('/jobs/:id', validateParams(uuidParams), getJob);

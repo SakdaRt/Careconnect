@@ -644,6 +644,25 @@ class ApiClient {
     });
   }
 
+  async adminGetUserWallet(userId: string) {
+    return this.request<{ wallets: any[]; bank_accounts: any[]; recent_transactions: any[] }>(`/api/admin/users/${userId}/wallet`);
+  }
+
+  async adminSetBan(userId: string, ban_type: string, value: boolean, reason?: string) {
+    return this.request<{ user: any }>(`/api/admin/users/${userId}/ban`, {
+      method: 'POST',
+      body: { ban_type, value, reason },
+    });
+  }
+
+  async adminGetReportsSummary(options?: { from?: string; to?: string }) {
+    const params = new URLSearchParams();
+    if (options?.from) params.append('from', options.from);
+    if (options?.to) params.append('to', options.to);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<any>(`/api/admin/reports/summary${query}`);
+  }
+
   async adminGetJobs(options?: {
     q?: string;
     status?: string;
