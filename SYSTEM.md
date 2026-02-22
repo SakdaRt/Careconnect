@@ -984,6 +984,7 @@ GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3000
 
 # Providers (mock in dev)
 MOCK_PROVIDER_BASE_URL=http://mock-provider:4000

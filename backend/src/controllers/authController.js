@@ -54,6 +54,10 @@ const getGoogleOAuthClient = async () => {
 };
 
 const getBaseUrl = (req) => {
+  // ใช้ค่าจาก environment variable ใน production ก่อน
+  if (process.env.NODE_ENV === 'production' && process.env.BACKEND_URL) {
+    return process.env.BACKEND_URL;
+  }
   const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
   const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
   return `${proto}://${host}`;
@@ -66,6 +70,10 @@ const getCallbackUrl = (req) => {
 
 const getFrontendBaseUrl = (req) => {
   if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
+  if (process.env.NODE_ENV === 'production' && process.env.BACKEND_URL) {
+    // ใช้ backend URL เป็น fallback ใน production ถ้าไม่มี FRONTEND_URL
+    return process.env.BACKEND_URL;
+  }
   if (req) {
     const origin = req.get('origin');
     if (origin) return origin;
@@ -1509,7 +1517,7 @@ export const forgotPassword = async (req, res) => {
       [user.id, tokenHash, expiresAt]
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = getFrontendBaseUrl(req);
     const resetLink = `${frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
 
     // Send email

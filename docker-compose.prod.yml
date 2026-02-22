@@ -78,6 +78,7 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
       FRONTEND_URL: ${FRONTEND_URL:-}
+      BACKEND_URL: ${BACKEND_URL:-}
     volumes:
       - backend_uploads:/app/uploads
     depends_on:

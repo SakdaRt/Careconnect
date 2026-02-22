@@ -112,8 +112,9 @@ careconnect/
 ## สิ่งที่ยังค้างอยู่ / TODO
 
 ### High Priority
-- [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
+- [x] แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
+- [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
 - [ ] E2E tests (Playwright หรือ Cypress)
 
 ### Medium Priority
@@ -158,13 +159,17 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
-### 2026-02-22 — Forgot password feature (full stack)
+### 2026-02-22 — Google OAuth redirect fix + Forgot password feature (full stack)
+- fix(auth): แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
+- fix(auth): แก้ getBaseUrl + getFrontendBaseUrl ใช้ env var ใน production ก่อน fallback
+- fix(auth): แก้ forgotPassword ใช้ getFrontendBaseUrl แทน hardcode localhost
 - feat(auth): เพิ่ม POST /api/auth/forgot-password + POST /api/auth/reset-password
 - feat(auth): สร้าง ResetPasswordPage.tsx (ตั้งรหัสผ่านใหม่จาก token link)
 - fix(auth): แก้ ForgotPasswordPage เรียก API จริงแทน mock setTimeout
 - feat(db): migration 20260222_01_password_reset_tokens.sql
-- docs(system): เพิ่ม forgot-password/reset-password ใน Section 7.1
-- ไฟล์ที่แก้/สร้าง: authController.js, authRoutes.js, api.ts, appApi.ts, ForgotPasswordPage.tsx, ResetPasswordPage.tsx (ใหม่), router.tsx, migration, SYSTEM.md, PROGRESS.md
+- docs(system): เพิ่ม BACKEND_URL ใน Section 9 env vars
+- docs(docker): เพิ่ม BACKEND_URL ใน docker-compose.prod.yml
+- ไฟล์ที่แก้/สร้าง: authController.js, docker-compose.prod.yml, SYSTEM.md, authRoutes.js, api.ts, appApi.ts, ForgotPasswordPage.tsx, ResetPasswordPage.tsx (ใหม่), router.tsx, migration, PROGRESS.md
 
 ### 2026-02-22 — Bug fixes + Deploy + SYSTEM.md sync
 - fix(routes): แยก favorites routes ออกจาก reviewRoutes.js → favoritesRoutes.js แยกไฟล์
