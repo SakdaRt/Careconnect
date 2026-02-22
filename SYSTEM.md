@@ -57,17 +57,27 @@ L3 (Trusted)
 ```
 
 ### สิทธิ์ตาม Trust Level
-| Action | L0 | L1 | L2 | L3 |
-|--------|:--:|:--:|:--:|:--:|
-| สมัครสมาชิก | ✓ | ✓ | ✓ | ✓ |
-| สร้าง job draft | ✓ | ✓ | ✓ | ✓ |
-| Top up wallet | ✓ | ✓ | ✓ | ✓ |
-| โพสต์งาน low_risk | ✗ | ✓ | ✓ | ✓ |
-| รับงาน low_risk | ✗ | ✓ | ✓ | ✓ |
-| ดู/เพิ่มบัญชีธนาคาร | ✗ | ✓ | ✓ | ✓ |
-| โพสต์งาน high_risk | ✗ | ✗ | ✓ | ✓ |
-| รับงาน high_risk | ✗ | ✗ | ✓ | ✓ |
-| ถอนเงิน | ✗ | ✗ | ✓ | ✓ |
+
+> Source: `backend/src/middleware/auth.js` → `can()` function
+
+| Action | Role | L0 | L1 | L2 | L3 |
+|--------|------|:--:|:--:|:--:|:--:|
+| สมัคร / login / me / profile | any | ✓ | ✓ | ✓ | ✓ |
+| สร้าง job draft | hirer | ✓ | ✓ | ✓ | ✓ |
+| ดู job stats | any | ✓ | ✓ | ✓ | ✓ |
+| ดู job feed | caregiver | ✓ | ✓ | ✓ | ✓ |
+| ดู my-jobs | hirer | ✓ | ✓ | ✓ | ✓ |
+| Top up wallet | any | ✓ | ✓ | ✓ | ✓ |
+| ดูยอด/ประวัติ wallet | any | ✓ | ✓ | ✓ | ✓ |
+| ยกเลิกงาน | hirer/cg | ✓ | ✓ | ✓ | ✓ |
+| ดูบัญชีธนาคาร (hirer) | hirer | ✓ | ✓ | ✓ | ✓ |
+| ดู/เพิ่มบัญชีธนาคาร (cg) | caregiver | ✗ | ✓ | ✓ | ✓ |
+| โพสต์งาน low_risk | hirer | ✗ | ✓ | ✓ | ✓ |
+| รับงาน (accept/reject) | caregiver | ✗ | ✓ | ✓ | ✓ |
+| Check-in / Check-out | caregiver | ✗ | ✓ | ✓ | ✓ |
+| ดูงานที่ได้รับมอบหมาย | caregiver | ✗ | ✓ | ✓ | ✓ |
+| โพสต์งาน high_risk | hirer | ✗ | ✗ | ✓ | ✓ |
+| ถอนเงิน | caregiver | ✗ | ✗ | ✓ | ✓ |
 
 ---
 
@@ -105,24 +115,47 @@ max 3 replacement chains per job_post
 
 ## 4. Payment Flow (Double-entry Ledger)
 
+> Source: `backend/src/services/jobService.js`
+
+### 4 Phases:
+
 ```
-Hirer                  Platform (Escrow)           Caregiver
-  │                         │                          │
-  │── Top up (QR/Link) ──► │                          │
-  │   topup_intents         │                          │
-  │   → wallet.available++  │                          │
-  │                         │                          │
-  │── Job assigned ───────► │                          │
-  │   hirer wallet ──hold──▶│ escrow wallet            │
-  │   available_balance--   │ available_balance++      │
-  │                         │                          │
-  │── Checkout ───────────► │                          │
-  │                         │──release──▶ caregiver    │
-  │                         │  escrow→0  wallet.avail++│
-  │                         │  -fee→ platform wallet   │
-  │                         │                          │
-  │                    Dispute → Admin settles          │
-  │                    (refund/payout amounts)          │
+Phase 1: Top-up
+  Hirer ── POST /wallet/topup ──► topup_intent (pending)
+  Provider webhook ──► topup_intent (succeeded)
+  → credit hirer wallet.available_balance
+  → INSERT ledger_transaction (type=credit)
+
+Phase 2: Publish (Hold on hirer wallet)
+  Hirer ── POST /jobs/:id/publish ──►
+  → cost = total_amount + platform_fee_amount
+  → hirer wallet: available_balance -= cost, held_balance += cost
+  → INSERT ledger_transaction (type=hold, from=hirer, to=hirer)
+  Note: Dev mode auto-tops up if insufficient
+
+Phase 3: Accept (Escrow creation)
+  Caregiver ── POST /jobs/:id/accept ──►
+  → hirer wallet: held_balance -= cost (or available_balance if no held)
+  → CREATE escrow wallet (job_id, held_balance=cost)
+  → INSERT ledger_transaction (type=hold, from=hirer, to=escrow)
+  → CREATE jobs record + job_assignments + chat_thread
+
+Phase 4: Checkout (Settlement)
+  Caregiver ── POST /jobs/:jobId/checkout ──►
+  → escrow wallet: held_balance -= total_amount
+  → caregiver wallet: available_balance += total_amount
+  → INSERT ledger_transaction (type=release, from=escrow, to=caregiver)
+  → IF platform_fee > 0:
+    escrow wallet: held_balance -= platform_fee
+    platform wallet: available_balance += platform_fee
+    INSERT ledger_transaction (type=debit, from=escrow, to=platform)
+  → Trust score recalculation triggered (fire-and-forget)
+
+Cancel (Refund):
+  → escrow wallet: held_balance → 0
+  → hirer wallet: available_balance += escrow amount
+  → INSERT ledger_transaction (type=reversal, reference_type=refund)
+  → IF posted but no job instance: held_balance → available_balance (unhold)
 ```
 
 ### Wallet Types (5 ประเภท)
@@ -445,11 +478,17 @@ Hirer                  Platform (Escrow)           Caregiver
 │ audit_events           │  │ provider_webhooks            │
 ├────────────────────────┤  ├──────────────────────────────┤
 │ id UUID PK             │  │ id UUID PK                   │
-│ user_id FK             │  │ provider_name, event_id      │
+│ user_id FK → users     │  │ provider_name, event_id      │
 │ event_type VARCHAR     │  │ event_type, payload JSONB    │
-│ old_level, new_level   │  │ signature_valid BOOLEAN      │
-│ details JSONB          │  │ processed BOOLEAN            │
-└────────────────────────┘  └──────────────────────────────┘
+│   (policy_denied,      │  │ signature_valid BOOLEAN      │
+│    trust_level_change,  │  │ processed BOOLEAN            │
+│    trust_recompute)    │  └──────────────────────────────┘
+│ action VARCHAR          │
+│ old_level, new_level   │
+│   (nullable — trust    │
+│    change events only) │
+│ details JSONB          │
+└────────────────────────┘
 ```
 
 ---
@@ -960,3 +999,264 @@ VITE_API_TARGET=http://backend:3000
 | **Geofence + GPS evidence** | พิสูจน์การทำงาน ณ สถานที่จริง |
 | **Replacement chain (max 3)** | job_post สามารถ re-post ได้สูงสุด 3 ครั้ง |
 | **Polling notifications (30s)** | ง่ายกว่า WebSocket สำหรับ MVP |
+| **Auto-complete overdue jobs** | getCaregiverJobs auto-checkout jobs ที่เลยเวลา |
+| **Dev auto-topup** | publishJob เติมเงินอัตโนมัติ (dev only) ถ้ายอดไม่พอ |
+| **L3 hysteresis** | ลง L2 เมื่อ score < 75 (ไม่ใช่ 80) ป้องกันการสั่นไหว |
+
+---
+
+## 11. Middleware Chain & Policy Gate System
+
+> Source: `backend/src/middleware/auth.js`
+
+### Middleware Functions Available
+
+| Middleware | คำอธิบาย |
+|-----------|----------|
+| `requireAuth` | ตรวจ JWT → attach `req.user`, `req.userId`, `req.userRole`, `req.userTrustLevel`, `req.userAccountType` |
+| `optionalAuth` | เหมือน requireAuth แต่ไม่บังคับ (token invalid → `req.user = null`) |
+| `requireRole(roles)` | ตรวจว่า user มี role ที่กำหนด (string หรือ array) |
+| `requireTrustLevel(min)` | ตรวจ trust level ขั้นต่ำ (L0-L3) |
+| `requirePolicy(action)` | ตรวจ action-based permission ผ่าน `can()` function + audit log |
+| `requireAccountType(types)` | ตรวจ account type (guest/member) |
+| `requireVerified` | ตรวจว่า email หรือ phone verified |
+| `requireOwnership(param)` | ตรวจว่า user เป็นเจ้าของ resource (admin bypass) |
+
+### Typical Route Middleware Chain
+
+```
+Public route:      handler
+Auth route:        requireAuth → handler
+Protected route:   requireAuth → requirePolicy(action) → handler
+Role route:        requireAuth → requireRole('admin') → handler
+```
+
+### Policy Actions (`can()` function)
+
+```
+auth:me, auth:profile:view, auth:profile:update     → L0, any role
+auth:phone, auth:email, auth:otp, auth:policy        → L0, any role
+auth:role, auth:logout                                → L0, any role
+
+job:stats, job:get                                    → L0, any role
+job:create                                            → L0, hirer only
+job:publish                                           → L1, hirer only
+job:my-jobs                                           → L0, hirer only
+job:feed                                              → L0, caregiver only
+job:assigned                                          → L1, caregiver only
+job:accept, job:checkin, job:checkout                 → L1, caregiver only
+job:cancel                                            → L0, hirer or caregiver
+
+wallet:balance, wallet:transactions                   → L0, any role
+wallet:topup, wallet:topup:pending, wallet:topup:status → L0, any role
+wallet:bank-accounts, wallet:bank-add                 → L0 hirer / L1 caregiver
+wallet:withdrawals                                    → L0, any role
+wallet:withdraw, wallet:withdraw:cancel               → L2, caregiver only
+
+care-recipient:manage                                 → L0, hirer only
+dispute:access                                        → L0, hirer or caregiver
+chat:access                                           → L0, hirer or caregiver
+
+admin role → allowed for ALL actions (bypass)
+```
+
+### Policy Denial → Audit Log
+
+เมื่อ `can()` return `{ allowed: false }` → INSERT `audit_events` (event_type=`policy_denied`, action, role, trust_level, path)
+
+---
+
+## 12. Socket.IO Real-time Events
+
+> Source: `backend/src/sockets/chatSocket.js`, `backend/src/sockets/realtimeHub.js`
+
+### Authentication
+- Token ส่งผ่าน `socket.handshake.auth.token` หรือ `Authorization` header
+- Verify JWT → attach `socket.userId`, `socket.userRole`
+
+### Room Structure
+- `user:{userId}` — personal room (join on connect) สำหรับ notifications
+- `thread:{threadId}` — chat thread room (join on `thread:join`)
+
+### Client → Server Events
+
+| Event | Payload | คำอธิบาย |
+|-------|---------|----------|
+| `thread:join` | `threadId` | เข้า chat room (ตรวจ access ก่อน) |
+| `thread:leave` | `threadId` | ออกจาก chat room |
+| `message:send` | `{ threadId, type, content, attachment_key, metadata }` | ส่งข้อความ |
+| `typing:start` | `threadId` | แจ้งว่ากำลังพิมพ์ |
+| `typing:stop` | `threadId` | หยุดพิมพ์ |
+| `message:read` | `{ threadId, messageId }` | mark as read |
+
+### Server → Client Events
+
+| Event | Payload | คำอธิบาย |
+|-------|---------|----------|
+| `thread:joined` | `{ threadId }` | ยืนยันว่าเข้า room แล้ว |
+| `thread:left` | `{ threadId }` | ยืนยันว่าออก room แล้ว |
+| `message:new` | message object | ข้อความใหม่ (broadcast ทั้ง room) |
+| `typing:started` | `{ threadId, userId }` | user อื่นกำลังพิมพ์ |
+| `typing:stopped` | `{ threadId, userId }` | user อื่นหยุดพิมพ์ |
+| `message:read` | `{ threadId, messageId, userId, readAt }` | user อื่นอ่านข้อความแล้ว |
+| `error` | `{ message }` | error event |
+
+### Realtime Hub (`realtimeHub.js`)
+- `emitToUserRoom(userId, event, payload)` — ส่ง event ไปยัง personal room ของ user
+- ใช้สำหรับ push notifications, status updates
+
+---
+
+## 13. Error Response Format
+
+> Source: `backend/src/utils/errors.js`
+
+### Standardized Error Classes
+
+| Class | HTTP Status | Default Code |
+|-------|:-----------:|-------------|
+| `ApiError` | 500 | `SERVER_ERROR` |
+| `ValidationError` | 400 | `VALIDATION_ERROR` |
+| `NotFoundError` | 404 | `NOT_FOUND` |
+| `UnauthorizedError` | 401 | `UNAUTHORIZED` |
+| `ForbiddenError` | 403 | `FORBIDDEN` |
+| `ConflictError` | 409 | `DUPLICATE_RESOURCE` |
+| `TooManyRequestsError` | 429 | `RATE_LIMIT_EXCEEDED` |
+
+### Response Format
+
+```json
+{
+  "error": {
+    "code": "VALIDATION_ERROR",
+    "message": "Missing required field: title",
+    "details": {
+      "field": "title",
+      "section": "job_basic"
+    }
+  }
+}
+```
+
+### Error Handler Middleware (`errorHandler`)
+- `ApiError` → ใช้ status/code ตรง
+- Joi validation error → แปลงเป็น `ValidationError`
+- JWT errors → `UnauthorizedError` (INVALID_TOKEN / TOKEN_EXPIRED)
+- DB unique violation (23505) → `ConflictError`
+- DB integrity error (23xxx) → `ConflictError`
+- Unknown → 500 (dev mode แสดง stack trace)
+
+### Key Error Codes
+```
+UNAUTHORIZED, INVALID_TOKEN, TOKEN_EXPIRED, FORBIDDEN
+VALIDATION_ERROR, INVALID_REQUEST_BODY, MISSING_REQUIRED_FIELD
+NOT_FOUND, USER_NOT_FOUND, JOB_NOT_FOUND, WALLET_NOT_FOUND
+INSUFFICIENT_BALANCE, INVALID_STATUS_TRANSITION, DUPLICATE_RESOURCE
+INTERNAL_SERVER_ERROR, DATABASE_ERROR, RATE_LIMIT_EXCEEDED
+```
+
+### Job-specific Error Codes
+```
+JOB_REQUIRED_FIELD, JOB_SCHEDULE_INVALID, JOB_TYPE_INVALID
+JOB_FLAGS_INVALID, JOB_TASKS_REQUIRED, JOB_TIME_CONFLICT
+JOB_PREFERRED_CAREGIVER_ONLY, CERTIFICATIONS_MISSING
+PATIENT_NOT_FOUND, PATIENT_TASK_MISMATCH
+HIRER_TRUST_RESTRICTION, INSUFFICIENT_BALANCE
+```
+
+---
+
+## 14. Trust Score Calculation
+
+> Source: `backend/src/workers/trustLevelWorker.js`
+
+### Score Weights (base = 50)
+
+| Factor | Points | Cap |
+|--------|:------:|:---:|
+| Completed job | +5 each | max +30 |
+| Good review (4-5★) | +3 each | max +20 |
+| Average review (3★) | +1 each | — |
+| Bad review (1-2★) | -5 each | max -20 |
+| Cancellation | -10 each | max -30 |
+| GPS violation | -3 each | max -15 |
+| On-time check-in | +2 each | max +20 |
+| Profile complete | +10 | one-time |
+
+**Formula**: `score = clamp(0, 100, 50 + all_factors)`
+
+### Trust Level Determination
+
+```
+L0: default (no verification)
+L1: phone_verified = true
+L2: phone_verified + KYC approved
+L3: phone_verified + KYC approved + bank_verified + score ≥ 80
+    (hysteresis: ลงจาก L3 เมื่อ score < 75)
+```
+
+Note: `email_verified` alone ไม่เพียงพอสำหรับ L1 — ต้อง phone_verified
+
+### Triggers
+- **Auto**: หลัง checkout สำเร็จ (`triggerUserTrustUpdate(caregiverId, 'job_completed')`)
+- **Manual**: Admin POST `/api/admin/trust/recalculate/:userId`
+- **Batch**: Admin POST `/api/admin/trust/recalculate` (ทุก caregiver)
+- **Script**: `node trustLevelWorker.js` (run as standalone)
+
+---
+
+## 15. Risk Level Auto-compute
+
+> Source: `backend/src/utils/risk.js`
+
+### Criteria
+
+```
+high_risk IF:
+  - job_type ∈ {emergency, post_surgery, dementia_care, medical_monitoring}
+  - OR patient has: feeding_tube, tracheostomy, urinary_catheter, oxygen
+  - OR patient mobility: bedbound
+  - OR patient cognitive: severe_dementia
+  - OR tasks include: tube_feeding, catheter_care, oxygen_monitoring, wound_dressing
+
+low_risk: everything else
+```
+
+### Auto-set on Job Creation
+- `risk_level` → computed from job_type + patient_profile + tasks
+- `min_trust_level` → `high_risk` = L2, `low_risk` = L1
+- `risk_reason_codes[]` → array of reason codes
+- `risk_reason_detail` → human-readable explanation
+
+### Publish Restriction (in `publishJob`)
+- `low_risk` → hirer ต้อง L1+
+- `high_risk` → hirer ต้อง L2+
+
+### Accept Restriction (in `acceptJob`)
+- ตรวจ caregiver trust_level ≥ job.min_trust_level
+- ตรวจ required_certifications (ถ้า hirer กำหนด)
+- ตรวจ schedule conflict กับงานอื่น
+
+### Job Type Options (6 types)
+```
+companionship, personal_care, medical_monitoring,
+dementia_care, post_surgery, emergency
+```
+
+### Task Options (22 types)
+```
+companionship, hospital_companion, hospital_registration_support,
+hospital_transport_coordination, medication_pickup, meal_prep,
+light_housekeeping, mobility_assist, transfer_assist, bathing,
+dressing, toileting, diaper_change, feeding, tube_feeding,
+medication_reminder, medication_administration, vitals_check,
+blood_sugar_check, wound_dressing, catheter_care, oxygen_monitoring,
+dementia_supervision
+```
+
+### Required Skills Options (9 types)
+```
+basic_first_aid, dementia_care, post_surgery_care, safe_transfer,
+wound_care, catheter_care, tube_feeding_care, vitals_monitoring,
+medication_management
+```

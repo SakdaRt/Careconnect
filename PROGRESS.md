@@ -146,6 +146,19 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-22 — Deep cross-check + เพิ่ม 5 sections ใหม่ใน SYSTEM.md
+- docs(system): Deep cross-check SYSTEM.md กับ codebase ทุก layer
+  - แก้ audit_events ERD columns ให้ตรง (เพิ่ม action, event_type variants)
+  - แก้ Trust Level table — bank accounts policy แยก hirer L0 / caregiver L1
+  - ปรับ Payment Flow เป็น 4 phases (topup→publish hold→accept escrow→checkout settlement)
+  - เพิ่ม Section 11: Middleware Chain & Policy Gate System (can() matrix ครบ 30+ actions)
+  - เพิ่ม Section 12: Socket.IO Real-time Events (12 events, room structure)
+  - เพิ่ม Section 13: Error Response Format (7 error classes, error codes)
+  - เพิ่ม Section 14: Trust Score Calculation (8 factors, weights, formula, triggers)
+  - เพิ่ม Section 15: Risk Level Auto-compute (criteria, 6 job types, 22 tasks, 9 skills)
+  - เพิ่ม Design Decisions: auto-complete overdue, dev auto-topup, L3 hysteresis
+- ไฟล์ที่แก้: SYSTEM.md, PROGRESS.md
+
 ### 2026-02-22 — Rewrite SYSTEM.md + ปรับ .windsurfrules
 - docs(system): Rewrite SYSTEM.md ทั้งหมดให้ตรงกับ codebase จริง
   - ERD: แก้จาก 1 table (jobs) เป็น 2 tables (job_posts + jobs), เพิ่ม 15+ tables ที่ขาด
