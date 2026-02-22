@@ -1,0 +1,44 @@
+# CareConnect — Windsurf AI Rules
+# ไฟล์นี้บังคับใช้กับทุก session โดยอัตโนมัติ
+
+## ภาษาและการสื่อสาร
+- ตอบเป็นภาษาไทยเสมอ เว้นแต่ user จะขอเป็นภาษาอื่น
+- ตอบกระชับ ตรงประเด็น ไม่มีคำทักทายฟุ่มเฟือย
+- อ้างอิง file path แบบ absolute เสมอ
+
+## บริบทโปรเจค
+- โปรเจคอยู่ที่: `c:\Users\SR\Desktop\careconnect`
+- Frontend: `frontend/` — React + TypeScript + Tailwind CSS + Vite
+- Backend: `backend/` — Node.js + Express + PostgreSQL
+- ดู `PROGRESS.md` ก่อนเริ่มทำงานทุกครั้ง เพื่อเข้าใจสถานะปัจจุบัน
+
+## Stack ที่ใช้
+- **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, react-hot-toast, Lucide icons
+- **Backend**: Node.js, Express, PostgreSQL (pg), Joi validation, JWT auth
+- **Auth**: JWT + Refresh token, Google OAuth, Phone OTP
+- **Docker**: docker-compose.yml (dev), docker-compose.prod.yml (prod)
+
+## กฎการเขียนโค้ด
+- ห้ามเพิ่ม/ลบ comment โดยไม่ได้รับคำสั่ง
+- ห้ามเปลี่ยน business logic โดยไม่ได้รับคำสั่ง
+- ใช้ Tailwind utility classes เท่านั้น ห้าม inline style
+- ใช้ `cn()` สำหรับ conditional classes
+- Component ใหม่ต้องมี TypeScript types ครบ
+- ห้าม hardcode ค่า secret หรือ API key
+
+## กฎ Git
+- Commit message format: `type(scope): description` (ภาษาไทยได้)
+- Types: `feat`, `fix`, `refactor`, `style`, `docs`, `chore`
+- ทุกครั้งที่ทำงานเสร็จ ให้ commit + push ทันที
+- Branch หลัก: `main`
+
+## กฎ Accessibility (WCAG 2.1 AA)
+- ปุ่มที่มีแค่ icon ต้องมี `aria-label`
+- Icon ที่เป็น decorative ต้องมี `aria-hidden="true"`
+- ทุก interactive element ต้องมี focus ring
+- ห้ามใช้ `text-gray-400` สำหรับ readable text (ใช้ `text-gray-500` ขึ้นไป)
+
+## หลังทำงานเสร็จทุกครั้ง
+1. อัพเดท `PROGRESS.md` — บันทึกสิ่งที่ทำ, ไฟล์ที่แก้, สิ่งที่ยังค้างอยู่
+2. Commit และ push ขึ้น main
+3. แจ้ง user สรุปสั้นๆ ว่าทำอะไรไปบ้าง
