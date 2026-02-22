@@ -1,7 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { MainLayout, AdminLayout } from './layouts';
-import { PlaceholderPage } from './components/PlaceholderPage';
+import { AdminLayout } from './layouts';
 import { LoadingState } from './components/ui';
 import { RouteErrorFallback } from './components/ErrorBoundary';
 const ComponentShowcase = lazy(() => import('./pages/ComponentShowcase'));
@@ -75,7 +74,11 @@ const CaregiverProfilePage = () => (
 // ============================================================================
 // Shared Pages
 // ============================================================================
-const CancelJobPage = () => <MainLayout showBottomBar={false}><PlaceholderPage title="ยกเลิกงาน" /></MainLayout>;
+const CancelJobRedirect = () => {
+  const params = window.location.pathname.match(/\/jobs\/([^/]+)\/cancel/);
+  const jobId = params?.[1] || '';
+  return <Navigate to={`/jobs/${jobId}`} replace />;
+};
  
 
 // ============================================================================
@@ -425,7 +428,7 @@ export const router = createBrowserRouter([
       </RequireAuth>
     ),
   },
-  { path: '/jobs/:id/cancel', element: <CancelJobPage /> },
+  { path: '/jobs/:id/cancel', element: <CancelJobRedirect /> },
   {
     path: '/dispute/:disputeId',
     element: (

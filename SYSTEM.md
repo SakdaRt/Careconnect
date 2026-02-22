@@ -759,11 +759,15 @@ DELETE /api/caregiver-documents/:id                ลบเอกสาร
 GET    /api/caregiver-documents/by-caregiver/:id   ดูเอกสาร caregiver (hirer/admin)
 ```
 
-### 7.7 Reviews & Favorites — `/api/reviews`, `/api/favorites`
+### 7.7 Reviews — `/api/reviews`
 ```
 POST   /api/reviews                          รีวิว caregiver (job_id, caregiver_id, rating, comment)
 GET    /api/reviews/caregiver/:caregiverId   ดูรีวิว caregiver (paginated)
 GET    /api/reviews/job/:jobId               ตรวจสอบว่ารีวิวงานนี้แล้วหรือยัง
+```
+
+### 7.7b Favorites — `/api/favorites`
+```
 POST   /api/favorites/toggle                 toggle favorite (caregiver_id)
 GET    /api/favorites                        ดูรายการ favorite ทั้งหมด (paginated)
 GET    /api/favorites/check/:caregiverId     ตรวจสอบว่า favorite อยู่หรือไม่
@@ -959,23 +963,74 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```env
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgresql://careconnect:password@localhost:5432/careconnect
+CORS_ORIGIN=*
+
+# Database (docker-compose sets these; DATABASE_URL for local dev)
+DATABASE_HOST=postgres
+DATABASE_PORT=5432
+DATABASE_NAME=careconnect
+DATABASE_USER=careconnect
+DATABASE_PASSWORD=careconnect_dev_password
+
+# Auth
 JWT_SECRET=your_jwt_secret
-JWT_REFRESH_SECRET=your_refresh_secret
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
+
+# Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
+
+# Providers (mock in dev)
+MOCK_PROVIDER_BASE_URL=http://mock-provider:4000
+PAYMENT_PROVIDER=mock
+SMS_PROVIDER=mock
+KYC_PROVIDER=mock
+BANK_TRANSFER_PROVIDER=mock
+WEBHOOK_BASE_URL=http://backend:3000
+WEBHOOK_SECRET=your_webhook_secret
+
+# SMS - SMSOK (production)
+SMSOK_API_URL=https://api.smsok.co/s
+SMSOK_API_KEY=
+SMSOK_API_SECRET=
+SMSOK_SENDER=CareConnect
+
+# Email (production)
+EMAIL_PROVIDER=mock
+EMAIL_FROM=noreply@careconnect.local
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+
+# File Storage
 UPLOAD_DIR=/app/uploads
-MOCK_PROVIDER_URL=http://mock-provider:4000
+MAX_FILE_SIZE_MB=10
+
+# Admin bootstrap
+ADMIN_EMAIL=admin@careconnect.com
+ADMIN_PASSWORD=Admin1234!
+
+# Mock seeding (dev only, default: true)
+SEED_MOCK_CAREGIVERS=true
+SEED_MOCK_JOBS=true
 ```
 
 ### Frontend (.env)
 ```env
-VITE_API_URL=http://localhost:3000
 VITE_API_TARGET=http://backend:3000
+```
+
+### Mock Provider (Port 4000)
+> Source: `mock-provider/` — จำลอง Payment/SMS/KYC providers สำหรับ dev
+```env
+BACKEND_WEBHOOK_URL=http://backend:3000/api/webhooks
+MOCK_PAYMENT_AUTO_SUCCESS=true
+MOCK_SMS_OTP_CODE=123456
+MOCK_KYC_AUTO_APPROVE=true
 ```
 
 ---

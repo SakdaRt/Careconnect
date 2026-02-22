@@ -24,6 +24,7 @@ import notificationRoutes from "./routes/notificationRoutes.js";
 import caregiverDocumentRoutes from "./routes/caregiverDocumentRoutes.js";
 import caregiverSearchRoutes from "./routes/caregiverSearchRoutes.js";
 import reviewRoutes from "./routes/reviewRoutes.js";
+import favoritesRoutes from "./routes/favoritesRoutes.js";
 import Job from "./models/Job.js";
 import { initChatSocket } from "./sockets/chatSocket.js";
 import { setSocketServer } from "./sockets/realtimeHub.js";
@@ -1270,7 +1271,7 @@ app.use("/api/notifications", notificationRoutes);
 app.use("/api/caregiver-documents", caregiverDocumentRoutes);
 app.use("/api/caregivers", caregiverSearchRoutes);
 app.use("/api/reviews", reviewRoutes);
-app.use("/api", reviewRoutes);
+app.use("/api/favorites", favoritesRoutes);
 
 // Static file serving for uploads
 const uploadDir = process.env.UPLOAD_DIR || "/app/uploads";

@@ -1,5 +1,5 @@
 # CareConnect — Progress Log
-> อัพเดทล่าสุด: 2026-02-22 (session 2)
+> อัพเดทล่าสุด: 2026-02-22 (session 3)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -113,6 +113,7 @@ careconnect/
 
 ### High Priority
 - [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
+- [ ] Forgot password backend (route + service + email reset)
 - [ ] E2E tests (Playwright หรือ Cypress)
 
 ### Medium Priority
@@ -124,6 +125,8 @@ careconnect/
 - [ ] Dark mode
 - [ ] Tabular numerals สำหรับตัวเลขเงิน
 - [ ] Badge color sole indicator → เพิ่ม icon/pattern
+- [ ] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
+- [ ] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
 
 ---
 
@@ -154,6 +157,16 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-02-22 — Bug fixes + Deploy + SYSTEM.md sync
+- fix(routes): แยก favorites routes ออกจาก reviewRoutes.js → favoritesRoutes.js แยกไฟล์
+- fix(routes): ลบ duplicate reviewRoutes mount ใน server.js (เดิม mount ซ้ำที่ /api และ /api/reviews)
+- fix(router): CancelJobPage เป็น placeholder → redirect ไป JobDetailPage (cancel ทำงานผ่าน modal อยู่แล้ว)
+- fix(deploy): เขียน deploy.sh ใหม่ (prod compose, migration, health check, --skip-pull/--skip-build)
+- fix(docker): แก้ docker-compose.prod.yml — ลบ pgAdmin prod, เพิ่ม upload volume, บังคับ secrets
+- docs(system): แก้ Section 7.7 แยก Reviews/Favorites, แก้ Section 9 env vars ครบ
+- chore: เพิ่ม release/ เข้า .gitignore
+- ไฟล์ที่แก้: server.js, reviewRoutes.js, favoritesRoutes.js (ใหม่), router.tsx, deploy.sh, docker-compose.prod.yml, .gitignore, SYSTEM.md, PROGRESS.md
 
 ### 2026-02-22 — ปรับ workflow files + .windsurfrules ให้สมบูรณ์
 - docs(workflows): Rewrite commit.md — เพิ่ม pre-commit verification, checklist ตามประเภทงาน

@@ -114,6 +114,9 @@ __pycache__/
 venv/
 env/
 
+# Release archives
+release/
+
 # Backup files
 *.backup
 *.bkp

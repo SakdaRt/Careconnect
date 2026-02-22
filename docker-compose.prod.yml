@@ -60,16 +60,26 @@ services:
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
 
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
 
-      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-change_me}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:?WEBHOOK_SECRET is required}
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mock}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@careconnect.local}
       PUSH_PROVIDER: ${PUSH_PROVIDER:-mock}
       TZ: ${TZ:-Asia/Bangkok}
-      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@careconnect.com}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      UPLOAD_DIR: /app/uploads
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
+
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL is required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD is required}
+
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+    volumes:
+      - backend_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -92,24 +102,6 @@ services:
     networks:
       - careconnect-network
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: careconnect-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@careconnect.com}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-      PGADMIN_CONFIG_SERVER_MODE: 'False'
-      PGADMIN_LISTEN_PORT: ${PGADMIN_PORT:-5050}
-    ports:
-      - "${PGADMIN_PORT:-5050}:5050"
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    depends_on:
-      - postgres
-    networks:
-      - careconnect-network
-
 networks:
   careconnect-network:
     driver: bridge
@@ -117,6 +109,6 @@ networks:
 volumes:
   postgres_data:
     driver: local
-  pgadmin_data:
+  backend_uploads:
     driver: local
 
