@@ -704,6 +704,8 @@ POST   /api/auth/avatar                อัพโหลด avatar (multipart)
 POST   /api/auth/phone                 อัพเดทเบอร์โทร
 POST   /api/auth/email                 อัพเดทอีเมล
 POST   /api/auth/change-password       เปลี่ยนรหัสผ่าน
+POST   /api/auth/forgot-password       ขอลิงก์รีเซ็ตรหัสผ่าน (email)
+POST   /api/auth/reset-password        รีเซ็ตรหัสผ่านด้วย token
 POST   /api/auth/policy/accept         ยอมรับ policy (role + version)
 POST   /api/auth/role                  เปลี่ยน role
 GET    /api/auth/google                เริ่ม Google OAuth

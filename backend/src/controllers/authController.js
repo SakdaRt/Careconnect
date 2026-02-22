@@ -1472,6 +1472,135 @@ export const cancelUnverifiedAccount = async (req, res) => {
   }
 };
 
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ * Body: { email }
+ */
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const userResult = await query(
+      `SELECT id, email, status FROM users WHERE email = $1`,
+      [email.toLowerCase().trim()]
+    );
+
+    // Always return success to prevent email enumeration
+    if (!userResult.rows.length || userResult.rows[0].status !== 'active') {
+      return res.json({ success: true, message: 'หากอีเมลนี้มีอยู่ในระบบ เราจะส่งลิงก์รีเซ็ตรหัสผ่านให้' });
+    }
+
+    const user = userResult.rows[0];
+
+    // Invalidate previous tokens
+    await query(
+      `UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`,
+      [user.id]
+    );
+
+    // Generate token (64 bytes hex)
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await query(
+      `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+      [user.id, tokenHash, expiresAt]
+    );
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const resetLink = `${frontendUrl}/reset-password?token=${rawToken}&email=${encodeURIComponent(user.email)}`;
+
+    // Send email
+    const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'mock';
+    if (EMAIL_PROVIDER === 'smtp') {
+      const nodemailer = await import('nodemailer');
+      const transporter = nodemailer.default.createTransport({
+        host: process.env.SMTP_HOST,
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+      });
+      await transporter.sendMail({
+        from: process.env.EMAIL_FROM || 'noreply@careconnect.local',
+        to: user.email,
+        subject: 'รีเซ็ตรหัสผ่าน — CareConnect',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:8px">
+            <h2 style="color:#2563eb;margin-bottom:8px">CareConnect</h2>
+            <p style="color:#374151">คุณได้ร้องขอรีเซ็ตรหัสผ่าน</p>
+            <a href="${resetLink}" style="display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;border-radius:6px;text-decoration:none;margin:16px 0">ตั้งรหัสผ่านใหม่</a>
+            <p style="color:#6b7280;font-size:14px">ลิงก์นี้จะหมดอายุใน <strong>1 ชั่วโมง</strong></p>
+            <p style="color:#6b7280;font-size:12px">หากคุณไม่ได้ร้องขอ กรุณาเพิกเฉยต่ออีเมลนี้</p>
+          </div>`,
+      });
+    } else {
+      // Mock: log to console
+      console.log(`[Auth] Password reset link for ${user.email}: ${resetLink}`);
+    }
+
+    res.json({ success: true, message: 'หากอีเมลนี้มีอยู่ในระบบ เราจะส่งลิงก์รีเซ็ตรหัสผ่านให้' });
+  } catch (error) {
+    console.error('[Auth Controller] Forgot password error:', error);
+    res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+  }
+};
+
+/**
+ * Reset password with token
+ * POST /api/auth/reset-password
+ * Body: { token, email, new_password }
+ */
+export const resetPassword = async (req, res) => {
+  try {
+    const { token, email, new_password } = req.body;
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    const result = await query(
+      `SELECT prt.id, prt.user_id, prt.expires_at, prt.used_at, u.email
+       FROM password_reset_tokens prt
+       JOIN users u ON u.id = prt.user_id
+       WHERE prt.token_hash = $1 AND u.email = $2`,
+      [tokenHash, email.toLowerCase().trim()]
+    );
+
+    if (!result.rows.length) {
+      return res.status(400).json({ success: false, error: 'ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้อง' });
+    }
+
+    const resetToken = result.rows[0];
+
+    if (resetToken.used_at) {
+      return res.status(400).json({ success: false, error: 'ลิงก์นี้ถูกใช้งานไปแล้ว' });
+    }
+
+    if (new Date(resetToken.expires_at) < new Date()) {
+      return res.status(400).json({ success: false, error: 'ลิงก์รีเซ็ตรหัสผ่านหมดอายุแล้ว' });
+    }
+
+    // Hash new password
+    const { hashPassword } = await import('../services/authService.js');
+    const hashedPassword = await hashPassword(new_password);
+
+    // Update password + mark token as used
+    await query(`UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2`, [hashedPassword, resetToken.user_id]);
+    await query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1`, [resetToken.id]);
+
+    // Invalidate all other reset tokens for this user
+    await query(
+      `UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`,
+      [resetToken.user_id]
+    );
+
+    res.json({ success: true, message: 'รีเซ็ตรหัสผ่านสำเร็จ' });
+  } catch (error) {
+    console.error('[Auth Controller] Reset password error:', error);
+    res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง' });
+  }
+};
+
 export default {
   googleLogin,
   googleCallback,
@@ -1490,4 +1619,6 @@ export default {
   updateAvatar,
   logout,
   cancelUnverifiedAccount,
+  forgotPassword,
+  resetPassword,
 };

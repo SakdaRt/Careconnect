@@ -22,6 +22,8 @@ import {
   logout,
   cancelUnverifiedAccount,
   changePassword,
+  forgotPassword,
+  resetPassword,
 } from '../controllers/authController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
 import { validateBody, authSchemas, commonSchemas } from '../utils/validation.js';
@@ -206,6 +208,26 @@ router.post('/login/phone', authLimiter, validateBody(loginPhoneSchema), loginWi
  * Body: { refreshToken }
  */
 router.post('/refresh', authLimiter, validateBody(authSchemas.refreshToken), refreshToken);
+
+/**
+ * Request password reset
+ * POST /api/auth/forgot-password
+ * Body: { email }
+ */
+router.post('/forgot-password', authLimiter, validateBody(Joi.object({
+  email: Joi.string().email({ tlds: { allow: false } }).required(),
+})), forgotPassword);
+
+/**
+ * Reset password with token
+ * POST /api/auth/reset-password
+ * Body: { token, email, new_password }
+ */
+router.post('/reset-password', authLimiter, validateBody(Joi.object({
+  token: Joi.string().hex().length(64).required(),
+  email: Joi.string().email({ tlds: { allow: false } }).required(),
+  new_password: Joi.string().min(8).required(),
+})), resetPassword);
 
 /**
  * Start Google OAuth 2.0 login

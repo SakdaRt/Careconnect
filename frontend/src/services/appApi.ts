@@ -66,6 +66,14 @@ export const appApi = {
     });
   },
 
+  async forgotPassword(email: string) {
+    return api.forgotPassword(email);
+  },
+
+  async resetPassword(token: string, email: string, newPassword: string) {
+    return api.resetPassword(token, email, newPassword);
+  },
+
   async sendEmailOtp() {
     return api.sendEmailOtp();
   },

@@ -4,6 +4,7 @@ import { Mail, ArrowLeft } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button, Input } from '../../components/ui';
 import toast from 'react-hot-toast';
+import { appApi } from '../../services/appApi';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -31,12 +32,14 @@ export default function ForgotPasswordPage() {
 
     setLoading(true);
     try {
-      // Mock API call
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      setSent(true);
-      toast.success('ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว');
-    } catch (error: any) {
+      const res = await appApi.forgotPassword(email);
+      if (res.success) {
+        setSent(true);
+        toast.success('ส่งลิงก์รีเซ็ตรหัสผ่านไปยังอีเมลของคุณแล้ว');
+      } else {
+        toast.error(res.error || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      }
+    } catch {
       toast.error('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
     } finally {
       setLoading(false);

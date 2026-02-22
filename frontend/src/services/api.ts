@@ -380,6 +380,21 @@ class ApiClient {
     return response;
   }
 
+  // Password reset endpoints
+  async forgotPassword(email: string) {
+    return this.request<{ message: string }>('/api/auth/forgot-password', {
+      method: 'POST',
+      body: { email },
+    });
+  }
+
+  async resetPassword(token: string, email: string, new_password: string) {
+    return this.request<{ message: string }>('/api/auth/reset-password', {
+      method: 'POST',
+      body: { token, email, new_password },
+    });
+  }
+
   // OTP endpoints
   async sendEmailOtp() {
     return this.request<{ otp_id: string; email: string; expires_in: number }>(

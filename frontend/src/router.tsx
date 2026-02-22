@@ -30,6 +30,7 @@ const GuestRegisterPage = lazy(() => import('./pages/auth/GuestRegisterPage'));
 const MemberRegisterPage = lazy(() => import('./pages/auth/MemberRegisterPage'));
 const RoleSelectionPage = lazy(() => import('./pages/auth/RoleSelectionPage'));
 const ConsentPage = lazy(() => import('./pages/auth/ConsentPage'));
+const ResetPasswordPage = lazy(() => import('./pages/auth/ResetPasswordPage'));
 const HirerHomePage = lazy(() => import('./pages/hirer/HirerHomePage'));
 const SearchCaregiversPage = lazy(() => import('./pages/hirer/SearchCaregiversPage'));
 const CaregiverPublicProfilePage = lazy(() => import('./pages/hirer/CaregiverPublicProfilePage'));
@@ -148,6 +149,7 @@ export const router = createBrowserRouter([
   { path: '/register/member', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><MemberRegisterPage /></Suspense> },
   { path: '/select-role', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><RoleSelectionPage /></Suspense> },
   { path: '/register/consent', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><ConsentPage /></Suspense> },
+  { path: '/reset-password', element: <Suspense fallback={<LoadingState message="กำลังโหลด..." />}><ResetPasswordPage /></Suspense> },
 
   // Hirer Routes
   {

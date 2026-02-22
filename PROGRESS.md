@@ -113,7 +113,7 @@ careconnect/
 
 ### High Priority
 - [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
-- [ ] Forgot password backend (route + service + email reset)
+- [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
 - [ ] E2E tests (Playwright หรือ Cypress)
 
 ### Medium Priority
@@ -157,6 +157,14 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-02-22 — Forgot password feature (full stack)
+- feat(auth): เพิ่ม POST /api/auth/forgot-password + POST /api/auth/reset-password
+- feat(auth): สร้าง ResetPasswordPage.tsx (ตั้งรหัสผ่านใหม่จาก token link)
+- fix(auth): แก้ ForgotPasswordPage เรียก API จริงแทน mock setTimeout
+- feat(db): migration 20260222_01_password_reset_tokens.sql
+- docs(system): เพิ่ม forgot-password/reset-password ใน Section 7.1
+- ไฟล์ที่แก้/สร้าง: authController.js, authRoutes.js, api.ts, appApi.ts, ForgotPasswordPage.tsx, ResetPasswordPage.tsx (ใหม่), router.tsx, migration, SYSTEM.md, PROGRESS.md
 
 ### 2026-02-22 — Bug fixes + Deploy + SYSTEM.md sync
 - fix(routes): แยก favorites routes ออกจาก reviewRoutes.js → favoritesRoutes.js แยกไฟล์
