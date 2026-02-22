@@ -23,7 +23,7 @@ export function BottomBar() {
           active ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
         )}
       >
-        <Icon className="w-6 h-6" />
+        <Icon className="w-6 h-6" aria-hidden="true" />
         <span className="text-xs mt-1">{label}</span>
       </Link>
     );
