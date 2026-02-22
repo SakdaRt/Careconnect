@@ -293,7 +293,7 @@ export default function CaregiverPublicProfilePage() {
                       ))}
                     </div>
                     <span className="text-xs text-gray-500">{r.reviewer_name || 'ผู้ว่าจ้าง'}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-500">
                       {new Date(r.created_at).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </span>
                   </div>
