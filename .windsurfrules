@@ -6,13 +6,17 @@
 - ตอบกระชับ ตรงประเด็น ไม่มีคำทักทายฟุ่มเฟือย
 - อ้างอิง file path แบบ absolute เสมอ
 
+## ก่อนเริ่มทำงานทุกครั้ง (บังคับ)
+1. `git pull origin main` — ดึงโค้ดล่าสุดก่อนเสมอ
+2. อ่าน `PROGRESS.md` — สถานะปัจจุบัน, TODO, git log
+3. อ่าน `SYSTEM.md` — architecture, ERD, API routes, policy gates, error codes (15 sections)
+
 ## บริบทโปรเจค
 - โปรเจคอยู่ที่: `c:\Users\SR\Desktop\careconnect`
 - Frontend: `frontend/` — React 18 + TypeScript + Tailwind CSS + Vite
 - Backend: `backend/` — Node.js + Express + PostgreSQL
 - Database Schema: `database/schema.sql` (25+ tables, 1111 lines)
-- **อ่าน `PROGRESS.md` ก่อนเริ่มทำงานทุกครั้ง** — สถานะปัจจุบัน, TODO, git log
-- **อ่าน `SYSTEM.md`** เมื่อต้องการเข้าใจ architecture, database schema, UML, API routes
+- **SYSTEM.md** — source of truth (15 sections: ERD, API, Page map, Sequence diagrams, Policy gates, Socket.IO, Errors, Trust score, Risk level)
 
 ## Stack ที่ใช้
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, react-hot-toast, Lucide icons

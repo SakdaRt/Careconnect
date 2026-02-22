@@ -1,5 +1,5 @@
 # CareConnect — Progress Log
-> อัพเดทล่าสุด: 2026-02-22
+> อัพเดทล่าสุด: 2026-02-22 (session 2)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -29,10 +29,14 @@ careconnect/
 │   │   ├── models/
 │   │   ├── routes/
 │   │   ├── middleware/  auth.js (JWT + policy gates)
-│   │   └── utils/
-│   └── database/
-│       ├── schema.sql
-│       └── migrations/
+│   │   ├── utils/       errors.js, risk.js, db.js, validation.js
+│   │   ├── workers/     trustLevelWorker.js
+│   │   ├── sockets/     chatSocket.js, realtimeHub.js
+│   │   └── server.js
+│   ├── database/
+│   │   ├── schema.sql
+│   │   └── migrations/
+│   └── tests/           Jest integration + unit (13 test files)
 ├── database/
 │   └── schema.sql             master schema (25+ tables, 1111 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
@@ -86,7 +90,7 @@ careconnect/
 
 ### Wallet & Payment
 - [x] Top up, withdraw, transfer
-- [x] Bank account management (L1+)
+- [x] Bank account management (hirer L0+ / caregiver L1+)
 - [x] Transaction history
 
 ### Admin
@@ -141,10 +145,23 @@ careconnect/
 | `backend/src/models/Notification.js` | Notification model |
 | `database/schema.sql` | Master DB schema (25+ tables) |
 | `backend/database/migrations/` | Migration files |
+| `backend/src/workers/trustLevelWorker.js` | Trust score calculation + level determination |
+| `backend/src/utils/risk.js` | Risk level auto-compute |
+| `backend/src/utils/errors.js` | Custom error classes (7 types) + error handler |
+| `backend/src/sockets/chatSocket.js` | Socket.IO chat events (12 events) |
+| `backend/src/sockets/realtimeHub.js` | Realtime push to user rooms |
 
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-02-22 — ปรับ workflow files + .windsurfrules ให้สมบูรณ์
+- docs(workflows): Rewrite commit.md — เพิ่ม pre-commit verification, checklist ตามประเภทงาน
+- docs(workflows): Rewrite new-feature.md — full lifecycle 4 phases (sync→plan→implement→verify→commit)
+- docs(workflows): Rewrite update-progress.md — อ้างอิง SYSTEM.md 15 sections, trigger conditions ละเอียด
+- docs(rules): เพิ่มกฎ "ก่อนเริ่มทำงาน" — pull + อ่าน docs + SYSTEM.md 15 sections reference
+- docs(progress): เพิ่มไฟล์สำคัญที่ขาด (trustLevelWorker, risk, errors, chatSocket, realtimeHub)
+- ไฟล์ที่แก้: .windsurf/workflows/*.md, .windsurfrules, PROGRESS.md
 
 ### 2026-02-22 — Deep cross-check + เพิ่ม 5 sections ใหม่ใน SYSTEM.md
 - docs(system): Deep cross-check SYSTEM.md กับ codebase ทุก layer
