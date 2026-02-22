@@ -652,7 +652,7 @@ export default function ProfilePage() {
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-gray-900 truncate">{user.name || '-'}</div>
                   <div className="text-xs text-gray-600 break-all">{primaryId}</div>
-                  <div className="text-xs text-gray-400 font-mono break-all">{user.id}</div>
+                  <div className="text-xs text-gray-500 font-mono break-all">{user.id}</div>
                 </div>
               </div>
 
@@ -737,7 +737,7 @@ export default function ProfilePage() {
             <div className="text-sm font-semibold text-gray-900 mb-3">Trust Score</div>
             <div className="flex items-end gap-2 mb-2">
               <div className="text-3xl font-bold text-gray-900">{user.trust_score ?? 0}</div>
-              <div className="text-sm text-gray-400 mb-1">/ 100</div>
+              <div className="text-sm text-gray-500 mb-1">/ 100</div>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
               <div
@@ -1061,7 +1061,7 @@ export default function ProfilePage() {
                             {doc.issuer && <> • {doc.issuer}</>}
                           </div>
                           {doc.issued_date && (
-                            <div className="text-xs text-gray-400 mt-0.5">
+                            <div className="text-xs text-gray-500 mt-0.5">
                               ออกเมื่อ: {new Date(doc.issued_date).toLocaleDateString('th-TH')}
                               {doc.expiry_date && <> • หมดอายุ: {new Date(doc.expiry_date).toLocaleDateString('th-TH')}</>}
                             </div>
@@ -1126,7 +1126,7 @@ export default function ProfilePage() {
                           <span className="text-xs text-gray-500 ml-1">{review.rating}/5</span>
                         </div>
                         {review.comment && <p className="text-sm text-gray-700 mt-1">{review.comment}</p>}
-                        <div className="text-xs text-gray-400 mt-1.5">
+                        <div className="text-xs text-gray-500 mt-1.5">
                           {review.reviewer_name && <span>{review.reviewer_name} · </span>}
                           {new Date(review.created_at).toLocaleDateString('th-TH')}
                         </div>
@@ -1202,7 +1202,7 @@ export default function ProfilePage() {
                       <Button variant="primary" loading={emailOtpLoading} onClick={handleVerifyEmailOtp}>
                         ยืนยันอีเมล
                       </Button>
-                      <p className={`text-xs text-center ${emailOtpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-400'}`}>
+                      <p className={`text-xs text-center ${emailOtpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
                         {emailOtpSecondsLeft > 0
                           ? `รหัสหมดอายุใน ${Math.floor(emailOtpSecondsLeft / 60)}:${String(emailOtpSecondsLeft % 60).padStart(2, '0')} นาที`
                           : 'รหัส OTP หมดอายุแล้ว'}

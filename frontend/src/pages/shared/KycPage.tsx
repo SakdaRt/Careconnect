@@ -282,7 +282,7 @@ export default function KycPage() {
                     ) : (
                       <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
                     )}
-                    <span className={`text-sm ${i <= processingStep ? 'text-gray-900' : 'text-gray-400'}`}>{label}</span>
+                    <span className={`text-sm ${i <= processingStep ? 'text-gray-900' : 'text-gray-600'}`}>{label}</span>
                   </div>
                 ))}
               </div>

@@ -351,7 +351,7 @@ export default function GuestRegisterPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2 text-center">
+              <label htmlFor="otp-0" className="block text-sm font-semibold text-gray-700 mb-2 text-center">
                 OTP Code <span className="text-red-500">*</span>
               </label>
               <OTPInput
@@ -381,7 +381,7 @@ export default function GuestRegisterPage() {
               </button>
             </div>
 
-            <p className={`text-xs text-center ${otpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-400'}`}>
+            <p className={`text-xs text-center ${otpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
               {otpSecondsLeft > 0
                 ? `รหัสหมดอายุใน ${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, '0')} นาที`
                 : 'รหัส OTP หมดอายุแล้ว'}

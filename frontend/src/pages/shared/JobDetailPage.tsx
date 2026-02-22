@@ -497,9 +497,9 @@ export default function JobDetailPage() {
               <div className="mt-4">
                 <div className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">เอกสารรับรองความสามารถ</div>
                 {docsLoading ? (
-                  <div className="text-xs text-gray-400 py-2">กำลังโหลด...</div>
+                  <div className="text-xs text-gray-500 py-2">กำลังโหลด...</div>
                 ) : caregiverDocs.length === 0 ? (
-                  <div className="text-xs text-gray-400 py-2">ผู้ดูแลยังไม่ได้อัปโหลดเอกสารรับรอง</div>
+                  <div className="text-xs text-gray-500 py-2">ผู้ดูแลยังไม่ได้อัปโหลดเอกสารรับรอง</div>
                 ) : (
                   <div className="space-y-2">
                     {caregiverDocs.map((doc) => (
@@ -624,7 +624,7 @@ export default function JobDetailPage() {
                 <Button variant="outline" loading={actionLoading} onClick={handleOpenDispute} className="border-orange-300 text-orange-700 hover:bg-orange-50">
                   เปิดข้อพิพาท
                 </Button>
-                <p className="text-xs text-gray-400 mt-1">การเปิดข้อพิพาทจะแจ้งให้ทุกฝ่ายทราบและแอดมินจะเข้ามาตรวจสอบ</p>
+                <p className="text-xs text-gray-500 mt-1">การเปิดข้อพิพาทจะแจ้งให้ทุกฝ่ายทราบและแอดมินจะเข้ามาตรวจสอบ</p>
               </div>
             )}
           </Card>

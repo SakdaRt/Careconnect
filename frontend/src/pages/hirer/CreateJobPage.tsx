@@ -1404,7 +1404,7 @@ export default function CreateJobPage() {
                       onClick={() => setCurrentStep(step.id)}
                       className={cn(
                         'text-left border rounded-lg px-3 py-2 transition-colors',
-                        isActive ? 'border-blue-500 bg-blue-100' : isDone ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-white text-gray-400',
+                        isActive ? 'border-blue-500 bg-blue-100' : isDone ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-white text-gray-600',
                         !canJump && 'cursor-not-allowed'
                       )}
                     >
@@ -1504,7 +1504,7 @@ export default function CreateJobPage() {
                         {SPECIALIZED_TYPE_DIFFERENCE_HINT[form.detailed_job_type]}
                       </div>
                     )}
-                    <div className="text-xs text-gray-400">หมวดงานหลัก: {JOB_TYPE_LABEL[currentDetailedTemplate.jobType]}</div>
+                    <div className="text-xs text-gray-500">หมวดงานหลัก: {JOB_TYPE_LABEL[currentDetailedTemplate.jobType]}</div>
                   </div>
                 </Card>
 
