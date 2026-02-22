@@ -276,10 +276,11 @@ export function TopBar() {
                     {/* Menu Items */}
                     <Link
                       to="/profile"
-                      className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                      role="menuitem"
+                      className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
                       onClick={() => setShowMenu(false)}
                     >
-                      <User className="w-5 h-5" />
+                      <User className="w-5 h-5" aria-hidden="true" />
                       <span>โปรไฟล์</span>
                     </Link>
 
@@ -287,18 +288,20 @@ export function TopBar() {
                       <>
                         <Link
                           to="/hirer/care-recipients"
-                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
+                          role="menuitem"
                           onClick={() => setShowMenu(false)}
                         >
-                          <Users className="w-5 h-5" />
+                          <Users className="w-5 h-5" aria-hidden="true" />
                           <span>ผู้รับการดูแล</span>
                         </Link>
                         <Link
                           to="/hirer/wallet"
-                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                          role="menuitem"
+                          className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
                           onClick={() => setShowMenu(false)}
                         >
-                          <Wallet className="w-5 h-5" />
+                          <Wallet className="w-5 h-5" aria-hidden="true" />
                           <span>กระเป๋าเงิน</span>
                         </Link>
                       </>
@@ -307,10 +310,11 @@ export function TopBar() {
                     {resolvedRole === 'caregiver' && (
                       <Link
                         to="/caregiver/wallet"
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                        role="menuitem"
+                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
                         onClick={() => setShowMenu(false)}
                       >
-                        <Wallet className="w-5 h-5" />
+                        <Wallet className="w-5 h-5" aria-hidden="true" />
                         <span>กระเป๋าเงิน</span>
                       </Link>
                     )}
@@ -318,10 +322,11 @@ export function TopBar() {
                     {resolvedRole !== 'admin' && (
                       <Link
                         to="/kyc"
-                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                        role="menuitem"
+                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
                         onClick={() => setShowMenu(false)}
                       >
-                        <ShieldCheck className="w-5 h-5" />
+                        <ShieldCheck className="w-5 h-5" aria-hidden="true" />
                         <div className="flex items-center gap-2">
                           <span>ยืนยันตัวตน</span>
                           {["L0", "L1"].includes(user.trust_level || "L0") && (
@@ -337,19 +342,21 @@ export function TopBar() {
                       <button
                         onClick={handleSwitchRole}
                         disabled={switchingRole}
+                        role="menuitem"
                         className="w-full flex items-center gap-3 px-4 py-3 text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-50 focus:outline-none focus:bg-blue-50"
                       >
-                        <ArrowLeftRight className="w-5 h-5" />
+                        <ArrowLeftRight className="w-5 h-5" aria-hidden="true" />
                         <span>{switchingRole ? 'กำลังเปลี่ยน...' : `เปลี่ยนเป็น${targetRoleLabel}`}</span>
                       </button>
                     )}
 
                     <Link
                       to="/settings"
-                      className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors"
+                      role="menuitem"
+                      className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
                       onClick={() => setShowMenu(false)}
                     >
-                      <Settings className="w-5 h-5" />
+                      <Settings className="w-5 h-5" aria-hidden="true" />
                       <span>ตั้งค่า / ช่วยเหลือ</span>
                     </Link>
 
@@ -360,7 +367,8 @@ export function TopBar() {
                         setShowMenu(false);
                         logout();
                       }}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors"
+                      role="menuitem"
+                      className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:bg-red-50"
                     >
                       <LogOut className="w-5 h-5" />
                       <span>ออกจากระบบ</span>

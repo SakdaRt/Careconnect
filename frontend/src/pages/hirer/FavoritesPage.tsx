@@ -219,9 +219,9 @@ export default function FavoritesPage() {
           <LoadingState message="กำลังโหลด..." />
         ) : favorites.length === 0 ? (
           <Card className="text-center py-12">
-            <Heart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <Heart className="w-12 h-12 text-gray-300 mx-auto mb-3" aria-hidden="true" />
             <p className="text-gray-500">ยังไม่มีผู้ดูแลในรายการโปรด</p>
-            <p className="text-sm text-gray-400 mt-1">กดหัวใจที่หน้าค้นหาผู้ดูแลเพื่อเพิ่ม</p>
+            <p className="text-sm text-gray-500 mt-1">กดหัวใจที่หน้าค้นหาผู้ดูแลเพื่อเพิ่ม</p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -272,10 +272,10 @@ export default function FavoritesPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveFavorite(fav.caregiver_id)}
-                      className="p-2 rounded-full hover:bg-red-50 transition-colors"
-                      title="ลบออกจากรายการโปรด"
+                      aria-label="ลบออกจากรายการโปรด"
+                      className="p-2 rounded-full hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
                     >
-                      <Heart className="w-5 h-5 fill-red-500 text-red-500" />
+                      <Heart className="w-5 h-5 fill-red-500 text-red-500" aria-hidden="true" />
                     </button>
                     <Button variant="outline" size="sm" onClick={() => handleOpenDetails(fav)}>
                       ดูรายละเอียด

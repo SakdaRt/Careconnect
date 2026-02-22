@@ -664,10 +664,11 @@ export default function SearchCaregiversPage() {
                     <button
                       type="button"
                       onClick={() => handleToggleFavorite(cg.id)}
-                      className="p-2 rounded-full hover:bg-red-50 transition-colors"
-                      title={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+                      aria-label={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+                      aria-pressed={favoritedIds.has(cg.id)}
+                      className="p-2 rounded-full hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
                     >
-                      <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                      <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden="true" />
                     </button>
                     <Link to={`/hirer/caregiver/${cg.id}`}>
                       <Button variant="outline" size="sm">ดูโปรไฟล์</Button>

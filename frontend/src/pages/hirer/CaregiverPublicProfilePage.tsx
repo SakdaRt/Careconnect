@@ -210,10 +210,11 @@ export default function CaregiverPublicProfilePage() {
             <button
               onClick={handleToggleFavorite}
               disabled={togglingFav}
-              className="p-2 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50"
-              title={favorited ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+              aria-label={favorited ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+              aria-pressed={favorited}
+              className="p-2 rounded-full hover:bg-red-50 transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-red-400"
             >
-              <Heart className={`w-6 h-6 ${favorited ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+              <Heart className={`w-6 h-6 ${favorited ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden="true" />
             </button>
           </div>
 

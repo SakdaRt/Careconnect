@@ -75,13 +75,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               key={item.path}
               to={item.path}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-colors',
+                'flex items-center gap-3 px-4 py-3 rounded-lg mb-1 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-1 focus:ring-offset-gray-900',
                 isActive(item.path)
                   ? 'bg-blue-600 text-white'
                   : 'text-gray-300 hover:bg-gray-800 hover:text-white'
               )}
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
+              <item.icon className="w-5 h-5 flex-shrink-0" aria-hidden="true" />
               {sidebarOpen && <span>{item.label}</span>}
             </Link>
           ))}
@@ -96,9 +96,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             </div>
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-800 hover:text-white rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <LogOut className="w-5 h-5" />
+              <LogOut className="w-5 h-5" aria-hidden="true" />
               <span>ออกจากระบบ</span>
             </button>
           </div>
