@@ -143,6 +143,20 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-22 — จัดระเบียบเอกสาร AI Context
+- chore(docs): ลบไฟล์ .md ที่ซ้ำซ้อน 12 ไฟล์ (ARCHITECTURE, FLOW_DOCUMENTATION, PROJECT_OVERVIEW, UX_FLOW_ANALYSIS, DEPLOYMENT, DOCKER, RUNBOOK, DEMO_SCRIPT, DELIVERY_CHECKLIST, TEST_PLAN, UI_AUDIT_REPORT, REPORT_OUTLINE)
+- chore(docs): อัพเดท .windsurfrules — บังคับ auto-update SYSTEM.md พร้อม PROGRESS.md ทุกครั้ง
+- chore(docs): อัพเดท workflow update-progress.md — รวม SYSTEM.md update เข้าด้วย
+- เหลือเอกสารหลัก 2 ไฟล์: PROGRESS.md (ความคืบหน้า) + SYSTEM.md (source of truth)
+
+### 2026-02-22 — สร้าง AI Context System
+- chore(docs): สร้าง .windsurfrules — กฎถาวรสำหรับ AI ทุก session
+- chore(docs): สร้าง PROGRESS.md — บันทึกความคืบหน้าโปรเจค
+- chore(docs): สร้าง SYSTEM.md — ERD, UML, API routes, sequence diagrams, page map
+- chore(docs): สร้าง .windsurf/workflows/ — commit, update-progress, new-feature workflows
+
+
+
 ### 2026-02-22 — UI/UX Audit Round 2
 - fix(contrast): text-gray-400 → text-gray-500/600 ทุกหน้า
 - fix(forms): OTP label htmlFor ใน GuestRegisterPage + MemberRegisterPage

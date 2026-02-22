@@ -39,7 +39,18 @@
 - ทุก interactive element ต้องมี focus ring
 - ห้ามใช้ `text-gray-400` สำหรับ readable text (ใช้ `text-gray-500` ขึ้นไป)
 
-## หลังทำงานเสร็จทุกครั้ง
-1. อัพเดท `PROGRESS.md` — บันทึกสิ่งที่ทำ, ไฟล์ที่แก้, สิ่งที่ยังค้างอยู่
-2. Commit และ push ขึ้น main
-3. แจ้ง user สรุปสั้นๆ ว่าทำอะไรไปบ้าง
+## หลังทำงานเสร็จทุกครั้ง (บังคับ ไม่ต้องรอ user สั่ง)
+1. อัพเดท `PROGRESS.md` — Git Log, TODO tick, วันที่
+2. อัพเดท `SYSTEM.md` — ถ้ามีการเปลี่ยนแปลง schema, API routes, flow, หรือ architecture
+   - เพิ่ม table ใหม่ใน ERD
+   - เพิ่ม/แก้ API route
+   - เพิ่ม sequence diagram ถ้ามี flow ใหม่
+   - อัพเดท page map ถ้ามีหน้าใหม่
+3. Commit และ push ขึ้น main
+4. แจ้ง user สรุปสั้นๆ ว่าทำอะไรไปบ้าง
+
+## ไฟล์เอกสารที่มีในโปรเจค (ห้ามสร้างไฟล์ .md ใหม่โดยไม่จำเป็น)
+- `PROGRESS.md` — ความคืบหน้า, TODO, git log
+- `SYSTEM.md` — architecture, ERD, UML, API routes, page map (source of truth)
+- `.windsurfrules` — กฎ AI (ไฟล์นี้)
+- `backend/MIGRATIONS.md` — migration history
