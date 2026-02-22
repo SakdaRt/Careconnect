@@ -214,7 +214,7 @@ export default function AdminUsersPage() {
               <Button variant="primary" size="sm" onClick={() => { setPage(1); load(); }}>ค้นหา</Button>
               <Button variant="outline" size="sm" onClick={() => { setQ(''); setRegType('all'); setStatus('all'); setPage(1); }}>ล้าง</Button>
               <Button variant="outline" size="sm" onClick={load}>↺</Button>
-              {total > 0 && <span className="text-xs text-gray-400 pb-0.5">พบ {total.toLocaleString()} คน</span>}
+              {total > 0 && <span className="text-xs text-gray-500 pb-0.5">พบ {total.toLocaleString()} คน</span>}
             </div>
           </div>
         </Card>
@@ -353,11 +353,11 @@ export default function AdminUsersPage() {
               <Card className="p-4">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">กระเป๋าเงิน</div>
                 {walletLoading ? <LoadingState message="กำลังโหลด..." /> : !walletData ? (
-                  <div className="text-xs text-gray-400">ไม่พบข้อมูล</div>
+                  <div className="text-xs text-gray-500">ไม่พบข้อมูล</div>
                 ) : (
                   <div className="space-y-3">
                     {walletData.wallets.length === 0 ? (
-                      <div className="text-xs text-gray-400">ไม่มีกระเป๋าเงิน</div>
+                      <div className="text-xs text-gray-500">ไม่มีกระเป๋าเงิน</div>
                     ) : (
                       <div className="grid grid-cols-1 gap-2">
                         {walletData.wallets.map((w: any) => (
@@ -473,7 +473,7 @@ export default function AdminUsersPage() {
                 </Card>
               ) : (
                 <Card className="p-4">
-                  <div className="text-xs text-gray-400 text-center py-2">ไม่สามารถแบนบัญชี admin ได้</div>
+                  <div className="text-xs text-gray-500 text-center py-2">ไม่สามารถแบนบัญชี admin ได้</div>
                 </Card>
               )}
             </div>
