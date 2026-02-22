@@ -10,7 +10,8 @@
 - โปรเจคอยู่ที่: `c:\Users\SR\Desktop\careconnect`
 - Frontend: `frontend/` — React + TypeScript + Tailwind CSS + Vite
 - Backend: `backend/` — Node.js + Express + PostgreSQL
-- ดู `PROGRESS.md` ก่อนเริ่มทำงานทุกครั้ง เพื่อเข้าใจสถานะปัจจุบัน
+- **อ่าน `PROGRESS.md` ก่อนเริ่มทำงานทุกครั้ง** — สถานะปัจจุบัน, TODO, git log
+- **อ่าน `SYSTEM.md`** เมื่อต้องการเข้าใจ architecture, database schema, UML, API routes
 
 ## Stack ที่ใช้
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, react-hot-toast, Lucide icons
