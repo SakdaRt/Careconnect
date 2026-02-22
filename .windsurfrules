@@ -8,16 +8,34 @@
 
 ## บริบทโปรเจค
 - โปรเจคอยู่ที่: `c:\Users\SR\Desktop\careconnect`
-- Frontend: `frontend/` — React + TypeScript + Tailwind CSS + Vite
+- Frontend: `frontend/` — React 18 + TypeScript + Tailwind CSS + Vite
 - Backend: `backend/` — Node.js + Express + PostgreSQL
+- Database Schema: `database/schema.sql` (25+ tables, 1111 lines)
 - **อ่าน `PROGRESS.md` ก่อนเริ่มทำงานทุกครั้ง** — สถานะปัจจุบัน, TODO, git log
 - **อ่าน `SYSTEM.md`** เมื่อต้องการเข้าใจ architecture, database schema, UML, API routes
 
 ## Stack ที่ใช้
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, react-hot-toast, Lucide icons
-- **Backend**: Node.js, Express, PostgreSQL (pg), Joi validation, JWT auth
-- **Auth**: JWT + Refresh token, Google OAuth, Phone OTP
+- **Backend**: Node.js (ESM), Express, PostgreSQL (pg), Joi validation, JWT auth, Socket.IO
+- **Auth**: JWT + Refresh token, Google OAuth, Email OTP, Phone OTP
 - **Docker**: docker-compose.yml (dev), docker-compose.prod.yml (prod)
+- **Testing**: Jest (backend), Playwright (planned)
+
+## Naming Conventions
+- **Frontend files**: PascalCase สำหรับ pages/components (e.g., `HirerHomePage.tsx`)
+- **Backend files**: camelCase สำหรับ routes/controllers/services (e.g., `jobRoutes.js`, `authController.js`)
+- **Database**: snake_case สำหรับ tables/columns (e.g., `job_posts`, `hirer_id`)
+- **API routes**: kebab-case สำหรับ paths (e.g., `/api/care-recipients`, `/api/caregiver-documents`)
+- **Commit**: `type(scope): description` — e.g., `feat(wallet): เพิ่ม bank account management`
+
+## Project Structure (สำคัญ)
+- **Job system ใช้ 2 tables**: `job_posts` (ประกาศ/draft) + `jobs` (instance จริง)
+- **Auth routes อยู่ที่** `/api/auth/*` (ไม่ใช่ `/api/users/*`)
+- **Profile อยู่ที่** `/api/auth/profile` (ไม่แยก routes)
+- **OTP แยก routes**: `/api/otp/email/send`, `/api/otp/phone/send`, `/api/otp/verify`
+- **Chat เป็น thread-based**: `/api/chat/threads/:threadId/*`
+- **Wallet mount ที่** `/api/wallet/*` (รวม bank-accounts, topup, withdraw)
+- **Reviews + Favorites** mount ที่ `/api/reviews/*` และ `/api/favorites/*`
 
 ## กฎการเขียนโค้ด
 - ห้ามเพิ่ม/ลบ comment โดยไม่ได้รับคำสั่ง
@@ -26,11 +44,15 @@
 - ใช้ `cn()` สำหรับ conditional classes
 - Component ใหม่ต้องมี TypeScript types ครบ
 - ห้าม hardcode ค่า secret หรือ API key
+- Backend ใช้ ESM (`import/export`) ไม่ใช่ CommonJS
+- Backend routes ทุกอันใช้ `requireAuth` + `requirePolicy()` middleware
+- Validation ใช้ Joi schemas (อยู่ใน route files หรือ `utils/validation.js`)
+- Error handling: ใช้ custom error classes จาก `utils/errors.js`
 
 ## กฎ Git
 - Commit message format: `type(scope): description` (ภาษาไทยได้)
-- Types: `feat`, `fix`, `refactor`, `style`, `docs`, `chore`
-- ทุกครั้งที่ทำงานเสร็จ ให้ commit + push ทันที
+- Types: `feat`, `fix`, `refactor`, `style`, `docs`, `chore`, `test`
+- ทุกครั้งที่ทำงานเสร็จ ให้ commit (ไม่ต้อง push อัตโนมัติ — user จะ push เอง)
 - Branch หลัก: `main`
 
 ## กฎ Accessibility (WCAG 2.1 AA)
@@ -39,14 +61,22 @@
 - ทุก interactive element ต้องมี focus ring
 - ห้ามใช้ `text-gray-400` สำหรับ readable text (ใช้ `text-gray-500` ขึ้นไป)
 
+## Verification Checklist (ตรวจก่อน commit)
+- [ ] ไม่มี TypeScript errors (`tsc --noEmit`)
+- [ ] ไม่มี hardcoded secrets
+- [ ] ทุก API endpoint มี auth middleware
+- [ ] ทุก body/query/params มี Joi validation
+- [ ] Frontend routes มี guards ตาม role
+- [ ] เพิ่ม migration file ถ้าแก้ DB schema
+
 ## หลังทำงานเสร็จทุกครั้ง (บังคับ ไม่ต้องรอ user สั่ง)
 1. อัพเดท `PROGRESS.md` — Git Log, TODO tick, วันที่
 2. อัพเดท `SYSTEM.md` — ถ้ามีการเปลี่ยนแปลง schema, API routes, flow, หรือ architecture
-   - เพิ่ม table ใหม่ใน ERD
-   - เพิ่ม/แก้ API route
-   - เพิ่ม sequence diagram ถ้ามี flow ใหม่
-   - อัพเดท page map ถ้ามีหน้าใหม่
-3. Commit และ push ขึ้น main
+   - เพิ่ม table ใหม่ใน ERD (section 5)
+   - เพิ่ม/แก้ API route (section 7)
+   - เพิ่ม sequence diagram ถ้ามี flow ใหม่ (section 6)
+   - อัพเดท page map ถ้ามีหน้าใหม่ (section 8)
+3. Commit ด้วย format ที่ถูกต้อง
 4. แจ้ง user สรุปสั้นๆ ว่าทำอะไรไปบ้าง
 
 ## ไฟล์เอกสารที่มีในโปรเจค (ห้ามสร้างไฟล์ .md ใหม่โดยไม่จำเป็น)
@@ -54,3 +84,4 @@
 - `SYSTEM.md` — architecture, ERD, UML, API routes, page map (source of truth)
 - `.windsurfrules` — กฎ AI (ไฟล์นี้)
 - `backend/MIGRATIONS.md` — migration history
+- `database/schema.sql` — master schema (25+ tables)

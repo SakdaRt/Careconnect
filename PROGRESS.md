@@ -33,13 +33,15 @@ careconnect/
 │   └── database/
 │       ├── schema.sql
 │       └── migrations/
+├── database/
+│   └── schema.sql             master schema (25+ tables, 1111 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
 ├── docker-compose.prod.yml    (production — ไม่มี dev tools)
-├── PROGRESS.md        (ไฟล์นี้)
-├── ARCHITECTURE.md    (รายละเอียด architecture)
-└── UI_AUDIT_REPORT.md (รายงาน UI/UX audit)
+├── PROGRESS.md        (ไฟล์นี้ — ความคืบหน้า)
+├── SYSTEM.md          (source of truth — ERD, API, UML, page map)
+└── .windsurfrules     (กฎ AI)
 ```
 
 ---
@@ -137,11 +139,22 @@ careconnect/
 | `backend/src/services/authService.js` | Register, login, token logic |
 | `backend/src/services/jobService.js` | Job business logic |
 | `backend/src/models/Notification.js` | Notification model |
-| `backend/database/schema.sql` | Database schema |
+| `database/schema.sql` | Master DB schema (25+ tables) |
+| `backend/database/migrations/` | Migration files |
 
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-02-22 — Rewrite SYSTEM.md + ปรับ .windsurfrules
+- docs(system): Rewrite SYSTEM.md ทั้งหมดให้ตรงกับ codebase จริง
+  - ERD: แก้จาก 1 table (jobs) เป็น 2 tables (job_posts + jobs), เพิ่ม 15+ tables ที่ขาด
+  - API: แก้ routes ผิดทั้งหมด, เพิ่ม 8 route groups ที่ขาด (OTP, caregivers, care-recipients, documents, reviews, favorites, payments, webhooks)
+  - Page map: แก้ routes ผิด, เพิ่ม 20+ routes ที่ขาด
+  - Sequence diagrams: เพิ่ม Guest email registration, Email/Phone OTP, Top-up, Dispute flows
+  - แก้ checkin/checkout param name (`:id` → `:jobId`)
+- docs(rules): ปรับ .windsurfrules เพิ่ม naming conventions, project structure, verification checklist
+- ไฟล์ที่แก้: SYSTEM.md, .windsurfrules, PROGRESS.md
 
 ### 2026-02-22 — จัดระเบียบเอกสาร AI Context
 - chore(docs): ลบไฟล์ .md ที่ซ้ำซ้อน 12 ไฟล์ (ARCHITECTURE, FLOW_DOCUMENTATION, PROJECT_OVERVIEW, UX_FLOW_ANALYSIS, DEPLOYMENT, DOCKER, RUNBOOK, DEMO_SCRIPT, DELIVERY_CHECKLIST, TEST_PLAN, UI_AUDIT_REPORT, REPORT_OUTLINE)

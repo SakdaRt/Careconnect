@@ -9,6 +9,4 @@ description: Commit และ push งานขึ้น main
 2. `git add -A`
 // turbo
 3. `git commit -m "type(scope): description"` — ใช้ format ตาม .windsurfrules
-// turbo
-4. `git push origin main`
-5. อัพเดท PROGRESS.md ตาม workflow `update-progress`
+4. อัพเดท PROGRESS.md ตาม workflow `update-progress`
