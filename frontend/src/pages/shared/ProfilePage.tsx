@@ -1073,17 +1073,17 @@ export default function ProfilePage() {
                             href={`/uploads/${doc.file_path}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="p-1.5 text-gray-400 hover:text-blue-600 rounded"
-                            title="ดูเอกสาร"
+                            className="p-1.5 text-gray-400 hover:text-blue-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            aria-label="ดูเอกสาร"
                           >
-                            <ExternalLink className="w-4 h-4" />
+                            <ExternalLink className="w-4 h-4" aria-hidden="true" />
                           </a>
                           <button
                             onClick={() => handleCertDelete(doc.id)}
-                            className="p-1.5 text-gray-400 hover:text-red-600 rounded"
-                            title="ลบเอกสาร"
+                            className="p-1.5 text-gray-400 hover:text-red-600 rounded focus:outline-none focus:ring-2 focus:ring-red-400"
+                            aria-label="ลบเอกสาร"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="w-4 h-4" aria-hidden="true" />
                           </button>
                         </div>
                       </div>
