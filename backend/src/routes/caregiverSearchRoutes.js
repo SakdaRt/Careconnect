@@ -7,6 +7,7 @@ import {
   validateBody,
   commonSchemas,
 } from "../utils/validation.js";
+import { notifyJobAssigned } from "../services/notificationService.js";
 
 const router = express.Router();
 
@@ -350,6 +351,23 @@ router.post(
             [uuidv4(), job.job_id, job_post_id, caregiver_id],
           );
         }
+      }
+
+      // Fetch job title and hirer name for notification
+      try {
+        const jobInfoResult = await query(
+          `SELECT jp.title, hp.display_name as hirer_name
+           FROM job_posts jp
+           LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
+           WHERE jp.id = $1`,
+          [job_post_id],
+        );
+        const jobInfo = jobInfoResult.rows[0];
+        const jobTitle = jobInfo?.title || 'งาน';
+        const hirerName = jobInfo?.hirer_name || 'ผู้ว่าจ้าง';
+        notifyJobAssigned(caregiver_id, jobTitle, hirerName, job_post_id).catch(() => {});
+      } catch (notifErr) {
+        console.error('[Caregiver Assign] Notification error:', notifErr.message);
       }
 
       res.json({ success: true, message: "มอบหมายผู้ดูแลสำเร็จ" });

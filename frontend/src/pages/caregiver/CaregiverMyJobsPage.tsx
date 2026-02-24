@@ -373,10 +373,10 @@ export default function CaregiverMyJobsPage() {
   };
 
   const filters: { key: Filter; label: string }[] = [
-    { key: 'all', label: 'งานทั้งหมด' },
     { key: 'offers', label: 'รอตอบรับ' },
-    { key: 'upcoming', label: 'รอเริ่มงาน' },
     { key: 'in_progress', label: 'กำลังทำ' },
+    { key: 'all', label: 'งานทั้งหมด' },
+    { key: 'upcoming', label: 'รอเริ่มงาน' },
     { key: 'completed', label: 'เสร็จสิ้น' },
     { key: 'cancelled', label: 'ยกเลิก' },
   ];

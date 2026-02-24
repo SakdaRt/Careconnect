@@ -144,6 +144,21 @@ export const notifyCheckOut = async (hirerId, jobTitle, caregiverName, jobId) =>
 };
 
 /**
+ * Notify caregiver when a hirer directly assigns a job to them
+ */
+export const notifyJobAssigned = async (caregiverId, jobTitle, hirerName, jobPostId) => {
+  return await createNotification({
+    userId: caregiverId,
+    templateKey: 'job_assigned',
+    title: 'มีงานมอบหมายมาให้คุณ',
+    body: `${hirerName || 'ผู้ว่าจ้าง'} มอบหมายงาน "${jobTitle}" ให้คุณ กรุณาตอบรับหรือปฏิเสธ`,
+    data: { jobPostId, hirerName },
+    referenceType: 'job',
+    referenceId: jobPostId,
+  });
+};
+
+/**
  * Notify caregiver when job is cancelled
  */
 export const notifyJobCancelled = async (caregiverId, jobTitle, jobId, reason) => {

@@ -14,7 +14,18 @@ export interface ReasonModalProps {
   variant?: 'danger' | 'warning' | 'info' | 'primary';
   loading?: boolean;
   minLength?: number;
+  presetReasons?: string[];
+  requireReason?: boolean;
 }
+
+const DEFAULT_CANCEL_REASONS = [
+  'ติดธุระฉุกเฉิน ไม่สามารถมาได้',
+  'ผู้รับการดูแลอาการดีขึ้น ไม่ต้องการบริการแล้ว',
+  'เปลี่ยนวันนัดหมาย',
+  'ได้รับการดูแลจากแหล่งอื่นแล้ว',
+  'ปัญหาด้านงบประมาณ',
+  'อื่น ๆ',
+];
 
 export function ReasonModal({
   isOpen,
@@ -22,16 +33,30 @@ export function ReasonModal({
   onConfirm,
   title,
   description,
-  placeholder = 'กรุณาอธิบายเหตุผล...',
+  placeholder = 'รายละเอียดเพิ่มเติม (ถ้ามี)...',
   confirmText = 'ยืนยัน',
   cancelText = 'กลับไป',
   variant = 'info',
   loading = false,
-  minLength = 10,
+  minLength,
+  presetReasons,
+  requireReason = false,
 }: ReasonModalProps) {
-  const [reason, setReason] = useState('');
-  const trimmed = reason.trim();
-  const isValid = trimmed.length >= minLength;
+  const [selected, setSelected] = useState<string>('');
+  const [detail, setDetail] = useState('');
+
+  const presets = presetReasons ?? DEFAULT_CANCEL_REASONS;
+  const isPresetMode = presets.length > 0;
+
+  const combinedReason = selected
+    ? detail.trim() ? `${selected}: ${detail.trim()}` : selected
+    : detail.trim();
+
+  const isValid = isPresetMode
+    ? selected !== ''
+    : requireReason
+      ? combinedReason.length >= (minLength ?? 1)
+      : true;
 
   const variantStyles = {
     danger: 'bg-red-600 hover:bg-red-700',
@@ -40,16 +65,25 @@ export function ReasonModal({
     primary: 'bg-blue-600 hover:bg-blue-700',
   };
 
+  const selectedBorder = {
+    danger: 'border-red-500 bg-red-50 text-red-700',
+    warning: 'border-orange-500 bg-orange-50 text-orange-700',
+    info: 'border-blue-500 bg-blue-50 text-blue-700',
+    primary: 'border-blue-500 bg-blue-50 text-blue-700',
+  };
+
   const handleClose = () => {
     if (loading) return;
-    setReason('');
+    setSelected('');
+    setDetail('');
     onClose();
   };
 
   const handleConfirm = () => {
     if (!isValid || loading) return;
-    onConfirm(trimmed);
-    setReason('');
+    onConfirm(combinedReason || title);
+    setSelected('');
+    setDetail('');
   };
 
   return (
@@ -80,28 +114,50 @@ export function ReasonModal({
         </div>
       }
     >
-      <div className="flex flex-col gap-2">
-        {description && <p className="text-sm text-gray-600 mb-1">{description}</p>}
-        <label className="text-sm font-semibold text-gray-700">เหตุผล</label>
-        <textarea
-          className={cn(
-            'w-full px-4 py-2 border rounded-lg transition-colors',
-            'focus:outline-none focus:ring-2 focus:border-transparent min-h-28',
-            variant === 'danger' ? 'focus:ring-red-500' : 'focus:ring-blue-500',
-            'border-gray-300 hover:border-gray-400'
-          )}
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          placeholder={placeholder}
-          disabled={loading}
-        />
-        <div className="flex items-center justify-between">
-          <span className={cn('text-xs', isValid ? 'text-green-600' : 'text-gray-400')}>
-            {trimmed.length}/{minLength} ตัวอักษรขั้นต่ำ
-          </span>
-          {!isValid && trimmed.length > 0 && (
-            <span className="text-xs text-amber-600">กรุณาอธิบายเพิ่มเติม</span>
-          )}
+      <div className="flex flex-col gap-3">
+        {description && <p className="text-sm text-gray-600">{description}</p>}
+
+        {isPresetMode && (
+          <div>
+            <p className="text-sm font-semibold text-gray-700 mb-2">เลือกเหตุผล <span className="text-red-500">*</span></p>
+            <div className="flex flex-col gap-1.5">
+              {presets.map((reason) => (
+                <button
+                  key={reason}
+                  type="button"
+                  disabled={loading}
+                  onClick={() => setSelected(reason)}
+                  className={cn(
+                    'w-full text-left px-3 py-2 rounded-lg border text-sm transition-colors',
+                    selected === reason
+                      ? selectedBorder[variant]
+                      : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'
+                  )}
+                >
+                  {selected === reason && <span className="mr-1.5">✓</span>}
+                  {reason}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div>
+          <label className="text-sm font-medium text-gray-600 mb-1 block">
+            รายละเอียดเพิ่มเติม <span className="text-gray-400 font-normal">(ไม่บังคับ)</span>
+          </label>
+          <textarea
+            className={cn(
+              'w-full px-3 py-2 border rounded-lg transition-colors text-sm',
+              'focus:outline-none focus:ring-2 focus:border-transparent',
+              variant === 'danger' ? 'focus:ring-red-500' : 'focus:ring-blue-500',
+              'border-gray-300 hover:border-gray-400 min-h-20 resize-none'
+            )}
+            value={detail}
+            onChange={(e) => setDetail(e.target.value)}
+            placeholder={placeholder}
+            disabled={loading}
+          />
         </div>
       </div>
     </Modal>

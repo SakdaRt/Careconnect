@@ -59,10 +59,14 @@ function getLifecycleBadge(status: JobLifecycleStatus): { label: string; variant
 function formatDateTimeRange(startIso: string, endIso: string) {
   const start = new Date(startIso);
   const end = new Date(endIso);
-  const date = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const startDate = start.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
+  const endDate = end.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
   const timeStart = start.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   const timeEnd = end.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  return `${date} ${timeStart} - ${timeEnd}`;
+  if (startDate === endDate) {
+    return `${startDate} ${timeStart} - ${timeEnd}`;
+  }
+  return `${startDate} ${timeStart} - ${endDate} ${timeEnd}`;
 }
 
 function formatCompactLocation(addressLine1?: string | null, district?: string | null, province?: string | null) {
@@ -137,7 +141,8 @@ function JobPostCard({
   const recipientName = useMemo(() => getRecipientName(job), [getRecipientName, job]);
   const lifecycleStatus = getLifecycleStatus(job);
   const lifecycle = getLifecycleBadge(lifecycleStatus);
-  const isAssignedToCaregiver = Boolean(job.preferred_caregiver_id) && lifecycleStatus !== 'draft';
+  const isAssignedToCaregiver = Boolean(job.preferred_caregiver_id || job.caregiver_name) && lifecycleStatus !== 'draft';
+  const assignedCaregiverName = job.caregiver_name || null;
 
   const canChat =
     Boolean(job.job_id) &&
@@ -175,17 +180,18 @@ function JobPostCard({
             </div>
           </div>
 
-          {job.caregiver_name && (job.job_status === 'assigned' || job.job_status === 'in_progress' || job.job_status === 'completed') && (
+          {(job.caregiver_name || (isAssignedToCaregiver && assignedCaregiverName)) && (
             <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg flex items-center gap-3">
               <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                 <UserIcon className="w-4 h-4 text-blue-600" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="text-sm font-medium text-gray-900">{job.caregiver_name}</div>
+                <div className="text-sm font-medium text-gray-900">{assignedCaregiverName}</div>
                 <div className="text-xs text-gray-600">
-                  {job.job_status === 'assigned' && 'รอเช็คอิน'}
+                  {job.job_status === 'assigned' && 'รับงานแล้ว รอเช็คอิน'}
                   {job.job_status === 'in_progress' && 'กำลังดูแล'}
                   {job.job_status === 'completed' && 'เสร็จสิ้น'}
+                  {!job.job_status && isAssignedToCaregiver && 'รอตอบรับ'}
                 </div>
               </div>
             </div>
@@ -593,9 +599,9 @@ export default function HirerHomePage() {
   };
 
   const filters: { key: JobStatusFilter; label: string; mobileLabel?: string }[] = [
-    { key: 'all', label: 'งานทั้งหมด' },
     { key: 'waiting_response', label: 'รอตอบรับ' },
     { key: 'in_progress', label: 'อยู่ระหว่างการดำเนินงาน', mobileLabel: 'กำลังทำ' },
+    { key: 'all', label: 'งานทั้งหมด' },
     { key: 'completed', label: 'เสร็จแล้ว' },
     { key: 'cancelled', label: 'ยกเลิก' },
   ];
@@ -776,10 +782,9 @@ export default function HirerHomePage() {
               <div className="grid grid-cols-1 sm:grid-cols-[260px_1fr] gap-3 sm:items-end">
                 <div>
                   <Select label="เลือกผู้รับการดูแล" value={selectedRecipientId} onChange={(e) => setSelectedRecipientId(e.target.value)}>
-                    <option value="">ทุกคน</option>
-                    {careRecipients.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.patient_display_name}
+                    {recipientOptions.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.label}
                       </option>
                     ))}
                   </Select>
@@ -789,7 +794,6 @@ export default function HirerHomePage() {
                 </div>
               </div>
 
-// ... rest of your code ...
               {filteredScheduleJobs.length === 0 && (
                 <div className="text-xs text-gray-500">ยังไม่มีงานสถานะมอบหมายหรือกำลังทำในมุมมองนี้</div>
               )}

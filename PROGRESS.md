@@ -159,6 +159,17 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-24 — UI/UX fixes: cancel modal, caregiver name, notification, schedule, filters, date display
+- feat(ui): ReasonModal เปลี่ยนเป็น preset-based เลือกเหตุผลยกเลิก + textarea เสริม (ไม่บังคับ)
+- feat(hirer): แสดงชื่อผู้ดูแลที่มอบหมายโดยตรงในการ์ดงาน (แม้ยังไม่มี job instance)
+- fix(backend): Job.js getHirerJobs query JOIN caregiver_profiles จาก preferred_caregiver_id ด้วย
+- feat(backend): notifyJobAssigned — ส่ง in-app notification ไปผู้ดูแลหลัง hirer assign งานโดยตรง
+- fix(hirer): แก้ Select ใน schedule modal ใช้ recipientOptions ที่ถูกต้อง (แทนที่จะ map careRecipients ตรงๆ)
+- fix(hirer): filters แถบสถานะงาน — เรียงรอตอบรับ+กำลังทำขึ้นก่อน
+- fix(caregiver): filters แถบสถานะงาน — เรียงรอตอบรับ+กำลังทำขึ้นก่อน
+- fix(hirer): formatDateTimeRange แสดงวันที่จบงานครบถ้วนเมื่อ start/end คนละวัน
+- ไฟล์ที่แก้: ReasonModal.tsx, HirerHomePage.tsx, CaregiverMyJobsPage.tsx, Job.js, notificationService.js, caregiverSearchRoutes.js
+
 ### 2026-02-22 — Google OAuth redirect fix + Forgot password feature (full stack)
 - fix(auth): แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - fix(auth): แก้ getBaseUrl + getFrontendBaseUrl ใช้ env var ใน production ก่อน fallback

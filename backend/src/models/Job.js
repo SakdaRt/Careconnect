@@ -460,7 +460,7 @@ class Job extends BaseModel {
                 j.status as job_status,
                 j.started_at,
                 j.completed_at,
-                ja.caregiver_id,
+                COALESCE(ja.caregiver_id, jp.preferred_caregiver_id) as caregiver_id,
                 cp.display_name as caregiver_name,
                 COALESCE(jpr.patient_id, jp.patient_profile_id) as patient_profile_id,
                 pp.patient_display_name
@@ -473,7 +473,7 @@ class Job extends BaseModel {
            ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
            LIMIT 1
          ) ja ON true
-         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = COALESCE(ja.caregiver_id, jp.preferred_caregiver_id)
          LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
          LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
          WHERE ${whereClause}
@@ -484,7 +484,7 @@ class Job extends BaseModel {
                 j.status as job_status,
                 j.started_at,
                 j.completed_at,
-                ja.caregiver_id,
+                COALESCE(ja.caregiver_id, jp.preferred_caregiver_id) as caregiver_id,
                 cp.display_name as caregiver_name,
                 NULL::text as patient_display_name
          FROM job_posts jp
@@ -496,7 +496,7 @@ class Job extends BaseModel {
            ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
            LIMIT 1
          ) ja ON true
-         LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+         LEFT JOIN caregiver_profiles cp ON cp.user_id = COALESCE(ja.caregiver_id, jp.preferred_caregiver_id)
          WHERE ${whereClause}
          ORDER BY jp.created_at DESC
          LIMIT $${limitParam} OFFSET $${offsetParam}`,
