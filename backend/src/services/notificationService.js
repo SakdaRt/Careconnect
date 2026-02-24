@@ -5,18 +5,39 @@ import { emitToUserRoom } from '../sockets/realtimeHub.js';
  * Create an in-app notification
  */
 export const createNotification = async ({ userId, templateKey, title, body, data, referenceType, referenceId }) => {
-  const notification = await Notification.create({
-    userId,
-    channel: 'in_app',
-    templateKey,
-    title,
-    body,
-    data,
-    referenceType,
-    referenceId,
+  let notification = null;
+  try {
+    notification = await Notification.create({
+      userId,
+      channel: 'in_app',
+      templateKey,
+      title,
+      body,
+      data,
+      referenceType,
+      referenceId,
+    });
+  } catch (dbErr) {
+    console.error('[Notification] DB save failed, falling back to socket-only:', dbErr.message);
+  }
+
+  // Always emit to socket so real-time toast still shows even if DB is slow/failed
+  emitToUserRoom(userId, 'notification:new', {
+    notification: notification ?? {
+      id: null,
+      user_id: userId,
+      channel: 'in_app',
+      template_key: templateKey,
+      title,
+      body,
+      data: data ?? null,
+      reference_type: referenceType ?? null,
+      reference_id: referenceId ?? null,
+      status: 'sent',
+      created_at: new Date().toISOString(),
+    },
   });
 
-  emitToUserRoom(userId, 'notification:new', { notification });
   return notification;
 };
 

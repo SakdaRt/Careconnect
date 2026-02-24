@@ -8,7 +8,7 @@ import { api, AppNotification } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { getScopedStorageItem, setScopedStorageItem } from '../../utils/authStorage';
 
-const UNREAD_POLL_INTERVAL_MS = 60_000;
+const UNREAD_POLL_INTERVAL_MS = 15_000;
 
 function maskEmail(email: string): string {
   const [local, domain] = email.split("@");
@@ -108,8 +108,12 @@ export function TopBar() {
     const socketUrl = env.VITE_SOCKET_URL || window.location.origin;
 
     const socket: Socket = io(socketUrl, {
-      transports: ['websocket'],
+      transports: ['websocket', 'polling'],
       auth: { token },
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 10000,
     });
 
     const onNotification = (payload: { notification?: AppNotification }) => {
@@ -132,7 +136,6 @@ export function TopBar() {
         setUnreadCount((count) => count + 1);
       }
 
-      // Keep badge authoritative with backend count in case any event was missed.
       fetchUnread();
 
       const message = notification.body
@@ -141,13 +144,20 @@ export function TopBar() {
       toast(message, { icon: '🔔' });
     };
 
+    // Re-fetch unread count on every reconnect to catch missed events
+    const onReconnect = () => {
+      fetchUnread();
+    };
+
     socket.on('notification:new', onNotification);
+    socket.io.on('reconnect', onReconnect);
 
     return () => {
       socket.off('notification:new', onNotification);
+      socket.io.off('reconnect', onReconnect);
       socket.disconnect();
     };
-  }, [fetchUnread, user?.id]);
+  }, [user?.id]);
 
   if (!user) return null;
 
