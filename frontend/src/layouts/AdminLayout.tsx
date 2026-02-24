@@ -47,7 +47,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Sidebar */}
       <aside
         className={cn(
-          'bg-gray-900 text-white transition-all duration-300 fixed lg:relative h-screen z-50',
+          'bg-gray-900 text-white transition-all duration-300 fixed lg:sticky lg:top-0 h-screen z-50',
           sidebarOpen ? 'w-64' : 'w-0 lg:w-20'
         )}
       >
