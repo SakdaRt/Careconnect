@@ -102,6 +102,13 @@ CREATE TABLE users (
     completed_jobs_count INT NOT NULL DEFAULT 0 CHECK (completed_jobs_count >= 0),
     first_job_waiver_used BOOLEAN NOT NULL DEFAULT FALSE,
 
+    -- Admin ban flags
+    ban_login       BOOLEAN NOT NULL DEFAULT FALSE,
+    ban_job_create  BOOLEAN NOT NULL DEFAULT FALSE,
+    ban_job_accept  BOOLEAN NOT NULL DEFAULT FALSE,
+    ban_withdraw    BOOLEAN NOT NULL DEFAULT FALSE,
+    admin_note      TEXT,
+
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
