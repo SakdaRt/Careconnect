@@ -263,6 +263,7 @@ export default function HirerHomePage() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleJobs, setScheduleJobs] = useState<HirerJob[]>([]);
   const [careRecipients, setCareRecipients] = useState<CareRecipient[]>([]);
+  const [hasEverCreatedJob, setHasEverCreatedJob] = useState(false);
   const [selectedRecipientId, setSelectedRecipientId] = useState('all');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
@@ -314,6 +315,15 @@ export default function HirerHomePage() {
   useEffect(() => {
     loadCareRecipients();
   }, [loadCareRecipients]);
+
+  useEffect(() => {
+    appApi.getMyJobs(hirerId, undefined, 1, 1).then((res) => {
+      if (res.success && res.data) {
+        const total = res.data.total ?? (res.data.data?.length ?? 0);
+        if (total > 0) setHasEverCreatedJob(true);
+      }
+    }).catch(() => {});
+  }, [hirerId]);
 
   const loadSchedule = useCallback(async () => {
     setScheduleLoading(true);
@@ -650,7 +660,7 @@ export default function HirerHomePage() {
           const hasPhone = !!user?.is_phone_verified;
           const hasEmail = !!user?.is_email_verified;
           const hasRecipient = careRecipients.length > 0;
-          const hasJob = jobs.length > 0;
+          const hasJob = hasEverCreatedJob || jobs.length > 0;
 
           const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
             { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
