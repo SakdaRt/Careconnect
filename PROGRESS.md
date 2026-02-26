@@ -173,6 +173,27 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-26 — Thesis Chapter outlines (CH3-CH5)
+
+- docs(thesis): สร้าง THESIS_CH3.md — บทที่ 3 การออกแบบและพัฒนาระบบ
+  - 3.1 System Architecture (3-Tier, containers, sequence, 16 route files)
+  - 3.2 System Components (Frontend, Backend, WebSocket, DB, Tech Stack)
+  - 3.3 User Roles (Hirer/Caregiver/Admin, Trust Level L0-L3, Trust Score 8 factors, permissions table)
+  - 3.4 Functional Requirements (Auth, Profile, Search, Chat, Job, Notification, Payment, Dispute, Admin)
+  - 3.5 Use Case Diagram (5 UCs: Register, Create Job, Accept Job, Top-up, Dispute)
+  - 3.6 Sequence Diagram (6 flows: Registration, Job, Checkin/Checkout, Top-up, Chat, KYC)
+  - 3.7 UI Design (Page map 30+ routes, User Flow Hirer/Caregiver)
+  - 3.8 Database Design (ER Diagram, 15+ table schemas with columns/constraints, Enums)
+- docs(thesis): สร้าง THESIS_CH4.md — บทที่ 4 การทดลองและผลการทดลอง
+  - 4.1 Web App Testing: 96 test cases ใน 8 modules (Auth/Job/Execute/Payment/Chat/Dispute/KYC/A11Y)
+  - 4.2 API Testing: 59 test cases ใน 5 modules + Error Format standard + ข้อสังเกตจากการทดสอบ
+- docs(thesis): สร้าง THESIS_CH5.md — บทที่ 5 สรุปผล อภิปรายผล และข้อเสนอแนะ
+  - 5.1 สรุปตามกลุ่มผู้ใช้ (Hirer/Caregiver/Admin) + Feature Completion Summary
+  - 5.2 อภิปรายผล: ปัญหา 5 ข้อ + architectural decisions 4 ข้อ
+  - 5.3 ข้อจำกัด: เทคนิค 6 ข้อ, Feature 5 ข้อ, ข้อมูล 2 ข้อ
+  - 5.4 ข้อเสนอแนะ 14 ข้อ แบ่ง High/Medium/Low priority
+- ไฟล์ที่สร้าง: THESIS_CH3.md, THESIS_CH4.md, THESIS_CH5.md
+
 ### 2026-02-26 — Fix early checkout buttons not visible for hirer (root cause: job_posts.status)
 
 - fix(backend): checkIn ไม่ได้อัพเดท job_posts.status = 'in_progress' → ทำให้ JobDetailPage ไม่เห็น early checkout card
