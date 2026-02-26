@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge, Textarea } from '../../components/ui';
+import { CHECKOUT_PRESETS } from '../../components/ui/ReasonModal';
 import { CaregiverAssignedJob } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -732,13 +733,13 @@ export default function CaregiverMyJobsPage() {
           onConfirm={handleConfirmCheckout}
           title={checkoutIsEarly ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
           description={checkoutIsEarly
-            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาสรุปงานที่ทำเป็นหลักฐาน'
-            : 'กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต'}
-          placeholder="สรุปงานที่ทำ เช่น อาบน้ำ ป้อนอาหาร วัดความดัน..."
+            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'
+            : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'}
+          placeholder="รายละเอียดเพิ่มเติม เช่น อาการผู้ป่วย ข้อสังเกต..."
           confirmText={checkoutIsEarly ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
           variant="primary"
           loading={!!actionLoadingId}
-          minLength={10}
+          presetReasons={CHECKOUT_PRESETS}
         />
       </div>
     </MainLayout>

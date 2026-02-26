@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
 import { ChatLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
+import { CANCEL_PRESETS, CHECKOUT_PRESETS } from '../../components/ui/ReasonModal';
 import { ChatMessage, ChatThread, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -562,6 +563,7 @@ export default function ChatRoomPage() {
           variant="danger"
           loading={actionLoading === 'cancel'}
           minLength={10}
+          presetReasons={CANCEL_PRESETS}
         />
         <ReasonModal
           isOpen={disputeOpen}
@@ -581,13 +583,13 @@ export default function ChatRoomPage() {
           onConfirm={handleCheckOut}
           title={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at) ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
           description={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at)
-            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาสรุปงานที่ทำเป็นหลักฐาน'
-            : 'กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต'}
-          placeholder="สรุปงานที่ทำ เช่น อาบน้ำ ป้อนอาหาร วัดความดัน..."
+            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'
+            : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'}
+          placeholder="รายละเอียดเพิ่มเติม เช่น อาการผู้ป่วย ข้อสังเกต..."
           confirmText={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at) ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
           variant="primary"
           loading={actionLoading === 'checkout'}
-          minLength={10}
+          presetReasons={CHECKOUT_PRESETS}
         />
       </div>
     </ChatLayout>

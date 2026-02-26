@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle, ShieldCheck, User as UserIcon, PlusCircle } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, LoadingState, Modal, ReasonModal, Select, StatusBadge } from '../../components/ui';
+import { CANCEL_PRESETS } from '../../components/ui/ReasonModal';
 import { CareRecipient, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
@@ -929,6 +930,7 @@ export default function HirerHomePage() {
           variant="danger"
           loading={!!actionLoadingId}
           minLength={10}
+          presetReasons={CANCEL_PRESETS}
         />
       </div>
     </MainLayout>

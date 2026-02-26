@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { MessageCircle, User as UserIcon, FileText, ExternalLink, Star } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, LoadingState, ReasonModal, StatusBadge, Textarea } from '../../components/ui';
+import { CANCEL_PRESETS } from '../../components/ui/ReasonModal';
 import { JobPost, CaregiverDocument } from '../../services/api';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
@@ -476,28 +477,40 @@ export default function JobDetailPage() {
               <div className="mt-5 p-4 bg-blue-50 border border-blue-100 rounded-lg">
                 <div className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">{counterpartTitle}</div>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                    <UserIcon className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {!isCaregiverView && (job as any)?.caregiver_id ? (
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/hirer/caregiver/${(job as any).caregiver_id}`)}
-                        className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
-                        aria-label={`ดูโปรไฟล์ ${counterpartName}`}
-                      >
-                        {counterpartName}
-                      </button>
-                    ) : (
-                      <div className="text-sm font-medium text-gray-900">{counterpartName}</div>
-                    )}
-                    <div className="text-xs text-gray-600">
-                      {(job as any).job_status === 'assigned' && counterpartStatus.assigned}
-                      {(job as any).job_status === 'in_progress' && counterpartStatus.in_progress}
-                      {(job as any).job_status === 'completed' && counterpartStatus.completed}
-                    </div>
-                  </div>
+                  {!isCaregiverView && (job as any)?.caregiver_id ? (
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/hirer/caregiver/${(job as any).caregiver_id}`)}
+                      className="flex items-center gap-3 min-w-0 flex-1 p-1 -m-1 rounded-lg hover:bg-blue-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 text-left"
+                      aria-label={`ดูโปรไฟล์ ${counterpartName}`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <UserIcon className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-blue-600">{counterpartName}</div>
+                        <div className="text-xs text-gray-600">
+                          {(job as any).job_status === 'assigned' && counterpartStatus.assigned}
+                          {(job as any).job_status === 'in_progress' && counterpartStatus.in_progress}
+                          {(job as any).job_status === 'completed' && counterpartStatus.completed}
+                        </div>
+                      </div>
+                    </button>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <UserIcon className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-gray-900">{counterpartName}</div>
+                        <div className="text-xs text-gray-600">
+                          {(job as any).job_status === 'assigned' && counterpartStatus.assigned}
+                          {(job as any).job_status === 'in_progress' && counterpartStatus.in_progress}
+                          {(job as any).job_status === 'completed' && counterpartStatus.completed}
+                        </div>
+                      </div>
+                    </>
+                  )}
                   {job.job_id && (
                     <Link to={`/chat/${job.job_id}`}>
                       <Button
@@ -720,6 +733,7 @@ export default function JobDetailPage() {
           variant="danger"
           loading={actionLoading}
           minLength={10}
+          presetReasons={CANCEL_PRESETS}
         />
         <ReasonModal
           isOpen={disputeOpen}

@@ -173,6 +173,18 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-26 — Fix ReasonModal presets + early checkout + clickable caregiver card
+
+- fix(ui): ReasonModal default เปลี่ยนจาก cancel presets → ไม่มี preset (textarea only)
+  - เพิ่ม CANCEL_PRESETS (export) สำหรับ cancel modal
+  - เพิ่ม CHECKOUT_PRESETS (export) สำหรับ checkout modal (สรุปงาน)
+  - แก้ cancel modal ทุกจุดให้ส่ง presetReasons={CANCEL_PRESETS}
+  - แก้ checkout modal ทุกจุดให้ส่ง presetReasons={CHECKOUT_PRESETS}
+  - แก้ isValid logic: minLength ทำงานใน non-preset mode ด้วย
+- fix(backend): early checkout — ย้าย CREATE TABLE IF NOT EXISTS ก่อน SELECT เพื่อป้องกัน table not found
+- feat(hirer): JobDetailPage การ์ดผู้ดูแลกดได้ทั้งพื้นที่ (avatar+ชื่อ+status) ไม่ใช่แค่ชื่อ
+- ไฟล์ที่แก้: ReasonModal.tsx, ChatRoomPage.tsx, CaregiverMyJobsPage.tsx, JobDetailPage.tsx, HirerHomePage.tsx, jobController.js
+
 ### 2026-02-26 — Early checkout request system + Caregiver profile navigation + Favorites UX
 
 - feat(backend): Early checkout request system — ผู้ดูแล checkout ก่อนเวลาต้องร้องขอ hirer อนุมัติ ถึงเวลาสิ้นสุดกดได้เลย

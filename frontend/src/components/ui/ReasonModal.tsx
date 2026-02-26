@@ -18,12 +18,21 @@ export interface ReasonModalProps {
   requireReason?: boolean;
 }
 
-const DEFAULT_CANCEL_REASONS = [
+export const CANCEL_PRESETS = [
   'ติดธุระฉุกเฉิน ไม่สามารถมาได้',
   'ผู้รับการดูแลอาการดีขึ้น ไม่ต้องการบริการแล้ว',
   'เปลี่ยนวันนัดหมาย',
   'ได้รับการดูแลจากแหล่งอื่นแล้ว',
   'ปัญหาด้านงบประมาณ',
+  'อื่น ๆ',
+];
+
+export const CHECKOUT_PRESETS = [
+  'ดูแลทำความสะอาดร่างกาย อาบน้ำ แต่งตัว',
+  'ป้อนอาหาร เตรียมยา ดูแลการรับประทาน',
+  'วัดความดัน วัดไข้ ตรวจอาการเบื้องต้น',
+  'เป็นเพื่อน พูดคุย พาเดินออกกำลัง',
+  'ดูแลทั่วไปตามแผนที่กำหนด',
   'อื่น ๆ',
 ];
 
@@ -45,7 +54,7 @@ export function ReasonModal({
   const [selected, setSelected] = useState<string>('');
   const [detail, setDetail] = useState('');
 
-  const presets = presetReasons ?? DEFAULT_CANCEL_REASONS;
+  const presets = presetReasons ?? [];
   const isPresetMode = presets.length > 0;
 
   const combinedReason = selected
@@ -54,9 +63,11 @@ export function ReasonModal({
 
   const isValid = isPresetMode
     ? selected !== ''
-    : requireReason
-      ? combinedReason.length >= (minLength ?? 1)
-      : true;
+    : minLength
+      ? combinedReason.length >= minLength
+      : requireReason
+        ? combinedReason.length >= 1
+        : true;
 
   const variantStyles = {
     danger: 'bg-red-600 hover:bg-red-700',

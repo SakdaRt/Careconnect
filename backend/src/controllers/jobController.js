@@ -487,16 +487,6 @@ export const requestEarlyCheckout = async (req, res) => {
       return res.status(400).json({ success: false, error: 'งานต้องอยู่ในสถานะกำลังทำงานเท่านั้น' });
     }
 
-    // Check if already has pending request
-    const existing = await dbQuery(
-      `SELECT id FROM early_checkout_requests WHERE job_id = $1 AND status = 'pending' LIMIT 1`,
-      [job.job_id]
-    );
-
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ success: false, error: 'มีคำขอส่งงานก่อนเวลาที่รอตอบรับอยู่แล้ว' });
-    }
-
     // Ensure table exists
     await dbQuery(`
       CREATE TABLE IF NOT EXISTS early_checkout_requests (
@@ -513,6 +503,16 @@ export const requestEarlyCheckout = async (req, res) => {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
+
+    // Check if already has pending request
+    const existing = await dbQuery(
+      `SELECT id FROM early_checkout_requests WHERE job_id = $1 AND status = 'pending' LIMIT 1`,
+      [job.job_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, error: 'มีคำขอส่งงานก่อนเวลาที่รอตอบรับอยู่แล้ว' });
+    }
 
     const insertResult = await dbQuery(
       `INSERT INTO early_checkout_requests (job_id, job_post_id, caregiver_id, hirer_id, evidence_note)
