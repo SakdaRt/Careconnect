@@ -173,6 +173,15 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-26 — Fix early checkout buttons not visible for hirer (root cause: job_posts.status)
+
+- fix(backend): checkIn ไม่ได้อัพเดท job_posts.status = 'in_progress' → ทำให้ JobDetailPage ไม่เห็น early checkout card
+  - แก้ checkIn ใน Job.js ให้อัพเดท job_posts.status ด้วย
+  - เพิ่ม migration sync job_posts.status สำหรับงานเก่า
+- fix(frontend): JobDetailPage ใช้ job_status || status fallback สำหรับ fetch + render early checkout
+- fix(frontend): reject button เปิด ReasonModal ให้กรอกเหตุผลเองได้ (ไม่ hardcode)
+- ไฟล์ที่แก้: Job.js (checkIn), JobDetailPage.tsx (conditions + ReasonModal), migration SQL
+
 ### 2026-02-26 — Early checkout approve/reject + auto-complete 10min grace + UI indicators
 
 - feat(backend): auto-complete overdue jobs เลย 10 นาทีหลังเวลาสิ้นสุด (แทนที่จะเปลี่ยนทันทีตอนถึงเวลา)

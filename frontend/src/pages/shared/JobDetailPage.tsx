@@ -159,6 +159,7 @@ export default function JobDetailPage() {
   const [reviewHover, setReviewHover] = useState(0);
   const [earlyCheckoutRequest, setEarlyCheckoutRequest] = useState<any>(null);
   const [earlyCheckoutLoading, setEarlyCheckoutLoading] = useState(false);
+  const [rejectEarlyCheckoutOpen, setRejectEarlyCheckoutOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -196,7 +197,8 @@ export default function JobDetailPage() {
           } catch { /* ignore */ }
         }
         // Load early checkout request
-        if (jobData.status === 'in_progress' && jobData.job_id) {
+        const effectiveJobStatus = jobData.job_status || jobData.status;
+        if (effectiveJobStatus === 'in_progress' && jobData.job_id) {
           try {
             const ecrRes = await appApi.getEarlyCheckoutRequest(jobData.job_id);
             if (ecrRes.success && ecrRes.data?.request) {
@@ -528,7 +530,7 @@ export default function JobDetailPage() {
             )}
 
             {/* Early checkout request — visible to hirer */}
-            {!isCaregiverView && earlyCheckoutRequest?.status === 'pending' && job.status === 'in_progress' && (
+            {!isCaregiverView && earlyCheckoutRequest?.status === 'pending' && ((job as any).job_status === 'in_progress' || job.status === 'in_progress') && (
               <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg">
                 <div className="text-sm font-semibold text-amber-900 mb-2">ผู้ดูแลขอส่งงานก่อนเวลา</div>
                 <div className="text-sm text-amber-800 mb-1">
@@ -564,20 +566,7 @@ export default function JobDetailPage() {
                     variant="danger"
                     size="sm"
                     loading={earlyCheckoutLoading}
-                    onClick={async () => {
-                      setEarlyCheckoutLoading(true);
-                      try {
-                        const res = await appApi.respondEarlyCheckout(job.job_id || id || '', 'reject', 'กรุณาดูแลต่อจนถึงเวลาสิ้นสุด');
-                        if (res.success) {
-                          toast.success('ปฏิเสธคำขอส่งงานก่อนเวลาแล้ว');
-                          setEarlyCheckoutRequest({ ...earlyCheckoutRequest, status: 'rejected' });
-                        } else {
-                          toast.error(res.error || 'ปฏิเสธไม่สำเร็จ');
-                        }
-                      } finally {
-                        setEarlyCheckoutLoading(false);
-                      }
-                    }}
+                    onClick={() => setRejectEarlyCheckoutOpen(true)}
                   >
                     ปฏิเสธ
                   </Button>
@@ -746,6 +735,33 @@ export default function JobDetailPage() {
           variant="warning"
           loading={actionLoading}
           minLength={10}
+        />
+        <ReasonModal
+          isOpen={rejectEarlyCheckoutOpen}
+          onClose={() => setRejectEarlyCheckoutOpen(false)}
+          onConfirm={async (reason: string) => {
+            if (!job) return;
+            setEarlyCheckoutLoading(true);
+            try {
+              const res = await appApi.respondEarlyCheckout(job.job_id || id || '', 'reject', reason);
+              if (res.success) {
+                toast.success('ปฏิเสธคำขอส่งงานก่อนเวลาแล้ว');
+                setEarlyCheckoutRequest({ ...earlyCheckoutRequest, status: 'rejected' });
+                setRejectEarlyCheckoutOpen(false);
+              } else {
+                toast.error(res.error || 'ปฏิเสธไม่สำเร็จ');
+              }
+            } finally {
+              setEarlyCheckoutLoading(false);
+            }
+          }}
+          title="ปฏิเสธคำขอส่งงานก่อนเวลา"
+          description="กรุณาอธิบายเหตุผลที่ปฏิเสธ เพื่อให้ผู้ดูแลเข้าใจ"
+          placeholder="อธิบายเหตุผลในการปฏิเสธ..."
+          confirmText="ยืนยันปฏิเสธ"
+          variant="danger"
+          loading={earlyCheckoutLoading}
+          minLength={5}
         />
       </div>
     </MainLayout>

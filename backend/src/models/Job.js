@@ -837,6 +837,12 @@ class Job extends BaseModel {
           [JOB_STATES.IN_PROGRESS, actualJobId, JOB_STATES.ASSIGNED]
         );
 
+        // Update job post status to in_progress
+        await client.query(
+          `UPDATE job_posts SET status = $1, updated_at = NOW() WHERE id = $2`,
+          [JOB_STATES.IN_PROGRESS, currentJob.job_post_id || jobId]
+        );
+
         // Update assignment
         await client.query(
           `UPDATE job_assignments SET start_confirmed_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
