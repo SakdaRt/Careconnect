@@ -254,20 +254,35 @@ export default function ChatRoomPage() {
     if (!jobId || !evidenceNote.trim()) return;
     setActionLoading('checkout');
     try {
-      const caregiverId = user?.id || 'demo-caregiver';
-      let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
-      try {
-        const raw = await getCurrentGps();
-        gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
-      } catch { /* checkout allowed anywhere */ }
-      const res = await appApi.checkOut(jobId, caregiverId, gps, evidenceNote.trim());
-      if (!res.success) {
-        toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
-        return;
+      const now = new Date();
+      const endAt = job?.scheduled_end_at ? new Date(job.scheduled_end_at) : null;
+      const isEarly = endAt ? now < endAt : false;
+
+      if (isEarly) {
+        const res = await appApi.requestEarlyCheckout(jobId, evidenceNote.trim());
+        if (!res.success) {
+          toast.error(res.error || 'ส่งคำขอไม่สำเร็จ');
+          return;
+        }
+        toast.success('ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ');
+        setCheckoutOpen(false);
+        await load();
+      } else {
+        const caregiverId = user?.id || 'demo-caregiver';
+        let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
+        try {
+          const raw = await getCurrentGps();
+          gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
+        } catch { /* checkout allowed anywhere */ }
+        const res = await appApi.checkOut(jobId, caregiverId, gps, evidenceNote.trim());
+        if (!res.success) {
+          toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
+          return;
+        }
+        toast.success('ส่งงานเสร็จแล้ว');
+        setCheckoutOpen(false);
+        await load();
       }
-      toast.success('ส่งงานเสร็จแล้ว');
-      setCheckoutOpen(false);
-      await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
@@ -564,10 +579,12 @@ export default function ChatRoomPage() {
           isOpen={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
           onConfirm={handleCheckOut}
-          title="ส่งงานเสร็จ"
-          description="กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต"
+          title={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at) ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
+          description={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at)
+            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาสรุปงานที่ทำเป็นหลักฐาน'
+            : 'กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต'}
           placeholder="สรุปงานที่ทำ เช่น อาบน้ำ ป้อนอาหาร วัดความดัน..."
-          confirmText="ยืนยันส่งงาน"
+          confirmText={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at) ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
           variant="primary"
           loading={actionLoading === 'checkout'}
           minLength={10}

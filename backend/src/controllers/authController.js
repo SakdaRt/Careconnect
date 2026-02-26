@@ -311,9 +311,9 @@ const buildSafeUserResponse = async (userId) => {
     const userWithProfile = await User.getUserWithProfile(userId);
     if (!userWithProfile) return null;
     const { profile, ...rest } = userWithProfile;
-    const name = profile?.full_name
-      ? String(profile.full_name)
-      : (profile?.display_name ? String(profile.display_name) : rest.name || null);
+    const name = profile?.display_name
+      ? String(profile.display_name)
+      : (profile?.full_name ? String(profile.full_name) : rest.name || null);
     delete rest.password_hash;
     return { ...rest, name };
   } catch (err) {

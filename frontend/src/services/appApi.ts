@@ -144,6 +144,18 @@ export const appApi = {
     return api.checkOut(jobId, gpsData, evidenceNote);
   },
 
+  async requestEarlyCheckout(jobId: string, evidenceNote: string) {
+    return api.requestEarlyCheckout(jobId, evidenceNote);
+  },
+
+  async respondEarlyCheckout(jobId: string, action: 'approve' | 'reject', reason?: string) {
+    return api.respondEarlyCheckout(jobId, action, reason);
+  },
+
+  async getEarlyCheckoutRequest(jobId: string) {
+    return api.getEarlyCheckoutRequest(jobId);
+  },
+
   async getChatThread(jobId: string) {
     return api.getChatThread(jobId);
   },

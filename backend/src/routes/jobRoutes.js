@@ -12,6 +12,9 @@ import {
   checkIn,
   checkOut,
   cancelJob,
+  requestEarlyCheckout,
+  respondEarlyCheckout,
+  getEarlyCheckoutRequest,
 } from '../controllers/jobController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
 import { validateBody, validateQuery, validateParams, jobSchemas, commonSchemas } from '../utils/validation.js';
@@ -238,6 +241,42 @@ router.post('/:id/cancel',
   validateParams(jobSchemas.jobParams),
   validateBody(cancelSchema),
   cancelJob
+);
+
+/**
+ * Request early checkout (caregiver wants to checkout before scheduled_end_at)
+ * POST /api/jobs/:jobId/early-checkout-request
+ * Headers: Authorization: Bearer <token>
+ * Body: { evidence_note }
+ */
+router.post('/:jobId/early-checkout-request',
+  requireAuth,
+  requirePolicy('job:checkout'),
+  validateParams(Joi.object({ jobId: commonSchemas.uuid })),
+  requestEarlyCheckout
+);
+
+/**
+ * Respond to early checkout request (hirer approve/reject)
+ * POST /api/jobs/:jobId/early-checkout-respond
+ * Headers: Authorization: Bearer <token>
+ * Body: { action: 'approve'|'reject', reason? }
+ */
+router.post('/:jobId/early-checkout-respond',
+  requireAuth,
+  validateParams(Joi.object({ jobId: commonSchemas.uuid })),
+  respondEarlyCheckout
+);
+
+/**
+ * Get early checkout request for a job
+ * GET /api/jobs/:jobId/early-checkout-request
+ * Headers: Authorization: Bearer <token>
+ */
+router.get('/:jobId/early-checkout-request',
+  requireAuth,
+  validateParams(Joi.object({ jobId: commonSchemas.uuid })),
+  getEarlyCheckoutRequest
 );
 
 export default router;

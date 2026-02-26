@@ -1095,6 +1095,24 @@ class ApiClient {
     });
   }
 
+  async requestEarlyCheckout(jobId: string, evidenceNote: string) {
+    return this.request<{ request: any }>(`/api/jobs/${jobId}/early-checkout-request`, {
+      method: 'POST',
+      body: { evidence_note: evidenceNote },
+    });
+  }
+
+  async respondEarlyCheckout(jobId: string, action: 'approve' | 'reject', reason?: string) {
+    return this.request<{ checkout?: any }>(`/api/jobs/${jobId}/early-checkout-respond`, {
+      method: 'POST',
+      body: { action, reason },
+    });
+  }
+
+  async getEarlyCheckoutRequest(jobId: string) {
+    return this.request<{ request: any | null }>(`/api/jobs/${jobId}/early-checkout-request`);
+  }
+
   // Review endpoints
   async createReview(jobId: string, caregiverId: string, rating: number, comment?: string) {
     return this.request<{ review: any }>('/api/reviews', {

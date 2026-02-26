@@ -156,6 +156,8 @@ export default function JobDetailPage() {
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [existingReview, setExistingReview] = useState<any>(null);
   const [reviewHover, setReviewHover] = useState(0);
+  const [earlyCheckoutRequest, setEarlyCheckoutRequest] = useState<any>(null);
+  const [earlyCheckoutLoading, setEarlyCheckoutLoading] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -189,6 +191,15 @@ export default function JobDetailPage() {
             const reviewRes = await appApi.getJobReview(id);
             if (reviewRes.success && reviewRes.data?.review) {
               setExistingReview(reviewRes.data.review);
+            }
+          } catch { /* ignore */ }
+        }
+        // Load early checkout request
+        if (jobData.status === 'in_progress' && jobData.job_id) {
+          try {
+            const ecrRes = await appApi.getEarlyCheckoutRequest(jobData.job_id);
+            if (ecrRes.success && ecrRes.data?.request) {
+              setEarlyCheckoutRequest(ecrRes.data.request);
             }
           } catch { /* ignore */ }
         }
@@ -469,7 +480,18 @@ export default function JobDetailPage() {
                     <UserIcon className="w-5 h-5 text-blue-600" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-gray-900">{counterpartName}</div>
+                    {!isCaregiverView && (job as any)?.caregiver_id ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/hirer/caregiver/${(job as any).caregiver_id}`)}
+                        className="text-sm font-medium text-blue-600 hover:text-blue-800 hover:underline text-left focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded"
+                        aria-label={`ดูโปรไฟล์ ${counterpartName}`}
+                      >
+                        {counterpartName}
+                      </button>
+                    ) : (
+                      <div className="text-sm font-medium text-gray-900">{counterpartName}</div>
+                    )}
                     <div className="text-xs text-gray-600">
                       {(job as any).job_status === 'assigned' && counterpartStatus.assigned}
                       {(job as any).job_status === 'in_progress' && counterpartStatus.in_progress}
@@ -488,6 +510,64 @@ export default function JobDetailPage() {
                       </Button>
                     </Link>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Early checkout request — visible to hirer */}
+            {!isCaregiverView && earlyCheckoutRequest?.status === 'pending' && job.status === 'in_progress' && (
+              <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="text-sm font-semibold text-amber-900 mb-2">ผู้ดูแลขอส่งงานก่อนเวลา</div>
+                <div className="text-sm text-amber-800 mb-1">
+                  <span className="font-medium">ผู้ดูแล:</span> {earlyCheckoutRequest.caregiver_name || 'ผู้ดูแล'}
+                </div>
+                <div className="text-sm text-amber-800 mb-3">
+                  <span className="font-medium">สรุปงานที่ทำ:</span> {earlyCheckoutRequest.evidence_note}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={earlyCheckoutLoading}
+                    onClick={async () => {
+                      setEarlyCheckoutLoading(true);
+                      try {
+                        const res = await appApi.respondEarlyCheckout(job.job_id || id || '', 'approve');
+                        if (res.success) {
+                          toast.success('อนุมัติส่งงานก่อนเวลาแล้ว');
+                          setEarlyCheckoutRequest(null);
+                          await load();
+                        } else {
+                          toast.error(res.error || 'อนุมัติไม่สำเร็จ');
+                        }
+                      } finally {
+                        setEarlyCheckoutLoading(false);
+                      }
+                    }}
+                  >
+                    อนุมัติ
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    loading={earlyCheckoutLoading}
+                    onClick={async () => {
+                      setEarlyCheckoutLoading(true);
+                      try {
+                        const res = await appApi.respondEarlyCheckout(job.job_id || id || '', 'reject', 'กรุณาดูแลต่อจนถึงเวลาสิ้นสุด');
+                        if (res.success) {
+                          toast.success('ปฏิเสธคำขอส่งงานก่อนเวลาแล้ว');
+                          setEarlyCheckoutRequest({ ...earlyCheckoutRequest, status: 'rejected' });
+                        } else {
+                          toast.error(res.error || 'ปฏิเสธไม่สำเร็จ');
+                        }
+                      } finally {
+                        setEarlyCheckoutLoading(false);
+                      }
+                    }}
+                  >
+                    ปฏิเสธ
+                  </Button>
                 </div>
               </div>
             )}

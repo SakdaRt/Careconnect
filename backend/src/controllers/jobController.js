@@ -440,6 +440,242 @@ export const getJobStats = async (req, res) => {
   }
 };
 
+/**
+ * Request early checkout (before scheduled_end_at)
+ * POST /api/jobs/:jobId/early-checkout-request
+ * Requires: requireAuth, requireRole('caregiver')
+ */
+export const requestEarlyCheckout = async (req, res) => {
+  try {
+    const caregiverId = req.userId;
+    const { jobId } = req.params;
+    const { evidence_note } = req.body;
+
+    if (!evidence_note || !String(evidence_note).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณากรอกหลักฐานการทำงาน (สรุปงานที่ทำ)',
+      });
+    }
+
+    const { query: dbQuery } = await import('../utils/db.js');
+
+    // Find job + assignment
+    const jobResult = await dbQuery(
+      `SELECT j.id AS job_id, j.job_post_id, j.status AS job_status,
+              jp.hirer_id, jp.title, jp.scheduled_end_at,
+              ja.caregiver_id
+       FROM jobs j
+       JOIN job_posts jp ON jp.id = j.job_post_id
+       JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+       WHERE (j.id = $1 OR j.job_post_id = $1)
+       LIMIT 1`,
+      [jobId]
+    );
+
+    if (jobResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'ไม่พบงานนี้' });
+    }
+
+    const job = jobResult.rows[0];
+
+    if (job.caregiver_id !== caregiverId) {
+      return res.status(403).json({ success: false, error: 'คุณไม่ใช่ผู้ดูแลงานนี้' });
+    }
+
+    if (job.job_status !== 'in_progress') {
+      return res.status(400).json({ success: false, error: 'งานต้องอยู่ในสถานะกำลังทำงานเท่านั้น' });
+    }
+
+    // Check if already has pending request
+    const existing = await dbQuery(
+      `SELECT id FROM early_checkout_requests WHERE job_id = $1 AND status = 'pending' LIMIT 1`,
+      [job.job_id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ success: false, error: 'มีคำขอส่งงานก่อนเวลาที่รอตอบรับอยู่แล้ว' });
+    }
+
+    // Ensure table exists
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS early_checkout_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        job_id UUID NOT NULL,
+        job_post_id UUID NOT NULL,
+        caregiver_id UUID NOT NULL,
+        hirer_id UUID NOT NULL,
+        evidence_note TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        rejected_reason TEXT,
+        responded_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    const insertResult = await dbQuery(
+      `INSERT INTO early_checkout_requests (job_id, job_post_id, caregiver_id, hirer_id, evidence_note)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [job.job_id, job.job_post_id, caregiverId, job.hirer_id, String(evidence_note).trim()]
+    );
+
+    // Send notification to hirer
+    try {
+      const { notifyEarlyCheckoutRequest } = await import('../services/notificationService.js');
+      const cgRes = await dbQuery(`SELECT display_name FROM caregiver_profiles WHERE user_id = $1 LIMIT 1`, [caregiverId]);
+      const caregiverName = cgRes.rows[0]?.display_name || 'ผู้ดูแล';
+      await notifyEarlyCheckoutRequest(job.hirer_id, job.title, caregiverName, job.job_post_id);
+    } catch (e) {
+      console.error('Failed to send early checkout notification:', e.message);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ',
+      data: { request: insertResult.rows[0] },
+    });
+  } catch (error) {
+    handleJobError(error, res, 'request early checkout');
+  }
+};
+
+/**
+ * Respond to early checkout request (hirer approve/reject)
+ * POST /api/jobs/:jobId/early-checkout-respond
+ * Requires: requireAuth, requireRole('hirer')
+ */
+export const respondEarlyCheckout = async (req, res) => {
+  try {
+    const hirerId = req.userId;
+    const { jobId } = req.params;
+    const { action, reason } = req.body;
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ success: false, error: 'action ต้องเป็น approve หรือ reject' });
+    }
+
+    const { query: dbQuery } = await import('../utils/db.js');
+
+    // Find pending request
+    const reqResult = await dbQuery(
+      `SELECT ecr.*, j.id AS actual_job_id, jp.title AS job_title
+       FROM early_checkout_requests ecr
+       JOIN jobs j ON j.id = ecr.job_id
+       JOIN job_posts jp ON jp.id = ecr.job_post_id
+       WHERE (ecr.job_id = $1 OR ecr.job_post_id = $1)
+         AND ecr.hirer_id = $2
+         AND ecr.status = 'pending'
+       ORDER BY ecr.created_at DESC
+       LIMIT 1`,
+      [jobId, hirerId]
+    );
+
+    if (reqResult.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'ไม่พบคำขอส่งงานก่อนเวลาที่รอตอบรับ' });
+    }
+
+    const request = reqResult.rows[0];
+    const newStatus = action === 'approve' ? 'approved' : 'rejected';
+
+    await dbQuery(
+      `UPDATE early_checkout_requests SET status = $1, rejected_reason = $2, responded_at = NOW(), updated_at = NOW() WHERE id = $3`,
+      [newStatus, action === 'reject' ? (reason || null) : null, request.id]
+    );
+
+    if (action === 'approve') {
+      // Execute actual checkout
+      try {
+        const result = await checkOutService(request.actual_job_id, request.caregiver_id, {});
+        // Notify caregiver
+        try {
+          const { notifyEarlyCheckoutApproved } = await import('../services/notificationService.js');
+          await notifyEarlyCheckoutApproved(request.caregiver_id, request.job_title, request.actual_job_id);
+        } catch (e) {
+          console.error('Failed to send early checkout approved notification:', e.message);
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: 'อนุมัติส่งงานก่อนเวลาแล้ว ระบบดำเนินการเช็คเอาต์เรียบร้อย',
+          data: { checkout: result },
+        });
+      } catch (checkoutError) {
+        // Revert request status if checkout fails
+        await dbQuery(
+          `UPDATE early_checkout_requests SET status = 'pending', responded_at = NULL, updated_at = NOW() WHERE id = $1`,
+          [request.id]
+        );
+        throw checkoutError;
+      }
+    } else {
+      // Notify caregiver of rejection
+      try {
+        const { notifyEarlyCheckoutRejected } = await import('../services/notificationService.js');
+        await notifyEarlyCheckoutRejected(request.caregiver_id, request.job_title, request.job_post_id, reason);
+      } catch (e) {
+        console.error('Failed to send early checkout rejected notification:', e.message);
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'ปฏิเสธคำขอส่งงานก่อนเวลาแล้ว',
+      });
+    }
+  } catch (error) {
+    handleJobError(error, res, 'respond early checkout');
+  }
+};
+
+/**
+ * Get early checkout request for a job
+ * GET /api/jobs/:jobId/early-checkout-request
+ * Requires: requireAuth
+ */
+export const getEarlyCheckoutRequest = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { jobId } = req.params;
+    const { query: dbQuery } = await import('../utils/db.js');
+
+    // Ensure table exists
+    await dbQuery(`
+      CREATE TABLE IF NOT EXISTS early_checkout_requests (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        job_id UUID NOT NULL,
+        job_post_id UUID NOT NULL,
+        caregiver_id UUID NOT NULL,
+        hirer_id UUID NOT NULL,
+        evidence_note TEXT NOT NULL,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending',
+        rejected_reason TEXT,
+        responded_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    const result = await dbQuery(
+      `SELECT ecr.*, cp.display_name AS caregiver_name
+       FROM early_checkout_requests ecr
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = ecr.caregiver_id
+       WHERE (ecr.job_id = $1 OR ecr.job_post_id = $1)
+         AND (ecr.caregiver_id = $2 OR ecr.hirer_id = $2)
+       ORDER BY ecr.created_at DESC
+       LIMIT 1`,
+      [jobId, userId]
+    );
+
+    res.status(200).json({
+      success: true,
+      data: { request: result.rows[0] || null },
+    });
+  } catch (error) {
+    handleJobError(error, res, 'get early checkout request');
+  }
+};
+
 export default {
   createJob,
   publishJob,
@@ -453,4 +689,7 @@ export default {
   checkOut,
   cancelJob,
   getJobStats,
+  requestEarlyCheckout,
+  respondEarlyCheckout,
+  getEarlyCheckoutRequest,
 };

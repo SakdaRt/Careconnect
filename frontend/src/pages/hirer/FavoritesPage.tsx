@@ -44,9 +44,6 @@ export default function FavoritesPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [detailCaregiver, setDetailCaregiver] = useState<FavoriteCaregiver | null>(null);
-
   const [assignOpen, setAssignOpen] = useState(false);
   const [selectedCaregiver, setSelectedCaregiver] = useState<FavoriteCaregiver | null>(null);
   const [myJobs, setMyJobs] = useState<JobPost[]>([]);
@@ -118,22 +115,11 @@ export default function FavoritesPage() {
     return `/hirer/create-job?${params.toString()}`;
   }, []);
 
-  const handleOpenDetails = (caregiver: FavoriteCaregiver) => {
-    setDetailCaregiver(caregiver);
-    setDetailOpen(true);
-  };
-
   const handleOpenAssign = (caregiver: FavoriteCaregiver) => {
     setSelectedCaregiver(caregiver);
     setSelectedJobId(CREATE_NEW_JOB_OPTION);
     setAssignOpen(true);
     loadMyJobs();
-  };
-
-  const handleAssignFromDetails = () => {
-    if (!detailCaregiver) return;
-    setDetailOpen(false);
-    handleOpenAssign(detailCaregiver);
   };
 
   const handleOpenCreateJob = () => {
@@ -277,8 +263,8 @@ export default function FavoritesPage() {
                     >
                       <Heart className="w-5 h-5 fill-red-500 text-red-500" aria-hidden="true" />
                     </button>
-                    <Button variant="outline" size="sm" onClick={() => handleOpenDetails(fav)}>
-                      ดูรายละเอียด
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/hirer/caregiver/${fav.user_id}`)}>
+                      ดูโปรไฟล์
                     </Button>
                     <Button
                       variant="primary"
@@ -301,70 +287,6 @@ export default function FavoritesPage() {
             <Button variant="outline" size="sm" disabled={page >= totalPages} onClick={() => load(page + 1)}>ถัดไป</Button>
           </div>
         )}
-
-        <Modal
-          isOpen={detailOpen}
-          onClose={() => setDetailOpen(false)}
-          title={`รายละเอียดผู้ดูแล${detailCaregiver?.display_name ? `: ${detailCaregiver.display_name}` : ''}`}
-          size="md"
-          footer={
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setDetailOpen(false)}
-                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                ปิด
-              </button>
-              <Button variant="primary" size="sm" onClick={handleAssignFromDetails} disabled={!detailCaregiver}>
-                มอบหมายงาน
-              </Button>
-            </div>
-          }
-        >
-          {detailCaregiver && (() => {
-            const tl = TRUST_STYLE[detailCaregiver.trust_level || 'L0'] || TRUST_STYLE.L0;
-            const tags = Array.from(new Set([...(detailCaregiver.specializations || []), ...(detailCaregiver.certifications || [])]));
-
-            return (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-base font-semibold text-gray-900">{detailCaregiver.display_name || 'ผู้ดูแล'}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded ${tl.bg} ${tl.text}`}>{tl.label}</span>
-                </div>
-
-                {detailCaregiver.bio && (
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap">{detailCaregiver.bio}</p>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
-                  {detailCaregiver.experience_years != null && (
-                    <div>ประสบการณ์: {detailCaregiver.experience_years} ปี</div>
-                  )}
-                  {(detailCaregiver.completed_jobs_count ?? 0) > 0 && (
-                    <div>จำนวนงานที่ทำแล้ว: {detailCaregiver.completed_jobs_count} งาน</div>
-                  )}
-                  {(detailCaregiver.total_reviews ?? 0) > 0 && (
-                    <div>คะแนนเฉลี่ย: {Number(detailCaregiver.avg_rating || 0).toFixed(1)} ({detailCaregiver.total_reviews} รีวิว)</div>
-                  )}
-                  {detailCaregiver.email && <div>อีเมล: {detailCaregiver.email}</div>}
-                </div>
-
-                {tags.length > 0 && (
-                  <div>
-                    <div className="text-sm font-medium text-gray-900 mb-2">ความเชี่ยวชาญ</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {tags.map((tag) => (
-                        <span key={tag} className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })()}
-        </Modal>
 
         <Modal
           isOpen={assignOpen}

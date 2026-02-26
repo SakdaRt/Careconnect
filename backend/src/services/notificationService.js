@@ -159,6 +159,51 @@ export const notifyJobAssigned = async (caregiverId, jobTitle, hirerName, jobPos
 };
 
 /**
+ * Notify hirer when caregiver requests early checkout
+ */
+export const notifyEarlyCheckoutRequest = async (hirerId, jobTitle, caregiverName, jobPostId) => {
+  return await createNotification({
+    userId: hirerId,
+    templateKey: 'early_checkout_request',
+    title: 'ผู้ดูแลขอส่งงานก่อนเวลา',
+    body: `${caregiverName} ขอส่งงาน "${jobTitle}" ก่อนเวลาสิ้นสุด กรุณาตรวจสอบและอนุมัติ`,
+    data: { jobPostId },
+    referenceType: 'job',
+    referenceId: jobPostId,
+  });
+};
+
+/**
+ * Notify caregiver when hirer approves early checkout
+ */
+export const notifyEarlyCheckoutApproved = async (caregiverId, jobTitle, jobId) => {
+  return await createNotification({
+    userId: caregiverId,
+    templateKey: 'early_checkout_approved',
+    title: 'อนุมัติส่งงานก่อนเวลาแล้ว',
+    body: `ผู้ว่าจ้างอนุมัติให้ส่งงาน "${jobTitle}" ก่อนเวลาแล้ว ระบบดำเนินการเช็คเอาต์ให้เรียบร้อย`,
+    data: { jobId },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};
+
+/**
+ * Notify caregiver when hirer rejects early checkout
+ */
+export const notifyEarlyCheckoutRejected = async (caregiverId, jobTitle, jobPostId, reason) => {
+  return await createNotification({
+    userId: caregiverId,
+    templateKey: 'early_checkout_rejected',
+    title: 'ไม่อนุมัติส่งงานก่อนเวลา',
+    body: `ผู้ว่าจ้างไม่อนุมัติให้ส่งงาน "${jobTitle}" ก่อนเวลา${reason ? ': ' + reason : ''} กรุณาดูแลต่อจนถึงเวลาสิ้นสุด`,
+    data: { jobPostId, reason },
+    referenceType: 'job',
+    referenceId: jobPostId,
+  });
+};
+
+/**
  * Notify caregiver when job is cancelled
  */
 export const notifyJobCancelled = async (caregiverId, jobTitle, jobId, reason) => {

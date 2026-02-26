@@ -1,4 +1,5 @@
 # CareConnect — System Documentation
+
 > Source of truth สำหรับ architecture, database, API, UML ทั้งหมด
 > อัพเดทล่าสุด: 2026-02-22
 
@@ -9,6 +10,7 @@
 CareConnect เป็น **Two-sided Marketplace** สำหรับบริการดูแลผู้สูงอายุในประเทศไทย
 
 ### Architecture
+
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                     Client (Web Browser)                       │
@@ -33,11 +35,12 @@ CareConnect เป็น **Two-sided Marketplace** สำหรับบริ�
 ```
 
 ### Roles & Account Types
-| Role | Account Type | คำอธิบาย |
-|------|-------------|----------|
-| **Hirer** | guest (email) หรือ member (phone) | สร้างงาน, ว่าจ้าง, จ่ายเงิน |
-| **Caregiver** | guest (email) หรือ member (phone) | รับงาน, check-in/out, รับเงิน |
-| **Admin** | — | จัดการ user, approve KYC, resolve dispute |
+
+| Role          | Account Type                      | คำอธิบาย                                  |
+| ------------- | --------------------------------- | ----------------------------------------- |
+| **Hirer**     | guest (email) หรือ member (phone) | สร้างงาน, ว่าจ้าง, จ่ายเงิน               |
+| **Caregiver** | guest (email) หรือ member (phone) | รับงาน, check-in/out, รับเงิน             |
+| **Admin**     | —                                 | จัดการ user, approve KYC, resolve dispute |
 
 ---
 
@@ -60,24 +63,24 @@ L3 (Trusted)
 
 > Source: `backend/src/middleware/auth.js` → `can()` function
 
-| Action | Role | L0 | L1 | L2 | L3 |
-|--------|------|:--:|:--:|:--:|:--:|
-| สมัคร / login / me / profile | any | ✓ | ✓ | ✓ | ✓ |
-| สร้าง job draft | hirer | ✓ | ✓ | ✓ | ✓ |
-| ดู job stats | any | ✓ | ✓ | ✓ | ✓ |
-| ดู job feed | caregiver | ✓ | ✓ | ✓ | ✓ |
-| ดู my-jobs | hirer | ✓ | ✓ | ✓ | ✓ |
-| Top up wallet | any | ✓ | ✓ | ✓ | ✓ |
-| ดูยอด/ประวัติ wallet | any | ✓ | ✓ | ✓ | ✓ |
-| ยกเลิกงาน | hirer/cg | ✓ | ✓ | ✓ | ✓ |
-| ดูบัญชีธนาคาร (hirer) | hirer | ✓ | ✓ | ✓ | ✓ |
-| ดู/เพิ่มบัญชีธนาคาร (cg) | caregiver | ✗ | ✓ | ✓ | ✓ |
-| โพสต์งาน low_risk | hirer | ✗ | ✓ | ✓ | ✓ |
-| รับงาน (accept/reject) | caregiver | ✗ | ✓ | ✓ | ✓ |
-| Check-in / Check-out | caregiver | ✗ | ✓ | ✓ | ✓ |
-| ดูงานที่ได้รับมอบหมาย | caregiver | ✗ | ✓ | ✓ | ✓ |
-| โพสต์งาน high_risk | hirer | ✗ | ✗ | ✓ | ✓ |
-| ถอนเงิน | caregiver | ✗ | ✗ | ✓ | ✓ |
+| Action                       | Role      | L0  | L1  | L2  | L3  |
+| ---------------------------- | --------- | :-: | :-: | :-: | :-: |
+| สมัคร / login / me / profile | any       |  ✓  |  ✓  |  ✓  |  ✓  |
+| สร้าง job draft              | hirer     |  ✓  |  ✓  |  ✓  |  ✓  |
+| ดู job stats                 | any       |  ✓  |  ✓  |  ✓  |  ✓  |
+| ดู job feed                  | caregiver |  ✓  |  ✓  |  ✓  |  ✓  |
+| ดู my-jobs                   | hirer     |  ✓  |  ✓  |  ✓  |  ✓  |
+| Top up wallet                | any       |  ✓  |  ✓  |  ✓  |  ✓  |
+| ดูยอด/ประวัติ wallet         | any       |  ✓  |  ✓  |  ✓  |  ✓  |
+| ยกเลิกงาน                    | hirer/cg  |  ✓  |  ✓  |  ✓  |  ✓  |
+| ดูบัญชีธนาคาร (hirer)        | hirer     |  ✓  |  ✓  |  ✓  |  ✓  |
+| ดู/เพิ่มบัญชีธนาคาร (cg)     | caregiver |  ✗  |  ✓  |  ✓  |  ✓  |
+| โพสต์งาน low_risk            | hirer     |  ✗  |  ✓  |  ✓  |  ✓  |
+| รับงาน (accept/reject)       | caregiver |  ✗  |  ✓  |  ✓  |  ✓  |
+| Check-in / Check-out         | caregiver |  ✗  |  ✓  |  ✓  |  ✓  |
+| ดูงานที่ได้รับมอบหมาย        | caregiver |  ✗  |  ✓  |  ✓  |  ✓  |
+| โพสต์งาน high_risk           | hirer     |  ✗  |  ✗  |  ✓  |  ✓  |
+| ถอนเงิน                      | caregiver |  ✗  |  ✗  |  ✓  |  ✓  |
 
 ---
 
@@ -159,15 +162,17 @@ Cancel (Refund):
 ```
 
 ### Wallet Types (5 ประเภท)
-| Type | Owner | คำอธิบาย |
-|------|-------|----------|
-| `hirer` | user_id | กระเป๋า hirer (1 ต่อ user) |
-| `caregiver` | user_id | กระเป๋า caregiver (1 ต่อ user) |
-| `escrow` | job_id | กระเป๋าพักเงินงาน (1 ต่อ job) |
-| `platform` | — | กระเป๋า platform fee |
-| `platform_replacement` | — | กระเป๋า replacement fee |
+
+| Type                   | Owner   | คำอธิบาย                       |
+| ---------------------- | ------- | ------------------------------ |
+| `hirer`                | user_id | กระเป๋า hirer (1 ต่อ user)     |
+| `caregiver`            | user_id | กระเป๋า caregiver (1 ต่อ user) |
+| `escrow`               | job_id  | กระเป๋าพักเงินงาน (1 ต่อ job)  |
+| `platform`             | —       | กระเป๋า platform fee           |
+| `platform_replacement` | —       | กระเป๋า replacement fee        |
 
 ### Ledger (Immutable, Double-entry)
+
 - ทุก transaction มี `from_wallet_id` → `to_wallet_id`
 - `idempotency_key` ป้องกัน duplicate
 - DB trigger ป้องกัน UPDATE/DELETE
@@ -688,6 +693,7 @@ Admin                                                                   │
 > Source: `backend/src/routes/` (17 route files), mounted in `server.js`
 
 ### 7.1 Auth — `/api/auth`
+
 ```
 POST   /api/auth/register/guest        สมัคร Guest (email + password + role)
 POST   /api/auth/register/member       สมัคร Member (phone + password + role)
@@ -713,6 +719,7 @@ GET    /api/auth/google/callback       Google OAuth callback
 ```
 
 ### 7.2 OTP — `/api/otp`
+
 ```
 POST   /api/otp/email/send             ส่ง OTP ไป email
 POST   /api/otp/phone/send             ส่ง OTP ไป phone
@@ -721,6 +728,7 @@ POST   /api/otp/resend                 ส่ง OTP ซ้ำ (otp_id)
 ```
 
 ### 7.3 Jobs — `/api/jobs`
+
 ```
 GET    /api/jobs/stats                 สถิติงาน (สำหรับ dashboard)
 GET    /api/jobs/feed                  Job feed สำหรับ caregiver (filter: job_type, risk, urgent)
@@ -733,10 +741,14 @@ POST   /api/jobs/:id/accept            รับงาน (posted→assigned)
 POST   /api/jobs/:id/reject            ปฏิเสธงาน direct-assigned
 POST   /api/jobs/:jobId/checkin        Check-in (GPS: lat, lng, accuracy_m)
 POST   /api/jobs/:jobId/checkout       Check-out (GPS: lat, lng, accuracy_m)
+POST   /api/jobs/:jobId/early-checkout-request   ขอส่งงานก่อนเวลา (evidence_note)
+POST   /api/jobs/:jobId/early-checkout-respond   ตอบรับ/ปฏิเสธคำขอส่งงานก่อนเวลา (action, reason?)
+GET    /api/jobs/:jobId/early-checkout-request    ดูคำขอส่งงานก่อนเวลา
 POST   /api/jobs/:id/cancel            ยกเลิกงาน (reason required)
 ```
 
 ### 7.4 Caregivers — `/api/caregivers`
+
 ```
 GET    /api/caregivers/public/featured ดู featured caregivers (no auth, landing page)
 GET    /api/caregivers/search          ค้นหา caregiver (q, skills, trust_level, experience, day)
@@ -745,6 +757,7 @@ POST   /api/caregivers/assign          มอบหมาย caregiver ให้
 ```
 
 ### 7.5 Care Recipients — `/api/care-recipients`
+
 ```
 GET    /api/care-recipients            ดูรายชื่อผู้รับดูแลของ hirer
 POST   /api/care-recipients            สร้างผู้รับดูแลใหม่
@@ -754,6 +767,7 @@ DELETE /api/care-recipients/:id        ลบ (deactivate) ผู้รับด
 ```
 
 ### 7.6 Caregiver Documents — `/api/caregiver-documents`
+
 ```
 GET    /api/caregiver-documents                    ดูเอกสารตัวเอง
 POST   /api/caregiver-documents                    อัพโหลดเอกสาร (multipart)
@@ -762,6 +776,7 @@ GET    /api/caregiver-documents/by-caregiver/:id   ดูเอกสาร care
 ```
 
 ### 7.7 Reviews — `/api/reviews`
+
 ```
 POST   /api/reviews                          รีวิว caregiver (job_id, caregiver_id, rating, comment)
 GET    /api/reviews/caregiver/:caregiverId   ดูรีวิว caregiver (paginated)
@@ -769,6 +784,7 @@ GET    /api/reviews/job/:jobId               ตรวจสอบว่าร�
 ```
 
 ### 7.7b Favorites — `/api/favorites`
+
 ```
 POST   /api/favorites/toggle                 toggle favorite (caregiver_id)
 GET    /api/favorites                        ดูรายการ favorite ทั้งหมด (paginated)
@@ -776,6 +792,7 @@ GET    /api/favorites/check/:caregiverId     ตรวจสอบว่า favo
 ```
 
 ### 7.8 KYC — `/api/kyc`
+
 ```
 GET    /api/kyc/status                 ดูสถานะ KYC
 POST   /api/kyc/submit                 ส่ง KYC จริง (multipart: front, back, selfie)
@@ -783,6 +800,7 @@ POST   /api/kyc/mock/submit            ส่ง KYC mock (สำหรับ de
 ```
 
 ### 7.9 Wallet — `/api/wallet`
+
 ```
 GET    /api/wallet/balance                              ดูยอดเงิน
 GET    /api/wallet/transactions                         ประวัติ transaction (paginated)
@@ -805,6 +823,7 @@ POST   /api/wallet/admin/withdrawals/:id/mark-paid      Admin: mark paid
 ```
 
 ### 7.10 Payments — `/api/payments`
+
 ```
 GET    /api/payments                   ดูรายการ payment (paginated, filter: status)
 GET    /api/payments/:id               ดูรายละเอียด payment
@@ -812,6 +831,7 @@ POST   /api/payments/:id/simulate      Simulate payment (admin/testing)
 ```
 
 ### 7.11 Chat — `/api/chat`
+
 ```
 GET    /api/chat/threads                          ดู chat threads ทั้งหมด
 GET    /api/chat/threads/:threadId                ดู thread detail
@@ -825,6 +845,7 @@ GET    /api/chat/job/:jobId/thread                ดู thread ของ job
 ```
 
 ### 7.12 Disputes — `/api/disputes`
+
 ```
 POST   /api/disputes                       เปิดข้อพิพาท (job_id, reason)
 GET    /api/disputes/by-job/:jobId         ดูข้อพิพาทของ job
@@ -834,6 +855,7 @@ POST   /api/disputes/:id/request-close     ขอปิดข้อพิพา�
 ```
 
 ### 7.13 Notifications — `/api/notifications`
+
 ```
 GET    /api/notifications              ดู notifications (paginated)
 GET    /api/notifications/unread-count นับ unread
@@ -843,6 +865,7 @@ DELETE /api/notifications              ลบ notifications ทั้งหม�
 ```
 
 ### 7.14 Webhooks — `/api/webhooks`
+
 ```
 POST   /api/webhooks/payment           Payment provider webhook
 POST   /api/webhooks/kyc               KYC provider webhook
@@ -850,6 +873,7 @@ POST   /api/webhooks/sms               SMS provider webhook
 ```
 
 ### 7.15 Admin — `/api/admin`
+
 ```
 GET    /api/admin/stats                          System statistics
 GET    /api/admin/health                         Health check
@@ -879,6 +903,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 > Source: `frontend/src/router.tsx`
 
 ### Public (ไม่ต้อง login)
+
 ```
 /                              LandingPage
 /about                         AboutPage
@@ -888,6 +913,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ### Auth (ไม่ต้อง login)
+
 ```
 /login                         LoginEntryPage (เลือก email/phone/google)
 /login/email                   LoginEmailPage
@@ -902,6 +928,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ### Hirer — RequireAuth + RequireRole(hirer) + RequirePolicy
+
 ```
 /hirer/home                    HirerHomePage
 /hirer/search-caregivers       SearchCaregiversPage (+RequireProfile)
@@ -917,6 +944,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ### Caregiver — RequireAuth + RequireRole(caregiver) + RequirePolicy
+
 ```
 /caregiver/jobs/feed           CaregiverJobFeedPage
 /caregiver/jobs/my-jobs        CaregiverMyJobsPage
@@ -928,6 +956,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ### Shared — RequireAuth
+
 ```
 /jobs/:id                      JobDetailPage
 /jobs/:id/cancel               CancelJobPage
@@ -941,6 +970,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ### Admin — RequireAdmin
+
 ```
 /admin/login                   AdminLoginPage
 /admin/dashboard               AdminDashboardPage
@@ -953,6 +983,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ### Fallback
+
 ```
 /*                             → redirect to /
 ```
@@ -962,6 +993,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ## 9. Environment Variables
 
 ### Backend (.env)
+
 ```env
 NODE_ENV=development
 PORT=3000
@@ -1023,12 +1055,15 @@ SEED_MOCK_JOBS=true
 ```
 
 ### Frontend (.env)
+
 ```env
 VITE_API_TARGET=http://backend:3000
 ```
 
 ### Mock Provider (Port 4000)
+
 > Source: `mock-provider/` — จำลอง Payment/SMS/KYC providers สำหรับ dev
+
 ```env
 BACKEND_WEBHOOK_URL=http://backend:3000/api/webhooks
 MOCK_PAYMENT_AUTO_SUCCESS=true
@@ -1040,26 +1075,26 @@ MOCK_KYC_AUTO_APPROVE=true
 
 ## 10. Key Design Decisions
 
-| Decision | เหตุผล |
-|----------|--------|
-| **Two-table job pattern** (job_posts + jobs) | แยก draft/posting จาก instance จริง, รองรับ replacement chain |
-| **Immutable Ledger** (double-entry) | from_wallet→to_wallet, ป้องกันแก้ไข, idempotency_key ป้องกัน duplicate |
-| **Trust Level = derived state** | คำนวณจาก worker (score 0-100), ไม่ manual set |
-| **One active assignment per job** | UNIQUE constraint ระดับ DB ป้องกัน race condition |
-| **No negative balance** | CHECK constraint ระดับ DB ป้องกัน overdraft |
-| **5 wallet types** | hirer, caregiver, escrow (per job), platform, platform_replacement |
-| **JWT + Refresh token** | stateless auth, access 15m, refresh 7d |
-| **Display name ≠ email/phone** | privacy — ไม่เปิดเผย PII ให้ user อื่น |
-| **Risk-based job classification** | high_risk ต้อง L2+, low_risk ต้อง L1+ |
-| **Thread-based chat** | 1 thread per job, thread-centric (ไม่ใช่ job-centric) |
-| **Guest (email) vs Member (phone)** | รองรับ 2 account types + Google OAuth |
-| **Policy consent per role** | user ต้องยอมรับ policy ก่อนใช้งานแต่ละ role |
-| **Geofence + GPS evidence** | พิสูจน์การทำงาน ณ สถานที่จริง |
-| **Replacement chain (max 3)** | job_post สามารถ re-post ได้สูงสุด 3 ครั้ง |
-| **Polling notifications (30s)** | ง่ายกว่า WebSocket สำหรับ MVP |
-| **Auto-complete overdue jobs** | getCaregiverJobs auto-checkout jobs ที่เลยเวลา |
-| **Dev auto-topup** | publishJob เติมเงินอัตโนมัติ (dev only) ถ้ายอดไม่พอ |
-| **L3 hysteresis** | ลง L2 เมื่อ score < 75 (ไม่ใช่ 80) ป้องกันการสั่นไหว |
+| Decision                                     | เหตุผล                                                                 |
+| -------------------------------------------- | ---------------------------------------------------------------------- |
+| **Two-table job pattern** (job_posts + jobs) | แยก draft/posting จาก instance จริง, รองรับ replacement chain          |
+| **Immutable Ledger** (double-entry)          | from_wallet→to_wallet, ป้องกันแก้ไข, idempotency_key ป้องกัน duplicate |
+| **Trust Level = derived state**              | คำนวณจาก worker (score 0-100), ไม่ manual set                          |
+| **One active assignment per job**            | UNIQUE constraint ระดับ DB ป้องกัน race condition                      |
+| **No negative balance**                      | CHECK constraint ระดับ DB ป้องกัน overdraft                            |
+| **5 wallet types**                           | hirer, caregiver, escrow (per job), platform, platform_replacement     |
+| **JWT + Refresh token**                      | stateless auth, access 15m, refresh 7d                                 |
+| **Display name ≠ email/phone**               | privacy — ไม่เปิดเผย PII ให้ user อื่น                                 |
+| **Risk-based job classification**            | high_risk ต้อง L2+, low_risk ต้อง L1+                                  |
+| **Thread-based chat**                        | 1 thread per job, thread-centric (ไม่ใช่ job-centric)                  |
+| **Guest (email) vs Member (phone)**          | รองรับ 2 account types + Google OAuth                                  |
+| **Policy consent per role**                  | user ต้องยอมรับ policy ก่อนใช้งานแต่ละ role                            |
+| **Geofence + GPS evidence**                  | พิสูจน์การทำงาน ณ สถานที่จริง                                          |
+| **Replacement chain (max 3)**                | job_post สามารถ re-post ได้สูงสุด 3 ครั้ง                              |
+| **Polling notifications (30s)**              | ง่ายกว่า WebSocket สำหรับ MVP                                          |
+| **Auto-complete overdue jobs**               | getCaregiverJobs auto-checkout jobs ที่เลยเวลา                         |
+| **Dev auto-topup**                           | publishJob เติมเงินอัตโนมัติ (dev only) ถ้ายอดไม่พอ                    |
+| **L3 hysteresis**                            | ลง L2 เมื่อ score < 75 (ไม่ใช่ 80) ป้องกันการสั่นไหว                   |
 
 ---
 
@@ -1069,16 +1104,16 @@ MOCK_KYC_AUTO_APPROVE=true
 
 ### Middleware Functions Available
 
-| Middleware | คำอธิบาย |
-|-----------|----------|
-| `requireAuth` | ตรวจ JWT → attach `req.user`, `req.userId`, `req.userRole`, `req.userTrustLevel`, `req.userAccountType` |
-| `optionalAuth` | เหมือน requireAuth แต่ไม่บังคับ (token invalid → `req.user = null`) |
-| `requireRole(roles)` | ตรวจว่า user มี role ที่กำหนด (string หรือ array) |
-| `requireTrustLevel(min)` | ตรวจ trust level ขั้นต่ำ (L0-L3) |
-| `requirePolicy(action)` | ตรวจ action-based permission ผ่าน `can()` function + audit log |
-| `requireAccountType(types)` | ตรวจ account type (guest/member) |
-| `requireVerified` | ตรวจว่า email หรือ phone verified |
-| `requireOwnership(param)` | ตรวจว่า user เป็นเจ้าของ resource (admin bypass) |
+| Middleware                  | คำอธิบาย                                                                                                |
+| --------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `requireAuth`               | ตรวจ JWT → attach `req.user`, `req.userId`, `req.userRole`, `req.userTrustLevel`, `req.userAccountType` |
+| `optionalAuth`              | เหมือน requireAuth แต่ไม่บังคับ (token invalid → `req.user = null`)                                     |
+| `requireRole(roles)`        | ตรวจว่า user มี role ที่กำหนด (string หรือ array)                                                       |
+| `requireTrustLevel(min)`    | ตรวจ trust level ขั้นต่ำ (L0-L3)                                                                        |
+| `requirePolicy(action)`     | ตรวจ action-based permission ผ่าน `can()` function + audit log                                          |
+| `requireAccountType(types)` | ตรวจ account type (guest/member)                                                                        |
+| `requireVerified`           | ตรวจว่า email หรือ phone verified                                                                       |
+| `requireOwnership(param)`   | ตรวจว่า user เป็นเจ้าของ resource (admin bypass)                                                        |
 
 ### Typical Route Middleware Chain
 
@@ -1129,37 +1164,40 @@ admin role → allowed for ALL actions (bypass)
 > Source: `backend/src/sockets/chatSocket.js`, `backend/src/sockets/realtimeHub.js`
 
 ### Authentication
+
 - Token ส่งผ่าน `socket.handshake.auth.token` หรือ `Authorization` header
 - Verify JWT → attach `socket.userId`, `socket.userRole`
 
 ### Room Structure
+
 - `user:{userId}` — personal room (join on connect) สำหรับ notifications
 - `thread:{threadId}` — chat thread room (join on `thread:join`)
 
 ### Client → Server Events
 
-| Event | Payload | คำอธิบาย |
-|-------|---------|----------|
-| `thread:join` | `threadId` | เข้า chat room (ตรวจ access ก่อน) |
-| `thread:leave` | `threadId` | ออกจาก chat room |
-| `message:send` | `{ threadId, type, content, attachment_key, metadata }` | ส่งข้อความ |
-| `typing:start` | `threadId` | แจ้งว่ากำลังพิมพ์ |
-| `typing:stop` | `threadId` | หยุดพิมพ์ |
-| `message:read` | `{ threadId, messageId }` | mark as read |
+| Event          | Payload                                                 | คำอธิบาย                          |
+| -------------- | ------------------------------------------------------- | --------------------------------- |
+| `thread:join`  | `threadId`                                              | เข้า chat room (ตรวจ access ก่อน) |
+| `thread:leave` | `threadId`                                              | ออกจาก chat room                  |
+| `message:send` | `{ threadId, type, content, attachment_key, metadata }` | ส่งข้อความ                        |
+| `typing:start` | `threadId`                                              | แจ้งว่ากำลังพิมพ์                 |
+| `typing:stop`  | `threadId`                                              | หยุดพิมพ์                         |
+| `message:read` | `{ threadId, messageId }`                               | mark as read                      |
 
 ### Server → Client Events
 
-| Event | Payload | คำอธิบาย |
-|-------|---------|----------|
-| `thread:joined` | `{ threadId }` | ยืนยันว่าเข้า room แล้ว |
-| `thread:left` | `{ threadId }` | ยืนยันว่าออก room แล้ว |
-| `message:new` | message object | ข้อความใหม่ (broadcast ทั้ง room) |
-| `typing:started` | `{ threadId, userId }` | user อื่นกำลังพิมพ์ |
-| `typing:stopped` | `{ threadId, userId }` | user อื่นหยุดพิมพ์ |
-| `message:read` | `{ threadId, messageId, userId, readAt }` | user อื่นอ่านข้อความแล้ว |
-| `error` | `{ message }` | error event |
+| Event            | Payload                                   | คำอธิบาย                          |
+| ---------------- | ----------------------------------------- | --------------------------------- |
+| `thread:joined`  | `{ threadId }`                            | ยืนยันว่าเข้า room แล้ว           |
+| `thread:left`    | `{ threadId }`                            | ยืนยันว่าออก room แล้ว            |
+| `message:new`    | message object                            | ข้อความใหม่ (broadcast ทั้ง room) |
+| `typing:started` | `{ threadId, userId }`                    | user อื่นกำลังพิมพ์               |
+| `typing:stopped` | `{ threadId, userId }`                    | user อื่นหยุดพิมพ์                |
+| `message:read`   | `{ threadId, messageId, userId, readAt }` | user อื่นอ่านข้อความแล้ว          |
+| `error`          | `{ message }`                             | error event                       |
 
 ### Realtime Hub (`realtimeHub.js`)
+
 - `emitToUserRoom(userId, event, payload)` — ส่ง event ไปยัง personal room ของ user
 - ใช้สำหรับ push notifications, status updates
 
@@ -1171,15 +1209,15 @@ admin role → allowed for ALL actions (bypass)
 
 ### Standardized Error Classes
 
-| Class | HTTP Status | Default Code |
-|-------|:-----------:|-------------|
-| `ApiError` | 500 | `SERVER_ERROR` |
-| `ValidationError` | 400 | `VALIDATION_ERROR` |
-| `NotFoundError` | 404 | `NOT_FOUND` |
-| `UnauthorizedError` | 401 | `UNAUTHORIZED` |
-| `ForbiddenError` | 403 | `FORBIDDEN` |
-| `ConflictError` | 409 | `DUPLICATE_RESOURCE` |
-| `TooManyRequestsError` | 429 | `RATE_LIMIT_EXCEEDED` |
+| Class                  | HTTP Status | Default Code          |
+| ---------------------- | :---------: | --------------------- |
+| `ApiError`             |     500     | `SERVER_ERROR`        |
+| `ValidationError`      |     400     | `VALIDATION_ERROR`    |
+| `NotFoundError`        |     404     | `NOT_FOUND`           |
+| `UnauthorizedError`    |     401     | `UNAUTHORIZED`        |
+| `ForbiddenError`       |     403     | `FORBIDDEN`           |
+| `ConflictError`        |     409     | `DUPLICATE_RESOURCE`  |
+| `TooManyRequestsError` |     429     | `RATE_LIMIT_EXCEEDED` |
 
 ### Response Format
 
@@ -1197,6 +1235,7 @@ admin role → allowed for ALL actions (bypass)
 ```
 
 ### Error Handler Middleware (`errorHandler`)
+
 - `ApiError` → ใช้ status/code ตรง
 - Joi validation error → แปลงเป็น `ValidationError`
 - JWT errors → `UnauthorizedError` (INVALID_TOKEN / TOKEN_EXPIRED)
@@ -1205,6 +1244,7 @@ admin role → allowed for ALL actions (bypass)
 - Unknown → 500 (dev mode แสดง stack trace)
 
 ### Key Error Codes
+
 ```
 UNAUTHORIZED, INVALID_TOKEN, TOKEN_EXPIRED, FORBIDDEN
 VALIDATION_ERROR, INVALID_REQUEST_BODY, MISSING_REQUIRED_FIELD
@@ -1214,6 +1254,7 @@ INTERNAL_SERVER_ERROR, DATABASE_ERROR, RATE_LIMIT_EXCEEDED
 ```
 
 ### Job-specific Error Codes
+
 ```
 JOB_REQUIRED_FIELD, JOB_SCHEDULE_INVALID, JOB_TYPE_INVALID
 JOB_FLAGS_INVALID, JOB_TASKS_REQUIRED, JOB_TIME_CONFLICT
@@ -1230,16 +1271,16 @@ HIRER_TRUST_RESTRICTION, INSUFFICIENT_BALANCE
 
 ### Score Weights (base = 50)
 
-| Factor | Points | Cap |
-|--------|:------:|:---:|
-| Completed job | +5 each | max +30 |
-| Good review (4-5★) | +3 each | max +20 |
-| Average review (3★) | +1 each | — |
-| Bad review (1-2★) | -5 each | max -20 |
-| Cancellation | -10 each | max -30 |
-| GPS violation | -3 each | max -15 |
-| On-time check-in | +2 each | max +20 |
-| Profile complete | +10 | one-time |
+| Factor              |  Points  |   Cap    |
+| ------------------- | :------: | :------: |
+| Completed job       | +5 each  | max +30  |
+| Good review (4-5★)  | +3 each  | max +20  |
+| Average review (3★) | +1 each  |    —     |
+| Bad review (1-2★)   | -5 each  | max -20  |
+| Cancellation        | -10 each | max -30  |
+| GPS violation       | -3 each  | max -15  |
+| On-time check-in    | +2 each  | max +20  |
+| Profile complete    |   +10    | one-time |
 
 **Formula**: `score = clamp(0, 100, 50 + all_factors)`
 
@@ -1256,6 +1297,7 @@ L3: phone_verified + KYC approved + bank_verified + score ≥ 80
 Note: `email_verified` alone ไม่เพียงพอสำหรับ L1 — ต้อง phone_verified
 
 ### Triggers
+
 - **Auto**: หลัง checkout สำเร็จ (`triggerUserTrustUpdate(caregiverId, 'job_completed')`)
 - **Manual**: Admin POST `/api/admin/trust/recalculate/:userId`
 - **Batch**: Admin POST `/api/admin/trust/recalculate` (ทุก caregiver)
@@ -1281,27 +1323,32 @@ low_risk: everything else
 ```
 
 ### Auto-set on Job Creation
+
 - `risk_level` → computed from job_type + patient_profile + tasks
 - `min_trust_level` → `high_risk` = L2, `low_risk` = L1
 - `risk_reason_codes[]` → array of reason codes
 - `risk_reason_detail` → human-readable explanation
 
 ### Publish Restriction (in `publishJob`)
+
 - `low_risk` → hirer ต้อง L1+
 - `high_risk` → hirer ต้อง L2+
 
 ### Accept Restriction (in `acceptJob`)
+
 - ตรวจ caregiver trust_level ≥ job.min_trust_level
 - ตรวจ required_certifications (ถ้า hirer กำหนด)
 - ตรวจ schedule conflict กับงานอื่น
 
 ### Job Type Options (6 types)
+
 ```
 companionship, personal_care, medical_monitoring,
 dementia_care, post_surgery, emergency
 ```
 
 ### Task Options (22 types)
+
 ```
 companionship, hospital_companion, hospital_registration_support,
 hospital_transport_coordination, medication_pickup, meal_prep,
@@ -1313,6 +1360,7 @@ dementia_supervision
 ```
 
 ### Required Skills Options (9 types)
+
 ```
 basic_first_aid, dementia_care, post_surgery_care, safe_transfer,
 wound_care, catheter_care, tube_feeding_care, vitals_monitoring,

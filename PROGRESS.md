@@ -1,10 +1,12 @@
 # CareConnect — Progress Log
+
 > อัพเดทล่าสุด: 2026-02-22 (session 3)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
 
 ## โปรเจคคืออะไร
+
 CareConnect — แพลตฟอร์มเชื่อมต่อผู้ว่าจ้างกับผู้ดูแลผู้สูงอายุในประเทศไทย
 โปรเจคจบมหาลัย พัฒนาด้วย React + Node.js + PostgreSQL
 
@@ -53,6 +55,7 @@ careconnect/
 ## ระบบหลักที่ Implement แล้ว
 
 ### Auth & User
+
 - [x] Email/Password registration + login (Guest & Member)
 - [x] Phone OTP registration + login
 - [x] Google OAuth (Authorization Code flow)
@@ -62,11 +65,13 @@ careconnect/
 - [x] Email/phone masked ใน TopBar dropdown
 
 ### Trust Level System
+
 - [x] L0 (Unverified) → L1 (Phone verified) → L2 (KYC approved) → L3 (Trusted)
 - [x] Risk-based job publishing: low_risk ต้อง L1+, high_risk ต้อง L2+
 - [x] Caregiver accepting: min_trust_level auto-set ตาม risk_level
 
 ### Job System
+
 - [x] Create/Edit/Publish job (hirer)
 - [x] Job feed + filter (caregiver)
 - [x] Job assignment, check-in, check-out
@@ -74,31 +79,37 @@ careconnect/
 - [x] Dispute system
 
 ### KYC
+
 - [x] อัพโหลดเอกสาร (ด้านหน้า/หลัง) + selfie
 - [x] Admin review + approve/reject
 - [x] Step indicator (3 ขั้นตอน)
 
 ### Chat
+
 - [x] ChatRoomPage — real-time chat ระหว่าง hirer/caregiver
 - [x] DisputeChatPage — admin เข้าร่วมได้
 - [x] แสดง role label แทน email/phone
 
 ### Notifications
+
 - [x] Real-time notification count ใน TopBar (polling 30s)
 - [x] NotificationsPage — อ่าน/mark as read
 - [x] Trigger: job accepted, check-in, check-out
 
 ### Wallet & Payment
+
 - [x] Top up, withdraw, transfer
 - [x] Bank account management (hirer L0+ / caregiver L1+)
 - [x] Transaction history
 
 ### Admin
+
 - [x] AdminUsersPage — ดู/แก้ไข user, ban, wallet info
 - [x] KYC review
 - [x] Dispute management
 
 ### UI/UX & Accessibility
+
 - [x] WCAG 2.1 AA audit ครบ (PR-A11Y, PR-FORMS, PR-BTNS, PR-TYPO, PR-CONTRAST)
 - [x] Focus trap ใน Modal
 - [x] Skip navigation link
@@ -112,17 +123,20 @@ careconnect/
 ## สิ่งที่ยังค้างอยู่ / TODO
 
 ### High Priority
+
 - [x] แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
 - [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
 - [ ] E2E tests (Playwright หรือ Cypress)
 
 ### Medium Priority
+
 - [ ] Email notification (ส่ง email จริงเมื่อมี notification)
 - [ ] Push notification (PWA)
 - [ ] Caregiver availability calendar
 
 ### Low Priority
+
 - [ ] Dark mode
 - [ ] Tabular numerals สำหรับตัวเลขเงิน
 - [ ] Badge color sole indicator → เพิ่ม icon/pattern
@@ -133,33 +147,50 @@ careconnect/
 
 ## ไฟล์สำคัญที่ต้องรู้จัก
 
-| ไฟล์ | หน้าที่ |
-|------|---------|
-| `frontend/src/router.tsx` | Route definitions + guards |
-| `frontend/src/routerGuards.tsx` | RequireAuth, RequireRole, RequireProfile |
-| `frontend/src/contexts/AuthContext.tsx` | Global auth state |
-| `frontend/src/services/api.ts` | Axios instance + API methods |
-| `frontend/src/services/appApi.ts` | App-specific API (favorites, etc.) |
-| `frontend/src/components/ui/` | Button, Input, Modal, Badge, Avatar, Card, etc. |
-| `frontend/src/layouts/MainLayout.tsx` | Layout หลัก (TopBar + BottomBar) |
-| `frontend/src/layouts/AdminLayout.tsx` | Layout admin (sidebar) |
-| `backend/src/middleware/auth.js` | JWT verify + policy gates |
-| `backend/src/services/authService.js` | Register, login, token logic |
-| `backend/src/services/jobService.js` | Job business logic |
-| `backend/src/models/Notification.js` | Notification model |
-| `database/schema.sql` | Master DB schema (25+ tables) |
-| `backend/database/migrations/` | Migration files |
-| `backend/src/workers/trustLevelWorker.js` | Trust score calculation + level determination |
-| `backend/src/utils/risk.js` | Risk level auto-compute |
-| `backend/src/utils/errors.js` | Custom error classes (7 types) + error handler |
-| `backend/src/sockets/chatSocket.js` | Socket.IO chat events (12 events) |
-| `backend/src/sockets/realtimeHub.js` | Realtime push to user rooms |
+| ไฟล์                                      | หน้าที่                                         |
+| ----------------------------------------- | ----------------------------------------------- |
+| `frontend/src/router.tsx`                 | Route definitions + guards                      |
+| `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequireProfile        |
+| `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
+| `frontend/src/services/api.ts`            | Axios instance + API methods                    |
+| `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
+| `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
+| `frontend/src/layouts/MainLayout.tsx`     | Layout หลัก (TopBar + BottomBar)                |
+| `frontend/src/layouts/AdminLayout.tsx`    | Layout admin (sidebar)                          |
+| `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
+| `backend/src/services/authService.js`     | Register, login, token logic                    |
+| `backend/src/services/jobService.js`      | Job business logic                              |
+| `backend/src/models/Notification.js`      | Notification model                              |
+| `database/schema.sql`                     | Master DB schema (25+ tables)                   |
+| `backend/database/migrations/`            | Migration files                                 |
+| `backend/src/workers/trustLevelWorker.js` | Trust score calculation + level determination   |
+| `backend/src/utils/risk.js`               | Risk level auto-compute                         |
+| `backend/src/utils/errors.js`             | Custom error classes (7 types) + error handler  |
+| `backend/src/sockets/chatSocket.js`       | Socket.IO chat events (12 events)               |
+| `backend/src/sockets/realtimeHub.js`      | Realtime push to user rooms                     |
 
 ---
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-26 — Early checkout request system + Caregiver profile navigation + Favorites UX
+
+- feat(backend): Early checkout request system — ผู้ดูแล checkout ก่อนเวลาต้องร้องขอ hirer อนุมัติ ถึงเวลาสิ้นสุดกดได้เลย
+  - เพิ่ม 3 API endpoints: POST early-checkout-request, POST early-checkout-respond, GET early-checkout-request
+  - DB migration: early_checkout_requests table (job_id, caregiver_id, hirer_id, evidence_note, status)
+  - Notifications: notifyEarlyCheckoutRequest, notifyEarlyCheckoutApproved, notifyEarlyCheckoutRejected
+- feat(frontend): CaregiverMyJobsPage + ChatRoomPage เช็ค scheduled_end_at ก่อน checkout
+  - ก่อนเวลาสิ้นสุด → ส่งคำขอไปผู้ว่าจ้าง (ReasonModal แสดงข้อความ "ขอส่งงานก่อนเวลา")
+  - ถึงเวลาสิ้นสุด → checkout ได้เลยตามปกติ
+- feat(hirer): JobDetailPage แสดง early checkout request card ให้ hirer อนุมัติ/ปฏิเสธ
+- feat(hirer): JobDetailPage คลิกชื่อผู้ดูแลเพื่อดูโปรไฟล์ (navigate → /hirer/caregiver/:id)
+- feat(hirer): FavoritesPage เปลี่ยน "ดูรายละเอียด" → "ดูโปรไฟล์" navigate ไปหน้า public profile แทน modal
+- fix(auth): buildSafeUserResponse ใช้ display_name ก่อน full_name เพื่อให้ isConfiguredDisplayName() ตรวจจับถูก
+- fix(auth): ProfilePage updateUser ใช้ display_name แทน full_name
+- ไฟล์ที่แก้/สร้าง: jobController.js, jobRoutes.js, notificationService.js, api.ts, appApi.ts, CaregiverMyJobsPage.tsx, ChatRoomPage.tsx, JobDetailPage.tsx, FavoritesPage.tsx, ProfilePage.tsx, authController.js, migration
+
 ### 2026-02-24 — UI/UX fixes: cancel modal, caregiver name, notification, schedule, filters, date display
+
 - feat(ui): ReasonModal เปลี่ยนเป็น preset-based เลือกเหตุผลยกเลิก + textarea เสริม (ไม่บังคับ)
 - feat(hirer): แสดงชื่อผู้ดูแลที่มอบหมายโดยตรงในการ์ดงาน (แม้ยังไม่มี job instance)
 - fix(backend): Job.js getHirerJobs query JOIN caregiver_profiles จาก preferred_caregiver_id ด้วย
@@ -171,6 +202,7 @@ careconnect/
 - ไฟล์ที่แก้: ReasonModal.tsx, HirerHomePage.tsx, CaregiverMyJobsPage.tsx, Job.js, notificationService.js, caregiverSearchRoutes.js
 
 ### 2026-02-22 — Google OAuth redirect fix + Forgot password feature (full stack)
+
 - fix(auth): แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - fix(auth): แก้ getBaseUrl + getFrontendBaseUrl ใช้ env var ใน production ก่อน fallback
 - fix(auth): แก้ forgotPassword ใช้ getFrontendBaseUrl แทน hardcode localhost
@@ -183,6 +215,7 @@ careconnect/
 - ไฟล์ที่แก้/สร้าง: authController.js, docker-compose.prod.yml, SYSTEM.md, authRoutes.js, api.ts, appApi.ts, ForgotPasswordPage.tsx, ResetPasswordPage.tsx (ใหม่), router.tsx, migration, PROGRESS.md
 
 ### 2026-02-22 — Bug fixes + Deploy + SYSTEM.md sync
+
 - fix(routes): แยก favorites routes ออกจาก reviewRoutes.js → favoritesRoutes.js แยกไฟล์
 - fix(routes): ลบ duplicate reviewRoutes mount ใน server.js (เดิม mount ซ้ำที่ /api และ /api/reviews)
 - fix(router): CancelJobPage เป็น placeholder → redirect ไป JobDetailPage (cancel ทำงานผ่าน modal อยู่แล้ว)
@@ -193,14 +226,16 @@ careconnect/
 - ไฟล์ที่แก้: server.js, reviewRoutes.js, favoritesRoutes.js (ใหม่), router.tsx, deploy.sh, docker-compose.prod.yml, .gitignore, SYSTEM.md, PROGRESS.md
 
 ### 2026-02-22 — ปรับ workflow files + .windsurfrules ให้สมบูรณ์
+
 - docs(workflows): Rewrite commit.md — เพิ่ม pre-commit verification, checklist ตามประเภทงาน
 - docs(workflows): Rewrite new-feature.md — full lifecycle 4 phases (sync→plan→implement→verify→commit)
 - docs(workflows): Rewrite update-progress.md — อ้างอิง SYSTEM.md 15 sections, trigger conditions ละเอียด
 - docs(rules): เพิ่มกฎ "ก่อนเริ่มทำงาน" — pull + อ่าน docs + SYSTEM.md 15 sections reference
 - docs(progress): เพิ่มไฟล์สำคัญที่ขาด (trustLevelWorker, risk, errors, chatSocket, realtimeHub)
-- ไฟล์ที่แก้: .windsurf/workflows/*.md, .windsurfrules, PROGRESS.md
+- ไฟล์ที่แก้: .windsurf/workflows/\*.md, .windsurfrules, PROGRESS.md
 
 ### 2026-02-22 — Deep cross-check + เพิ่ม 5 sections ใหม่ใน SYSTEM.md
+
 - docs(system): Deep cross-check SYSTEM.md กับ codebase ทุก layer
   - แก้ audit_events ERD columns ให้ตรง (เพิ่ม action, event_type variants)
   - แก้ Trust Level table — bank accounts policy แยก hirer L0 / caregiver L1
@@ -214,6 +249,7 @@ careconnect/
 - ไฟล์ที่แก้: SYSTEM.md, PROGRESS.md
 
 ### 2026-02-22 — Rewrite SYSTEM.md + ปรับ .windsurfrules
+
 - docs(system): Rewrite SYSTEM.md ทั้งหมดให้ตรงกับ codebase จริง
   - ERD: แก้จาก 1 table (jobs) เป็น 2 tables (job_posts + jobs), เพิ่ม 15+ tables ที่ขาด
   - API: แก้ routes ผิดทั้งหมด, เพิ่ม 8 route groups ที่ขาด (OTP, caregivers, care-recipients, documents, reviews, favorites, payments, webhooks)
@@ -224,20 +260,21 @@ careconnect/
 - ไฟล์ที่แก้: SYSTEM.md, .windsurfrules, PROGRESS.md
 
 ### 2026-02-22 — จัดระเบียบเอกสาร AI Context
+
 - chore(docs): ลบไฟล์ .md ที่ซ้ำซ้อน 12 ไฟล์ (ARCHITECTURE, FLOW_DOCUMENTATION, PROJECT_OVERVIEW, UX_FLOW_ANALYSIS, DEPLOYMENT, DOCKER, RUNBOOK, DEMO_SCRIPT, DELIVERY_CHECKLIST, TEST_PLAN, UI_AUDIT_REPORT, REPORT_OUTLINE)
 - chore(docs): อัพเดท .windsurfrules — บังคับ auto-update SYSTEM.md พร้อม PROGRESS.md ทุกครั้ง
 - chore(docs): อัพเดท workflow update-progress.md — รวม SYSTEM.md update เข้าด้วย
 - เหลือเอกสารหลัก 2 ไฟล์: PROGRESS.md (ความคืบหน้า) + SYSTEM.md (source of truth)
 
 ### 2026-02-22 — สร้าง AI Context System
+
 - chore(docs): สร้าง .windsurfrules — กฎถาวรสำหรับ AI ทุก session
 - chore(docs): สร้าง PROGRESS.md — บันทึกความคืบหน้าโปรเจค
 - chore(docs): สร้าง SYSTEM.md — ERD, UML, API routes, sequence diagrams, page map
 - chore(docs): สร้าง .windsurf/workflows/ — commit, update-progress, new-feature workflows
 
-
-
 ### 2026-02-22 — UI/UX Audit Round 2
+
 - fix(contrast): text-gray-400 → text-gray-500/600 ทุกหน้า
 - fix(forms): OTP label htmlFor ใน GuestRegisterPage + MemberRegisterPage
 - fix(a11y): BottomBar icons aria-hidden
@@ -247,6 +284,7 @@ careconnect/
 - fix(a11y): ProfilePage cert doc buttons aria-label
 
 ### 2026-02-22 — UI/UX Audit Round 1
+
 - fix(a11y): Modal focus trap + auto-focus + focus restore
 - fix(a11y): Skip navigation link ใน MainLayout
 - fix(a11y): TopBar icon-only buttons aria-label

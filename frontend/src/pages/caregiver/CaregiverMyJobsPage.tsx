@@ -102,6 +102,7 @@ export default function CaregiverMyJobsPage() {
   const [disputeJobId, setDisputeJobId] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutJobId, setCheckoutJobId] = useState<string | null>(null);
+  const [checkoutIsEarly, setCheckoutIsEarly] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleJobs, setScheduleJobs] = useState<CaregiverAssignedJob[]>([]);
@@ -297,8 +298,12 @@ export default function CaregiverMyJobsPage() {
     }
   };
 
-  const handleOpenCheckout = (jobId: string) => {
-    setCheckoutJobId(jobId);
+  const handleOpenCheckout = (job: CaregiverAssignedJob) => {
+    const now = new Date();
+    const endAt = new Date(job.scheduled_end_at);
+    const isEarly = now < endAt;
+    setCheckoutJobId(job.id);
+    setCheckoutIsEarly(isEarly);
     setCheckoutOpen(true);
   };
 
@@ -306,25 +311,39 @@ export default function CaregiverMyJobsPage() {
     if (!checkoutJobId || !evidenceNote.trim()) return;
     setActionLoadingId(checkoutJobId);
     try {
-      let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
-      try {
-        const raw = await getCurrentGps();
-        gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
-      } catch { /* checkout allowed anywhere */ }
-      const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote.trim());
-      if (!res.success) {
-        toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
-        return;
-      }
-      toast.success('ส่งงานเสร็จแล้ว');
-      setCheckoutOpen(false);
-      setCheckoutJobId(null);
-      if (filter === 'completed') {
+      if (checkoutIsEarly) {
+        const res = await appApi.requestEarlyCheckout(checkoutJobId, evidenceNote.trim());
+        if (!res.success) {
+          toast.error(res.error || 'ส่งคำขอไม่สำเร็จ');
+          return;
+        }
+        toast.success('ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ');
+        setCheckoutOpen(false);
+        setCheckoutJobId(null);
+        setCheckoutIsEarly(false);
         await load();
       } else {
-        setFilter('completed');
+        let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
+        try {
+          const raw = await getCurrentGps();
+          gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
+        } catch { /* checkout allowed anywhere */ }
+        const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote.trim());
+        if (!res.success) {
+          toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
+          return;
+        }
+        toast.success('ส่งงานเสร็จแล้ว');
+        setCheckoutOpen(false);
+        setCheckoutJobId(null);
+        setCheckoutIsEarly(false);
+        if (filter === 'completed') {
+          await load();
+        } else {
+          setFilter('completed');
+        }
+        if (scheduleOpen) await loadSchedule();
       }
-      if (scheduleOpen) await loadSchedule();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
@@ -531,7 +550,7 @@ export default function CaregiverMyJobsPage() {
                               variant="primary"
                               size="sm"
                               loading={isLoading}
-                              onClick={() => handleOpenCheckout(job.id)}
+                              onClick={() => handleOpenCheckout(job)}
                             >
                               ส่งงานเสร็จ
                             </Button>
@@ -709,12 +728,14 @@ export default function CaregiverMyJobsPage() {
 
         <ReasonModal
           isOpen={checkoutOpen}
-          onClose={() => { setCheckoutOpen(false); setCheckoutJobId(null); }}
+          onClose={() => { setCheckoutOpen(false); setCheckoutJobId(null); setCheckoutIsEarly(false); }}
           onConfirm={handleConfirmCheckout}
-          title="ส่งงานเสร็จ"
-          description="กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต"
+          title={checkoutIsEarly ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
+          description={checkoutIsEarly
+            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาสรุปงานที่ทำเป็นหลักฐาน'
+            : 'กรุณาสรุปงานที่ทำเป็นหลักฐาน เช่น สิ่งที่ดูแล อาการผู้ป่วย ข้อสังเกต'}
           placeholder="สรุปงานที่ทำ เช่น อาบน้ำ ป้อนอาหาร วัดความดัน..."
-          confirmText="ยืนยันส่งงาน"
+          confirmText={checkoutIsEarly ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
           variant="primary"
           loading={!!actionLoadingId}
           minLength={10}
