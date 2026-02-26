@@ -134,7 +134,7 @@
 | CHAT-02| ส่งข้อความ: real-time ด้วย Socket.IO        | message:send event                      | ทั้ง 2 ฝ่ายเห็นข้อความทันที                       | ผ่าน ✓    |
 | CHAT-03| ส่งข้อความ: งานที่ cancelled แล้ว           | ส่งข้อความใน closed thread              | ระบบ disable input, ไม่รับข้อความ                 | ผ่าน ✓    |
 | CHAT-04| Notification: real-time via Socket.IO        | caregiver accept job                    | hirer รับ notification ทันที (emit notification)   | ผ่าน ✓    |
-| CHAT-05| Notification: polling fallback               | Socket ไม่ได้เชื่อมต่อ                  | poll ทุก 5 วินาที, badge count อัพเดท             | ผ่าน ✓    |
+| CHAT-05| Notification: polling fallback               | Socket ไม่ได้เชื่อมต่อ                  | poll ทุก 15 วินาที, badge count อัพเดท            | ผ่าน ✓    |
 | CHAT-06| Notification: mark as read                  | POST /notifications/:id/read            | status=read, badge count ลด                        | ผ่าน ✓    |
 | CHAT-07| Typing indicator                             | typing:start event                      | อีกฝ่ายเห็น "กำลังพิมพ์..."                       | ผ่าน ✓    |
 | CHAT-08| Message history: paginated                  | GET /threads/:id/messages?page=2        | ได้ข้อความก่อนหน้า (cursor-based pagination)       | ผ่าน ✓    |
@@ -207,12 +207,12 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 | Error Class          | HTTP Status | Error Code              | สถานการณ์                         |
 |---------------------|-------------|-------------------------|----------------------------------|
 | `ValidationError`    | 400         | VALIDATION_ERROR        | Joi validation failed            |
-| `AuthenticationError`| 401         | AUTHENTICATION_ERROR    | ไม่มี token / token ผิด          |
-| `AuthorizationError` | 403         | AUTHORIZATION_ERROR     | ไม่มีสิทธิ์ / trust level ต่ำ    |
+| `UnauthorizedError`  | 401         | UNAUTHORIZED            | ไม่มี token / token ผิด          |
+| `ForbiddenError`     | 403         | FORBIDDEN               | ไม่มีสิทธิ์ / trust level ต่ำ    |
 | `NotFoundError`      | 404         | NOT_FOUND               | resource ไม่มีในระบบ             |
-| `ConflictError`      | 409         | CONFLICT                | ข้อมูลซ้ำ / schedule ทับซ้อน    |
-| `PaymentError`       | 402         | PAYMENT_ERROR           | ยอดเงินไม่พอ / payment ผิดพลาด  |
-| `InternalError`      | 500         | INTERNAL_SERVER_ERROR   | server error                     |
+| `ConflictError`      | 409         | DUPLICATE_RESOURCE      | ข้อมูลซ้ำ / schedule ทับซ้อน    |
+| `TooManyRequestsError`| 429        | RATE_LIMIT_EXCEEDED     | ส่ง request ถี่เกินไป               |
+| `ApiError`           | 500         | SERVER_ERROR            | server error                     |
 
 ### 4.2.3 ตารางการทดสอบ API — Authentication Endpoints
 
@@ -221,13 +221,15 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 | `/api/auth/register/guest`       | POST   | ข้อมูลครบถ้วน                   | 201             | { token, refresh, user }       | ผ่าน ✓    |
 | `/api/auth/register/guest`       | POST   | email ซ้ำ                       | 409             | CONFLICT error                 | ผ่าน ✓    |
 | `/api/auth/register/guest`       | POST   | ขาด email field                 | 400             | VALIDATION_ERROR + details     | ผ่าน ✓    |
-| `/api/auth/login`                | POST   | credentials ถูก                 | 200             | { token, refresh, user }       | ผ่าน ✓    |
-| `/api/auth/login`                | POST   | credentials ผิด                 | 401             | AUTHENTICATION_ERROR           | ผ่าน ✓    |
+| `/api/auth/login/email`          | POST   | email + password ถูก            | 200             | { token, refresh, user }       | ผ่าน ✓    |
+| `/api/auth/login/email`          | POST   | password ผิด                    | 401             | UNAUTHORIZED                   | ผ่าน ✓    |
+| `/api/auth/login/phone`          | POST   | phone + password ถูก            | 200             | { token, refresh, user }       | ผ่าน ✓    |
+| `/api/auth/login/phone`          | POST   | password ผิด                    | 401             | UNAUTHORIZED                   | ผ่าน ✓    |
 | `/api/auth/refresh`              | POST   | valid refresh token             | 200             | { token }                      | ผ่าน ✓    |
-| `/api/auth/refresh`              | POST   | expired refresh token           | 401             | AUTHENTICATION_ERROR           | ผ่าน ✓    |
+| `/api/auth/refresh`              | POST   | expired refresh token           | 401             | UNAUTHORIZED                   | ผ่าน ✓    |
 | `/api/auth/logout`               | POST   | valid token                     | 200             | { success: true }              | ผ่าน ✓    |
 | `/api/auth/profile`              | GET    | valid token                     | 200             | { user, profile, wallet }      | ผ่าน ✓    |
-| `/api/auth/profile`              | GET    | no token                        | 401             | AUTHENTICATION_ERROR           | ผ่าน ✓    |
+| `/api/auth/profile`              | GET    | no token                        | 401             | UNAUTHORIZED                   | ผ่าน ✓    |
 | `/api/auth/profile`              | PUT    | valid updates                   | 200             | { user, profile }              | ผ่าน ✓    |
 | `/api/auth/forgot-password`      | POST   | valid email                     | 200             | { success: true }              | ผ่าน ✓    |
 | `/api/auth/reset-password`       | POST   | valid token + new password      | 200             | { success: true }              | ผ่าน ✓    |
@@ -242,19 +244,19 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 |-----------------------------------|--------|--------------------------------|-----------------|--------------------------------|-----------|
 | `/api/jobs`                       | POST   | ข้อมูลครบ, L0 Hirer            | 201             | { job_post }                   | ผ่าน ✓    |
 | `/api/jobs`                       | POST   | ขาด scheduled_start_at          | 400             | VALIDATION_ERROR               | ผ่าน ✓    |
-| `/api/jobs`                       | POST   | no token                        | 401             | AUTHENTICATION_ERROR           | ผ่าน ✓    |
-| `/api/jobs`                       | POST   | role=caregiver                  | 403             | AUTHORIZATION_ERROR            | ผ่าน ✓    |
+| `/api/jobs`                       | POST   | no token                        | 401             | UNAUTHORIZED                   | ผ่าน ✓    |
+| `/api/jobs`                       | POST   | role=caregiver                  | 403             | FORBIDDEN                      | ผ่าน ✓    |
 | `/api/jobs/:id`                   | GET    | valid job_id                    | 200             | { job_post, job, assignment }  | ผ่าน ✓    |
 | `/api/jobs/:id`                   | GET    | invalid uuid                    | 400             | VALIDATION_ERROR               | ผ่าน ✓    |
 | `/api/jobs/:id`                   | GET    | job ไม่มีในระบบ                 | 404             | NOT_FOUND                      | ผ่าน ✓    |
 | `/api/jobs/:id/publish`           | POST   | L1 Hirer, low_risk, เงินพอ    | 200             | { status: 'posted' }           | ผ่าน ✓    |
-| `/api/jobs/:id/publish`           | POST   | L0 Hirer                        | 403             | AUTHORIZATION_ERROR            | ผ่าน ✓    |
-| `/api/jobs/:id/publish`           | POST   | ยอดเงินไม่พอ                    | 400/402         | PAYMENT_ERROR                  | ผ่าน ✓    |
+| `/api/jobs/:id/publish`           | POST   | L0 Hirer                        | 403             | HIRER_TRUST_RESTRICTION        | ผ่าน ✓    |
+| `/api/jobs/:id/publish`           | POST   | ยอดเงินไม่พอ                    | 400             | INSUFFICIENT_BALANCE           | ผ่าน ✓    |
 | `/api/jobs/feed`                  | GET    | L1 Caregiver                    | 200             | { jobs: [...] }                | ผ่าน ✓    |
 | `/api/jobs/:id/accept`            | POST   | L1 CG, low_risk job            | 200             | { job, assignment, thread }    | ผ่าน ✓    |
-| `/api/jobs/:id/accept`            | POST   | L0 CG                           | 403             | AUTHORIZATION_ERROR            | ผ่าน ✓    |
+| `/api/jobs/:id/accept`            | POST   | L0 CG                           | 403             | FORBIDDEN                      | ผ่าน ✓    |
 | `/api/jobs/:id/cancel`            | POST   | Hirer + reason                  | 200             | { status: 'cancelled' }        | ผ่าน ✓    |
-| `/api/jobs/:id/cancel`            | POST   | ไม่ใช่เจ้าของ job               | 403             | AUTHORIZATION_ERROR            | ผ่าน ✓    |
+| `/api/jobs/:id/cancel`            | POST   | ไม่ใช่เจ้าของ job               | 403             | FORBIDDEN                      | ผ่าน ✓    |
 | `/api/jobs/:jobId/checkin`        | POST   | assigned job, valid GPS         | 200             | { status: 'in_progress' }      | ผ่าน ✓    |
 | `/api/jobs/:jobId/checkout`       | POST   | in_progress, ถึงเวลา, evidence  | 200             | { status: 'completed' }        | ผ่าน ✓    |
 | `/api/jobs/:jobId/checkout`       | POST   | evidence_note = ""              | 400             | VALIDATION_ERROR               | ผ่าน ✓    |
@@ -268,11 +270,11 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 | `/api/wallet/topup`                | POST   | amount ≤ 0                     | 400             | VALIDATION_ERROR            | ผ่าน ✓    |
 | `/api/wallet/topup/:id/confirm`    | POST   | valid topup_id                 | 200             | { status }                  | ผ่าน ✓    |
 | `/api/wallet/withdraw`             | POST   | L2 CG, valid amount+bank       | 201             | { withdrawal_request }      | ผ่าน ✓    |
-| `/api/wallet/withdraw`             | POST   | L1 CG                          | 403             | AUTHORIZATION_ERROR         | ผ่าน ✓    |
-| `/api/wallet/withdraw`             | POST   | amount > available_balance     | 400             | PAYMENT_ERROR               | ผ่าน ✓    |
+| `/api/wallet/withdraw`             | POST   | L1 CG                          | 403             | FORBIDDEN                   | ผ่าน ✓    |
+| `/api/wallet/withdraw`             | POST   | amount > available_balance     | 400             | INSUFFICIENT_BALANCE        | ผ่าน ✓    |
 | `/api/wallet/bank-accounts`        | GET    | valid token                    | 200             | { bank_accounts: [...] }    | ผ่าน ✓    |
 | `/api/wallet/bank-accounts`        | POST   | Hirer L0, valid data           | 201             | { bank_account }            | ผ่าน ✓    |
-| `/api/wallet/bank-accounts`        | POST   | CG L0                          | 403             | AUTHORIZATION_ERROR         | ผ่าน ✓    |
+| `/api/wallet/bank-accounts`        | POST   | CG L0                          | 403             | FORBIDDEN                   | ผ่าน ✓    |
 
 ### 4.2.6 ตารางการทดสอบ API — Chat Endpoints
 
@@ -302,12 +304,12 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 
 | โมดูล                  | จำนวน Test Cases | ผ่าน | ไม่ผ่าน | อัตราผ่าน |
 |-----------------------|:-----------------:|:----:|:-------:|:---------:|
-| Authentication         | 17               | 17   | 0       | 100%      |
+| Authentication         | 19               | 19   | 0       | 100%      |
 | Job Endpoints          | 18               | 18   | 0       | 100%      |
 | Wallet Endpoints       | 10               | 10   | 0       | 100%      |
 | Chat Endpoints         | 5                | 5    | 0       | 100%      |
 | Admin Endpoints        | 9                | 9    | 0       | 100%      |
-| **รวม**               | **59**           | **59** | **0** | **100%**  |
+| **รวม**               | **61**           | **61** | **0** | **100%**  |
 
 ### 4.2.9 สรุปผลการทดสอบเว็บแอปพลิเคชัน
 
@@ -335,6 +337,8 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 
 4. **Job Feed: ผู้ดูแลเห็นงานตัวเอง**: กรณี user มีทั้ง 2 roles, ต้องกรอง `hirer_id ≠ current_user_id` ใน query
 
-5. **Real-time notification latency**: Socket.IO มี latency ต่ำมาก (< 100ms) แต่กรณี Socket หลุด polling 5 วินาทีช่วยรับประกัน delivery
+5. **Real-time notification latency**: Socket.IO มี latency ต่ำมาก (< 100ms) แต่กรณี Socket หลุด polling 15 วินาทีช่วยรับประกัน delivery พร้อม reconnect event listener ที่ fetchUnread ทันทีเมื่อ socket reconnect
 
 6. **Early checkout auto-complete timing**: ระบบตรวจสอบ `scheduled_end_at + 10 minutes` ไม่ใช่ `scheduled_end_at` โดยตรง เพื่อให้ hirer มีเวลาอนุมัติ early checkout ก่อน auto-complete
+
+7. **Socket reconnection**: Frontend Socket.IO ต้องมี `reconnection: true` + `transports: ['websocket', 'polling']` เพื่อ fallback เมื่อ WebSocket ไม่สามารถเชื่อมต่อได้ และ backend `createNotification` ต้อง emit socket แม้ว่า DB save จะ fail เพื่อไม่ให้พลาด real-time toast

@@ -36,7 +36,7 @@
 ### 3.1.2 Application Layer
 
 Backend พัฒนาด้วย **Node.js (ESM) + Express.js** ประมวลผล business logic มีระบบ:
-- **Authentication**: JWT Access Token (15 นาที) + Refresh Token (7 วัน)
+- **Authentication**: JWT Access Token (prod: 15 นาที, dev: 7 วัน) + Refresh Token (prod: 7 วัน, dev: 30 วัน)
 - **Authorization**: Policy Gate System (`can()` function) ตรวจสิทธิ์แบบ action-based
 - **Validation**: Joi Schema ทุก request
 - **Real-time**: Socket.IO สำหรับ chat และ notifications
@@ -108,7 +108,7 @@ backend/src/
 | `reviewRoutes.js`            | `/api/reviews`           | 3         |
 | `favoritesRoutes.js`         | `/api/favorites`         | 3         |
 | `kycRoutes.js`               | `/api/kyc`               | 3         |
-| `walletRoutes.js`            | `/api/wallet`            | 16        |
+| `walletRoutes.js`            | `/api/wallet`            | 17        |
 | `paymentRoutes.js`           | `/api/payments`          | 3         |
 | `chatRoutes.js`              | `/api/chat`              | 9         |
 | `disputeRoutes.js`           | `/api/disputes`          | 5         |
@@ -162,7 +162,7 @@ backend/src/
 
 | เทคโนโลยี        | Version | หน้าที่                               |
 |-----------------|---------|---------------------------------------|
-| Node.js         | 18      | JavaScript runtime (ESM)              |
+| Node.js         | 20 LTS  | JavaScript runtime (ESM)              |
 | Express.js      | 4+      | Web framework + REST API              |
 | Socket.IO       | 4       | WebSocket server                      |
 | jsonwebtoken    | —       | JWT generation + verification         |
@@ -201,18 +201,21 @@ L2 (Verified)    ← เผยแพร่งาน high_risk, ถอนเง�
 L3 (Trusted)     ← สถานะสูงสุด (hysteresis: ลง L2 เมื่อ score < 75)
 ```
 
-**Trust Score** (base = 50, clamp 0-100):
+**Trust Score** (base = 50, clamp 0-100) คำนวณโดย `backend/src/workers/trustLevelWorker.js`:
 
-| ปัจจัย              | คะแนน      | เพดาน   |
-|--------------------|-----------:|---------|
-| งานที่ทำเสร็จ        | +5 ต่องาน  | +30     |
-| รีวิว 4-5 ดาว       | +3 ต่อรีวิว | +20     |
-| รีวิว 3 ดาว         | +1 ต่อรีวิว | —       |
-| รีวิว 1-2 ดาว       | -5 ต่อรีวิว | -20     |
-| ยกเลิกงาน          | -10 ต่อครั้ง| -30     |
-| GPS violation      | -3 ต่อครั้ง | -15     |
-| Check-in ตรงเวลา   | +2 ต่อครั้ง | +20     |
-| โปรไฟล์ครบถ้วน     | +10        | ครั้งเดียว|
+| ปัจจัย                     | คะแนน       | เพดาน       |
+|---------------------------|-----------:|-------------|
+| งานที่ทำเสร็จ (completed)   | +5 ต่องาน  | +30         |
+| รีวิว 4-5 ดาว (good)       | +3 ต่อรีวิว | +20 (รวม)   |
+| รีวิว 3 ดาว (average)      | +1 ต่อรีวิว | รวมในเพดาน  |
+| รีวิว 1-2 ดาว (bad)        | -5 ต่อรีวิว | -20 (รวม)   |
+| ยกเลิกงาน (cancellation)   | -10 ต่อครั้ง| -30         |
+| GPS violation              | -3 ต่อครั้ง | -15         |
+| Check-in ตรงเวลา (≤15 นาที)| +2 ต่อครั้ง | +20         |
+| โปรไฟล์ครบถ้วน (bio+name+exp)| +10      | ครั้งเดียว   |
+| Response time bonus         | +5        | ครั้งเดียว   |
+
+**สูตร**: `score = clamp(0, 100, 50 + ผลรวมทุกปัจจัย)`
 
 ### 3.3.3 สิทธิ์การเข้าถึงตาม Role และ Trust Level
 
@@ -241,7 +244,9 @@ L3 (Trusted)     ← สถานะสูงสุด (hysteresis: ลง L2 �
 - `POST /api/auth/register/member` — phone + password + role
 - `GET /api/auth/google` → Google OAuth 2.0 (Authorization Code Flow)
 
-**Token**: JWT Access (15 นาที) + Refresh Token (7 วัน), `POST /api/auth/refresh`
+**Token**: JWT Access Token (production: 15 นาที, dev: 7 วัน) + Refresh Token (production: 7 วัน, dev: 30 วัน) ตั้งค่าผ่าน environment variables `JWT_EXPIRES_IN` และ `JWT_REFRESH_EXPIRES_IN` ใน `docker-compose.prod.yml` หรือ `.env`
+
+**Token Refresh**: `POST /api/auth/refresh` ส่ง refresh token เพื่อขอ access token ใหม่
 
 **OTP Verification**: `/api/otp/phone/send` → `/api/otp/verify` → Trust Level L0→L1
 
@@ -286,7 +291,12 @@ Thread-based: **1 งาน = 1 chat thread** สร้างอัตโนม�
 
 **Task Flags (22)**: ครอบคลุมตั้งแต่ `companionship`, `meal_prep`, `mobility_assist`, `tube_feeding`, `catheter_care`, `wound_dressing`, `oxygen_monitoring` ฯลฯ
 
-**Risk Level** คำนวณอัตโนมัติ — `high_risk` หากงานประเภท emergency/dementia_care หรือผู้ป่วย bedbound/feeding_tube/tracheostomy
+**Risk Level** คำนวณอัตโนมัติโดย `computeRiskLevel()` ใน `backend/src/utils/risk.js` เป็น `high_risk` เมื่อเข้าเงื่อนไขอย่างใดอย่างหนึ่ง:
+- **ประเภทงาน**: emergency, post_surgery, dementia_care, medical_monitoring
+- **อุปกรณ์การแพทย์ของผู้ป่วย**: ventilator, tracheostomy, oxygen, feeding_tube
+- **อาการของผู้ป่วย**: shortness_of_breath, chest_pain, seizure, altered_consciousness, uncontrolled_bleeding, high_fever
+- **พฤติกรรมเสี่ยง**: aggression, cognitive delirium, wandering ร่วมกับ fall_risk
+- **งานเฉพาะทาง**: tube_feeding, medication_administration, wound_dressing, catheter_care, oxygen_monitoring, dementia_supervision
 
 **Caregiver**: Accept → Check-in (GPS) → Check-out (GPS + evidence note)
 
@@ -296,7 +306,7 @@ Thread-based: **1 งาน = 1 chat thread** สร้างอัตโนม�
 
 **Real-time (Socket.IO)**: backend emit `notification` → `user:{userId}` personal room
 
-**Polling Fallback**: `GET /api/notifications/unread-count` ทุก 5 วินาที
+**Polling Fallback**: `GET /api/notifications/unread-count` ทุก 15 วินาที
 
 **Events ที่ trigger**:
 
@@ -323,7 +333,8 @@ Phase 1 Top-up:    POST /wallet/topup → QR → webhook → credit available_ba
 Phase 2 Publish:   available_balance -= cost → held_balance += cost [hold]
 Phase 3 Accept:    held_balance (hirer) → escrow wallet (new) [hold]
 Phase 4 Checkout:  escrow → caregiver wallet [release] + platform wallet [debit]
-Cancel:            escrow → hirer.available_balance [reversal]
+Cancel (posted):   held_balance → available_balance (same wallet) [release]
+Cancel (assigned+): escrow → hirer.available_balance [reversal]
 ```
 
 **Withdrawal**: `POST /api/wallet/withdraw` (L2+) → Admin review → approve → mark paid
@@ -456,21 +467,40 @@ Hirer        Frontend              Backend               DB
 Caregiver    Frontend              Backend               DB
  │               │                     │                  │
  │─ Accept ─────►│─ POST /jobs/:id/accept────────────────►│
- │               │                     │─ INSERT jobs ───►│
- │               │                     │─ INSERT assign ─►│
- │               │                     │─ CREATE escrow ─►│
- │               │                     │─ held→escrow ───►│
- │               │                     │─ CREATE thread ─►│
- │               │                     │─ notify hirer   │
+ │               │                     │─ SELECT job_posts FOR UPDATE►
+ │               │                     │─ CHECK trust_level ≥ min ──►│
+ │               │                     │─ CHECK certifications ─────►│
+ │               │                     │─ CHECK time conflict ──────►│
+ │               │                     │─ DEDUCT hirer held_balance ►│
+ │               │                     │─ UPDATE job_posts=assigned ►│
+ │               │                     │─ INSERT jobs (instance) ───►│
+ │               │                     │─ CREATE escrow wallet ─────►│
+ │               │                     │─ INSERT ledger [hold] ─────►│
+ │               │                     │─ INSERT job_assignments ───►│
+ │               │                     │─ INSERT chat_thread ───────►│
+ │               │                     │─ INSERT system message ────►│
+ │               │                     │─ notify hirer (job_accepted)│
  │               │◄── 200 OK ──────────│                  │
- │─ Check-in ───►│─ POST /checkin ─────►│─ INSERT gps ───►│
- │               │                     │─ status=in_prog►│
- │               │                     │─ notify hirer   │
- │─ Check-out ──►│─ POST /checkout ────►│─ INSERT gps ───►│
- │               │                     │─ status=complete►
- │               │                     │─ escrow→caregiver►
- │               │                     │─ escrow→platform►
- │               │                     │─ recalc trust   │
+ │               │                     │                  │
+ │─ Check-in ───►│─ POST /checkin ─────►│                 │
+ │               │                     │─ INSERT gps_event (check_in)►
+ │               │                     │─ UPDATE jobs=in_progress ──►│
+ │               │                     │─ UPDATE job_posts=in_progress►
+ │               │                     │─ notify hirer (check_in)    │
+ │               │◄── 200 OK ──────────│                  │
+ │               │                     │                  │
+ │─ Check-out ──►│─ POST /checkout ────►│                 │
+ │               │                     │─ UPDATE jobs=completed ────►│
+ │               │                     │─ UPDATE job_posts=completed►│
+ │               │                     │─ UPDATE assignment=completed►
+ │               │                     │─ INSERT gps_event (check_out)►
+ │               │                     │─ escrow→caregiver [release]►│
+ │               │                     │─ escrow→platform [debit] ──►│
+ │               │                     │─ INSERT system msg in chat ►│
+ │               │                     │─ notify hirer (check_out)   │
+ │               │◄── 200 OK ──────────│                  │
+ │               │                     │─ triggerUserTrustUpdate()   │
+ │               │                     │  (fire-and-forget background)│
 ```
 
 ### 3.6.4 Top-up Flow
