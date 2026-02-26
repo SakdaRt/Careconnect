@@ -173,6 +173,19 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-02-26 — Early checkout approve/reject + auto-complete 10min grace + UI indicators
+
+- feat(backend): auto-complete overdue jobs เลย 10 นาทีหลังเวลาสิ้นสุด (แทนที่จะเปลี่ยนทันทีตอนถึงเวลา)
+  - แก้ autoCompleteOverdueJobsForCaregiver: scheduled_end_at + 10 min <= NOW()
+  - เพิ่ม autoCompleteOverdueJobsForHirer ใน getHirerJobs
+- feat(backend): getHirerJobs query เพิ่ม has_early_checkout_request + early_checkout_evidence subquery
+- feat(backend): getCaregiverJobs query เพิ่ม early_checkout_status subquery
+- feat(hirer): HirerHomePage แสดง early checkout request banner ในการ์ดงาน in_progress + ปุ่ม "ดูรายละเอียดและอนุมัติ"
+- feat(caregiver): CaregiverMyJobsPage แสดงสถานะ early checkout request
+  - pending → แสดง "รอผู้ว่าจ้างอนุมัติ" + ซ่อนปุ่มส่งงาน
+  - rejected → แสดง "ปฏิเสธ" + ปุ่ม "ส่งงานเสร็จอีกครั้ง"
+- ไฟล์ที่แก้: Job.js (queries), jobService.js (auto-complete), HirerHomePage.tsx, CaregiverMyJobsPage.tsx
+
 ### 2026-02-26 — Fix ReasonModal presets + early checkout + clickable caregiver card
 
 - fix(ui): ReasonModal default เปลี่ยนจาก cancel presets → ไม่มี preset (textarea only)

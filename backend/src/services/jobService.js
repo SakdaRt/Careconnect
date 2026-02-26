@@ -411,6 +411,29 @@ export const getJobFeed = async (caregiverId, options = {}) => {
   };
 };
 
+const autoCompleteOverdueJobsForHirer = async (hirerId) => {
+  const overdueResult = await query(
+    `SELECT j.id, ja.caregiver_id
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+     WHERE jp.hirer_id = $1
+       AND j.status = 'in_progress'
+       AND jp.scheduled_end_at + INTERVAL '10 minutes' <= NOW()
+     ORDER BY jp.scheduled_end_at ASC
+     LIMIT 20`,
+    [hirerId]
+  );
+
+  for (const row of overdueResult.rows) {
+    try {
+      await checkOut(row.id, row.caregiver_id, {});
+    } catch (error) {
+      console.error(`[Job Service] Failed to auto-complete overdue job ${row.id} for hirer:`, error.message);
+    }
+  }
+};
+
 /**
  * Get hirer's jobs
  * @param {string} hirerId - Hirer user ID
@@ -418,6 +441,7 @@ export const getJobFeed = async (caregiverId, options = {}) => {
  * @returns {object} - Paginated jobs
  */
 export const getHirerJobs = async (hirerId, options = {}) => {
+  await autoCompleteOverdueJobsForHirer(hirerId);
   return await Job.getHirerJobs(hirerId, options);
 };
 
@@ -435,7 +459,7 @@ const autoCompleteOverdueJobsForCaregiver = async (caregiverId) => {
      JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
      WHERE ja.caregiver_id = $1
        AND j.status = 'in_progress'
-       AND jp.scheduled_end_at <= NOW()
+       AND jp.scheduled_end_at + INTERVAL '10 minutes' <= NOW()
      ORDER BY jp.scheduled_end_at ASC
      LIMIT 20`,
     [caregiverId]

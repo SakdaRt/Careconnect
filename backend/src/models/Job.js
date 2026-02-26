@@ -463,7 +463,9 @@ class Job extends BaseModel {
                 COALESCE(ja.caregiver_id, jp.preferred_caregiver_id) as caregiver_id,
                 cp.display_name as caregiver_name,
                 COALESCE(jpr.patient_id, jp.patient_profile_id) as patient_profile_id,
-                pp.patient_display_name
+                pp.patient_display_name,
+                ecr_sub.has_early_checkout_request,
+                ecr_sub.early_checkout_evidence
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
          LEFT JOIN LATERAL (
@@ -476,6 +478,12 @@ class Job extends BaseModel {
          LEFT JOIN caregiver_profiles cp ON cp.user_id = COALESCE(ja.caregiver_id, jp.preferred_caregiver_id)
          LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
          LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
+         LEFT JOIN LATERAL (
+           SELECT TRUE as has_early_checkout_request, ecr.evidence_note as early_checkout_evidence
+           FROM early_checkout_requests ecr
+           WHERE ecr.job_id = j.id AND ecr.status = 'pending'
+           ORDER BY ecr.created_at DESC LIMIT 1
+         ) ecr_sub ON j.status = 'in_progress'
          WHERE ${whereClause}
          ORDER BY jp.created_at DESC
          LIMIT $${limitParam} OFFSET $${offsetParam}`,
@@ -486,7 +494,9 @@ class Job extends BaseModel {
                 j.completed_at,
                 COALESCE(ja.caregiver_id, jp.preferred_caregiver_id) as caregiver_id,
                 cp.display_name as caregiver_name,
-                NULL::text as patient_display_name
+                NULL::text as patient_display_name,
+                ecr_sub.has_early_checkout_request,
+                ecr_sub.early_checkout_evidence
          FROM job_posts jp
          LEFT JOIN jobs j ON j.job_post_id = jp.id
          LEFT JOIN LATERAL (
@@ -497,6 +507,12 @@ class Job extends BaseModel {
            LIMIT 1
          ) ja ON true
          LEFT JOIN caregiver_profiles cp ON cp.user_id = COALESCE(ja.caregiver_id, jp.preferred_caregiver_id)
+         LEFT JOIN LATERAL (
+           SELECT TRUE as has_early_checkout_request, ecr.evidence_note as early_checkout_evidence
+           FROM early_checkout_requests ecr
+           WHERE ecr.job_id = j.id AND ecr.status = 'pending'
+           ORDER BY ecr.created_at DESC LIMIT 1
+         ) ecr_sub ON j.status = 'in_progress'
          WHERE ${whereClause}
          ORDER BY jp.created_at DESC
          LIMIT $${limitParam} OFFSET $${offsetParam}`,
@@ -1103,12 +1119,19 @@ class Job extends BaseModel {
                 jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
                 ja.status as assignment_status,
                 ja.assigned_at as assignment_assigned_at,
-                FALSE as awaiting_response
+                FALSE as awaiting_response,
+                ecr_sub.early_checkout_status
          FROM jobs j
          JOIN job_posts jp ON jp.id = j.job_post_id
          JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
          LEFT JOIN job_patient_requirements jpr ON jpr.job_id = j.id
          LEFT JOIN patient_profiles pp ON pp.id = COALESCE(jpr.patient_id, jp.patient_profile_id)
+         LEFT JOIN LATERAL (
+           SELECT ecr.status as early_checkout_status
+           FROM early_checkout_requests ecr
+           WHERE ecr.job_id = j.id AND ecr.caregiver_id = $1
+           ORDER BY ecr.created_at DESC LIMIT 1
+         ) ecr_sub ON j.status = 'in_progress'
          WHERE ${activeWhereClause}`,
         `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
                 jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
@@ -1118,7 +1141,8 @@ class Job extends BaseModel {
                 jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
                 ja.status as assignment_status,
                 ja.assigned_at as assignment_assigned_at,
-                FALSE as awaiting_response
+                FALSE as awaiting_response,
+                ecr_sub.early_checkout_status
          FROM jobs j
          JOIN job_posts jp ON jp.id = j.job_post_id
          JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
@@ -1136,6 +1160,12 @@ class Job extends BaseModel {
              AND COALESCE(LOWER(TRIM(pp2.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
              AND COALESCE(TRIM((pp2.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
          ) pp_addr ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT ecr.status as early_checkout_status
+           FROM early_checkout_requests ecr
+           WHERE ecr.job_id = j.id AND ecr.caregiver_id = $1
+           ORDER BY ecr.created_at DESC LIMIT 1
+         ) ecr_sub ON j.status = 'in_progress'
          WHERE ${activeWhereClause}`,
         `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
                 jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
@@ -1143,7 +1173,8 @@ class Job extends BaseModel {
                 jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
                 ja.status as assignment_status,
                 ja.assigned_at as assignment_assigned_at,
-                FALSE as awaiting_response
+                FALSE as awaiting_response,
+                ecr_sub.early_checkout_status
          FROM jobs j
          JOIN job_posts jp ON jp.id = j.job_post_id
          JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
@@ -1159,6 +1190,12 @@ class Job extends BaseModel {
              AND COALESCE(LOWER(TRIM(pp.province)), '') = COALESCE(LOWER(TRIM(jp.province)), '')
              AND COALESCE(TRIM((pp.postal_code)::text), '') = COALESCE(TRIM((jp.postal_code)::text), '')
          ) pp_addr ON TRUE
+         LEFT JOIN LATERAL (
+           SELECT ecr.status as early_checkout_status
+           FROM early_checkout_requests ecr
+           WHERE ecr.job_id = j.id AND ecr.caregiver_id = $1
+           ORDER BY ecr.created_at DESC LIMIT 1
+         ) ecr_sub ON j.status = 'in_progress'
          WHERE ${activeWhereClause}`,
         `SELECT j.*, jp.title, jp.description, jp.job_type, jp.hourly_rate,
                 jp.total_hours, jp.total_amount, jp.scheduled_start_at, jp.scheduled_end_at,
@@ -1166,10 +1203,17 @@ class Job extends BaseModel {
                 jp.lat, jp.lng, jp.geofence_radius_m, jp.is_urgent,
                 ja.status as assignment_status,
                 ja.assigned_at as assignment_assigned_at,
-                FALSE as awaiting_response
+                FALSE as awaiting_response,
+                ecr_sub.early_checkout_status
          FROM jobs j
          JOIN job_posts jp ON jp.id = j.job_post_id
          JOIN job_assignments ja ON ja.job_id = j.id AND ja.caregiver_id = $1
+         LEFT JOIN LATERAL (
+           SELECT ecr.status as early_checkout_status
+           FROM early_checkout_requests ecr
+           WHERE ecr.job_id = j.id AND ecr.caregiver_id = $1
+           ORDER BY ecr.created_at DESC LIMIT 1
+         ) ecr_sub ON j.status = 'in_progress'
          WHERE ${activeWhereClause}`,
       ],
       activeValues

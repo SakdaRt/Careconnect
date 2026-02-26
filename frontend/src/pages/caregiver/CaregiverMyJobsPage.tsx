@@ -546,7 +546,7 @@ export default function CaregiverMyJobsPage() {
                             </Button>
                           )}
 
-                          {job.status === 'in_progress' && (
+                          {job.status === 'in_progress' && (job as any).early_checkout_status !== 'pending' && (
                             <Button
                               variant="primary"
                               size="sm"
@@ -557,6 +557,29 @@ export default function CaregiverMyJobsPage() {
                             </Button>
                           )}
                         </div>
+
+                        {job.status === 'in_progress' && (job as any).early_checkout_status === 'pending' && (
+                          <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="text-xs font-semibold text-amber-800">รอผู้ว่าจ้างอนุมัติส่งงานก่อนเวลา</div>
+                            <div className="text-xs text-amber-700 mt-0.5">ระบบจะแจ้งเตือนเมื่อผู้ว่าจ้างตอบรับ</div>
+                          </div>
+                        )}
+
+                        {job.status === 'in_progress' && (job as any).early_checkout_status === 'rejected' && (
+                          <div className="mt-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="text-xs font-semibold text-red-800">ผู้ว่าจ้างปฏิเสธคำขอส่งงานก่อนเวลา</div>
+                            <div className="text-xs text-red-700 mt-0.5">กรุณาดูแลต่อจนถึงเวลาสิ้นสุด หรือกดส่งงานเสร็จอีกครั้ง</div>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              loading={isLoading}
+                              onClick={() => handleOpenCheckout(job)}
+                              className="mt-2"
+                            >
+                              ส่งงานเสร็จอีกครั้ง
+                            </Button>
+                          </div>
+                        )}
 
                         {!isAwaitingResponse && (job.status === 'assigned' || job.status === 'in_progress') && (
                           <div className="pt-2 border-t border-orange-100">
