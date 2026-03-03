@@ -11,7 +11,7 @@
 > 📌 **DIAGRAM: Use Case** — Mermaid code (วางที่ https://mermaid.live):
 
 ```mermaid
-flowchart LR
+flowchart TD
   %% Actors
   Guest([Guest])
   Hirer([Hirer])
@@ -20,29 +20,43 @@ flowchart LR
 
   %% System boundary
   subgraph SYS[CareConnect System]
-    UC01((สมัครสมาชิก))
-    UC02((Login))
-    UC03((ยืนยัน OTP))
+    direction TB
 
-    UC04((สร้างงาน))
-    UC05((เผยแพร่งาน))
-    UC06((ค้นหา Caregiver))
-    UC07((Direct Assign))
-    UC08((Top-up Wallet))
-    UC09((เปิด Dispute))
-    UC10((อนุมัติ Early Checkout))
+    subgraph AUTH["Authentication"]
+      direction TB
+      UC01((สมัครสมาชิก))
+      UC02((Login))
+      UC03((ยืนยัน OTP))
+    end
 
-    UC11((ดู Job Feed))
-    UC12((รับงาน))
-    UC13((Check-in/out))
-    UC14((Chat Real-time))
-    UC15((ถอนเงิน))
-    UC16((เปิด Dispute))
+    subgraph HJ["Hirer: Job & Payment"]
+      direction TB
+      UC04((สร้างงาน))
+      UC05((เผยแพร่งาน))
+      UC06((ค้นหา Caregiver))
+      UC07((Direct<br/>Assign))
+      UC08((Top-up<br/>Wallet))
+      UC09((เปิด Dispute))
+      UC10((อนุมัติ<br/>Early Checkout))
+    end
 
-    UC17((จัดการ Users))
-    UC18((Approve KYC))
-    UC19((Settle Dispute))
-    UC20((ดู Reports/Ledger))
+    subgraph CJ["Caregiver: Job Execution"]
+      direction TB
+      UC11((ดู Job Feed))
+      UC12((รับงาน))
+      UC13((Check-in/out))
+      UC14((Chat Real-time))
+      UC15((ถอนเงิน))
+      UC16((เปิด Dispute))
+    end
+
+    subgraph ADM["Admin"]
+      direction TB
+      UC17((จัดการ Users))
+      UC18((Approve KYC))
+      UC19((Settle Dispute))
+      UC20((ดู Reports/<br/>Ledger))
+    end
   end
 
   %% Associations
