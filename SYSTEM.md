@@ -992,7 +992,10 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 
 ## 9. Environment Variables
 
-### Backend (.env)
+### Backend (Root `.env`)
+
+> Source of truth: `/home/careconnect/Careconnect/.env`
+> Loader: `backend/src/config/loadEnv.js` (โหลด root `.env` ก่อน แล้ว fallback ไป `backend/.env` หากมี)
 
 ```env
 NODE_ENV=development
@@ -1021,6 +1024,10 @@ BACKEND_URL=http://localhost:3000
 # Providers (mock in dev)
 MOCK_PROVIDER_BASE_URL=http://mock-provider:4000
 PAYMENT_PROVIDER=mock
+STRIPE_PUBLISHABLE_KEY=pk_test_xxx
+STRIPE_SECRET_KEY=sk_test_xxx
+STRIPE_WEBHOOK_SECRET=whsec_xxx
+STRIPE_ACCOUNT_ID=acct_xxx
 SMS_PROVIDER=mock
 KYC_PROVIDER=mock
 BANK_TRANSFER_PROVIDER=mock
@@ -1054,10 +1061,19 @@ SEED_MOCK_CAREGIVERS=true
 SEED_MOCK_JOBS=true
 ```
 
-### Frontend (.env)
+### Frontend (`VITE_*`)
+
+> Vite config จะ merge env จาก 2 แหล่ง (ลำดับหลังทับลำดับแรก)
+>
+> 1) root: `/home/careconnect/Careconnect/.env`
+> 2) frontend local: `/home/careconnect/Careconnect/frontend/.env.local`
 
 ```env
 VITE_API_TARGET=http://backend:3000
+VITE_PUBLIC_HOST=
+VITE_PUBLIC_PROTOCOL=
+VITE_PUBLIC_PORT=
+VITE_GOOGLE_MAPS_API_KEY=
 ```
 
 ### Mock Provider (Port 4000)

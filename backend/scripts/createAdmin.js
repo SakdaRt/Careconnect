@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import pg from 'pg';
+import '../src/config/loadEnv.js';
 
 const { Client } = pg;
 

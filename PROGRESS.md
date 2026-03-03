@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-02-22 (session 3)
+> อัพเดทล่าสุด: 2026-03-03 (session 4)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -172,6 +172,24 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-03 — Consolidate env sources + verify backend/frontend runtime
+
+- refactor(env): รวมการโหลด env ฝั่ง backend ให้ใช้ loader กลาง (`backend/src/config/loadEnv.js`)
+  - `server.js` เปลี่ยนจาก `dotenv.config()` ตรงๆ เป็น import loader กลาง
+  - `utils/db.js`, `services/walletService.js`, `routes/webhookRoutes.js` โหลด env ผ่าน loader เดียวกัน
+  - `walletService` และ `webhookRoutes` เปลี่ยนเป็นสร้าง Stripe client แบบ lazy (อ่านค่า env ตอนใช้งาน)
+- refactor(env): ลดความซ้ำซ้อนของไฟล์ตัวอย่าง env
+  - ปรับ `/home/careconnect/Careconnect/.env.example` และ `/home/careconnect/Careconnect/.env.prod.example` ให้ใช้ placeholder ของ Stripe แทนคีย์จริง
+  - ปรับ `/home/careconnect/Careconnect/backend/.env.example` ให้ชี้ไปที่ root env example เป็น source เดียว
+- refactor(env): ให้ frontend อ่าน VITE env จากทั้ง root และ frontend local
+  - แก้ `/home/careconnect/Careconnect/frontend/vite.config.ts` ให้ merge `loadEnv(.., '..')` + `loadEnv(.., '.')`
+- chore(docker): เพิ่มการส่ง Stripe/PAYMENT_PROVIDER env เข้า backend ใน `docker-compose.yml` และ `docker-compose.prod.yml`
+- verify(runtime): ตรวจสอบการใช้งานจริงแล้ว
+  - `docker compose up -d postgres mock-provider backend frontend`
+  - backend health ผ่าน (`GET /health` ได้ 200)
+  - frontend dev server ตอบกลับปกติ (`http://localhost:5173` ได้ 200)
+  - backend lint ผ่านระดับ error (เหลือ warnings เดิมของโปรเจค)
 
 ### 2026-02-26 — Thesis Chapter outlines (CH3-CH5)
 

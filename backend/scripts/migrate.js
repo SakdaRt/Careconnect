@@ -14,6 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import pg from 'pg';
+import '../src/config/loadEnv.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -24,11 +25,11 @@ const MIGRATIONS_TABLE = 'schema_migrations';
 
 // Database connection from environment
 const pool = new pg.Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'careconnect',
-  user: process.env.DB_USER || 'careconnect',
-  password: process.env.DB_PASSWORD || 'careconnect_dev_password',
+  host: process.env.DATABASE_HOST || process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DATABASE_PORT || process.env.DB_PORT, 10) || 5432,
+  database: process.env.DATABASE_NAME || process.env.DB_NAME || 'careconnect',
+  user: process.env.DATABASE_USER || process.env.DB_USER || 'careconnect',
+  password: process.env.DATABASE_PASSWORD || process.env.DB_PASSWORD || 'careconnect_dev_password',
   ssl: process.env.DATABASE_SSL === 'true' ? { rejectUnauthorized: false } : false,
 });
 

@@ -1,10 +1,13 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'url';
+import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  const rootEnv = loadEnv(mode, path.resolve(process.cwd(), '..'), 'VITE_');
+  const frontendEnv = loadEnv(mode, process.cwd(), 'VITE_');
+  const env = { ...rootEnv, ...frontendEnv };
   const publicHost = env.VITE_PUBLIC_HOST?.trim() || undefined;
   const isLocalPublicHost = publicHost === 'localhost' || publicHost === '127.0.0.1';
   const publicPort = Number(env.VITE_PUBLIC_PORT || env.VITE_PUBLIC_HMR_PORT || '');

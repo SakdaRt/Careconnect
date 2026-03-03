@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 
 import pg from 'pg';
+import '../src/config/loadEnv.js';
 
 // Database connection
 const pool = new pg.Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT) || 5432,
-  database: process.env.DB_NAME || 'careconnect',
-  user: process.env.DB_USER || 'careconnect',
-  password: process.env.DB_PASSWORD || 'careconnect_dev_password',
+  host: process.env.DATABASE_HOST || process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DATABASE_PORT || process.env.DB_PORT, 10) || 5432,
+  database: process.env.DATABASE_NAME || process.env.DB_NAME || 'careconnect',
+  user: process.env.DATABASE_USER || process.env.DB_USER || 'careconnect',
+  password: process.env.DATABASE_PASSWORD || process.env.DB_PASSWORD || 'careconnect_dev_password',
 });
 
 async function runFirstMigration() {

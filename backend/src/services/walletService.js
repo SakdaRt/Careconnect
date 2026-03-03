@@ -3,6 +3,15 @@ import LedgerTransaction from '../models/LedgerTransaction.js';
 import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
+import '../config/loadEnv.js';
+import Stripe from 'stripe';
+
+const getStripeClient = () => {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY);
+};
 
 /**
  * Wallet Service
@@ -197,7 +206,7 @@ class WalletService {
    * @param {string} paymentMethod - Payment method (promptpay, card, bank_transfer)
    * @returns {object} - Top-up request with payment instructions
    */
-  async initiateTopup(userId, role, amount, paymentMethod = 'promptpay') {
+  async initiateTopup(userId, role, amount, paymentMethod = 'stripe') {
     if (amount < 100) {
       throw { status: 400, message: 'Minimum top-up amount is 100 THB' };
     }
@@ -209,42 +218,37 @@ class WalletService {
     const walletType = role === 'hirer' ? 'hirer' : 'caregiver';
     const wallet = await Wallet.getOrCreateWallet(userId, walletType);
 
-    // Map payment method to provider method
-    const providerMethod = paymentMethod === 'promptpay' ? 'dynamic_qr' : 'payment_link';
+    const stripe = getStripeClient();
 
-    // Wrap intent creation + provider call in a transaction so a provider
-    // failure rolls back the orphaned topup_intent row.
-    return await transaction(async (client) => {
-      const topupId = uuidv4();
-      const result = await client.query(
-        `INSERT INTO topup_intents (id, user_id, amount, currency, method, provider_name, status, created_at, updated_at, expires_at)
-         VALUES ($1, $2, $3, 'THB', $4, 'mock', 'pending', NOW(), NOW(), NOW() + INTERVAL '30 minutes')
-         RETURNING *`,
-        [topupId, userId, amount, providerMethod]
-      );
-
-      const topupIntent = result.rows[0];
-
-      // Call mock payment provider to initiate payment
-      const paymentResponse = await this.initiatePaymentWithProvider({
-        ...topupIntent,
+    // Create Stripe Payment Intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amount * 100, // Convert to cents
+      currency: 'thb',
+      metadata: {
+        user_id: userId,
         wallet_id: wallet.id,
-      });
+      },
+      automatic_payment_methods: {
+        enabled: true,
+      },
+    });
 
-      // Update with provider reference
+    // Store transaction record
+    return await transaction(async (client) => {
+      const transactionId = uuidv4();
       await client.query(
-        `UPDATE topup_intents SET provider_payment_id = $1, payment_link_url = $2, qr_payload = $3, updated_at = NOW() WHERE id = $4`,
-        [paymentResponse.reference_id, paymentResponse.payment_url, paymentResponse.qr_code, topupId]
+        `INSERT INTO wallet_transactions (id, user_id, wallet_id, amount, currency, type, status, stripe_payment_intent_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'THB', 'topup', 'pending', $5, NOW(), NOW())`,
+        [transactionId, userId, wallet.id, amount, paymentIntent.id]
       );
 
       return {
-        topup_id: topupId,
+        transaction_id: transactionId,
         amount,
         payment_method: paymentMethod,
         status: 'pending',
-        payment_url: paymentResponse.payment_url,
-        qr_code: paymentResponse.qr_code,
-        expires_at: topupIntent.expires_at,
+        client_secret: paymentIntent.client_secret,
+        payment_intent_id: paymentIntent.id,
       };
     });
   }

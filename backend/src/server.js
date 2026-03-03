@@ -5,9 +5,9 @@ import { Server } from "socket.io";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import dotenv from "dotenv";
 import Joi from "joi";
 import bcrypt from "bcrypt";
+import "./config/loadEnv.js";
 import { testConnection, closePool, query } from "./utils/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
@@ -30,7 +30,6 @@ import { initChatSocket } from "./sockets/chatSocket.js";
 import { setSocketServer } from "./sockets/realtimeHub.js";
 
 // Load environment variables
-dotenv.config();
 
 const envSchema = Joi.object({
   NODE_ENV: Joi.string()
@@ -80,6 +79,18 @@ const envSchema = Joi.object({
   MOCK_PROVIDER_URL: Joi.string(),
   MOCK_PROVIDER_BASE_URL: Joi.string(),
   PAYMENT_PROVIDER: Joi.string(),
+  STRIPE_PUBLISHABLE_KEY: Joi.string().allow(""),
+  STRIPE_SECRET_KEY: Joi.string().when("PAYMENT_PROVIDER", {
+    is: "stripe",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  STRIPE_WEBHOOK_SECRET: Joi.string().when("PAYMENT_PROVIDER", {
+    is: "stripe",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  STRIPE_ACCOUNT_ID: Joi.string().allow(""),
   SMS_PROVIDER: Joi.string(),
   KYC_PROVIDER: Joi.string(),
   BANK_TRANSFER_PROVIDER: Joi.string(),
