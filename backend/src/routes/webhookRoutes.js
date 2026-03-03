@@ -4,6 +4,7 @@ import { webhookLimiter } from '../utils/rateLimiter.js';
 import { transaction } from '../utils/db.js';
 import '../config/loadEnv.js';
 import Stripe from 'stripe';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = express.Router();
 const getStripeClient = () => {
@@ -27,7 +28,7 @@ const getStripeClient = () => {
  * Headers: x-webhook-signature (optional in dev)
  * Body: { event, data }
  */
-router.post('/payment', webhookLimiter, webhookController.handlePaymentWebhook);
+router.post('/payment', express.json(), webhookLimiter, webhookController.handlePaymentWebhook);
 
 /**
  * KYC provider webhook
@@ -35,7 +36,7 @@ router.post('/payment', webhookLimiter, webhookController.handlePaymentWebhook);
  * Headers: x-webhook-signature (optional in dev)
  * Body: { event, data }
  */
-router.post('/kyc', webhookLimiter, webhookController.handleKycWebhook);
+router.post('/kyc', express.json(), webhookLimiter, webhookController.handleKycWebhook);
 
 /**
  * SMS provider webhook
@@ -43,7 +44,7 @@ router.post('/kyc', webhookLimiter, webhookController.handleKycWebhook);
  * Headers: x-webhook-signature (optional in dev)
  * Body: { event, data }
  */
-router.post('/sms', webhookController.handleSmsWebhook);
+router.post('/sms', express.json(), webhookController.handleSmsWebhook);
 
 /**
  * Stripe webhook
@@ -65,17 +66,23 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
 
   // Handle the event
   switch (event.type) {
+    case 'checkout.session.completed': {
+      const checkoutSession = event.data.object;
+      await handleCheckoutSessionCompleted(checkoutSession);
+      break;
+    }
+
     case 'payment_intent.succeeded': {
       const paymentIntent = event.data.object;
       console.log(`PaymentIntent for ${paymentIntent.amount} was successful!`);
-      await handleSuccessfulPayment(paymentIntent);
+      await handleSuccessfulPaymentIntent(paymentIntent);
       break;
     }
 
     case 'payment_intent.payment_failed': {
       const failedPayment = event.data.object;
       console.log(`Payment failed: ${failedPayment.last_payment_error ? failedPayment.last_payment_error.message : 'Unknown error'}`);
-      await handleFailedPayment(failedPayment);
+      await handleFailedPaymentIntent(failedPayment);
       break;
     }
 
@@ -87,60 +94,102 @@ router.post('/stripe', express.raw({ type: 'application/json' }), async (req, re
 });
 
 // Handle successful payment - update wallet balance
-async function handleSuccessfulPayment(paymentIntent) {
+async function markTopupSucceeded(topupId, providerTransactionId) {
   try {
     await transaction(async (client) => {
-      const transactionResult = await client.query(
-        `SELECT id, user_id, amount FROM wallet_transactions 
-         WHERE stripe_payment_intent_id = $1 AND status = 'pending'`,
-        [paymentIntent.id]
+      const topupResult = await client.query(
+        `SELECT ti.*, w.id as wallet_id FROM topup_intents ti
+         JOIN users u ON u.id = ti.user_id
+         JOIN wallets w ON w.user_id = ti.user_id
+          AND w.wallet_type = CASE WHEN u.role = 'hirer' THEN 'hirer' ELSE 'caregiver' END
+         WHERE ti.id = $1 FOR UPDATE`,
+        [topupId]
       );
 
-      if (transactionResult.rows.length === 0) {
-        console.log(`No pending transaction found for PaymentIntent ${paymentIntent.id}`);
+      if (topupResult.rows.length === 0) {
+        console.log(`Top-up not found for id ${topupId}`);
         return;
       }
 
-      const transaction = transactionResult.rows[0];
+      const topup = topupResult.rows[0];
+      if (topup.status !== 'pending') {
+        console.log(`Top-up ${topupId} already processed: ${topup.status}`);
+        return;
+      }
 
       await client.query(
-        `UPDATE wallet_transactions 
-         SET status = 'completed', stripe_charge_id = $2, updated_at = NOW()
+        `UPDATE topup_intents
+         SET status = 'succeeded', succeeded_at = NOW(), provider_transaction_id = $2, updated_at = NOW()
          WHERE id = $1`,
-        [transaction.id, paymentIntent.charges.data[0] ? paymentIntent.charges.data[0].id : null]
+        [topupId, providerTransactionId || null]
       );
 
       await client.query(
-        `UPDATE wallets 
+        `UPDATE wallets
          SET available_balance = available_balance + $1, updated_at = NOW()
-         WHERE user_id = $2 AND wallet_type = 'hirer'`,
-        [transaction.amount, transaction.user_id]
+         WHERE id = $2`,
+        [topup.amount, topup.wallet_id]
       );
 
-      console.log(`Successfully updated wallet for user ${transaction.user_id} with amount ${transaction.amount}`);
+      await client.query(
+        `INSERT INTO ledger_transactions (id, to_wallet_id, amount, currency, type, reference_type, reference_id, provider_name, provider_transaction_id, description, created_at)
+         VALUES ($1, $2, $3, 'THB', 'credit', 'topup', $4, 'stripe', $5, 'Wallet top-up', NOW())`,
+        [uuidv4(), topup.wallet_id, topup.amount, topupId, providerTransactionId || null]
+      );
+
+      console.log(`Successfully updated wallet for topup ${topupId} with amount ${topup.amount}`);
     });
   } catch (error) {
     console.error('Error handling successful payment:', error);
   }
 }
 
-// Handle failed payment - update transaction status
-async function handleFailedPayment(paymentIntent) {
+async function handleCheckoutSessionCompleted(session) {
+  const topupId = session?.metadata?.topup_id;
+  if (!topupId) {
+    console.log('checkout.session.completed missing topup_id metadata');
+    return;
+  }
+
+  await markTopupSucceeded(topupId, session.payment_intent ? String(session.payment_intent) : session.id);
+}
+
+async function handleSuccessfulPaymentIntent(paymentIntent) {
+  const topupId = paymentIntent?.metadata?.topup_id;
+  if (!topupId) {
+    console.log(`No topup_id metadata found for PaymentIntent ${paymentIntent.id}`);
+    return;
+  }
+
+  await markTopupSucceeded(topupId, paymentIntent.id);
+}
+
+async function handleFailedPaymentIntent(paymentIntent) {
   try {
+    const topupId = paymentIntent?.metadata?.topup_id;
+    if (!topupId) {
+      console.log(`No topup_id metadata found for failed PaymentIntent ${paymentIntent.id}`);
+      return;
+    }
+
     await transaction(async (client) => {
       const result = await client.query(
-        `UPDATE wallet_transactions 
-         SET status = 'failed', updated_at = NOW()
-         WHERE stripe_payment_intent_id = $1 AND status = 'pending'`,
-        [paymentIntent.id]
+        `UPDATE topup_intents
+         SET status = 'failed', failed_at = NOW(), error_message = $2, provider_transaction_id = $3, updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'`,
+        [
+          topupId,
+          paymentIntent.last_payment_error ? paymentIntent.last_payment_error.message : 'Payment failed',
+          paymentIntent.id,
+        ]
       );
 
       if (result.rowCount === 0) {
-        console.log(`No pending transaction found for PaymentIntent ${paymentIntent.id}`);
+        console.log(`No pending top-up found for topup_id ${topupId}`);
         return;
       }
 
-      console.log(`Marked transaction as failed for PaymentIntent ${paymentIntent.id}`);
+      console.log(`Marked top-up ${topupId} as failed for PaymentIntent ${paymentIntent.id}`);
     });
   } catch (error) {
     console.error('Error handling failed payment:', error);

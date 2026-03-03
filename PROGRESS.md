@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-03 (session 4)
+> อัพเดทล่าสุด: 2026-03-03 (session 5)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -172,6 +172,30 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-03 — Switch wallet top-up to Stripe sandbox (replace mock flow)
+
+- feat(wallet): ย้าย top-up flow ไป Stripe sandbox แบบเต็มทาง
+  - `walletService.initiateTopup` เปลี่ยนเป็นสร้าง Stripe Checkout Session แล้วบันทึกลง `topup_intents`
+  - `confirmTopupPayment` ตรวจสอบสถานะจาก Stripe Checkout Session ได้
+  - ยืนยันการเครดิต ledger ใช้ `provider_name='stripe'`
+- feat(webhook): ปรับ `/api/webhooks/stripe` ให้รองรับ
+  - `checkout.session.completed`
+  - `payment_intent.succeeded`
+  - `payment_intent.payment_failed`
+  - เครดิต wallet + เขียน ledger จาก `topup_intents` โดยอิง `topup_id` metadata
+- fix(server): ย้าย mount `/api/webhooks` ไปก่อน global `express.json()` เพื่อให้ Stripe raw body signature verification ทำงาน
+- fix(validation): `walletSchemas.topup.payment_method` บังคับเป็น `stripe`
+- fix(frontend): หน้า Wallet ทั้ง hirer/caregiver เปลี่ยนปุ่ม/ข้อความจาก mock QR เป็น Stripe Checkout sandbox และส่ง `payment_method='stripe'`
+- chore(config): เปลี่ยนค่า default เป็น Stripe
+  - `.env.example` → `PAYMENT_PROVIDER=stripe`
+  - `docker-compose.yml` และ `docker-compose.prod.yml` → `${PAYMENT_PROVIDER:-stripe}`
+- verify:
+  - `docker compose up -d backend frontend` ผ่าน
+  - `curl http://localhost:3000/health` ผ่าน
+  - `curl -I http://localhost:5173` ผ่าน
+  - backend lint ผ่าน (0 errors)
+  - frontend build ผ่าน
 
 ### 2026-03-03 — Consolidate env sources + verify backend/frontend runtime
 

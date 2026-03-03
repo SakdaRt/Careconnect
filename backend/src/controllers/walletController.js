@@ -82,7 +82,7 @@ const walletController = {
         userId,
         role,
         parseInt(amount),
-        payment_method || 'promptpay'
+        payment_method || 'stripe'
       );
 
       res.status(201).json({

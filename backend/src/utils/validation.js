@@ -250,7 +250,7 @@ export const walletSchemas = {
   
   topup: Joi.object({
     amount: Joi.number().positive().required(),
-    payment_method: Joi.string().valid('promptpay', 'card', 'bank_transfer').required(),
+    payment_method: Joi.string().valid('stripe').required(),
   }),
   
   withdraw: Joi.object({

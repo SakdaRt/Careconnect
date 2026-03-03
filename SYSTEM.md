@@ -125,7 +125,8 @@ max 3 replacement chains per job_post
 ```
 Phase 1: Top-up
   Hirer ── POST /wallet/topup ──► topup_intent (pending)
-  Provider webhook ──► topup_intent (succeeded)
+  Stripe Checkout (Sandbox) ──► /api/webhooks/stripe
+  checkout.session.completed / payment_intent.succeeded ──► topup_intent (succeeded)
   → credit hirer wallet.available_balance
   → INSERT ledger_transaction (type=credit)
 
@@ -1021,9 +1022,9 @@ GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
 BACKEND_URL=http://localhost:3000
 
-# Providers (mock in dev)
+# Providers (Stripe sandbox in dev)
 MOCK_PROVIDER_BASE_URL=http://mock-provider:4000
-PAYMENT_PROVIDER=mock
+PAYMENT_PROVIDER=stripe
 STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx

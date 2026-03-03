@@ -7,94 +7,6 @@ import { BankAccount, TopupIntent, TopupResult, Transaction, WalletBalance, With
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 
-const MOCK_QR_SIDE = 21;
-
-function seededNumberFromText(text: string): number {
-  let seed = 0x811c9dc5;
-  for (let i = 0; i < text.length; i += 1) {
-    seed ^= text.charCodeAt(i);
-    seed = Math.imul(seed, 0x01000193);
-  }
-  return seed >>> 0;
-}
-
-function finderPatternCell(row: number, col: number, size: number): boolean | null {
-  let localRow = -1;
-  let localCol = -1;
-
-  const inTopLeft = row < 7 && col < 7;
-  const inTopRight = row < 7 && col >= size - 7;
-  const inBottomLeft = row >= size - 7 && col < 7;
-
-  if (inTopLeft) {
-    localRow = row;
-    localCol = col;
-  } else if (inTopRight) {
-    localRow = row;
-    localCol = col - (size - 7);
-  } else if (inBottomLeft) {
-    localRow = row - (size - 7);
-    localCol = col;
-  } else {
-    return null;
-  }
-
-  if (localRow === 0 || localRow === 6 || localCol === 0 || localCol === 6) return true;
-  if (localRow === 1 || localRow === 5 || localCol === 1 || localCol === 5) return false;
-  return true;
-}
-
-function buildMockQrCells(payload: string, size = MOCK_QR_SIDE): boolean[] {
-  const cells: boolean[] = [];
-  let state = seededNumberFromText(payload || 'careconnect-demo');
-
-  for (let row = 0; row < size; row += 1) {
-    for (let col = 0; col < size; col += 1) {
-      const finderCell = finderPatternCell(row, col, size);
-      if (finderCell !== null) {
-        cells.push(finderCell);
-        continue;
-      }
-
-      state ^= state << 13;
-      state >>>= 0;
-      state ^= state >>> 17;
-      state >>>= 0;
-      state ^= state << 5;
-      state >>>= 0;
-
-      const bit = ((state + row * 31 + col * 17) & 1) === 1;
-      cells.push(bit);
-    }
-  }
-
-  return cells;
-}
-
-function MockQrPreview({ payload }: { payload: string }) {
-  const cells = useMemo(() => buildMockQrCells(payload), [payload]);
-
-  return (
-    <div className="inline-flex items-center justify-center p-4 bg-white border-4 border-gray-900 rounded-xl shadow-sm">
-      <div
-        className="grid"
-        style={{
-          width: 210,
-          gridTemplateColumns: `repeat(${MOCK_QR_SIDE}, minmax(0, 1fr))`,
-        }}
-      >
-        {cells.map((filled, idx) => (
-          <div
-            key={idx}
-            className={filled ? 'bg-gray-900' : 'bg-white'}
-            style={{ aspectRatio: '1 / 1' }}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function HirerWalletPage() {
   const { user } = useAuth();
   const userId = user?.id || 'demo-hirer';
@@ -235,7 +147,7 @@ export default function HirerWalletPage() {
     }
     setSubmitting(true);
     try {
-      const res = await appApi.topUpWallet(value, 'promptpay');
+      const res = await appApi.topUpWallet(value, 'stripe');
       if (!res.success) {
         toast.error(res.error || 'เติมเงินไม่สำเร็จ');
         return;
@@ -370,7 +282,6 @@ export default function HirerWalletPage() {
     refreshTopupStatus(activeTopupId);
   }, [activeTopupId, refreshTopupStatus]);
 
-  const activeQrPayload = String(active?.qr_payload || latestTopupResult?.qr_code || activeTopupId || 'careconnect-demo');
   const activePaymentUrl = active?.payment_link_url || latestTopupResult?.payment_url || null;
 
   return (
@@ -436,7 +347,7 @@ export default function HirerWalletPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="primary" size="sm" onClick={() => setShowTopupModal(true)}>
-                    เปิด QR ชำระเงิน
+                    ไปหน้า Stripe Checkout
                   </Button>
                   <Button
                     variant="outline"
@@ -470,11 +381,11 @@ export default function HirerWalletPage() {
                 />
                 <div className="sm:self-end">
                   <Button variant="primary" loading={submitting} onClick={handleTopUp}>
-                    เติมเงินด้วย QR
+                    เติมเงินผ่าน Stripe
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">ระบบจำลอง: เมื่อกดเติมเงิน จะเปิด popup QR และให้กดยืนยันหลังชำระเสร็จ</p>
+              <p className="text-xs text-gray-500 mt-2">โหมดทดสอบ (Sandbox): ระบบจะพาไปหน้า Stripe Checkout แล้วค่อยกลับมากดยืนยันสถานะ</p>
             </Card>
 
             <Card className="p-4 sm:p-6">
@@ -688,7 +599,7 @@ export default function HirerWalletPage() {
       <Modal
         isOpen={showTopupModal && !!activeTopupId}
         onClose={() => setShowTopupModal(false)}
-        title="สแกนเพื่อชำระเงิน"
+        title="ชำระเงินผ่าน Stripe Sandbox"
         size="md"
         footer={
           <div className="flex flex-wrap justify-end gap-2">
@@ -706,10 +617,8 @@ export default function HirerWalletPage() {
             จำนวนเงิน: <strong>{Number(active?.amount || latestTopupResult?.amount || amount).toLocaleString()} บาท</strong>
           </div>
 
-          <MockQrPreview payload={activeQrPayload} />
-
-          <div className="text-xs text-gray-500">
-            * QR นี้เป็นโหมดจำลองสำหรับทดสอบ ยังไม่มีการตัดเงินจริง
+          <div className="text-xs text-gray-600">
+            ระบบจะเปิด Stripe Checkout ในแท็บใหม่เพื่อชำระเงินด้วยบัตรทดสอบ
           </div>
 
           <div className="text-left bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
@@ -723,10 +632,11 @@ export default function HirerWalletPage() {
           {activePaymentUrl && (
             <div>
               <Button variant="outline" onClick={() => window.open(activePaymentUrl, '_blank')}>
-                เปิดหน้าจำลองการชำระเงิน
+                เปิด Stripe Checkout
               </Button>
             </div>
           )}
+          {!activePaymentUrl && <div className="text-xs text-red-600">ไม่พบลิงก์ Stripe Checkout สำหรับรายการนี้</div>}
         </div>
       </Modal>
     </MainLayout>

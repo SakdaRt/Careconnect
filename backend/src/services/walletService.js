@@ -217,38 +217,81 @@ class WalletService {
 
     const walletType = role === 'hirer' ? 'hirer' : 'caregiver';
     const wallet = await Wallet.getOrCreateWallet(userId, walletType);
+    const paymentProvider = String(process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
+
+    if (paymentProvider !== 'stripe') {
+      throw { status: 400, message: 'Top-up provider is not set to stripe' };
+    }
 
     const stripe = getStripeClient();
+    const topupId = uuidv4();
+    const frontendBaseUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const walletPath = role === 'hirer' ? '/hirer/wallet' : '/caregiver/wallet';
+    const expiresAtEpoch = Math.floor(Date.now() / 1000) + 30 * 60;
 
-    // Create Stripe Payment Intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amount * 100, // Convert to cents
-      currency: 'thb',
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      line_items: [
+        {
+          price_data: {
+            currency: 'thb',
+            product_data: {
+              name: 'CareConnect Wallet Top-up',
+            },
+            unit_amount: amount * 100,
+          },
+          quantity: 1,
+        },
+      ],
       metadata: {
+        topup_id: topupId,
         user_id: userId,
         wallet_id: wallet.id,
       },
-      automatic_payment_methods: {
-        enabled: true,
-      },
+      success_url: `${frontendBaseUrl}${walletPath}?topup=success&topup_id=${topupId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${frontendBaseUrl}${walletPath}?topup=cancel&topup_id=${topupId}`,
+      expires_at: expiresAtEpoch,
     });
 
-    // Store transaction record
+    const expiresAt = new Date(expiresAtEpoch * 1000);
+
     return await transaction(async (client) => {
-      const transactionId = uuidv4();
       await client.query(
-        `INSERT INTO wallet_transactions (id, user_id, wallet_id, amount, currency, type, status, stripe_payment_intent_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, 'THB', 'topup', 'pending', $5, NOW(), NOW())`,
-        [transactionId, userId, wallet.id, amount, paymentIntent.id]
+        `INSERT INTO topup_intents (
+           id,
+           user_id,
+           amount,
+           currency,
+           method,
+           provider_name,
+           provider_payment_id,
+           status,
+           payment_link_url,
+           qr_payload,
+           expires_at,
+           created_at,
+           updated_at
+         ) VALUES (
+           $1, $2, $3, 'THB', $4, 'stripe', $5, 'pending', $6, NULL, $7, NOW(), NOW()
+         )`,
+        [
+          topupId,
+          userId,
+          amount,
+          paymentMethod || 'stripe',
+          checkoutSession.id,
+          checkoutSession.url || null,
+          expiresAt,
+        ]
       );
 
       return {
-        transaction_id: transactionId,
+        topup_id: topupId,
         amount,
-        payment_method: paymentMethod,
+        payment_method: paymentMethod || 'stripe',
         status: 'pending',
-        client_secret: paymentIntent.client_secret,
-        payment_intent_id: paymentIntent.id,
+        payment_url: checkoutSession.url || null,
+        expires_at: expiresAt.toISOString(),
       };
     });
   }
@@ -339,7 +382,7 @@ class WalletService {
       await client.query(
         `INSERT INTO ledger_transactions (id, to_wallet_id, amount, currency, type, reference_type, reference_id, provider_name, provider_transaction_id, description, created_at)
          VALUES ($1, $2, $3, 'THB', 'credit', 'topup', $4, $5, $6, 'Wallet top-up', NOW())`,
-        [uuidv4(), topup.wallet_id, topup.amount, topupId, 'mock', providerData.transaction_id || null]
+        [uuidv4(), topup.wallet_id, topup.amount, topupId, topup.provider_name || 'stripe', providerData.transaction_id || null]
       );
 
       // Get updated wallet
@@ -454,6 +497,36 @@ class WalletService {
    * @returns {{status: 'pending'|'succeeded'|'failed'|'expired', transaction_id?: string, reason?: string}}
    */
   async checkTopupPaymentStatusWithProvider(topupIntent) {
+    if (topupIntent.provider_name === 'stripe') {
+      if (!topupIntent.provider_payment_id) {
+        return { status: 'pending' };
+      }
+
+      try {
+        const stripe = getStripeClient();
+        const session = await stripe.checkout.sessions.retrieve(topupIntent.provider_payment_id);
+
+        if (session.payment_status === 'paid') {
+          return {
+            status: 'succeeded',
+            transaction_id: session.payment_intent ? String(session.payment_intent) : session.id,
+          };
+        }
+
+        if (session.status === 'expired') {
+          return {
+            status: 'expired',
+            reason: 'Payment session expired',
+          };
+        }
+
+        return { status: 'pending' };
+      } catch (error) {
+        console.error('[WalletService] Failed to verify Stripe top-up status:', error);
+        return { status: 'pending' };
+      }
+    }
+
     if (topupIntent.provider_name === 'mock') {
       if (process.env.NODE_ENV !== 'production') {
         return {

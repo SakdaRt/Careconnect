@@ -1224,6 +1224,7 @@ async function ensureMockEscortJobs(hirerIdsByEmail) {
 // Middleware
 app.use(helmet());
 app.use(cors());
+app.use("/api/webhooks", webhookRoutes);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan("dev"));
@@ -1271,7 +1272,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/wallet", walletRoutes);
-app.use("/api/webhooks", webhookRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/otp", otpRoutes);
 app.use("/api/care-recipients", careRecipientRoutes);
