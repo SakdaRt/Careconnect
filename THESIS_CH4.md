@@ -265,7 +265,7 @@ Backend ใช้ custom error classes จาก `utils/errors.js` ส่ง res
 
 | Endpoint                           | Method | Scenario                       | Expected Status | Expected Body               | ผลการทดสอบ |
 |------------------------------------|--------|--------------------------------|-----------------|-----------------------------|-----------|
-| `/api/wallet`                      | GET    | valid token                    | 200             | { wallet, transactions }    | ผ่าน ✓    |
+| `/api/wallet/balance`              | GET    | valid token                    | 200             | { wallet }                  | ผ่าน ✓    |
 | `/api/wallet/topup`                | POST   | valid amount                   | 201             | { topup_id, qr_payload }    | ผ่าน ✓    |
 | `/api/wallet/topup`                | POST   | amount ≤ 0                     | 400             | VALIDATION_ERROR            | ผ่าน ✓    |
 | `/api/wallet/topup/:id/confirm`    | POST   | valid topup_id                 | 200             | { status }                  | ผ่าน ✓    |
