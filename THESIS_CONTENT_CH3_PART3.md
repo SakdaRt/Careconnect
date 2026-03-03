@@ -8,81 +8,39 @@
 
 ### 3.5.1 Use Case Diagram
 
-> 📌 **DIAGRAM: Use Case** — Mermaid code (วางที่ https://mermaid.live):
+> 📌 **DIAGRAM: Use Case** — PlantUML code (วางที่ plantuml.com):
 
-```mermaid
-flowchart TD
-  %% Actors
-  Guest([Guest])
-  Hirer([Hirer])
-  Caregiver([Caregiver])
-  Admin([Admin])
+```plantuml
+@startuml
+left to right direction
+actor Guest
+actor Hirer
+actor Caregiver
+actor Admin
 
-  %% System boundary
-  subgraph SYS[CareConnect System]
-    direction TB
-
-    subgraph AUTH["Authentication"]
-      direction TB
-      UC01((สมัครสมาชิก))
-      UC02((Login))
-      UC03((ยืนยัน OTP))
-    end
-
-    subgraph HJ["Hirer: Job & Payment"]
-      direction TB
-      UC04((สร้างงาน))
-      UC05((เผยแพร่งาน))
-      UC06((ค้นหา Caregiver))
-      UC07((Direct<br/>Assign))
-      UC08((Top-up<br/>Wallet))
-      UC09((เปิด Dispute))
-      UC10((อนุมัติ<br/>Early Checkout))
-    end
-
-    subgraph CJ["Caregiver: Job Execution"]
-      direction TB
-      UC11((ดู Job Feed))
-      UC12((รับงาน))
-      UC13((Check-in/out))
-      UC14((Chat Real-time))
-      UC15((ถอนเงิน))
-      UC16((เปิด Dispute))
-    end
-
-    subgraph ADM["Admin"]
-      direction TB
-      UC17((จัดการ Users))
-      UC18((Approve KYC))
-      UC19((Settle Dispute))
-      UC20((ดู Reports/<br/>Ledger))
-    end
-  end
-
-  %% Associations
-  Guest --- UC01
-  Guest --- UC02
-  Guest --- UC03
-
-  Hirer --- UC04
-  Hirer --- UC05
-  Hirer --- UC06
-  Hirer --- UC07
-  Hirer --- UC08
-  Hirer --- UC09
-  Hirer --- UC10
-
-  Caregiver --- UC11
-  Caregiver --- UC12
-  Caregiver --- UC13
-  Caregiver --- UC14
-  Caregiver --- UC15
-  Caregiver --- UC16
-
-  Admin --- UC17
-  Admin --- UC18
-  Admin --- UC19
-  Admin --- UC20
+rectangle "CareConnect System" {
+  Guest --> (Register)
+  Guest --> (Login)
+  Guest --> (Verify OTP)
+  Hirer --> (Create Job)
+  Hirer --> (Publish Job)
+  Hirer --> (Search Caregiver)
+  Hirer --> (Direct Assign)
+  Hirer --> (Top-up Wallet)
+  Hirer --> (Open Dispute)
+  Hirer --> (Approve Early Checkout)
+  Caregiver --> (View Job Feed)
+  Caregiver --> (Accept Job)
+  Caregiver --> (Check-in/out)
+  Caregiver --> (Real-time Chat)
+  Caregiver --> (Withdraw)
+  Caregiver --> (Open Dispute)
+  Admin --> (Manage Users)
+  Admin --> (Approve KYC)
+  Admin --> (Settle Dispute)
+  Admin --> (View Reports/Ledger)
+}
+@enduml
 ```
 
 ### 3.5.2 Use Case Descriptions
@@ -143,7 +101,7 @@ sequenceDiagram
     BE-->>FE: 200 OK
 ```
 
-> 📌 **DIAGRAM: Caregiver Accept (Phase 1)** — Mermaid code:
+> 📌 **DIAGRAM: Caregiver Accept & Check-in/out** — Mermaid code:
 
 ```mermaid
 sequenceDiagram
@@ -160,16 +118,6 @@ sequenceDiagram
     BE->>DB: INSERT ledger [hold]
     BE->>BE: notify hirer
     BE-->>FE: 200 OK
-```
-
-> 📌 **DIAGRAM: Check-in/Check-out + Settlement (Phase 2)** — Mermaid code:
-
-```mermaid
-sequenceDiagram
-    actor CG as Caregiver
-    participant FE as Frontend
-    participant BE as Backend
-    participant DB as Database
     Note over CG,DB: ถึงเวลางาน
     CG->>FE: Check-in (GPS)
     FE->>BE: POST /api/jobs/:jobId/checkin
