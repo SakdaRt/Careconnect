@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-03 (session 5)
+> อัพเดทล่าสุด: 2026-03-03 (session 6)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -172,6 +172,16 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-03 — Fix top-up DB constraint violation (topup_intents.method)
+
+- fix(wallet): แก้ root cause ที่ทำให้ `/api/wallet/topup` ล้มด้วย `topup_intents_method_check`
+  - เดิมส่งค่า `payment_method='stripe'` ไปเก็บในคอลัมน์ `topup_intents.method`
+  - แต่ DB constraint อนุญาตเฉพาะ `dynamic_qr` หรือ `payment_link`
+  - ปรับ `walletService.initiateTopup` ให้ map Stripe เป็น `payment_link` ก่อน insert
+- verify:
+  - ตรวจ log backend พบ constraint เดิมชัดเจน: `constraint: topup_intents_method_check`
+  - backend lint ผ่าน (0 errors)
 
 ### 2026-03-03 — Switch wallet top-up to Stripe sandbox (replace mock flow)
 

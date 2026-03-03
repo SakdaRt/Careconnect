@@ -125,6 +125,7 @@ max 3 replacement chains per job_post
 ```
 Phase 1: Top-up
   Hirer ── POST /wallet/topup ──► topup_intent (pending)
+  สำหรับ Stripe: เก็บ topup_intents.method = payment_link
   Stripe Checkout (Sandbox) ──► /api/webhooks/stripe
   checkout.session.completed / payment_intent.succeeded ──► topup_intent (succeeded)
   → credit hirer wallet.available_balance

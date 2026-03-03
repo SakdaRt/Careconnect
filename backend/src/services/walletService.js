@@ -254,6 +254,7 @@ class WalletService {
     });
 
     const expiresAt = new Date(expiresAtEpoch * 1000);
+    const persistedMethod = paymentMethod === 'stripe' ? 'payment_link' : paymentMethod;
 
     return await transaction(async (client) => {
       await client.query(
@@ -278,7 +279,7 @@ class WalletService {
           topupId,
           userId,
           amount,
-          paymentMethod || 'stripe',
+          persistedMethod || 'payment_link',
           checkoutSession.id,
           checkoutSession.url || null,
           expiresAt,
