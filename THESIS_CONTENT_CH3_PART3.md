@@ -8,39 +8,67 @@
 
 ### 3.5.1 Use Case Diagram
 
-> 📌 **DIAGRAM: Use Case** — PlantUML code (วางที่ plantuml.com):
+> 📌 **DIAGRAM: Use Case** — Mermaid code (วางที่ https://mermaid.live):
 
-```plantuml
-@startuml
-left to right direction
-actor Guest
-actor Hirer
-actor Caregiver
-actor Admin
+```mermaid
+flowchart LR
+  %% Actors
+  Guest([Guest])
+  Hirer([Hirer])
+  Caregiver([Caregiver])
+  Admin([Admin])
 
-rectangle "CareConnect System" {
-  Guest --> (สมัครสมาชิก)
-  Guest --> (Login)
-  Guest --> (ยืนยัน OTP)
-  Hirer --> (สร้างงาน)
-  Hirer --> (เผยแพร่งาน)
-  Hirer --> (ค้นหา Caregiver)
-  Hirer --> (Direct Assign)
-  Hirer --> (Top-up Wallet)
-  Hirer --> (เปิด Dispute)
-  Hirer --> (อนุมัติ Early Checkout)
-  Caregiver --> (ดู Job Feed)
-  Caregiver --> (รับงาน)
-  Caregiver --> (Check-in/out)
-  Caregiver --> (Chat Real-time)
-  Caregiver --> (ถอนเงิน)
-  Caregiver --> (เปิด Dispute)
-  Admin --> (จัดการ Users)
-  Admin --> (Approve KYC)
-  Admin --> (Settle Dispute)
-  Admin --> (ดู Reports/Ledger)
-}
-@enduml
+  %% System boundary
+  subgraph SYS[CareConnect System]
+    UC01((สมัครสมาชิก))
+    UC02((Login))
+    UC03((ยืนยัน OTP))
+
+    UC04((สร้างงาน))
+    UC05((เผยแพร่งาน))
+    UC06((ค้นหา Caregiver))
+    UC07((Direct Assign))
+    UC08((Top-up Wallet))
+    UC09((เปิด Dispute))
+    UC10((อนุมัติ Early Checkout))
+
+    UC11((ดู Job Feed))
+    UC12((รับงาน))
+    UC13((Check-in/out))
+    UC14((Chat Real-time))
+    UC15((ถอนเงิน))
+    UC16((เปิด Dispute))
+
+    UC17((จัดการ Users))
+    UC18((Approve KYC))
+    UC19((Settle Dispute))
+    UC20((ดู Reports/Ledger))
+  end
+
+  %% Associations
+  Guest --- UC01
+  Guest --- UC02
+  Guest --- UC03
+
+  Hirer --- UC04
+  Hirer --- UC05
+  Hirer --- UC06
+  Hirer --- UC07
+  Hirer --- UC08
+  Hirer --- UC09
+  Hirer --- UC10
+
+  Caregiver --- UC11
+  Caregiver --- UC12
+  Caregiver --- UC13
+  Caregiver --- UC14
+  Caregiver --- UC15
+  Caregiver --- UC16
+
+  Admin --- UC17
+  Admin --- UC18
+  Admin --- UC19
+  Admin --- UC20
 ```
 
 ### 3.5.2 Use Case Descriptions
