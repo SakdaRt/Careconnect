@@ -143,7 +143,7 @@ sequenceDiagram
     BE-->>FE: 200 OK
 ```
 
-> 📌 **DIAGRAM: Caregiver Accept & Check-in/out** — Mermaid code:
+> 📌 **DIAGRAM: Caregiver Accept (Phase 1)** — Mermaid code:
 
 ```mermaid
 sequenceDiagram
@@ -160,6 +160,16 @@ sequenceDiagram
     BE->>DB: INSERT ledger [hold]
     BE->>BE: notify hirer
     BE-->>FE: 200 OK
+```
+
+> 📌 **DIAGRAM: Check-in/Check-out + Settlement (Phase 2)** — Mermaid code:
+
+```mermaid
+sequenceDiagram
+    actor CG as Caregiver
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
     Note over CG,DB: ถึงเวลางาน
     CG->>FE: Check-in (GPS)
     FE->>BE: POST /api/jobs/:jobId/checkin
