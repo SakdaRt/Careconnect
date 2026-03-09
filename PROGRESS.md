@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-03 (session 6)
+> อัพเดทล่าสุด: 2026-03-09
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -172,6 +172,55 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-09 — Strategic development plan snapshot (analysis only)
+
+- docs(plan): สรุปภาพรวมเป้าหมาย + ประเมินสถานะปัจจุบัน + วาง roadmap แบบเป็นขั้นตอน
+- เป้าหมายโปรเจค (North Star)
+  - สร้าง marketplace ดูแลผู้สูงอายุที่ "ปลอดภัย เชื่อถือได้ และจบงานได้จริง" สำหรับ 3 บทบาท (hirer/caregiver/admin)
+  - ครอบคลุม end-to-end flow: สมัคร → คัดกรองความน่าเชื่อถือ → จ้างงาน → ปฏิบัติงาน → จ่ายเงิน → ปิดงาน/ข้อพิพาท
+- องค์ประกอบที่ต้องมี (Must-have pillars)
+  - Product Flow: Auth + Profile + Job lifecycle + Chat + Notifications + Dispute
+  - Trust & Safety: OTP/KYC/Trust level + policy gate + audit trail
+  - Payment Integrity: wallet + ledger + escrow + webhook idempotency
+  - Quality & Delivery: integration/e2e tests + release checklist + observability
+- สถานะปัจจุบันเทียบเป้าหมาย
+  - ✅ "เกือบครบ" ฝั่ง feature หลักระดับ product (auth/jobs/wallet/chat/dispute/admin มีแล้ว)
+  - ✅ payment flow Stripe ใช้งานได้จริงและผ่าน smoke สำคัญ
+  - ⚠️ ช่องว่างหลักคือ quality gate ยังไม่พร้อม production-grade เต็มที่
+    - integration tests หลายไฟล์ยังอิง endpoint/contract เก่า
+    - test setup ยังมีส่วนที่ไม่ sync กับ schema ปัจจุบัน
+    - e2e automated test ยังไม่ถูกทำ
+- Gap analysis (เรียงตามผลกระทบ)
+  1. Test Reliability Gap — CI ไม่สามารถยืนยัน regression ได้ครบ
+  2. API Contract Drift — test กับ route จริงไม่สอดคล้องกัน
+  3. Documentation Drift เฉพาะจุด — flow บางส่วนใน SYSTEM.md ยังต้อง sync ให้ตรง implementation ล่าสุด
+  4. Operational Readiness Gap — monitoring/alerting/checklist ก่อนปล่อยยังไม่แน่น
+- แผนทำงานแบบ Step-by-step
+  1. Baseline & Freeze Scope (0.5-1 วัน)
+     - lock ขอบเขต milestone รอบนี้เป็น "stability + test parity"
+     - นิยาม acceptance criteria รายโมดูล (auth/jobs/wallet/dispute)
+  2. Test Foundation Repair (1-2 วัน)
+     - แก้ `backend/tests/setup.js` ให้ตรง schema จริงทั้งหมด
+     - ทำให้ test DB bootstrap/run ซ้ำได้แบบ deterministic
+  3. Integration Contract Alignment (2-3 วัน)
+     - อัพเดท integration tests ให้ใช้ endpoint จริงทั้งหมด
+     - จัดกลุ่ม test ตาม route module เพื่อลด coupling
+  4. E2E Smoke Coverage (1-2 วัน)
+     - เพิ่ม e2e happy paths ขั้นต่ำ 4 เส้น: register/login, create→publish→accept→checkout, topup→status, dispute basic flow
+  5. Payment & Risk Hardening (1-2 วัน)
+     - เพิ่ม negative tests: duplicate webhook, insufficient funds, invalid transitions
+     - ตรวจ idempotency และ ledger invariants เป็น test assertions
+  6. Documentation Sync Gate (0.5-1 วัน)
+     - sync SYSTEM.md เฉพาะส่วน route/sequence ที่คลาดเคลื่อนจากโค้ดล่าสุด
+  7. Release Readiness (0.5-1 วัน)
+     - รัน checklist: lint + type check + integration + e2e smoke + manual sanity
+     - สรุป known limitations และ rollback plan
+- Definition of done รอบถัดไป
+  - backend integration tests ผ่านอย่างน้อยเส้นทางหลักทั้งหมด
+  - e2e smoke มีผลรันซ้ำได้ในเครื่อง dev
+  - SYSTEM.md และ PROGRESS.md ตรงกับ implementation ปัจจุบัน
+  - พร้อมตัด release candidate โดยไม่มี blocker ระดับสูง
 
 ### 2026-03-09 — Fix auth refresh payload validation mismatch
 
