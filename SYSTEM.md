@@ -701,7 +701,7 @@ POST   /api/auth/register/guest        สมัคร Guest (email + password +
 POST   /api/auth/register/member       สมัคร Member (phone + password + role)
 POST   /api/auth/login/email           Login ด้วย email + password
 POST   /api/auth/login/phone           Login ด้วย phone + password
-POST   /api/auth/refresh               Refresh JWT token
+POST   /api/auth/refresh               Refresh JWT token (body: { refreshToken })
 POST   /api/auth/logout                Logout
 GET    /api/auth/me                    ดึงข้อมูล user ปัจจุบัน
 DELETE /api/auth/me                    ลบ unverified account

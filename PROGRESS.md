@@ -173,6 +173,16 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-09 — Fix auth refresh payload validation mismatch
+
+- fix(auth): แก้ `/api/auth/refresh` ให้ validation schema ใช้ `refreshToken` ตรงกับ controller
+  - เดิม `authSchemas.refreshToken` ตรวจ `refresh_token`
+  - แต่ controller อ่าน `req.body.refreshToken`
+  - ส่งผลให้ refresh token ตอบ `400` ตลอดแม้ token ถูกต้อง
+- verify:
+  - `POST /api/auth/refresh` ด้วย `refreshToken` ได้ `200` และคืน access/refresh token ใหม่
+  - smoke flow หลักผ่าน: register/login/profile/wallet balance/topup/status
+
 ### 2026-03-03 — Fix top-up DB constraint violation (topup_intents.method)
 
 - fix(wallet): แก้ root cause ที่ทำให้ `/api/wallet/topup` ล้มด้วย `topup_intents_method_check`
