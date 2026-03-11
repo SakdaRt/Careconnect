@@ -126,7 +126,7 @@ careconnect/
 
 - [x] แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
-- [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
+- [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (เพิ่ม Playwright real-flow spec แล้ว แต่ยังต้องรันด้วย credential จริง)
 - [x] E2E smoke tests ฝั่ง backend (Jest + Supertest) ครอบคลุม 4 happy paths
 - [x] E2E tests ฝั่ง browser (Playwright baseline + smoke specs)
 
@@ -173,6 +173,18 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Add real-browser Google OAuth E2E spec scaffold
+
+- test(frontend): เพิ่ม `/frontend/e2e/google-oauth.real.spec.ts`
+  - รันจริงเมื่อกำหนด env:
+    - `PLAYWRIGHT_RUN_GOOGLE_OAUTH=true`
+    - `PLAYWRIGHT_GOOGLE_EMAIL`
+    - `PLAYWRIGHT_GOOGLE_PASSWORD`
+- chore(frontend): เพิ่ม script `/frontend/package.json`
+  - `test:e2e:oauth` สำหรับรันเฉพาะ Google OAuth real-flow spec
+- status:
+  - ยังต้องรันบน environment ที่มี Playwright/browser dependencies และ credential จริง
 
 ### 2026-03-11 — Add dark mode baseline (toggle + persistence)
 
