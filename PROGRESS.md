@@ -128,13 +128,13 @@ careconnect/
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
 - [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
 - [x] E2E smoke tests ฝั่ง backend (Jest + Supertest) ครอบคลุม 4 happy paths
-- [ ] E2E tests ฝั่ง browser (Playwright หรือ Cypress)
+- [x] E2E tests ฝั่ง browser (Playwright baseline + smoke specs)
 
 ### Medium Priority
 
-- [ ] Email notification (ส่ง email จริงเมื่อมี notification)
-- [ ] Push notification (PWA)
-- [ ] Caregiver availability calendar
+- [x] Email notification (ส่ง email จริงเมื่อมี notification)
+- [x] Push notification (PWA)
+- [x] Caregiver availability calendar
 
 ### Low Priority
 
@@ -142,7 +142,7 @@ careconnect/
 - [ ] Tabular numerals สำหรับตัวเลขเงิน
 - [ ] Badge color sole indicator → เพิ่ม icon/pattern
 - [ ] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
-- [ ] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
+- [x] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
 
 ---
 
@@ -173,6 +173,25 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Add Playwright baseline + remove duplicate table bootstrap
+
+- test(frontend): เพิ่ม baseline browser E2E (Playwright)
+  - เพิ่ม `/frontend/playwright.config.ts`
+  - เพิ่ม smoke specs:
+    - `/frontend/e2e/settings-availability.smoke.spec.ts`
+    - `/frontend/e2e/google-oauth.smoke.spec.ts`
+  - เพิ่ม scripts ใน `/frontend/package.json`: `test:e2e`, `test:e2e:headed`, `test:e2e:ui`
+  - เพิ่ม `@playwright/test` ใน devDependencies และอัพเดท `/frontend/package-lock.json`
+- chore(frontend): เพิ่ม `data-testid` สำหรับ settings notification toggles และ availability controls เพื่อให้ E2E selectors เสถียร
+- chore(backend): ลบ fallback bootstrap `ensureReviewsAndFavoritesTables()` ใน `/backend/src/server.js` เพราะ schema/migration ครอบคลุมแล้ว
+- verify:
+  - `npm install --package-lock-only --ignore-scripts` ผ่าน
+  - `npm run test:e2e -- --list` ไม่ผ่านใน environment ปัจจุบัน (`playwright: not found`)
+  - `npm run build` ไม่ผ่านใน environment ปัจจุบัน (`tsc: not found`)
+- next:
+  - ติดตั้ง frontend dependencies แบบเต็ม (`npm install`) ใน environment ที่เขียน `node_modules` ได้
+  - รัน `npm run test:e2e` และ `npm run build` ซ้ำเพื่อยืนยันผล
 
 ### 2026-03-11 — Add backend E2E smoke suite + docs sync
 

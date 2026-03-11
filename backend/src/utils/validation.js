@@ -358,3 +358,20 @@ export const kycSchemas = {
     selfie_url: Joi.string().uri().required(),
   }),
 };
+
+export const notificationSchemas = {
+  preferences: Joi.object({
+    email_enabled: Joi.boolean().required(),
+    push_enabled: Joi.boolean().required(),
+  }),
+  pushSubscription: Joi.object({
+    endpoint: Joi.string().uri().required(),
+    keys: Joi.object({
+      p256dh: Joi.string().trim().min(1).required(),
+      auth: Joi.string().trim().min(1).required(),
+    }).required(),
+  }),
+  pushSubscriptionDelete: Joi.object({
+    endpoint: Joi.string().uri().required(),
+  }),
+};

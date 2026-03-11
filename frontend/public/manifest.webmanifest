@@ -1,0 +1,16 @@
+{
+  "name": "Careconnect",
+  "short_name": "Careconnect",
+  "description": "แพลตฟอร์มจับคู่ผู้ดูแลผู้สูงอายุ",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

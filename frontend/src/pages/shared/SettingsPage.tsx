@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { User, ShieldCheck, Bell, HelpCircle, LogOut, KeyRound, ArrowLeftRight } from 'lucide-react';
+import { User, ShieldCheck, Bell, HelpCircle, LogOut, KeyRound, ArrowLeftRight, CalendarDays } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, Input } from '../../components/ui';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
+import { NotificationPreferences } from '../../services/api';
 import { setScopedStorageItem } from '../../utils/authStorage';
 
 function trustLabel(level: string) {
@@ -24,12 +25,129 @@ export default function SettingsPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    email_enabled: false,
+    push_enabled: false,
+  });
+  const [notificationPrefLoading, setNotificationPrefLoading] = useState(true);
+  const [notificationPrefSaving, setNotificationPrefSaving] = useState(false);
 
   const resolvedRole = user?.role === 'admin' ? 'admin' : (activeRole || user?.role || 'hirer');
   const canSwitchRole = resolvedRole !== 'admin' && user?.account_type !== 'guest' && user?.is_phone_verified;
   const targetRole = resolvedRole === 'hirer' ? 'caregiver' : 'hirer';
   const targetRoleLabel = targetRole === 'hirer' ? 'ผู้ว่าจ้าง' : 'ผู้ดูแล';
   const tl = trustLabel(user?.trust_level || 'L0');
+
+  const toUint8Array = (base64String: string) => {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  };
+
+  const syncPushSubscription = async (enabled: boolean) => {
+    if (!('serviceWorker' in navigator)) return;
+    const registration = await navigator.serviceWorker.ready.catch(() => null);
+    if (!registration || !registration.pushManager) return;
+
+    const existing = await registration.pushManager.getSubscription();
+    if (!enabled) {
+      if (existing) {
+        const endpoint = existing.endpoint;
+        await existing.unsubscribe().catch(() => {});
+        await appApi.removePushSubscription(endpoint).catch(() => {});
+      }
+      return;
+    }
+
+    const vapidPublicKey = String((import.meta as any).env?.VITE_VAPID_PUBLIC_KEY || '').trim();
+    let subscription = existing;
+    if (!subscription && vapidPublicKey) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: toUint8Array(vapidPublicKey),
+      });
+    }
+
+    if (!subscription) return;
+    const payload = subscription.toJSON();
+    if (!payload?.endpoint || !payload?.keys?.p256dh || !payload?.keys?.auth) return;
+    await appApi.savePushSubscription({
+      endpoint: payload.endpoint,
+      keys: {
+        p256dh: payload.keys.p256dh,
+        auth: payload.keys.auth,
+      },
+    });
+  };
+
+  const loadNotificationPreferences = async () => {
+    setNotificationPrefLoading(true);
+    try {
+      const res = await appApi.getNotificationPreferences();
+      if (res.success && res.data) {
+        setNotificationPrefs({
+          email_enabled: Boolean(res.data.email_enabled),
+          push_enabled: Boolean(res.data.push_enabled),
+        });
+      }
+    } finally {
+      setNotificationPrefLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    loadNotificationPreferences();
+  }, [user?.id]);
+
+  const handleNotificationPrefChange = async (
+    key: keyof NotificationPreferences,
+    value: boolean
+  ) => {
+    const next = { ...notificationPrefs, [key]: value };
+
+    if (key === 'push_enabled' && value) {
+      if (!('Notification' in window)) {
+        toast.error('เบราว์เซอร์นี้ไม่รองรับ push notification');
+        return;
+      }
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        toast.error('กรุณาอนุญาตการแจ้งเตือนก่อนเปิดใช้งาน');
+        return;
+      }
+    }
+
+    setNotificationPrefSaving(true);
+    try {
+      const res = await appApi.updateNotificationPreferences(next);
+      if (!res.success || !res.data) {
+        toast.error(res.error || 'บันทึกการตั้งค่าแจ้งเตือนไม่สำเร็จ');
+        return;
+      }
+      setNotificationPrefs({
+        email_enabled: Boolean(res.data.email_enabled),
+        push_enabled: Boolean(res.data.push_enabled),
+      });
+      window.dispatchEvent(new CustomEvent('notification-preferences-updated', {
+        detail: {
+          email_enabled: Boolean(res.data.email_enabled),
+          push_enabled: Boolean(res.data.push_enabled),
+        },
+      }));
+      await syncPushSubscription(Boolean(next.push_enabled));
+      toast.success('บันทึกการตั้งค่าแจ้งเตือนแล้ว');
+    } catch (error: any) {
+      toast.error(error?.message || 'บันทึกการตั้งค่าแจ้งเตือนไม่สำเร็จ');
+    } finally {
+      setNotificationPrefSaving(false);
+    }
+  };
 
   const handleSwitchRole = async () => {
     if (switchingRole) return;
@@ -164,13 +282,61 @@ export default function SettingsPage() {
           </Card>
         )}
 
+        {resolvedRole === 'caregiver' && (
+          <Card className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <CalendarDays className="w-5 h-5 text-gray-500" />
+              <div className="text-sm font-semibold text-gray-900">ปฏิทินเวลาว่าง</div>
+            </div>
+            <p className="text-xs text-gray-600 mb-3">กำหนดวันที่และช่วงเวลาที่พร้อมรับงาน</p>
+            <Link to="/caregiver/availability"><Button variant="outline" size="sm">จัดการปฏิทิน</Button></Link>
+          </Card>
+        )}
+
         {/* Notifications */}
         <Card className="p-4">
           <div className="flex items-center gap-3 mb-3">
             <Bell className="w-5 h-5 text-gray-500" />
             <div className="text-sm font-semibold text-gray-900">การแจ้งเตือน</div>
           </div>
-          <Link to="/notifications"><Button variant="outline" size="sm">ดูการแจ้งเตือน</Button></Link>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
+              <div>
+                <div className="text-sm font-medium text-gray-900">Email notification</div>
+                <div className="text-xs text-gray-500">รับอีเมลเมื่อมีเหตุการณ์สำคัญ</div>
+              </div>
+              <input
+                type="checkbox"
+                data-testid="notification-email-toggle"
+                aria-label="เปิดปิดอีเมลแจ้งเตือน"
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={notificationPrefs.email_enabled}
+                disabled={notificationPrefLoading || notificationPrefSaving}
+                onChange={(e) => handleNotificationPrefChange('email_enabled', e.target.checked)}
+              />
+            </div>
+            <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
+              <div>
+                <div className="text-sm font-medium text-gray-900">Push notification</div>
+                <div className="text-xs text-gray-500">แจ้งเตือนทันทีบนเบราว์เซอร์</div>
+              </div>
+              <input
+                type="checkbox"
+                data-testid="notification-push-toggle"
+                aria-label="เปิดปิดพุชแจ้งเตือน"
+                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                checked={notificationPrefs.push_enabled}
+                disabled={notificationPrefLoading || notificationPrefSaving}
+                onChange={(e) => handleNotificationPrefChange('push_enabled', e.target.checked)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Link to="/notifications"><Button variant="outline" size="sm">ดูการแจ้งเตือน</Button></Link>
+              {(notificationPrefLoading || notificationPrefSaving) && (
+                <span className="text-xs text-gray-500 self-center">กำลังอัปเดต...</span>
+              )}
+            </div>
+          </div>
         </Card>
 
         {/* Help */}

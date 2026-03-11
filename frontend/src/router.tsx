@@ -47,6 +47,7 @@ const CaregiverMyJobsPage = lazy(() => import('./pages/caregiver/CaregiverMyJobs
 const CaregiverWalletPage = lazy(() => import('./pages/caregiver/CaregiverWalletPage'));
 const EarningsHistoryPage = lazy(() => import('./pages/caregiver/EarningsHistoryPage'));
 const JobEarningDetailPage = lazy(() => import('./pages/caregiver/JobEarningDetailPage'));
+const AvailabilityCalendarPage = lazy(() => import('./pages/caregiver/AvailabilityCalendarPage'));
 const AdminFinancialPage = lazy(() => import('./pages/admin/AdminFinancialPage'));
 import { RequireAdmin, RequireAuth, RequirePolicy, RequireProfile, RequireRole } from './routerGuards';
 const AdminLoginPage = lazy(() => import('./pages/admin/AdminLoginPage'));
@@ -361,6 +362,20 @@ export const router = createBrowserRouter([
         <RequireRole roles={['caregiver']}>
           <RequirePolicy>
             <CaregiverProfilePage />
+          </RequirePolicy>
+        </RequireRole>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/caregiver/availability',
+    element: (
+      <RequireAuth>
+        <RequireRole roles={['caregiver']}>
+          <RequirePolicy>
+            <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+              <AvailabilityCalendarPage />
+            </Suspense>
           </RequirePolicy>
         </RequireRole>
       </RequireAuth>

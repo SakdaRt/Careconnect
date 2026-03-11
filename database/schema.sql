@@ -956,6 +956,86 @@ CREATE INDEX idx_notifications_reference ON notifications(reference_type, refere
 COMMENT ON TABLE notifications IS 'Notification queue (email, SMS, push, in-app)';
 
 -- ============================================================================
+-- TABLE: notification_preferences
+-- ============================================================================
+
+CREATE TABLE notification_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    email_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    push_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_notification_preferences_email_enabled ON notification_preferences(email_enabled);
+CREATE INDEX idx_notification_preferences_push_enabled ON notification_preferences(push_enabled);
+
+COMMENT ON TABLE notification_preferences IS 'User notification channel preferences';
+
+-- ============================================================================
+-- TABLE: push_subscriptions
+-- ============================================================================
+
+CREATE TABLE push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    p256dh_key TEXT NOT NULL,
+    auth_key TEXT NOT NULL,
+    user_agent TEXT,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX idx_push_subscriptions_endpoint ON push_subscriptions(endpoint);
+CREATE UNIQUE INDEX idx_push_subscriptions_user_endpoint ON push_subscriptions(user_id, endpoint);
+CREATE INDEX idx_push_subscriptions_user_active ON push_subscriptions(user_id, is_active);
+
+COMMENT ON TABLE push_subscriptions IS 'Web push subscription endpoints per user';
+
+-- ============================================================================
+-- TABLE: caregiver_reviews
+-- ============================================================================
+
+CREATE TABLE caregiver_reviews (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    job_post_id UUID NOT NULL REFERENCES job_posts(id) ON DELETE CASCADE,
+    reviewer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    caregiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(job_id, reviewer_id)
+);
+
+CREATE INDEX idx_caregiver_reviews_caregiver ON caregiver_reviews(caregiver_id);
+CREATE INDEX idx_caregiver_reviews_reviewer ON caregiver_reviews(reviewer_id);
+CREATE INDEX idx_caregiver_reviews_job ON caregiver_reviews(job_id);
+
+COMMENT ON TABLE caregiver_reviews IS 'Hirer reviews for caregivers after completed jobs';
+
+-- ============================================================================
+-- TABLE: caregiver_favorites
+-- ============================================================================
+
+CREATE TABLE caregiver_favorites (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    hirer_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    caregiver_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(hirer_id, caregiver_id)
+);
+
+CREATE INDEX idx_caregiver_favorites_hirer ON caregiver_favorites(hirer_id);
+CREATE INDEX idx_caregiver_favorites_caregiver ON caregiver_favorites(caregiver_id);
+
+COMMENT ON TABLE caregiver_favorites IS 'Favorited caregivers by hirers';
+
+-- ============================================================================
 -- TABLE: trust_score_history (Audit trail for trust score changes)
 -- ============================================================================
 

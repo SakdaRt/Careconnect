@@ -498,6 +498,15 @@ Cancel (Refund):
 └────────────────────────┘
 ```
 
+- `notification_preferences`
+  - `user_id` (PK + FK → users)
+  - `email_enabled BOOLEAN`, `push_enabled BOOLEAN`
+  - `created_at`, `updated_at`
+- `push_subscriptions`
+  - `id UUID PK`
+  - `user_id FK → users`, `endpoint` (UNIQUE)
+  - `p256dh_key`, `auth_key`, `created_at`, `updated_at`
+
 ---
 
 ## 6. Sequence Diagrams
@@ -864,6 +873,10 @@ GET    /api/notifications/unread-count นับ unread
 PATCH  /api/notifications/:id/read     mark as read
 PATCH  /api/notifications/read-all     mark all as read
 DELETE /api/notifications              ลบ notifications ทั้งหมด
+GET    /api/notifications/preferences  ดู notification preferences
+PUT    /api/notifications/preferences  แก้ notification preferences
+POST   /api/notifications/push-subscriptions    บันทึก push subscription
+DELETE /api/notifications/push-subscriptions    ลบ push subscription
 ```
 
 ### 7.14 Webhooks — `/api/webhooks`

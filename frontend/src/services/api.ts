@@ -895,6 +895,31 @@ class ApiClient {
     });
   }
 
+  async getNotificationPreferences() {
+    return this.request<NotificationPreferences>('/api/notifications/preferences');
+  }
+
+  async updateNotificationPreferences(input: NotificationPreferences) {
+    return this.request<NotificationPreferences>('/api/notifications/preferences', {
+      method: 'PUT',
+      body: input,
+    });
+  }
+
+  async savePushSubscription(subscription: PushSubscriptionPayload) {
+    return this.request('/api/notifications/push-subscriptions', {
+      method: 'POST',
+      body: subscription,
+    });
+  }
+
+  async removePushSubscription(endpoint: string) {
+    return this.request('/api/notifications/push-subscriptions', {
+      method: 'DELETE',
+      body: { endpoint },
+    });
+  }
+
   async getPayments(options?: {
     status?: string;
     page?: number;
@@ -1512,6 +1537,19 @@ export interface AppNotification {
   status: string;
   read_at?: string | null;
   created_at: string;
+}
+
+export interface NotificationPreferences {
+  email_enabled: boolean;
+  push_enabled: boolean;
+}
+
+export interface PushSubscriptionPayload {
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
 }
 
 export interface CaregiverDocument {
