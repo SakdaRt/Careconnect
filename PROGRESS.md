@@ -141,7 +141,7 @@ careconnect/
 - [ ] Dark mode
 - [ ] Tabular numerals สำหรับตัวเลขเงิน
 - [ ] Badge color sole indicator → เพิ่ม icon/pattern
-- [ ] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
+- [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
 - [x] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
 
 ---
@@ -173,6 +173,15 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Extract backend mock seeds from server bootstrap
+
+- refactor(backend): ย้าย mock data ขนาดใหญ่จาก `/backend/src/server.js` ไป `/backend/src/seeds/mockData.js`
+  - export: `DEV_MOCK_CAREGIVERS`, `DEV_MOCK_HIRERS`, `DEV_MOCK_ESCORT_JOB_TEMPLATES`
+  - update import usage ใน `server.js` โดยไม่เปลี่ยนพฤติกรรม seed
+- verify:
+  - `npx eslint src/server.js src/seeds/mockData.js` ผ่าน
+  - `npm run lint` ทั้ง backend ยัง fail จากปัญหาเดิมของโปรเจค (`import/no-unresolved` ใน `src/utils/migrate.js`)
 
 ### 2026-03-11 — Add Playwright baseline + remove duplicate table bootstrap
 
