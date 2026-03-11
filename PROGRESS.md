@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-09
+> อัพเดทล่าสุด: 2026-03-11
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -172,6 +172,21 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Stabilize backend integration tests (auth/jobs/wallet/disputes)
+
+- test(backend): ปรับ integration tests ให้ตรง API/response ปัจจุบัน
+  - auth: ปรับ refresh token assertion ไม่ผูกกับ token rotation ที่อาจออกค่าเดิมในวินาทีเดียวกัน
+  - jobs: ปรับ assertion check-in/check-out และจัดการ trust level ใน test ให้เสถียรกับ policy gates
+  - wallet: จัดการ trust level ใน test ก่อน endpoint ที่ต้องใช้ L2 (`withdraw`, `withdraw:cancel`)
+  - disputes: ปรับ duplicate dispute test ให้ไม่ผูก state จาก test ก่อนหน้า
+- fix(test-setup): ทำให้ test DB bootstrap ใช้ได้ใน environment ที่ mount เฉพาะ `backend/`
+  - `backend/scripts/migrate.js`: เพิ่ม fallback สำหรับหา `schema.sql` หลาย path
+  - `backend/tests/setup.js`: harden setup โดยสร้าง `early_checkout_requests` ถ้าไม่มี และเติม compatibility columns ใน `disputes` ที่ API ปัจจุบันใช้งาน
+  - `backend/tests/setup.js`: แก้ SQL helper `createTestJob` ให้เข้ากับ enum typing ของ Postgres ปัจจุบัน
+- verify:
+  - รันรวม 4 ไฟล์ integration ใน Node 20 + PostgreSQL test container แบบ `--runInBand`
+  - ผลลัพธ์: `4 passed, 4 total` / `52 passed, 52 total`
 
 ### 2026-03-09 — Strategic development plan snapshot (analysis only)
 

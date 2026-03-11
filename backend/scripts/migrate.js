@@ -233,14 +233,25 @@ async function runMigrations() {
 /**
  * Bootstrap initial schema from schema.sql
  */
+function resolveSchemaPath() {
+  const candidates = [
+    path.join(__dirname, '../../database/schema.sql'),
+    path.join(__dirname, '../database/schema.sql'),
+    path.join(process.cwd(), '../database/schema.sql'),
+    path.join(process.cwd(), 'database/schema.sql'),
+  ];
+
+  return candidates.find((candidate) => fs.existsSync(candidate)) || null;
+}
+
 async function bootstrapSchema() {
-  const schemaPath = path.join(__dirname, '../../database/schema.sql');
-  
-  if (!fs.existsSync(schemaPath)) {
-    console.log('❌ Schema file not found:', schemaPath);
+  const schemaPath = resolveSchemaPath();
+
+  if (!schemaPath) {
+    console.log('❌ Schema file not found in expected locations');
     process.exit(1);
   }
-  
+
   try {
     console.log('🏗️  Bootstrapping initial schema...');
     

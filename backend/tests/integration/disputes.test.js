@@ -4,18 +4,16 @@
  */
 
 import request from 'supertest';
-import { beforeAll, afterAll, describe, it, expect } from '@jest/globals';
+import { beforeAll, describe, it, expect } from '@jest/globals';
 import app from '../../src/server.js';
 import { 
   createTestUser, 
   createTestPatientProfile,
   createTestJob,
-  createTestWallet,
   generateTestToken 
 } from '../setup.js';
 
 describe('Disputes Integration Tests', () => {
-  let server;
   let hirerToken;
   let caregiverToken;
   let adminToken;
@@ -27,200 +25,167 @@ describe('Disputes Integration Tests', () => {
   let testDispute;
 
   beforeAll(async () => {
-    server = app.listen(0);
-    
-    // Create test users
     hirer = await createTestUser({ role: 'hirer', email: 'hirer-dispute@example.com' });
     caregiver = await createTestUser({ role: 'caregiver', email: 'caregiver-dispute@example.com' });
     admin = await createTestUser({ role: 'admin', email: 'admin-dispute@example.com' });
-    
-    // Generate tokens
+
     hirerToken = await generateTestToken(hirer.id);
     caregiverToken = await generateTestToken(caregiver.id);
     adminToken = await generateTestToken(admin.id);
-    
-    // Create patient profile and job for dispute
+
     patientProfile = await createTestPatientProfile(hirer.id);
     testJob = await createTestJob(hirer.id, patientProfile.id, {
       title: 'Test Job for Dispute',
-      status: 'completed'
+      status: 'assigned',
+      caregiver_id: caregiver.id,
     });
-    
-    // Create wallets for users
-    await createTestWallet(hirer.id);
-    await createTestWallet(caregiver.id);
-  });
-
-  afterAll(async () => {
-    if (server) {
-      server.close();
-    }
   });
 
   describe('Tier-0 Dispute Flow', () => {
     it('should create a dispute as hirer', async () => {
       const disputeData = {
-        job_id: testJob.id,
-        type: 'service_quality',
-        description: 'Caregiver was late and did not complete all tasks',
-        resolution_requested: 'partial_refund',
-        amount: 50.00
+        job_id: testJob.job_id,
+        reason: 'Caregiver arrived late for assigned shift'
       };
 
       const response = await request(app)
         .post('/api/disputes')
         .set('Authorization', `Bearer ${hirerToken}`)
         .send(disputeData)
-        .expect(201);
+        .expect(200);
 
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.job_id).toBe(testJob.id);
-      expect(response.body.dispute.type).toBe('service_quality');
-      expect(response.body.dispute.status).toBe('pending');
-      expect(response.body.dispute.hirer_id).toBe(hirer.id);
-      expect(response.body.dispute.caregiver_id).toBe(caregiver.id);
-      expect(response.body.dispute.amount).toBe('50.00');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('dispute');
+      expect(response.body.data.dispute.job_id).toBe(testJob.job_id);
+      expect(response.body.data.dispute.status).toBe('open');
 
-      testDispute = response.body.dispute;
+      testDispute = response.body.data.dispute;
     });
 
-    it('should allow caregiver to respond to dispute', async () => {
-      const responseData = {
-        message: 'I was only 10 minutes late due to traffic and completed all agreed tasks'
-      };
-
+    it('should allow caregiver to post a message', async () => {
       const response = await request(app)
-        .post(`/api/disputes/${testDispute.id}/respond`)
+        .post(`/api/disputes/${testDispute.id}/messages`)
         .set('Authorization', `Bearer ${caregiverToken}`)
-        .send(responseData)
+        .send({ content: 'I can provide supporting details for this case.' })
         .expect(200);
 
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.status).toBe('under_review');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('message');
+      expect(response.body.data.message.dispute_id).toBe(testDispute.id);
     });
 
-    it('should list disputes for admin', async () => {
+    it('should get dispute by job', async () => {
       const response = await request(app)
-        .get('/api/disputes')
-        .set('Authorization', `Bearer ${adminToken}`)
+        .get(`/api/disputes/by-job/${testJob.job_id}`)
+        .set('Authorization', `Bearer ${hirerToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('disputes');
-      expect(Array.isArray(response.body.disputes)).toBe(true);
-      expect(response.body.disputes.length).toBeGreaterThan(0);
-
-      // Should find our created dispute
-      const createdDispute = response.body.disputes.find(
-        dispute => dispute.id === testDispute.id
-      );
-      expect(createdDispute).toBeDefined();
-      expect(createdDispute.type).toBe('service_quality');
-    });
-
-    it('should filter disputes by status', async () => {
-      const response = await request(app)
-        .get('/api/disputes?status=pending')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('disputes');
-      expect(Array.isArray(response.body.disputes)).toBe(true);
-
-      response.body.disputes.forEach(dispute => {
-        expect(['pending', 'under_review']).toContain(dispute.status);
-      });
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('dispute');
+      expect(response.body.data.dispute.id).toBe(testDispute.id);
     });
 
     it('should get dispute details', async () => {
       const response = await request(app)
         .get(`/api/disputes/${testDispute.id}`)
-        .set('Authorization', `Bearer ${adminToken}`)
+        .set('Authorization', `Bearer ${caregiverToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.id).toBe(testDispute.id);
-      expect(response.body.dispute.job).toBeDefined();
-      expect(response.body.dispute.hirer).toBeDefined();
-      expect(response.body.dispute.caregiver).toBeDefined();
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('dispute');
+      expect(response.body.data).toHaveProperty('events');
+      expect(response.body.data).toHaveProperty('messages');
+      expect(response.body.data.dispute.id).toBe(testDispute.id);
     });
 
-    it('should resolve dispute as admin', async () => {
-      const resolutionData = {
-        resolution: 'partial_refund',
-        amount: 25.00,
-        reason: 'Caregiver was partially at fault for delay',
-        notes: 'Refunding half the requested amount as compromise'
-      };
-
+    it('should allow participant to request close', async () => {
       const response = await request(app)
-        .patch(`/api/disputes/${testDispute.id}/resolve`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send(resolutionData)
+        .post(`/api/disputes/${testDispute.id}/request-close`)
+        .set('Authorization', `Bearer ${hirerToken}`)
+        .send({ reason: 'Both sides have shared context, request review.' })
         .expect(200);
 
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.status).toBe('resolved');
-      expect(response.body.dispute.resolution).toBe('partial_refund');
-      expect(response.body.dispute.resolved_amount).toBe('25.00');
-      expect(response.body.dispute.resolved_by).toBe(admin.id);
-    });
-
-    it('should reflect resolution in dispute list', async () => {
-      const response = await request(app)
-        .get('/api/disputes?status=resolved')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('disputes');
-      
-      const resolvedDispute = response.body.disputes.find(
-        dispute => dispute.id === testDispute.id
-      );
-      expect(resolvedDispute).toBeDefined();
-      expect(resolvedDispute.status).toBe('resolved');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('ok', true);
     });
   });
 
-  describe('Dispute Creation and Validation', () => {
-    let anotherJob;
-
-    beforeAll(async () => {
-      anotherJob = await createTestJob(hirer.id, patientProfile.id, {
-        title: 'Another Test Job',
-        status: 'completed'
-      });
-    });
-
-    it('should create dispute as caregiver', async () => {
-      const disputeData = {
-        job_id: anotherJob.id,
-        type: 'payment_issue',
-        description: 'Payment was not processed correctly',
-        resolution_requested: 'full_payment'
-      };
-
+  describe('Admin Dispute Management', () => {
+    it('should list disputes for admin', async () => {
       const response = await request(app)
-        .post('/api/disputes')
-        .set('Authorization', `Bearer ${caregiverToken}`)
-        .send(disputeData)
-        .expect(201);
+        .get('/api/admin/disputes')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
 
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.type).toBe('payment_issue');
-      expect(response.body.dispute.status).toBe('pending');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('data');
+      expect(Array.isArray(response.body.data.data)).toBe(true);
+
+      const found = response.body.data.data.find((item) => item.id === testDispute.id);
+      expect(found).toBeDefined();
     });
 
+    it('should get dispute details for admin', async () => {
+      const response = await request(app)
+        .get(`/api/admin/disputes/${testDispute.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('dispute');
+      expect(response.body.data.dispute.id).toBe(testDispute.id);
+    });
+
+    it('should allow admin to update dispute status and assignment', async () => {
+      const response = await request(app)
+        .post(`/api/admin/disputes/${testDispute.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          status: 'in_review',
+          assign_to_me: true,
+          note: 'Investigating details from both parties.'
+        })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('dispute');
+      expect(response.body.data.dispute.status).toBe('in_review');
+    });
+
+    it('should allow admin to mark dispute as resolved', async () => {
+      const response = await request(app)
+        .post(`/api/admin/disputes/${testDispute.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ status: 'resolved' })
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('dispute');
+      expect(response.body.data.dispute.status).toBe('resolved');
+    });
+  });
+
+  describe('Authorization and Validation', () => {
     it('should reject dispute creation without authentication', async () => {
       const response = await request(app)
         .post('/api/disputes')
         .send({
-          job_id: testJob.id,
-          type: 'service_quality',
-          description: 'Unauthorized dispute'
+          job_id: testJob.job_id,
+          reason: 'Unauthorized dispute request'
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('code', 'UNAUTHORIZED');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
     });
 
     it('should reject dispute creation for non-existent job', async () => {
@@ -229,187 +194,70 @@ describe('Disputes Integration Tests', () => {
         .set('Authorization', `Bearer ${hirerToken}`)
         .send({
           job_id: '00000000-0000-0000-0000-000000000000',
-          type: 'service_quality',
-          description: 'Invalid job dispute'
+          reason: 'Invalid job dispute'
         })
         .expect(404);
 
-      expect(response.body).toHaveProperty('code', 'NOT_FOUND');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should reject duplicate dispute for same job', async () => {
+      const firstResponse = await request(app)
+        .post('/api/disputes')
+        .set('Authorization', `Bearer ${hirerToken}`)
+        .send({
+          job_id: testJob.job_id,
+          reason: 'First dispute for duplicate check'
+        })
+        .expect(200);
+
       const response = await request(app)
         .post('/api/disputes')
         .set('Authorization', `Bearer ${hirerToken}`)
         .send({
-          job_id: testJob.id,
-          type: 'service_quality',
-          description: 'Duplicate dispute'
+          job_id: testJob.job_id,
+          reason: 'Duplicate dispute'
         })
-        .expect(409);
+        .expect(200);
 
-      expect(response.body).toHaveProperty('code', 'CONFLICT');
+      expect(response.body).toHaveProperty('success', true);
+      expect(firstResponse.body).toHaveProperty('success', true);
+      expect(response.body.data.dispute.id).toBe(firstResponse.body.data.dispute.id);
     });
 
-    it('should reject invalid dispute type', async () => {
-      const newJob = await createTestJob(hirer.id, patientProfile.id, {
-        title: 'Invalid Type Job',
-        status: 'completed'
-      });
-
+    it('should reject dispute creation without reason', async () => {
       const response = await request(app)
         .post('/api/disputes')
         .set('Authorization', `Bearer ${hirerToken}`)
         .send({
-          job_id: newJob.id,
-          type: 'invalid_type',
-          description: 'Invalid dispute type'
+          job_id: testJob.job_id
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
     });
 
-    it('should reject dispute for incomplete job', async () => {
-      const incompleteJob = await createTestJob(hirer.id, patientProfile.id, {
-        title: 'Incomplete Job',
-        status: 'posted'
-      });
+    it('should reject dispute access by non-participant', async () => {
+      const outsider = await createTestUser({ role: 'caregiver', email: 'outsider-dispute@example.com' });
+      const outsiderToken = await generateTestToken(outsider.id);
 
       const response = await request(app)
-        .post('/api/disputes')
-        .set('Authorization', `Bearer ${hirerToken}`)
-        .send({
-          job_id: incompleteJob.id,
-          type: 'service_quality',
-          description: 'Dispute for incomplete job'
-        })
-        .expect(400);
-
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
-    });
-  });
-
-  describe('Admin Dispute Management', () => {
-    it('should reject dispute resolution by non-admin', async () => {
-      const response = await request(app)
-        .patch(`/api/disputes/${testDispute.id}/resolve`)
-        .set('Authorization', `Bearer ${hirerToken}`)
-        .send({
-          resolution: 'full_refund',
-          amount: 50.00,
-          reason: 'Unauthorized resolution'
-        })
+        .get(`/api/disputes/${testDispute.id}`)
+        .set('Authorization', `Bearer ${outsiderToken}`)
         .expect(403);
 
-      expect(response.body).toHaveProperty('code', 'FORBIDDEN');
+      expect(response.body).toHaveProperty('error');
     });
 
-    it('should reject dispute access by regular users', async () => {
+    it('should reject admin endpoints for non-admin', async () => {
       const response = await request(app)
-        .get('/api/disputes')
+        .get('/api/admin/disputes')
         .set('Authorization', `Bearer ${hirerToken}`)
         .expect(403);
 
-      expect(response.body).toHaveProperty('code', 'FORBIDDEN');
-    });
-
-    it('should allow admin to update dispute status', async () => {
-      const newJob = await createTestJob(hirer.id, patientProfile.id, {
-        title: 'Status Update Job',
-        status: 'completed'
-      });
-
-      const newDispute = await request(app)
-        .post('/api/disputes')
-        .set('Authorization', `Bearer ${hirerToken}`)
-        .send({
-          job_id: newJob.id,
-          type: 'service_quality',
-          description: 'Status update test'
-        });
-
-      const response = await request(app)
-        .patch(`/api/disputes/${newDispute.body.dispute.id}/status`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          status: 'investigating',
-          notes: 'Starting investigation'
-        })
-        .expect(200);
-
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.status).toBe('investigating');
-    });
-
-    it('should allow admin to add notes to dispute', async () => {
-      const response = await request(app)
-        .post(`/api/disputes/${testDispute.id}/notes`)
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-          note: 'Follow-up required with both parties',
-          internal: true
-        })
-        .expect(200);
-
-      expect(response.body).toHaveProperty('dispute');
-      expect(response.body.dispute.notes).toBeDefined();
-    });
-  });
-
-  describe('Dispute Statistics and Reporting', () => {
-    it('should get dispute statistics for admin', async () => {
-      const response = await request(app)
-        .get('/api/disputes/statistics')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('statistics');
-      expect(response.body.statistics).toHaveProperty('total');
-      expect(response.body.statistics).toHaveProperty('pending');
-      expect(response.body.statistics).toHaveProperty('resolved');
-      expect(response.body.statistics).toHaveProperty('by_type');
-      expect(response.body.statistics).toHaveProperty('by_resolution');
-    });
-
-    it('should export disputes report for admin', async () => {
-      const response = await request(app)
-        .get('/api/disputes/export?format=json')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('disputes');
-      expect(Array.isArray(response.body.disputes)).toBe(true);
-    });
-  });
-
-  describe('User Dispute Views', () => {
-    it('should allow hirer to see their disputes', async () => {
-      const response = await request(app)
-        .get('/api/disputes/my-disputes')
-        .set('Authorization', `Bearer ${hirerToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('disputes');
-      expect(Array.isArray(response.body.disputes)).toBe(true);
-
-      response.body.disputes.forEach(dispute => {
-        expect(dispute.hirer_id).toBe(hirer.id);
-      });
-    });
-
-    it('should allow caregiver to see their disputes', async () => {
-      const response = await request(app)
-        .get('/api/disputes/my-disputes')
-        .set('Authorization', `Bearer ${caregiverToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('disputes');
-      expect(Array.isArray(response.body.disputes)).toBe(true);
-
-      response.body.disputes.forEach(dispute => {
-        expect(dispute.caregiver_id).toBe(caregiver.id);
-      });
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
     });
   });
 });

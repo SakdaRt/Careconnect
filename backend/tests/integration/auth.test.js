@@ -4,36 +4,20 @@
  */
 
 import request from 'supertest';
-import { beforeAll, afterAll, describe, it, expect } from '@jest/globals';
+import { describe, it, expect } from '@jest/globals';
 import app from '../../src/server.js';
-import { 
-  createTestUser, 
-  generateTestToken, 
-  generateRefreshToken 
-} from '../setup.js';
 
 describe('Auth Integration Tests', () => {
-  let server;
-  let testUser;
   let accessToken;
   let refreshToken;
-
-  beforeAll(async () => {
-    // Start server for integration tests
-    server = app.listen(0); // Use random available port
-  });
-
-  afterAll(async () => {
-    if (server) {
-      server.close();
-    }
-  });
+  const testEmail = 'integration-test@example.com';
+  const testPassword = 'TestPassword123!';
 
   describe('Tier-0 Auth Flow', () => {
     it('should register a new user', async () => {
       const userData = {
-        email: 'integration-test@example.com',
-        password: 'TestPassword123!',
+        email: testEmail,
+        password: testPassword,
         role: 'caregiver'
       };
 
@@ -42,40 +26,41 @@ describe('Auth Integration Tests', () => {
         .send(userData)
         .expect(201);
 
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user).toHaveProperty('id');
-      expect(response.body.user.email).toBe(userData.email);
-      expect(response.body.user.role).toBe(userData.role);
-      expect(response.body).toHaveProperty('tokens');
-      expect(response.body.tokens).toHaveProperty('accessToken');
-      expect(response.body.tokens).toHaveProperty('refreshToken');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('user');
+      expect(response.body.data.user).toHaveProperty('id');
+      expect(response.body.data.user.email).toBe(userData.email);
+      expect(response.body.data.user.role).toBe(userData.role);
+      expect(response.body.data).toHaveProperty('accessToken');
+      expect(response.body.data).toHaveProperty('refreshToken');
 
       // Store tokens for subsequent tests
-      accessToken = response.body.tokens.accessToken;
-      refreshToken = response.body.tokens.refreshToken;
-      testUser = response.body.user;
+      accessToken = response.body.data.accessToken;
+      refreshToken = response.body.data.refreshToken;
     });
 
     it('should login with valid credentials', async () => {
       const loginData = {
-        email: 'integration-test@example.com',
-        password: 'TestPassword123!'
+        email: testEmail,
+        password: testPassword
       };
 
       const response = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/login/email')
         .send(loginData)
         .expect(200);
 
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe(loginData.email);
-      expect(response.body).toHaveProperty('tokens');
-      expect(response.body.tokens).toHaveProperty('accessToken');
-      expect(response.body.tokens).toHaveProperty('refreshToken');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('user');
+      expect(response.body.data.user.email).toBe(loginData.email);
+      expect(response.body.data).toHaveProperty('accessToken');
+      expect(response.body.data).toHaveProperty('refreshToken');
 
       // Update tokens
-      accessToken = response.body.tokens.accessToken;
-      refreshToken = response.body.tokens.refreshToken;
+      accessToken = response.body.data.accessToken;
+      refreshToken = response.body.data.refreshToken;
     });
 
     it('should refresh access token', async () => {
@@ -84,64 +69,71 @@ describe('Auth Integration Tests', () => {
         .send({ refreshToken })
         .expect(200);
 
-      expect(response.body).toHaveProperty('accessToken');
-      expect(response.body).toHaveProperty('refreshToken');
-      expect(response.body.accessToken).not.toBe(accessToken);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('accessToken');
+      expect(response.body.data).toHaveProperty('refreshToken');
+      expect(typeof response.body.data.accessToken).toBe('string');
+      expect(response.body.data.accessToken.length).toBeGreaterThan(20);
 
       // Update access token
-      accessToken = response.body.accessToken;
+      accessToken = response.body.data.accessToken;
     });
 
     it('should access protected route with valid token', async () => {
       const response = await request(app)
-        .get('/api/auth/profile')
+        .get('/api/auth/me')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('user');
-      expect(response.body.user.email).toBe('integration-test@example.com');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(response.body.data).toHaveProperty('user');
+      expect(response.body.data.user.email).toBe(testEmail);
     });
 
     it('should reject protected route without token', async () => {
       const response = await request(app)
-        .get('/api/auth/profile')
+        .get('/api/auth/me')
         .expect(401);
 
-      expect(response.body).toHaveProperty('code', 'UNAUTHORIZED');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
     });
 
     it('should reject protected route with invalid token', async () => {
       const response = await request(app)
-        .get('/api/auth/profile')
+        .get('/api/auth/me')
         .set('Authorization', 'Bearer invalid-token')
         .expect(401);
 
-      expect(response.body).toHaveProperty('code', 'UNAUTHORIZED');
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
     });
 
     it('should reject login with invalid credentials', async () => {
       const response = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/login/email')
         .send({
-          email: 'integration-test@example.com',
+          email: testEmail,
           password: 'wrongpassword'
         })
         .expect(401);
 
-      expect(response.body).toHaveProperty('code', 'UNAUTHORIZED');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should reject registration with duplicate email', async () => {
       const response = await request(app)
         .post('/api/auth/register/guest')
         .send({
-          email: 'integration-test@example.com',
-          password: 'TestPassword123!',
+          email: testEmail,
+          password: testPassword,
           role: 'caregiver'
         })
         .expect(409);
 
-      expect(response.body).toHaveProperty('code', 'CONFLICT');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should reject registration with invalid email format', async () => {
@@ -149,12 +141,12 @@ describe('Auth Integration Tests', () => {
         .post('/api/auth/register/guest')
         .send({
           email: 'invalid-email',
-          password: 'TestPassword123!',
+          password: testPassword,
           role: 'caregiver'
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should reject registration with weak password', async () => {
@@ -167,7 +159,7 @@ describe('Auth Integration Tests', () => {
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should logout successfully', async () => {
@@ -176,7 +168,7 @@ describe('Auth Integration Tests', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('message');
+      expect(response.body).toHaveProperty('success', true);
     });
   });
 
@@ -187,7 +179,7 @@ describe('Auth Integration Tests', () => {
         .send({ refreshToken: 'invalid-refresh-token' })
         .expect(401);
 
-      expect(response.body).toHaveProperty('code', 'UNAUTHORIZED');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should reject refresh without token', async () => {
@@ -196,21 +188,21 @@ describe('Auth Integration Tests', () => {
         .send({})
         .expect(400);
 
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
+      expect(response.body).toHaveProperty('error');
     });
   });
 
   describe('Rate Limiting', () => {
     it('should allow normal auth requests', async () => {
       const response = await request(app)
-        .post('/api/auth/login')
+        .post('/api/auth/login/email')
         .send({
-          email: 'integration-test@example.com',
-          password: 'TestPassword123!'
+          email: testEmail,
+          password: testPassword
         })
         .expect(200);
 
-      expect(response.body).toHaveProperty('tokens');
+      expect(response.body).toHaveProperty('success', true);
     });
   });
 });

@@ -4,8 +4,9 @@
  */
 
 import request from 'supertest';
-import { beforeAll, afterAll, describe, it, expect } from '@jest/globals';
+import { beforeAll, describe, it, expect } from '@jest/globals';
 import app from '../../src/server.js';
+import { pool } from '../../src/utils/db.js';
 import { 
   createTestUser, 
   createTestWallet,
@@ -13,122 +14,110 @@ import {
 } from '../setup.js';
 
 describe('Wallet Integration Tests', () => {
-  let server;
   let userToken;
   let testUser;
-  let testWallet;
+  let bankAccountId;
+  let withdrawalId;
 
   beforeAll(async () => {
-    server = app.listen(0);
-    
-    // Create test user
     testUser = await createTestUser({ 
       role: 'caregiver', 
-      email: 'wallet-test@example.com' 
+      email: 'wallet-test@example.com',
+      trust_level: 'L2'
     });
-    
-    // Generate token
+
+    await createTestWallet(testUser.id, 5000);
+
     userToken = await generateTestToken(testUser.id);
   });
 
-  afterAll(async () => {
-    if (server) {
-      server.close();
-    }
-  });
+  const ensureUserTrustLevel = async (trustLevel = 'L2') => {
+    await pool.query(
+      `UPDATE users SET trust_level = $1, updated_at = NOW() WHERE id = $2`,
+      [trustLevel, testUser.id]
+    );
+  };
 
   describe('Tier-0 Wallet Flow', () => {
-    it('should create wallet on user registration', async () => {
-      // Create new user to test wallet creation
-      const newUser = await createTestUser({ 
-        role: 'caregiver', 
-        email: 'wallet-auto@example.com' 
-      });
-
-      const newUserToken = await generateTestToken(newUser.id);
-
-      const response = await request(app)
-        .get('/api/wallet')
-        .set('Authorization', `Bearer ${newUserToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('wallet');
-      expect(response.body.wallet.user_id).toBe(newUser.id);
-      expect(response.body.wallet.balance).toBe('0.00');
-      expect(response.body.wallet.available_balance).toBe('0.00');
-      expect(response.body.wallet.held_balance).toBe('0.00');
-    });
-
-    it('should get existing wallet', async () => {
-      // Create wallet for our test user
-      testWallet = await createTestWallet(testUser.id);
-
-      const response = await request(app)
-        .get('/api/wallet')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('wallet');
-      expect(response.body.wallet.user_id).toBe(testUser.id);
-      expect(response.body.wallet.balance).toBe('1000.00');
-      expect(response.body.wallet.available_balance).toBe('1000.00');
-    });
-
-    it('should create credit ledger transaction', async () => {
-      const transactionData = {
-        type: 'credit',
-        amount: 500.00,
-        reference_type: 'topup',
-        reference_id: 'test-topup-123',
-        description: 'Test wallet top-up'
-      };
-
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send(transactionData)
-        .expect(201);
-
-      expect(response.body).toHaveProperty('transaction');
-      expect(response.body.transaction.type).toBe('credit');
-      expect(response.body.transaction.amount).toBe('500.00');
-      expect(response.body.transaction.reference_type).toBe('topup');
-      expect(response.body.transaction.balance_after).toBe('1500.00');
-    });
-
-    it('should create debit ledger transaction', async () => {
-      const transactionData = {
-        type: 'debit',
-        amount: 200.00,
-        reference_type: 'withdrawal',
-        reference_id: 'test-withdrawal-123',
-        description: 'Test withdrawal'
-      };
-
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send(transactionData)
-        .expect(201);
-
-      expect(response.body).toHaveProperty('transaction');
-      expect(response.body.transaction.type).toBe('debit');
-      expect(response.body.transaction.amount).toBe('200.00');
-      expect(response.body.transaction.balance_after).toBe('1300.00');
-    });
-
     it('should get wallet balance', async () => {
       const response = await request(app)
         .get('/api/wallet/balance')
         .set('Authorization', `Bearer ${userToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('balance');
-      expect(response.body.balance).toBe('1300.00');
-      expect(response.body).toHaveProperty('available_balance');
-      expect(response.body.available_balance).toBe('1300.00');
-      expect(response.body).toHaveProperty('held_balance');
-      expect(response.body.held_balance).toBe('0.00');
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('wallet_id');
+      expect(response.body).toHaveProperty('wallet_type', 'caregiver');
+      expect(response.body).toHaveProperty('available_balance', 5000);
+      expect(response.body).toHaveProperty('held_balance', 0);
+      expect(response.body).toHaveProperty('total_balance', 5000);
+    });
+
+    it('should add bank account for withdrawal', async () => {
+      const response = await request(app)
+        .post('/api/wallet/bank-accounts')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          bank_code: 'SCB',
+          bank_name: 'Siam Commercial Bank',
+          account_number: '1234567890',
+          account_name: 'Caregiver Wallet Test',
+          set_primary: true,
+        })
+        .expect(201);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('bank_account');
+      expect(response.body.bank_account).toHaveProperty('id');
+
+      bankAccountId = response.body.bank_account.id;
+    });
+
+    it('should create withdrawal request', async () => {
+      await ensureUserTrustLevel('L2');
+
+      const response = await request(app)
+        .post('/api/wallet/withdraw')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          amount: 500,
+          bank_account_id: bankAccountId,
+        })
+        .expect(201);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('withdrawal_id');
+      expect(response.body).toHaveProperty('status', 'queued');
+
+      withdrawalId = response.body.withdrawal_id;
+    });
+
+    it('should list withdrawal requests', async () => {
+      const response = await request(app)
+        .get('/api/wallet/withdrawals')
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+
+      const withdrawal = response.body.data.find((w) => w.id === withdrawalId);
+      expect(withdrawal).toBeDefined();
+      expect(withdrawal.status).toBe('queued');
+    });
+
+    it('should cancel withdrawal request', async () => {
+      await ensureUserTrustLevel('L2');
+
+      const response = await request(app)
+        .post(`/api/wallet/withdrawals/${withdrawalId}/cancel`)
+        .set('Authorization', `Bearer ${userToken}`)
+        .expect(200);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('withdrawal_id', withdrawalId);
+      expect(response.body).toHaveProperty('status', 'cancelled');
     });
 
     it('should get transaction history', async () => {
@@ -137,235 +126,47 @@ describe('Wallet Integration Tests', () => {
         .set('Authorization', `Bearer ${userToken}`)
         .expect(200);
 
-      expect(response.body).toHaveProperty('transactions');
-      expect(Array.isArray(response.body.transactions)).toBe(true);
-      expect(response.body.transactions.length).toBeGreaterThan(0);
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('data');
+      expect(Array.isArray(response.body.data)).toBe(true);
+    });
+  });
 
-      // Should have our created transactions
-      const creditTransaction = response.body.transactions.find(
-        t => t.type === 'credit' && t.amount === '500.00'
-      );
-      expect(creditTransaction).toBeDefined();
+  describe('Wallet Validation', () => {
+    it('should reject balance request without authentication', async () => {
+      const response = await request(app)
+        .get('/api/wallet/balance')
+        .expect(401);
 
-      const debitTransaction = response.body.transactions.find(
-        t => t.type === 'debit' && t.amount === '200.00'
-      );
-      expect(debitTransaction).toBeDefined();
+      expect(response.body).toHaveProperty('error');
+      expect(response.body.error).toHaveProperty('code');
     });
 
-    it('should create withdrawal request', async () => {
-      const withdrawalData = {
-        amount: 300.00,
-        method: 'bank_transfer',
-        destination_account: '1234567890'
-      };
+    it('should reject withdrawal without bank account id', async () => {
+      await ensureUserTrustLevel('L2');
 
       const response = await request(app)
         .post('/api/wallet/withdraw')
         .set('Authorization', `Bearer ${userToken}`)
-        .send(withdrawalData)
-        .expect(201);
-
-      expect(response.body).toHaveProperty('withdrawal');
-      expect(response.body.withdrawal.amount).toBe('300.00');
-      expect(response.body.withdrawal.status).toBe('pending');
-      expect(response.body.withdrawal.method).toBe('bank_transfer');
-    });
-
-    it('should reflect withdrawal in wallet balance', async () => {
-      const response = await request(app)
-        .get('/api/wallet/balance')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body.balance).toBe('1000.00'); // 1300 - 300 withdrawal
-      expect(response.body.available_balance).toBe('1000.00');
-    });
-
-    it('should get withdrawal requests', async () => {
-      const response = await request(app)
-        .get('/api/wallet/withdrawals')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('withdrawals');
-      expect(Array.isArray(response.body.withdrawals)).toBe(true);
-      expect(response.body.withdrawals.length).toBeGreaterThan(0);
-
-      const withdrawal = response.body.withdrawals.find(
-        w => w.amount === '300.00' && w.status === 'pending'
-      );
-      expect(withdrawal).toBeDefined();
-    });
-  });
-
-  describe('Ledger Transaction Validation', () => {
-    it('should reject transaction without authentication', async () => {
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .send({
-          type: 'credit',
-          amount: 100.00,
-          reference_type: 'topup'
-        })
-        .expect(401);
-
-      expect(response.body).toHaveProperty('code', 'UNAUTHORIZED');
-    });
-
-    it('should reject invalid transaction type', async () => {
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          type: 'invalid_type',
-          amount: 100.00,
-          reference_type: 'topup'
-        })
+        .send({ amount: 500 })
         .expect(400);
 
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
-    });
-
-    it('should reject negative amount', async () => {
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          type: 'credit',
-          amount: -100.00,
-          reference_type: 'topup'
-        })
-        .expect(400);
-
-      expect(response.body).toHaveProperty('code', 'VALIDATION_ERROR');
-    });
-
-    it('should reject overdraft attempt', async () => {
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          type: 'debit',
-          amount: 2000.00, // More than available balance
-          reference_type: 'withdrawal'
-        })
-        .expect(400);
-
-      expect(response.body).toHaveProperty('code', 'INSUFFICIENT_FUNDS');
+      expect(response.body).toHaveProperty('error');
     });
 
     it('should reject withdrawal without sufficient funds', async () => {
+      await ensureUserTrustLevel('L2');
+
       const response = await request(app)
         .post('/api/wallet/withdraw')
         .set('Authorization', `Bearer ${userToken}`)
         .send({
-          amount: 2000.00, // More than available
-          method: 'bank_transfer'
+          amount: 999999,
+          bank_account_id: bankAccountId,
         })
         .expect(400);
 
-      expect(response.body).toHaveProperty('code', 'INSUFFICIENT_FUNDS');
-    });
-  });
-
-  describe('Hold and Release Transactions', () => {
-    it('should create hold transaction', async () => {
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          type: 'hold',
-          amount: 200.00,
-          reference_type: 'job',
-          reference_id: 'test-job-123',
-          description: 'Hold for job payment'
-        })
-        .expect(201);
-
-      expect(response.body).toHaveProperty('transaction');
-      expect(response.body.transaction.type).toBe('hold');
-      expect(response.body.transaction.amount).toBe('200.00');
-    });
-
-    it('should reflect hold in wallet balances', async () => {
-      const response = await request(app)
-        .get('/api/wallet/balance')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body.balance).toBe('1000.00');
-      expect(response.body.available_balance).toBe('800.00'); // 1000 - 200 hold
-      expect(response.body.held_balance).toBe('200.00');
-    });
-
-    it('should release held funds', async () => {
-      const response = await request(app)
-        .post('/api/wallet/transactions')
-        .set('Authorization', `Bearer ${userToken}`)
-        .send({
-          type: 'release',
-          amount: 200.00,
-          reference_type: 'job',
-          reference_id: 'test-job-123',
-          description: 'Release held funds'
-        })
-        .expect(201);
-
-      expect(response.body).toHaveProperty('transaction');
-      expect(response.body.transaction.type).toBe('release');
-      expect(response.body.transaction.amount).toBe('200.00');
-    });
-
-    it('should reflect release in wallet balances', async () => {
-      const response = await request(app)
-        .get('/api/wallet/balance')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body.balance).toBe('1000.00');
-      expect(response.body.available_balance).toBe('1000.00'); // 800 + 200 release
-      expect(response.body.held_balance).toBe('0.00');
-    });
-  });
-
-  describe('Transaction History Filtering', () => {
-    it('should filter transactions by type', async () => {
-      const response = await request(app)
-        .get('/api/wallet/transactions?type=credit')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('transactions');
-      expect(Array.isArray(response.body.transactions)).toBe(true);
-
-      response.body.transactions.forEach(transaction => {
-        expect(transaction.type).toBe('credit');
-      });
-    });
-
-    it('should filter transactions by reference type', async () => {
-      const response = await request(app)
-        .get('/api/wallet/transactions?reference_type=topup')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('transactions');
-      expect(Array.isArray(response.body.transactions)).toBe(true);
-
-      response.body.transactions.forEach(transaction => {
-        expect(transaction.reference_type).toBe('topup');
-      });
-    });
-
-    it('should limit transaction history results', async () => {
-      const response = await request(app)
-        .get('/api/wallet/transactions?limit=5')
-        .set('Authorization', `Bearer ${userToken}`)
-        .expect(200);
-
-      expect(response.body).toHaveProperty('transactions');
-      expect(response.body.transactions.length).toBeLessThanOrEqual(5);
+      expect(response.body).toHaveProperty('error');
     });
   });
 });

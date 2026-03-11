@@ -168,23 +168,23 @@ flowchart TD
 > 📌 **DIAGRAM: Payment Flow 4 Phases** — Mermaid code:
 
 ```mermaid
-flowchart LR
-    subgraph "Phase 1: Top-up"
-        A1["สแกน QR"] --> A2["Webhook"] --> A3["credit available"]
+flowchart TD
+    subgraph P1["Phase 1: Top-up"]
+        A1["สแกน QR"] --> A2["Webhook"] --> A3["credit<br/>available"]
     end
-    subgraph "Phase 2: Publish"
-        B1["Publish"] --> B2["hold: available→held"]
+    subgraph P2["Phase 2: Publish"]
+        B1["Publish"] --> B2["hold:<br/>available→held"]
     end
-    subgraph "Phase 3: Accept"
-        C1["CG Accept"] --> C2["hold: held→escrow"]
+    subgraph P3["Phase 3: Accept"]
+        C1["CG Accept"] --> C2["hold:<br/>held→escrow"]
     end
-    subgraph "Phase 4: Settlement"
-        D1["Check-out"] --> D2["release: escrow→CG"]
-        D1 --> D3["debit: escrow→platform"]
+    subgraph P4["Phase 4: Settlement"]
+        D1["Check-out"] --> D2["release:<br/>escrow→CG"]
+        D1 --> D3["debit:<br/>escrow→platform"]
     end
-    A3 -.-> B1
-    B2 -.-> C1
-    C2 -.-> D1
+    A3 --> B1
+    B2 --> C1
+    C2 --> D1
 ```
 
 การถอนเงิน: ผู้ดูแล L2+ ขอผ่าน POST /api/wallet/withdraw → Admin review → approve → mark paid
