@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { User, ShieldCheck, Bell, HelpCircle, LogOut, KeyRound, ArrowLeftRight, CalendarDays } from 'lucide-react';
+import { User, ShieldCheck, Bell, HelpCircle, LogOut, KeyRound, ArrowLeftRight, CalendarDays, Moon, Sun } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, Input } from '../../components/ui';
-import { useAuth } from '../../contexts';
+import { useAuth, useTheme } from '../../contexts';
 import { appApi } from '../../services/appApi';
 import { NotificationPreferences } from '../../services/api';
 import { setScopedStorageItem } from '../../utils/authStorage';
@@ -18,6 +18,7 @@ function trustLabel(level: string) {
 
 export default function SettingsPage() {
   const { user, logout, activeRole, setActiveRole, updateUser } = useAuth();
+  const { mode, toggleMode } = useTheme();
   const navigate = useNavigate();
   const [switchingRole, setSwitchingRole] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -337,6 +338,27 @@ export default function SettingsPage() {
               )}
             </div>
           </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <Moon className="w-5 h-5 text-gray-500" aria-hidden="true" />
+            <div className="text-sm font-semibold text-gray-900">ธีมการแสดงผล</div>
+          </div>
+          <p className="text-xs text-gray-600 mb-3">
+            โหมดปัจจุบัน: <strong>{mode === 'dark' ? 'Dark' : 'Light'}</strong>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleMode}
+            leftIcon={mode === 'dark'
+              ? <Sun className="w-4 h-4" aria-hidden="true" />
+              : <Moon className="w-4 h-4" aria-hidden="true" />
+            }
+          >
+            {mode === 'dark' ? 'เปลี่ยนเป็น Light mode' : 'เปลี่ยนเป็น Dark mode'}
+          </Button>
         </Card>
 
         {/* Help */}

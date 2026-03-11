@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 
 // Theme colors based on TailwindCSS
 export const colors = {
@@ -148,13 +148,58 @@ export const theme = {
 
 interface ThemeContextType {
   theme: typeof theme;
+  mode: 'light' | 'dark';
+  setMode: (mode: 'light' | 'dark') => void;
+  toggleMode: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const THEME_STORAGE_KEY = 'careconnect_theme_mode';
+
+function getInitialThemeMode(): 'light' | 'dark' {
+  if (typeof window === 'undefined') return 'light';
+  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+  if (stored === 'light' || stored === 'dark') return stored;
+  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    return 'dark';
+  }
+  return 'light';
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const [mode, setModeState] = useState<'light' | 'dark'>(getInitialThemeMode);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', mode === 'dark');
+      document.documentElement.style.colorScheme = mode;
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+    }
+  }, [mode]);
+
+  const setMode = useCallback((nextMode: 'light' | 'dark') => {
+    setModeState(nextMode);
+  }, []);
+
+  const toggleMode = useCallback(() => {
+    setModeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      theme,
+      mode,
+      setMode,
+      toggleMode,
+    }),
+    [mode, setMode, toggleMode]
+  );
+
   return (
-    <ThemeContext.Provider value={{ theme }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

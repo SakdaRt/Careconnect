@@ -138,7 +138,7 @@ careconnect/
 
 ### Low Priority
 
-- [ ] Dark mode
+- [x] Dark mode
 - [x] Tabular numerals สำหรับตัวเลขเงิน
 - [x] Badge color sole indicator → เพิ่ม icon/pattern
 - [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
@@ -173,6 +173,17 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Add dark mode baseline (toggle + persistence)
+
+- feat(frontend): เพิ่ม dark mode context state ใน `/frontend/src/contexts/ThemeContext.tsx`
+  - เก็บค่าใน localStorage (`careconnect_theme_mode`)
+  - apply class `dark` ที่ `document.documentElement`
+  - รองรับ `prefers-color-scheme` ตอนเปิดครั้งแรก
+- feat(frontend): เพิ่มปุ่มสลับธีมที่หน้า `/frontend/src/pages/shared/SettingsPage.tsx`
+- style(frontend): เพิ่ม dark overrides ใน `/frontend/src/index.css` สำหรับพื้นหลัง/ข้อความ/เส้นขอบที่ใช้บ่อย
+- verify:
+  - ยังไม่สามารถรัน frontend lint/build ได้ครบใน environment ปัจจุบัน (Node/tooling ต่ำกว่า requirements)
 
 ### 2026-03-11 — Add non-color indicators to badges
 
