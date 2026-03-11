@@ -1094,6 +1094,18 @@ VITE_PUBLIC_PORT=
 VITE_GOOGLE_MAPS_API_KEY=
 ```
 
+### Playwright E2E (`docker-compose.test.yml` profile `e2e`)
+
+> Service `frontend-e2e` ใช้ image `mcr.microsoft.com/playwright:v1.58.2-jammy`
+
+```env
+PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173
+PLAYWRIGHT_RUN_GOOGLE_OAUTH=false
+PLAYWRIGHT_GOOGLE_EMAIL=
+PLAYWRIGHT_GOOGLE_PASSWORD=
+VITE_API_TARGET=http://host.docker.internal:3000
+```
+
 ### Mock Provider (Port 4000)
 
 > Source: `mock-provider/` — จำลอง Payment/SMS/KYC providers สำหรับ dev

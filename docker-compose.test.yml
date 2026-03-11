@@ -50,6 +50,27 @@ services:
     working_dir: /app
     command: npm run test:integration
 
+  frontend-e2e:
+    image: mcr.microsoft.com/playwright:v1.58.2-jammy
+    container_name: careconnect-frontend-e2e
+    working_dir: /app
+    environment:
+      CI: "true"
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
+      VITE_API_TARGET: ${VITE_API_TARGET:-http://host.docker.internal:3000}
+      PLAYWRIGHT_RUN_GOOGLE_OAUTH: ${PLAYWRIGHT_RUN_GOOGLE_OAUTH:-false}
+      PLAYWRIGHT_GOOGLE_EMAIL: ${PLAYWRIGHT_GOOGLE_EMAIL:-}
+      PLAYWRIGHT_GOOGLE_PASSWORD: ${PLAYWRIGHT_GOOGLE_PASSWORD:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - careconnect-test-network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -lc "npm install && npm run test:e2e"
+    profiles: ["e2e"]
+
 volumes:
   postgres_test_data:
 

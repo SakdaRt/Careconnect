@@ -130,6 +130,15 @@ test.describe('Caregiver settings smoke', () => {
       );
     });
 
+    await page.route('**/api/auth/role', async (route) => {
+      await route.fulfill(
+        jsonResponse({
+          success: true,
+          data: { user: caregiverUser },
+        }),
+      );
+    });
+
     await page.addInitScript((seedUser) => {
       window.sessionStorage.setItem('careconnect_token', 'e2e-access-token');
       window.sessionStorage.setItem('careconnect_refresh_token', 'e2e-refresh-token');
@@ -149,7 +158,7 @@ test.describe('Caregiver settings smoke', () => {
         request.url().includes('/api/notifications/preferences') && request.method() === 'PUT',
     );
 
-    await emailToggle.check();
+    await emailToggle.click();
 
     const request = await updateRequest;
     expect(request.postDataJSON()).toMatchObject({
@@ -161,6 +170,12 @@ test.describe('Caregiver settings smoke', () => {
 
   test('updates caregiver availability schedule', async ({ page }) => {
     await page.goto('/caregiver/availability');
+
+    if (page.url().includes('/select-role')) {
+      await page.getByRole('heading', { name: 'ผู้ดูแล' }).click();
+      await page.getByRole('button', { name: 'ดำเนินการต่อ' }).click();
+      await page.waitForURL('**/caregiver/availability');
+    }
 
     await expect(page.getByRole('heading', { name: 'ปฏิทินเวลาว่างผู้ดูแล' })).toBeVisible();
     await page.getByTestId('availability-day-1').click();

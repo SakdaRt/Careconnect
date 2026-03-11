@@ -174,6 +174,23 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-11 — Stabilize Playwright Docker runtime + settings smoke resilience
+
+- test(infra): เพิ่ม service `frontend-e2e` ใน `/home/careconnect/Careconnect/docker-compose.test.yml`
+  - ใช้ image `mcr.microsoft.com/playwright:v1.58.2-jammy` แทน alpine runtime
+  - รองรับ env สำหรับ real OAuth (`PLAYWRIGHT_RUN_GOOGLE_OAUTH`, `PLAYWRIGHT_GOOGLE_EMAIL`, `PLAYWRIGHT_GOOGLE_PASSWORD`)
+  - เพิ่ม `host.docker.internal` mapping + default `VITE_API_TARGET`
+- chore(frontend): เพิ่ม script `/home/careconnect/Careconnect/frontend/package.json`
+  - `test:e2e:docker` → `docker compose -f ../docker-compose.test.yml --profile e2e run --rm frontend-e2e`
+- fix(test): ปรับ `/home/careconnect/Careconnect/frontend/e2e/settings-availability.smoke.spec.ts`
+  - เปลี่ยน email toggle action จาก `.check()` เป็น `.click()` เพื่อลด flaky กับ controlled checkbox
+  - เพิ่ม mock `POST /api/auth/role`
+  - รองรับกรณีถูก redirect ไป `/select-role` ก่อนเข้าหน้า `/caregiver/availability`
+- docs(system): อัปเดต `/home/careconnect/Careconnect/SYSTEM.md` section Env ให้มี Playwright E2E env set สำหรับ profile `e2e`
+- verify:
+  - ผ่าน: `docker compose -f docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm install --no-audit --no-fund --silent && npx playwright test --reporter=line"`
+  - ผลลัพธ์: `3 passed, 1 skipped` (real Google OAuth spec ถูก skip ตาม env guard)
+
 ### 2026-03-11 — Add real-browser Google OAuth E2E spec scaffold
 
 - test(frontend): เพิ่ม `/frontend/e2e/google-oauth.real.spec.ts`
