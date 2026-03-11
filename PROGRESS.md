@@ -173,6 +173,19 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-11 — Finalize backend runtime/test scripts cleanup
+
+- chore(backend): ปรับ startup flow ใน `/backend/src/server.js`
+  - ห่อ bootstrap/start server เป็น `bootstrapAndListen()`
+  - รัน listen + graceful shutdown เฉพาะเมื่อ `NODE_ENV !== 'test'` เพื่อลด side effects ระหว่าง integration tests
+- chore(test): ปรับ script ใน `/backend/package.json`
+  - `test:integration` และ `test:smoke` ให้ใช้ `node --experimental-vm-modules ./node_modules/jest/bin/jest.js ...`
+  - ให้พฤติกรรม consistent กับ Node 20 และ ESM test setup
+- chore(repo): เพิ่ม `*.deb` ใน `/.gitignore` เพื่อตัด local installer artifact ออกจาก working tree
+- status:
+  - backend integration suite หลัก (`auth/jobs/wallet/disputes`) ผ่านครบ 52 tests
+  - push ขึ้น `origin/main` เรียบร้อย (HEAD อยู่บน `main`)
+
 ### 2026-03-11 — Stabilize backend integration tests (auth/jobs/wallet/disputes)
 
 - test(backend): ปรับ integration tests ให้ตรง API/response ปัจจุบัน

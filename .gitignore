@@ -120,3 +120,6 @@ release/
 # Backup files
 *.backup
 *.bkp
+
+# Local package installers
+*.deb

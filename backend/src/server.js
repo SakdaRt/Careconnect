@@ -1306,8 +1306,9 @@ app.use((req, res) => {
 });
 
 // Test database connection before starting server
-testConnection()
-  .then((connected) => {
+const bootstrapAndListen = async () => {
+  try {
+    const connected = await testConnection();
     if (!connected) {
       console.error("[Backend] Failed to connect to database. Exiting...");
       process.exit(1);
@@ -1330,9 +1331,8 @@ testConnection()
       );
     };
 
-    // Start server
     const PORT = process.env.PORT || 3000;
-    ensureAdmin()
+    await ensureAdmin()
       .then(async () => {
         await ensureReviewsAndFavoritesTables();
         await ensureMockCaregivers();
@@ -1341,57 +1341,59 @@ testConnection()
       })
       .catch((error) => {
         console.error("[Backend] Bootstrap failed:", error);
-      })
-      .finally(() => {
-        server.listen(PORT, "0.0.0.0", () => {
-          console.log(`[Backend] Server running on port ${PORT}`);
-          console.log(`[Backend] Environment: ${process.env.NODE_ENV}`);
-          console.log(
-            `[Backend] Health check: http://localhost:${PORT}/health`,
-          );
-          console.log(
-            `[Backend] Auth endpoints: http://localhost:${PORT}/api/auth`,
-          );
-          console.log(
-            `[Backend] Job endpoints: http://localhost:${PORT}/api/jobs`,
-          );
-          console.log(
-            `[Backend] Chat endpoints: http://localhost:${PORT}/api/chat`,
-          );
-          console.log(
-            `[Backend] Wallet endpoints: http://localhost:${PORT}/api/wallet`,
-          );
-          console.log(
-            `[Backend] Webhook endpoints: http://localhost:${PORT}/api/webhooks`,
-          );
-        });
       });
-  })
-  .catch((error) => {
+
+    server.listen(PORT, "0.0.0.0", () => {
+      console.log(`[Backend] Server running on port ${PORT}`);
+      console.log(`[Backend] Environment: ${process.env.NODE_ENV}`);
+      console.log(
+        `[Backend] Health check: http://localhost:${PORT}/health`,
+      );
+      console.log(
+        `[Backend] Auth endpoints: http://localhost:${PORT}/api/auth`,
+      );
+      console.log(
+        `[Backend] Job endpoints: http://localhost:${PORT}/api/jobs`,
+      );
+      console.log(
+        `[Backend] Chat endpoints: http://localhost:${PORT}/api/chat`,
+      );
+      console.log(
+        `[Backend] Wallet endpoints: http://localhost:${PORT}/api/wallet`,
+      );
+      console.log(
+        `[Backend] Webhook endpoints: http://localhost:${PORT}/api/webhooks`,
+      );
+    });
+  } catch (error) {
     console.error("[Backend] Failed to start server:", error);
     process.exit(1);
+  }
+};
+
+if (process.env.NODE_ENV !== "test") {
+  bootstrapAndListen();
+
+  process.on("SIGTERM", async () => {
+    console.log("[Backend] SIGTERM received, shutting down gracefully...");
+    server.close(async () => {
+      console.log("[Backend] HTTP server closed");
+      await closePool();
+      console.log("[Backend] Database pool closed");
+      process.exit(0);
+    });
   });
 
-// Graceful shutdown
-process.on("SIGTERM", async () => {
-  console.log("[Backend] SIGTERM received, shutting down gracefully...");
-  server.close(async () => {
-    console.log("[Backend] HTTP server closed");
-    await closePool();
-    console.log("[Backend] Database pool closed");
-    process.exit(0);
+  process.on("SIGINT", async () => {
+    console.log("\n[Backend] SIGINT received, shutting down gracefully...");
+    server.close(async () => {
+      console.log("[Backend] HTTP server closed");
+      await closePool();
+      console.log("[Backend] Database pool closed");
+      process.exit(0);
+    });
   });
-});
-
-process.on("SIGINT", async () => {
-  console.log("\n[Backend] SIGINT received, shutting down gracefully...");
-  server.close(async () => {
-    console.log("[Backend] HTTP server closed");
-    await closePool();
-    console.log("[Backend] Database pool closed");
-    process.exit(0);
-  });
-});
+}
 
 // Export server for testing
 export default server;
