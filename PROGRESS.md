@@ -139,7 +139,7 @@ careconnect/
 ### Low Priority
 
 - [ ] Dark mode
-- [ ] Tabular numerals สำหรับตัวเลขเงิน
+- [x] Tabular numerals สำหรับตัวเลขเงิน
 - [ ] Badge color sole indicator → เพิ่ม icon/pattern
 - [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
 - [x] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
@@ -173,6 +173,22 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Apply tabular numerals to money-heavy pages
+
+- style(frontend): เพิ่ม `tabular-nums` ให้ตัวเลขการเงินในหน้าหลัก
+  - `/frontend/src/pages/hirer/HirerWalletPage.tsx`
+  - `/frontend/src/pages/caregiver/CaregiverWalletPage.tsx`
+  - `/frontend/src/pages/hirer/HirerPaymentHistoryPage.tsx`
+  - `/frontend/src/pages/hirer/JobReceiptPage.tsx`
+  - `/frontend/src/pages/hirer/HirerHomePage.tsx`
+  - `/frontend/src/pages/hirer/CreateJobPage.tsx`
+  - `/frontend/src/pages/shared/JobDetailPage.tsx`
+  - `/frontend/src/pages/admin/AdminFinancialPage.tsx`
+  - `/frontend/src/pages/admin/AdminReportsPage.tsx`
+- verify:
+  - `npx eslint ...` ไม่ผ่านใน environment ปัจจุบัน (Node `v12` ต่ำกว่า engine requirement ของ eslint รุ่นที่ถูกดึงผ่าน npx)
+  - `./node_modules/.bin/eslint ...` ไม่ผ่าน (ไม่มี local eslint binary เพราะ frontend deps ยังติดตั้งไม่ครบ)
 
 ### 2026-03-11 — Extract backend mock seeds from server bootstrap
 

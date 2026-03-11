@@ -310,19 +310,19 @@ export default function HirerWalletPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">คงเหลือ</div>
-                  <div className="text-xl font-bold text-gray-900">
+                  <div className="text-xl font-bold text-gray-900 tabular-nums">
                     {(wallet?.available_balance || 0).toLocaleString()} บาท
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">เงินที่ถูกพัก</div>
-                  <div className="text-xl font-bold text-gray-900">
+                  <div className="text-xl font-bold text-gray-900 tabular-nums">
                     {(wallet?.held_balance || 0).toLocaleString()} บาท
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">รวม</div>
-                  <div className="text-xl font-bold text-gray-900">
+                  <div className="text-xl font-bold text-gray-900 tabular-nums">
                     {((wallet?.available_balance || 0) + (wallet?.held_balance || 0)).toLocaleString()} บาท
                   </div>
                 </div>
@@ -337,7 +337,7 @@ export default function HirerWalletPage() {
                     สถานะ: <strong>{active.status}</strong>
                   </div>
                   <div>
-                    จำนวนเงิน: <strong>{Number(active.amount).toLocaleString()}</strong> บาท
+                    จำนวนเงิน: <strong className="tabular-nums">{Number(active.amount).toLocaleString()}</strong> บาท
                   </div>
                   <div className="text-xs text-gray-500 font-mono break-all">topup_id: {active.id}</div>
                   {active.expires_at && (
@@ -473,7 +473,7 @@ export default function HirerWalletPage() {
                     <div key={w.id} className="py-3 flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="text-sm font-medium text-gray-900">
-                          {w.status} • {Number(w.amount).toLocaleString()} บาท
+                          {w.status} • <span className="tabular-nums">{Number(w.amount).toLocaleString()}</span> บาท
                         </div>
                         <div className="text-xs text-gray-600">
                           {w.bank_name ? `${w.bank_name} •••• ${w.account_number_last4 || '-'}` : `bank_account_id: ${w.bank_account_id}`}
@@ -569,7 +569,7 @@ export default function HirerWalletPage() {
                           </div>
                         )}
                       </div>
-                      <div className="text-sm font-semibold text-gray-900">{t.amount.toLocaleString()} บาท</div>
+                      <div className="text-sm font-semibold text-gray-900 tabular-nums">{t.amount.toLocaleString()} บาท</div>
                     </div>
                   ))}
                 </div>
@@ -614,7 +614,8 @@ export default function HirerWalletPage() {
       >
         <div className="space-y-4 text-center">
           <div className="text-sm text-gray-700">
-            จำนวนเงิน: <strong>{Number(active?.amount || latestTopupResult?.amount || amount).toLocaleString()} บาท</strong>
+            จำนวนเงิน:{' '}
+            <strong className="tabular-nums">{Number(active?.amount || latestTopupResult?.amount || amount).toLocaleString()} บาท</strong>
           </div>
 
           <div className="text-xs text-gray-600">

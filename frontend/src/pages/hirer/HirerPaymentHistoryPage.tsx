@@ -103,7 +103,7 @@ export default function HirerPaymentHistoryPage() {
                         </div>
                       )}
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">{t.amount.toLocaleString()} บาท</div>
+                    <div className="text-sm font-semibold text-gray-900 tabular-nums">{t.amount.toLocaleString()} บาท</div>
                   </div>
                 ))}
               </div>

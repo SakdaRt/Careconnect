@@ -119,7 +119,7 @@ export default function AdminFinancialPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-gray-900">
-                        {w.status} • {Number(w.amount).toLocaleString()} บาท
+                        {w.status} • <span className="tabular-nums">{Number(w.amount).toLocaleString()}</span> บาท
                       </div>
                       <div className="text-xs text-gray-600 mt-1">
                         {w.user_email ? `${w.user_email} (${w.user_role || '-'})` : w.user_id}
