@@ -127,7 +127,8 @@ careconnect/
 - [x] แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
 - [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
-- [ ] E2E tests (Playwright หรือ Cypress)
+- [x] E2E smoke tests ฝั่ง backend (Jest + Supertest) ครอบคลุม 4 happy paths
+- [ ] E2E tests ฝั่ง browser (Playwright หรือ Cypress)
 
 ### Medium Priority
 
@@ -172,6 +173,22 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Add backend E2E smoke suite + docs sync
+
+- test(backend): เพิ่ม smoke suite ใหม่ที่ `/backend/tests/integration/e2eSmoke.test.js`
+  - auth happy path: register → login → refresh → me
+  - job lifecycle happy path: create → publish → accept → check-in → check-out
+  - topup status happy path: pending → confirm → status (seed `topup_intents` แบบ `provider_name='mock'`)
+  - dispute happy path: open → message → admin review
+- chore(test): เพิ่ม script `/backend/package.json`
+  - `test:e2e-smoke` สำหรับรันไฟล์ smoke suite โดยตรง
+- docs(system): sync `/SYSTEM.md`
+  - ปรับ Section 6.8 เป็น Stripe Checkout flow
+  - เพิ่ม `/api/webhooks/stripe` ใน Section 7.14
+- verify:
+  - `npm run test:e2e-smoke` ผ่าน (`4 passed, 4 total`)
+  - `npm run test:integration -- --runInBand --coverage=false` ผ่าน (`5 passed, 5 total` / `56 passed, 56 total`)
 
 ### 2026-03-11 — Finalize backend runtime/test scripts cleanup
 

@@ -11,6 +11,7 @@
     "test:watch": "jest --watch",
     "test:integration": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration --verbose",
     "test:smoke": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration --testNamePattern='Tier-0' --verbose",
+    "test:e2e-smoke": "node --experimental-vm-modules ./node_modules/jest/bin/jest.js tests/integration/e2eSmoke.test.js --runInBand --coverage=false --verbose",
     "lint": "eslint src/**/*.js",
     "migrate": "node scripts/migrate.js migrate",
     "migrate:status": "node scripts/migrate.js status",
