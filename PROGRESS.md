@@ -140,7 +140,7 @@ careconnect/
 
 - [ ] Dark mode
 - [x] Tabular numerals สำหรับตัวเลขเงิน
-- [ ] Badge color sole indicator → เพิ่ม icon/pattern
+- [x] Badge color sole indicator → เพิ่ม icon/pattern
 - [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
 - [x] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
 
@@ -173,6 +173,14 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-11 — Add non-color indicators to badges
+
+- style(frontend): ปรับ `/frontend/src/components/ui/Badge.tsx` ให้มี marker ตาม variant (`OK`, `!`, `X`, `i`, `-`) เพื่อลดการพึ่งพา "สีอย่างเดียว" ในการสื่อความหมาย
+- accessibility:
+  - marker ถูกกำหนดเป็น decorative (`aria-hidden="true"`) และยังคงแสดงข้อความ label เดิมครบ
+- verify:
+  - ไม่สามารถรัน frontend lint/build ใน environment ปัจจุบันได้ครบ เนื่องจาก Node `v12` ต่ำกว่า dependency requirements
 
 ### 2026-03-11 — Apply tabular numerals to money-heavy pages
 
