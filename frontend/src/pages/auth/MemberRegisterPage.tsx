@@ -98,17 +98,9 @@ export default function MemberRegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSendOTP = async () => {
+  const handleSendOTP = () => {
     if (!validatePhone()) return;
-
-    setLoading(true);
-    try {
-      setStep('password');
-    } catch (error: any) {
-      toast.error('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setLoading(false);
-    }
+    setStep('password');
   };
 
   // Step 2: OTP verification

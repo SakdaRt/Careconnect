@@ -161,7 +161,6 @@ export default function GuestRegisterPage() {
 
       if (!response.success) {
         toast.error(response.error || 'Invalid OTP');
-        setLoading(false);
         return;
       }
 
@@ -186,13 +185,11 @@ export default function GuestRegisterPage() {
         const response = await api.sendEmailOtp();
         if (!response.success || !response.data) {
           toast.error(response.error || 'ส่งรหัสยืนยันไม่สำเร็จ');
-          setLoading(false);
           return;
         }
         setOtpId(response.data.otp_id);
         toast.success('OTP sent to your email');
         startCooldown();
-        setLoading(false);
         return;
       }
 
@@ -200,7 +197,6 @@ export default function GuestRegisterPage() {
 
       if (!response.success || !response.data) {
         toast.error(response.error || 'Failed to resend OTP');
-        setLoading(false);
         return;
       }
 
