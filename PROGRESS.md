@@ -174,6 +174,15 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-12 — Security cleanup: remove local Google OAuth test credentials
+
+- chore(env): ลบ credential ทดสอบ Google OAuth ออกจาก `/home/careconnect/Careconnect/.env`
+  - ลบ `PLAYWRIGHT_RUN_GOOGLE_OAUTH`
+  - ลบ `PLAYWRIGHT_GOOGLE_EMAIL`
+  - ลบ `PLAYWRIGHT_GOOGLE_PASSWORD`
+- verify:
+  - ผ่าน: ตรวจซ้ำด้วย `grep` แล้วไม่พบ key ทั้ง 3 ตัวในไฟล์ `.env*`
+
 ### 2026-03-12 — Remove dark theme + remove Google OAuth Playwright tests
 
 - refactor(frontend): ลบระบบสลับธีมออกทั้งหมด
