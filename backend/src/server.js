@@ -8,7 +8,7 @@ import morgan from "morgan";
 import Joi from "joi";
 import bcrypt from "bcrypt";
 import "./config/loadEnv.js";
-import { testConnection, closePool, query } from "./utils/db.js";
+import { testConnection, testConnectionWithRetry, closePool, query } from "./utils/db.js";
 import authRoutes from "./routes/authRoutes.js";
 import jobRoutes from "./routes/jobRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
@@ -484,9 +484,9 @@ app.use((req, res) => {
 // Test database connection before starting server
 const bootstrapAndListen = async () => {
   try {
-    const connected = await testConnection();
+    const connected = await testConnectionWithRetry(10, 2000);
     if (!connected) {
-      console.error("[Backend] Failed to connect to database. Exiting...");
+      console.error("[Backend] Failed to connect to database after 10 retries. Exiting...");
       process.exit(1);
     }
 
@@ -567,6 +567,19 @@ if (process.env.NODE_ENV !== "test") {
       console.log("[Backend] Database pool closed");
       process.exit(0);
     });
+  });
+
+  process.on("uncaughtException", (err) => {
+    console.error("[Backend] Uncaught exception:", err);
+    server.close(async () => {
+      await closePool().catch(() => {});
+      process.exit(1);
+    });
+    setTimeout(() => process.exit(1), 5000);
+  });
+
+  process.on("unhandledRejection", (reason) => {
+    console.error("[Backend] Unhandled rejection:", reason);
   });
 }
 
