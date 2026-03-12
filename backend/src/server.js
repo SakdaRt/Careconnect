@@ -399,7 +399,11 @@ async function ensureMockEscortJobs(hirerIdsByEmail) {
 
 // Middleware
 app.use(helmet());
-app.use(cors());
+const corsOrigin = process.env.CORS_ORIGIN || "*";
+app.use(cors({
+  origin: corsOrigin === "*" ? true : corsOrigin.split(",").map((s) => s.trim()),
+  credentials: true,
+}));
 app.use("/api/webhooks", webhookRoutes);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
