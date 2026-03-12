@@ -1,7 +1,7 @@
 # CareConnect — System Documentation
 
 > Source of truth สำหรับ architecture, database, API, UML ทั้งหมด
-> อัพเดทล่าสุด: 2026-03-11
+> อัพเดทล่าสุด: 2026-03-12
 
 ---
 
@@ -1097,14 +1097,10 @@ VITE_GOOGLE_MAPS_API_KEY=
 ### Playwright E2E (`docker-compose.test.yml` profile `e2e`)
 
 > Service `frontend-e2e` ใช้ image `mcr.microsoft.com/playwright:v1.58.2-jammy`
-> Smoke run ควรใช้ `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false` เป็นค่า default
-> Real OAuth run แยกด้วย script `frontend/package.json` (`test:e2e:docker:oauth`)
+> รัน smoke specs เท่านั้น (Google OAuth manual verification แยกนอก automation)
 
 ```env
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173
-PLAYWRIGHT_RUN_GOOGLE_OAUTH=false
-PLAYWRIGHT_GOOGLE_EMAIL=
-PLAYWRIGHT_GOOGLE_PASSWORD=
 VITE_API_TARGET=http://host.docker.internal:3000
 ```
 

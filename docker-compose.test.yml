@@ -58,9 +58,6 @@ services:
       CI: "true"
       PLAYWRIGHT_BASE_URL: http://127.0.0.1:4173
       VITE_API_TARGET: ${VITE_API_TARGET:-http://host.docker.internal:3000}
-      PLAYWRIGHT_RUN_GOOGLE_OAUTH: ${PLAYWRIGHT_RUN_GOOGLE_OAUTH:-false}
-      PLAYWRIGHT_GOOGLE_EMAIL: ${PLAYWRIGHT_GOOGLE_EMAIL:-}
-      PLAYWRIGHT_GOOGLE_PASSWORD: ${PLAYWRIGHT_GOOGLE_PASSWORD:-}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

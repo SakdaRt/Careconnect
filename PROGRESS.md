@@ -138,7 +138,7 @@ careconnect/
 
 ### Low Priority
 
-- [x] Dark mode
+- [x] ยกเลิก Dark mode (บังคับ Light mode เท่านั้น)
 - [x] Tabular numerals สำหรับตัวเลขเงิน
 - [x] Badge color sole indicator → เพิ่ม icon/pattern
 - [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
@@ -173,6 +173,23 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-12 — Remove dark theme + remove Google OAuth Playwright tests
+
+- refactor(frontend): ลบระบบสลับธีมออกทั้งหมด
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/App.tsx` เอา `ThemeProvider` ออก และบังคับ `colorScheme='light'`
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/pages/shared/SettingsPage.tsx` ลบ UI สลับธีม
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/index.css` ลบ `:root.dark` overrides ทั้งหมด
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/contexts/ThemeContext.tsx` ให้เหลือเฉพาะ helper `cn()`
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/contexts/index.ts` เอา export theme hooks/provider ออก
+- test(frontend): ลบ Google OAuth Playwright tests ตามคำสั่งผู้ใช้
+  - ลบไฟล์ `/home/careconnect/Careconnect/frontend/e2e/google-oauth.real.spec.ts`
+  - ลบไฟล์ `/home/careconnect/Careconnect/frontend/e2e/google-oauth.smoke.spec.ts`
+  - ปรับ `/home/careconnect/Careconnect/frontend/package.json` ลบ scripts `test:e2e:oauth` และ `test:e2e:docker:oauth`
+  - ปรับ `/home/careconnect/Careconnect/docker-compose.test.yml` ลบ env `PLAYWRIGHT_*GOOGLE*` ที่ใช้เฉพาะ OAuth test
+- verify:
+  - ผ่าน: `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false docker compose -f docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm ci --no-audit --no-fund --silent && npm run build"`
+  - ผ่าน: `docker compose -f /home/careconnect/Careconnect/docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm ci --no-audit --no-fund --silent && npx playwright test --reporter=line"` → `2 passed`
 
 ### 2026-03-12 — Final release checklist + stabilize E2E docker commands
 
