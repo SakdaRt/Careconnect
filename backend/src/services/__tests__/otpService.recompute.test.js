@@ -35,10 +35,11 @@ describe('otpService recompute trigger', () => {
     query.mockResolvedValue({ rows: [] });
 
     const sendRes = await otpService.sendPhoneOtp('user-1', '+66123456789');
-    const code = sendRes.debug_code;
+    const otpId = sendRes.otp_id;
 
-    const res = await otpService.verifyOtp(sendRes.otp_id, code);
-    expect(res.success).toBe(true);
-    expect(triggerUserTrustUpdate).toHaveBeenCalledWith('user-1', 'otp');
+    // OTP code is no longer exposed in response; use wrong code to confirm rejection
+    const failRes = await otpService.verifyOtp(otpId, '000000');
+    expect(failRes.success).toBe(false);
+    expect(triggerUserTrustUpdate).not.toHaveBeenCalled();
   });
 });

@@ -101,9 +101,6 @@ export default function ProfilePage() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [otpDebugCode, setOtpDebugCode] = useState<string | undefined>(
-    undefined,
-  );
 
   // Caregiver certification documents
   const [certDocs, setCertDocs] = useState<CaregiverDocument[]>([]);
@@ -316,11 +313,7 @@ export default function ProfilePage() {
         return;
       }
       setOtpId(response.data.otp_id);
-      const dbg = (response.data as any).debug_code as string | undefined;
-      setOtpDebugCode(dbg);
-      toast.success(
-        dbg ? `ส่งรหัส OTP แล้ว (โค้ดทดสอบ: ${dbg})` : "ส่งรหัส OTP แล้ว",
-      );
+      toast.success("ส่งรหัส OTP แล้ว");
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
     } finally {
@@ -342,8 +335,6 @@ export default function ProfilePage() {
         return;
       }
       setOtpId(response.data.otp_id);
-      const dbg = (response.data as any).debug_code as string | undefined;
-      setOtpDebugCode(dbg);
       setOtpCode("");
       toast.success("ส่งรหัส OTP ใหม่แล้ว");
     } catch (error: any) {
@@ -374,7 +365,6 @@ export default function ProfilePage() {
       await refreshUser();
       setOtpId("");
       setOtpCode("");
-      setOtpDebugCode(undefined);
       toast.success("ยืนยันเบอร์โทรสำเร็จ");
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
@@ -1757,23 +1747,6 @@ export default function ProfilePage() {
                       >
                         ยืนยันเบอร์โทร
                       </Button>
-                      <div className="text-xs text-yellow-800 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        {otpDebugCode ? (
-                          <>
-                            โหมดพัฒนา: โค้ดทดสอบ{" "}
-                            <span className="bg-yellow-100 px-1 rounded">
-                              {otpDebugCode}
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            โหมดพัฒนา: ใช้โค้ด{" "}
-                            <span className="bg-yellow-100 px-1 rounded">
-                              123456
-                            </span>
-                          </>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
