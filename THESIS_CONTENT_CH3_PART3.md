@@ -648,7 +648,9 @@ UC38 ..> UC33 : <<include>>
 
 ## 3.6 Sequence Diagram
 
-> 📌 **DIAGRAM: Guest Registration** — Mermaid code:
+> 📌 นำ Mermaid code ไปวางที่ https://mermaid.live แล้ว export รูปใส่วิทยานิพนธ์
+
+### 3.6.1 การสมัครสมาชิก (Registration)
 
 ```mermaid
 sequenceDiagram
@@ -656,19 +658,112 @@ sequenceDiagram
     participant FE as Frontend
     participant BE as Backend
     participant DB as Database
-    User->>FE: กรอกข้อมูลสมัคร
-    FE->>BE: POST /api/auth/register/guest
+    User->>FE: เข้าหน้า /register เลือกประเภทสมัคร
+    FE->>FE: แสดงฟอร์มสมัคร (Guest/Member)
+    User->>FE: กรอก email/phone + password + role
+    FE->>BE: POST /api/auth/register/guest หรือ /member
+    BE->>BE: Joi validation
+    BE->>DB: BEGIN TRANSACTION
     BE->>DB: INSERT users
-    BE->>DB: INSERT profile
-    BE->>DB: INSERT wallet
-    BE-->>FE: { token, refresh_token }
+    BE->>DB: INSERT hirer_profiles / caregiver_profiles
+    BE->>DB: INSERT wallets
+    BE->>DB: COMMIT
+    BE->>BE: สร้าง JWT access + refresh token
+    BE-->>FE: { token, refresh_token, user }
+    FE->>FE: บันทึก token ใน sessionStorage
     FE-->>User: redirect /select-role
     User->>FE: เลือก role + ยอมรับ policy
     FE->>BE: POST /api/auth/policy/accept
-    FE-->>User: redirect /hirer/home
+    BE->>DB: UPDATE user_policy_acceptances
+    BE-->>FE: 200 OK
+    FE-->>User: redirect /hirer/home หรือ /caregiver/jobs/feed
 ```
 
-> 📌 **DIAGRAM: Job Creation & Publishing** — Mermaid code:
+### 3.6.2 การเข้าสู่ระบบ (Login)
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
+    User->>FE: เข้าหน้า /login เลือก Email หรือ Phone
+    User->>FE: กรอก email/phone + password
+    FE->>BE: POST /api/auth/login/email หรือ /login/phone
+    BE->>BE: Joi validation + rate limit check
+    BE->>DB: SELECT users WHERE email/phone
+    BE->>BE: bcrypt.compare(password, hash)
+    alt รหัสผ่านถูกต้อง
+        BE->>BE: ตรวจ ban_login + status
+        BE->>BE: สร้าง JWT access + refresh token
+        BE-->>FE: { token, refresh_token, user }
+        FE->>FE: บันทึก token ใน sessionStorage
+        FE-->>User: redirect ตาม role
+    else รหัสผ่านผิด
+        BE-->>FE: 401 Unauthorized
+        FE-->>User: แสดง error message
+    end
+```
+
+### 3.6.3 การเข้าสู่ระบบด้วย Google OAuth 2.0
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant BE as Backend
+    participant Google as Google OAuth
+    participant DB as Database
+    User->>FE: กดปุ่ม "Sign in with Google"
+    FE->>BE: GET /api/auth/google
+    BE-->>FE: redirect → Google Consent Screen
+    User->>Google: อนุญาต (grant consent)
+    Google-->>BE: GET /api/auth/google/callback?code=xxx
+    BE->>Google: แลก code → access_token
+    Google-->>BE: { email, name, google_id }
+    BE->>DB: SELECT users WHERE email/google_id
+    alt ผู้ใช้มีอยู่แล้ว
+        BE->>BE: สร้าง JWT
+        BE-->>FE: redirect + token
+    else ผู้ใช้ใหม่
+        BE->>DB: INSERT users + profile + wallet
+        BE->>BE: สร้าง JWT
+        BE-->>FE: redirect /select-role + token
+    end
+    FE->>FE: บันทึก token ใน sessionStorage
+    FE-->>User: redirect ตาม role
+```
+
+### 3.6.4 การยืนยัน OTP
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant FE as Frontend
+    participant BE as Backend
+    participant SMS as SMSOK / Nodemailer
+    participant DB as Database
+    User->>FE: กดขอ OTP (เบอร์โทร/อีเมล)
+    FE->>BE: POST /api/otp/phone/send หรือ /email/send
+    BE->>BE: สร้าง OTP 6 หลัก (หมดอายุ 5 นาที)
+    BE->>DB: INSERT otp record
+    BE->>SMS: ส่ง OTP ทาง SMS หรือ Email
+    BE-->>FE: 200 OK
+    User->>FE: กรอก OTP 6 หลัก
+    FE->>BE: POST /api/otp/verify
+    BE->>DB: SELECT otp WHERE code + not expired
+    alt OTP ถูกต้อง
+        BE->>DB: UPDATE is_phone_verified = true
+        BE->>DB: UPDATE trust_level = L1 (ถ้ายืนยันโทรศัพท์)
+        BE-->>FE: { success: true, trust_level: "L1" }
+        FE-->>User: แสดงสำเร็จ + อัปเดต UI
+    else OTP ผิด/หมดอายุ
+        BE-->>FE: 400 "รหัส OTP ไม่ถูกต้อง"
+        FE-->>User: แสดง error
+    end
+```
+
+### 3.6.5 การสร้างและเผยแพร่งาน (Job Creation & Publishing)
 
 ```mermaid
 sequenceDiagram
@@ -676,21 +771,63 @@ sequenceDiagram
     participant FE as Frontend
     participant BE as Backend
     participant DB as Database
-    Hirer->>FE: กรอกข้อมูลงาน
+    Hirer->>FE: กรอกข้อมูลงาน (wizard form)
+    FE->>FE: คำนวณ total_hours จาก start/end
     FE->>BE: POST /api/jobs
+    BE->>BE: Joi validation
     BE->>BE: computeRiskLevel()
-    BE->>DB: INSERT job_posts (draft)
-    BE-->>FE: { job_post_id }
+    BE->>DB: INSERT job_posts (status=draft)
+    BE-->>FE: { job_post_id, risk_level }
+    FE-->>Hirer: แสดง draft + review summary
     Hirer->>FE: กด Publish
     FE->>BE: POST /api/jobs/:id/publish
-    BE->>DB: CHECK trust_level
-    BE->>DB: CHECK balance
-    BE->>DB: UPDATE held_balance
-    BE->>DB: UPDATE status=posted
+    BE->>DB: SELECT trust_level FROM users
+    BE->>BE: ตรวจ L1+ (low_risk) หรือ L2+ (high_risk)
+    BE->>DB: SELECT available_balance FROM wallets
+    BE->>BE: ตรวจ balance ≥ total_amount
+    BE->>DB: UPDATE available_balance -= total_amount
+    BE->>DB: UPDATE held_balance += total_amount
+    BE->>DB: INSERT ledger_transactions (type=hold)
+    BE->>DB: UPDATE job_posts status=posted
     BE-->>FE: 200 OK
+    FE-->>Hirer: แสดง "เผยแพร่งานสำเร็จ"
 ```
 
-> 📌 **DIAGRAM: Caregiver Accept & Check-in/out** — Mermaid code:
+### 3.6.6 การมอบหมายงานตรง (Direct Assign)
+
+```mermaid
+sequenceDiagram
+    actor Hirer
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
+    actor CG as Caregiver
+    Hirer->>FE: ค้นหาผู้ดูแล → กด "มอบหมายงาน"
+    FE->>FE: เลือกงาน draft/posted
+    FE->>BE: POST /api/caregivers/assign { job_post_id, caregiver_id }
+    BE->>DB: SELECT job_posts (ตรวจเจ้าของ + สถานะ)
+    BE->>DB: SELECT users (ตรวจ caregiver active)
+    BE->>DB: SELECT job_assignments (ตรวจทับซ้อนเวลา)
+    BE->>DB: UPDATE job_posts SET preferred_caregiver_id
+    BE->>BE: notifyJobAssigned(caregiver_id)
+    BE-->>FE: 200 OK
+    FE-->>Hirer: แสดง "มอบหมายสำเร็จ"
+    Note over CG: ได้รับ Notification
+    CG->>FE: ดูรายละเอียดงาน
+    alt ผู้ดูแลรับงาน
+        CG->>FE: กด Accept
+        FE->>BE: POST /api/jobs/:id/accept
+        Note over BE,DB: (ดู Sequence 3.6.7)
+    else ผู้ดูแลปฏิเสธ
+        CG->>FE: กด Reject + เหตุผล
+        FE->>BE: POST /api/jobs/:id/reject
+        BE->>DB: UPDATE preferred_caregiver_id = NULL
+        BE->>BE: notify hirer
+        BE-->>FE: 200 OK
+    end
+```
+
+### 3.6.7 การรับงาน เช็คอิน และเช็คเอาท์ (Accept, Check-in, Check-out)
 
 ```mermaid
 sequenceDiagram
@@ -700,70 +837,226 @@ sequenceDiagram
     participant DB as Database
     CG->>FE: กด Accept
     FE->>BE: POST /api/jobs/:id/accept
-    BE->>DB: SELECT job_posts FOR UPDATE
-    BE->>DB: CHECK trust + time conflict
-    BE->>DB: DEDUCT held_balance
-    BE->>DB: INSERT jobs + escrow + assignment + chat
-    BE->>DB: INSERT ledger [hold]
-    BE->>BE: notify hirer
+    BE->>DB: SELECT job_posts FOR UPDATE (lock row)
+    BE->>BE: ตรวจ trust_level ≥ min_trust_level
+    BE->>BE: ตรวจไม่มีงานทับซ้อนเวลา
+    BE->>DB: DEDUCT held_balance → CREATE escrow wallet
+    BE->>DB: INSERT jobs (instance จริง)
+    BE->>DB: INSERT job_assignments (status=active)
+    BE->>DB: INSERT chat_threads
+    BE->>DB: INSERT ledger_transactions (hold → escrow)
+    BE->>BE: notify hirer "ผู้ดูแลรับงานแล้ว"
     BE-->>FE: 200 OK
-    Note over CG,DB: ถึงเวลางาน
-    CG->>FE: Check-in (GPS)
-    FE->>BE: POST /api/jobs/:jobId/checkin
-    BE->>DB: INSERT gps_event
-    BE->>DB: UPDATE status=in_progress
+    Note over CG,DB: ─── ถึงเวลาเริ่มงาน ───
+    CG->>FE: กด Check-in
+    FE->>FE: ขอ Geolocation จาก Browser
+    FE->>BE: POST /api/jobs/:jobId/checkin { lat, lng }
+    BE->>DB: INSERT job_gps_events (type=check_in)
+    BE->>BE: ตรวจระยะ geofence (100 ม.)
+    BE->>DB: UPDATE jobs + job_posts status=in_progress
+    BE->>BE: notify hirer "ผู้ดูแลเริ่มงานแล้ว"
     BE-->>FE: 200 OK
-    Note over CG,DB: งานเสร็จ
-    CG->>FE: Check-out (GPS + evidence)
-    FE->>BE: POST /api/jobs/:jobId/checkout
-    BE->>DB: UPDATE status=completed
-    BE->>DB: escrow→CG [release] + platform [debit]
-    BE->>BE: notify hirer
+    Note over CG,DB: ─── ทำงานจนถึงเวลาสิ้นสุด ───
+    CG->>FE: กด Check-out
+    FE->>FE: แสดง modal ให้เขียน evidence note
+    CG->>FE: กรอก evidence_note
+    FE->>BE: POST /api/jobs/:jobId/checkout { lat, lng, evidence_note }
+    BE->>DB: INSERT job_gps_events (type=check_out)
+    BE->>DB: UPDATE jobs + job_posts status=completed
+    BE->>DB: escrow → caregiver wallet (release 90%)
+    BE->>DB: escrow → platform wallet (debit 10%)
+    BE->>DB: INSERT ledger_transactions (release + debit)
+    BE->>BE: notify hirer "งานเสร็จสมบูรณ์"
     BE-->>FE: 200 OK
-    BE->>BE: triggerTrustUpdate() [background]
+    BE->>BE: triggerTrustUpdate() [background worker]
 ```
 
-> 📌 **DIAGRAM: Top-up Flow** — Mermaid code:
+### 3.6.8 การขอเช็คเอาท์ก่อนเวลา (Early Checkout)
+
+```mermaid
+sequenceDiagram
+    actor CG as Caregiver
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
+    actor Hirer
+    Note over CG: ต้องการส่งงานก่อน scheduled_end_at
+    CG->>FE: กด "ส่งงานก่อนเวลา"
+    FE->>FE: แสดง modal ให้กรอกเหตุผล
+    CG->>FE: กรอก evidence_note
+    FE->>BE: POST /api/jobs/:jobId/early-checkout-request
+    BE->>DB: INSERT early_checkout_requests (status=pending)
+    BE->>BE: notify hirer "มีคำขอส่งงานก่อนเวลา"
+    BE-->>FE: 200 OK
+    FE-->>CG: แสดง "รอการอนุมัติ"
+    Note over Hirer: ได้รับ Notification
+    Hirer->>FE: เข้าหน้ารายละเอียดงาน
+    FE->>FE: แสดง Early Checkout Card + evidence_note
+    alt อนุมัติ
+        Hirer->>FE: กด "อนุมัติ"
+        FE->>BE: POST /api/jobs/:jobId/early-checkout-respond { action: "approve" }
+        BE->>DB: UPDATE status=completed
+        BE->>DB: Settlement (escrow → CG + platform)
+        BE->>BE: notify caregiver "อนุมัติแล้ว"
+        BE-->>FE: 200 OK
+    else ปฏิเสธ
+        Hirer->>FE: กด "ปฏิเสธ" + เหตุผล
+        FE->>BE: POST /api/jobs/:jobId/early-checkout-respond { action: "reject" }
+        BE->>DB: UPDATE early_checkout_requests status=rejected
+        BE->>BE: notify caregiver "ถูกปฏิเสธ"
+        BE-->>FE: 200 OK
+    end
+    Note over BE: เลย scheduled_end_at + 10 นาที → Auto-complete
+```
+
+### 3.6.9 การยกเลิกงาน (Cancel Job)
 
 ```mermaid
 sequenceDiagram
     actor Hirer
     participant FE as Frontend
     participant BE as Backend
-    participant MP as MockProvider
-    Hirer->>FE: ระบุจำนวนเงิน
-    FE->>BE: POST /api/wallet/topup
-    BE->>MP: POST /create-qr
-    MP-->>BE: qr_payload
-    BE->>BE: INSERT topup_intent
-    BE-->>FE: { qr_payload }
-    Hirer->>MP: สแกน QR จ่ายเงิน
-    MP->>BE: POST /api/webhooks/payment
-    BE->>BE: CREDIT wallet + INSERT ledger
+    participant DB as Database
+    Hirer->>FE: กด "ยกเลิกงาน"
+    FE->>FE: แสดง modal ให้กรอกเหตุผล
+    Hirer->>FE: กรอกเหตุผล
+    FE->>BE: POST /api/jobs/:id/cancel { reason }
+    BE->>DB: SELECT job_posts + jobs (ตรวจสถานะ)
+    alt สถานะ = posted (ยังไม่มีผู้รับ)
+        BE->>DB: UPDATE held_balance → available_balance
+        BE->>DB: INSERT ledger_transactions (type=release)
+    else สถานะ = assigned / in_progress (มีผู้รับแล้ว)
+        BE->>DB: UPDATE escrow → hirer available_balance
+        BE->>DB: INSERT ledger_transactions (type=reversal)
+        BE->>DB: UPDATE job_assignments status=cancelled
+        BE->>DB: UPDATE chat_threads status=closed
+        BE->>BE: notify caregiver "งานถูกยกเลิก"
+    end
+    BE->>DB: UPDATE job_posts + jobs status=cancelled
+    BE-->>FE: 200 OK
+    FE-->>Hirer: แสดง "ยกเลิกสำเร็จ เงินคืนแล้ว"
 ```
 
-> 📌 **DIAGRAM: Real-time Chat** — Mermaid code:
+### 3.6.10 การเติมเงิน (Top-up Wallet)
 
 ```mermaid
 sequenceDiagram
-    participant A as Hirer
-    participant S as Socket.IO Server
-    participant B as Caregiver
-    A->>S: connect (JWT)
-    B->>S: connect (JWT)
-    A->>S: thread:join
-    B->>S: thread:join
-    S-->>A: thread:joined
-    S-->>B: thread:joined
-    A->>S: typing:start
-    S-->>B: typing:started
-    A->>S: message:send
-    S->>S: INSERT DB
-    S-->>A: message:new
-    S-->>B: message:new
+    actor Hirer
+    participant FE as Frontend
+    participant BE as Backend
+    participant MP as Mock Provider
+    participant DB as Database
+    Hirer->>FE: เข้าหน้า Wallet → กดเติมเงิน
+    Hirer->>FE: ระบุจำนวนเงิน
+    FE->>BE: POST /api/wallet/topup { amount }
+    BE->>MP: POST /create-qr { amount, ref }
+    MP-->>BE: { qr_payload, ref_id }
+    BE->>DB: INSERT topup_intents (status=pending)
+    BE-->>FE: { qr_payload }
+    FE-->>Hirer: แสดง QR popup
+    Hirer->>MP: สแกน QR จ่ายเงิน
+    MP->>BE: POST /api/webhooks/payment { ref_id, signature }
+    BE->>BE: ตรวจ HMAC-SHA256 signature
+    BE->>DB: UPDATE topup_intents status=completed
+    BE->>DB: UPDATE wallets available_balance += amount
+    BE->>DB: INSERT ledger_transactions (type=credit)
+    Hirer->>FE: กด Confirm
+    FE->>BE: POST /api/wallet/topup/:topupId/confirm
+    BE->>DB: SELECT topup_intents (ตรวจสถานะ)
+    BE-->>FE: { status: "completed" }
+    FE-->>Hirer: แสดง "เติมเงินสำเร็จ"
 ```
 
-> 📌 **DIAGRAM: KYC Flow** — Mermaid code:
+### 3.6.11 การถอนเงิน (Withdrawal)
+
+```mermaid
+sequenceDiagram
+    actor CG as Caregiver
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
+    actor Admin
+    CG->>FE: เข้าหน้า Wallet → กดถอนเงิน
+    CG->>FE: เลือกบัญชีธนาคาร + ระบุจำนวน
+    FE->>BE: POST /api/wallet/withdraw { amount, bank_account_id }
+    BE->>BE: ตรวจ trust_level ≥ L2
+    BE->>DB: SELECT available_balance (ตรวจยอด)
+    BE->>DB: UPDATE available_balance -= amount
+    BE->>DB: INSERT withdrawal_requests (status=pending)
+    BE-->>FE: 200 OK
+    FE-->>CG: แสดง "รอ Admin อนุมัติ"
+    Note over Admin: Admin ดูรายการถอนเงิน
+    Admin->>BE: POST /api/wallet/admin/withdrawals/:id/approve
+    BE->>DB: UPDATE withdrawal_requests status=approved
+    Admin->>BE: POST /api/wallet/admin/withdrawals/:id/mark-paid
+    BE->>DB: UPDATE withdrawal_requests status=paid
+    BE->>DB: INSERT ledger_transactions (type=debit)
+    BE->>BE: notify caregiver "ถอนเงินสำเร็จ"
+```
+
+### 3.6.12 การแชทแบบเรียลไทม์ (Real-time Chat)
+
+```mermaid
+sequenceDiagram
+    participant H as Hirer
+    participant S as Socket.IO Server
+    participant DB as Database
+    participant CG as Caregiver
+    H->>S: connect (JWT auth)
+    CG->>S: connect (JWT auth)
+    S->>S: verify JWT → join user room
+    H->>S: thread:join { threadId }
+    CG->>S: thread:join { threadId }
+    S-->>H: thread:joined
+    S-->>CG: thread:joined
+    H->>S: typing:start
+    S-->>CG: typing:started
+    H->>S: typing:stop
+    S-->>CG: typing:stopped
+    H->>S: message:send { content }
+    S->>DB: INSERT chat_messages
+    S-->>H: message:new { id, content, sender }
+    S-->>CG: message:new { id, content, sender }
+    CG->>S: message:read { messageId }
+    S->>DB: UPDATE read_at
+    S-->>H: message:read { messageId }
+```
+
+### 3.6.13 การแจ้งเตือน (Notification — Dual Channel)
+
+```mermaid
+sequenceDiagram
+    participant BE as Backend
+    participant DB as Database
+    participant SIO as Socket.IO
+    participant FE as Frontend
+    actor User
+    Note over BE: เหตุการณ์สำคัญเกิดขึ้น (เช่น CG รับงาน)
+    BE->>DB: INSERT notifications (status=queued)
+    BE->>SIO: emitToUserRoom(userId, "notification:new")
+    alt ผู้ใช้ออนไลน์ (Socket connected)
+        SIO-->>FE: notification:new { data }
+        FE->>FE: Badge +1 + Toast
+    else ผู้ใช้ออฟไลน์
+        Note over FE: Polling ทุก 15 วินาที
+        FE->>BE: GET /api/notifications/unread-count
+        BE->>DB: SELECT COUNT(*) WHERE read_at IS NULL
+        BE-->>FE: { count }
+        FE->>FE: อัปเดต Badge
+    end
+    Note over FE: เมื่อ Socket reconnect / focus / online
+    FE->>BE: GET /api/notifications/unread-count
+    BE-->>FE: { count }
+    User->>FE: เปิดหน้า /notifications
+    FE->>BE: GET /api/notifications
+    BE-->>FE: [ notification list ]
+    User->>FE: กดอ่าน
+    FE->>BE: POST /api/notifications/:id/read
+    BE->>DB: UPDATE read_at = NOW()
+    FE->>FE: Badge -1
+```
+
+### 3.6.14 การยืนยัน KYC (KYC Verification)
 
 ```mermaid
 sequenceDiagram
@@ -772,15 +1065,60 @@ sequenceDiagram
     participant BE as Backend
     participant DB as Database
     actor Admin
-    User->>FE: อัปโหลดเอกสาร
-    FE->>BE: POST /api/kyc/submit
-    BE->>DB: INSERT user_kyc_info (pending)
+    User->>FE: เข้าหน้า /kyc
+    User->>FE: อัปโหลดบัตรประชาชน (หน้า+หลัง) + selfie
+    FE->>BE: POST /api/kyc/submit (multipart form)
+    BE->>BE: บันทึกไฟล์ (multer)
+    BE->>DB: INSERT user_kyc_info (status=pending)
     BE-->>FE: 200 OK
-    Note over Admin,DB: Admin ตรวจสอบ
-    Admin->>BE: POST /api/admin/users/:id/status (approve)
-    BE->>DB: UPDATE kyc=approved
-    BE->>DB: UPDATE trust_level=L2
-    BE->>BE: notify user (KYC approved)
+    FE-->>User: แสดง "รอ Admin ตรวจสอบ"
+    Note over Admin: Admin ดูรายการ KYC pending
+    Admin->>BE: GET /api/admin/users?kyc=pending
+    BE-->>Admin: รายการผู้ใช้ที่รอ KYC
+    Admin->>Admin: ตรวจสอบเอกสาร
+    alt อนุมัติ
+        Admin->>BE: POST /api/admin/users/:id/status { status: "active" }
+        BE->>DB: UPDATE kyc_status = approved
+        BE->>DB: UPDATE trust_level = L2
+        BE->>BE: notify user "KYC อนุมัติแล้ว"
+    else ปฏิเสธ
+        Admin->>BE: POST /api/admin/users/:id/status { kyc: "rejected", reason }
+        BE->>DB: UPDATE kyc_status = rejected
+        BE->>BE: notify user "KYC ถูกปฏิเสธ" + เหตุผล
+    end
+```
+
+### 3.6.15 การเปิดและตัดสินข้อพิพาท (Dispute Flow)
+
+```mermaid
+sequenceDiagram
+    actor Opener as ผู้เปิด (Hirer/CG)
+    participant FE as Frontend
+    participant BE as Backend
+    participant DB as Database
+    actor Admin
+    actor Other as อีกฝ่าย
+    Opener->>FE: กด "เปิดข้อพิพาท"
+    Opener->>FE: กรอกเหตุผล
+    FE->>BE: POST /api/disputes { job_id, reason }
+    BE->>DB: INSERT disputes (status=open)
+    BE->>BE: notify Admin + อีกฝ่าย
+    BE-->>FE: { dispute_id }
+    FE-->>Opener: redirect /dispute/:disputeId
+    Note over Opener,Other: ทั้ง 2 ฝ่ายส่งหลักฐาน
+    Opener->>BE: POST /api/disputes/:id/messages { content }
+    BE->>DB: INSERT dispute_messages
+    Other->>BE: POST /api/disputes/:id/messages { content }
+    BE->>DB: INSERT dispute_messages
+    Note over Admin: Admin รับมอบหมาย
+    Admin->>BE: POST /api/admin/disputes/:id { assign_to_me: true }
+    BE->>DB: UPDATE assigned_admin_id, status=in_review
+    Note over Admin: Admin อ่านหลักฐาน แล้วตัดสิน
+    Admin->>BE: POST /api/admin/disputes/:id/settle
+    BE->>DB: escrow → hirer (refund) และ/หรือ escrow → CG (payout)
+    BE->>DB: INSERT ledger_transactions
+    BE->>DB: UPDATE disputes status=resolved
+    BE->>BE: notify ทั้ง 2 ฝ่าย "ข้อพิพาทได้รับการตัดสินแล้ว"
 ```
 
 ---
