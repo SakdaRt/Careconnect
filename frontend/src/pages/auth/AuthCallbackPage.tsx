@@ -38,7 +38,6 @@ export default function AuthCallbackPage() {
       .catch(() => {
         navigateRef.current('/login?error=oauth_failed', { replace: true });
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
