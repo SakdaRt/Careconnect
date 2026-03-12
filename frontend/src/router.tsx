@@ -3,7 +3,6 @@ import { lazy, Suspense } from 'react';
 import { AdminLayout } from './layouts';
 import { LoadingState } from './components/ui';
 import { RouteErrorFallback } from './components/ErrorBoundary';
-const ComponentShowcase = lazy(() => import('./pages/ComponentShowcase'));
 const JobDetailPage = lazy(() => import('./pages/shared/JobDetailPage'));
 const ChatRoomPage = lazy(() => import('./pages/shared/ChatRoomPage'));
 const DisputeChatPage = lazy(() => import('./pages/shared/DisputeChatPage'));
@@ -125,16 +124,6 @@ export const router = createBrowserRouter([
     element: (
       <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
         <ContactPage />
-      </Suspense>
-    ),
-  },
-
-  // Component Showcase (for development)
-  {
-    path: '/showcase',
-    element: (
-      <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
-        <ComponentShowcase />
       </Suspense>
     ),
   },

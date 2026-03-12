@@ -103,7 +103,7 @@ async function sendEmailOtp(userId, email) {
         throw new Error('Failed to send email OTP');
       }
 
-      console.log(`[OTP Service] Email OTP sent via mock to ${email}: ${otpCode}`);
+      console.log(`[OTP Service] Email OTP sent via mock to ${email}`);
     }
 
     return {
@@ -111,8 +111,6 @@ async function sendEmailOtp(userId, email) {
       otp_id: otpId,
       email,
       expires_in: OTP_EXPIRY_MINUTES * 60,
-      // In development, include the code for testing
-      ...(process.env.NODE_ENV === 'development' && { debug_code: otpCode }),
     };
   } catch (error) {
     console.error('[OTP Service] Failed to send email OTP:', error);
@@ -182,7 +180,7 @@ async function sendPhoneOtp(userId, phoneNumber) {
         throw new Error('Failed to send SMS OTP');
       }
 
-      console.log(`[OTP Service] SMS OTP sent via mock to ${phoneNumber}: ${otpCode}`);
+      console.log(`[OTP Service] SMS OTP sent via mock to ${phoneNumber}`);
     }
 
     return {
@@ -190,7 +188,6 @@ async function sendPhoneOtp(userId, phoneNumber) {
       otp_id: otpId,
       phone_number: phoneNumber,
       expires_in: OTP_EXPIRY_MINUTES * 60,
-      ...(process.env.NODE_ENV === 'development' && { debug_code: otpCode }),
     };
   } catch (error) {
     console.error('[OTP Service] Failed to send SMS OTP:', error);
@@ -221,9 +218,7 @@ async function verifyOtp(otpId, code) {
     return { success: false, error: 'OTP expired' };
   }
 
-  // For development/testing, accept '123456' as a magic code
-  const isValid = otpData.code === code ||
-    (process.env.NODE_ENV === 'development' && code === '123456');
+  const isValid = otpData.code === code;
 
   if (!isValid) {
     return { success: false, error: 'Invalid OTP code' };
