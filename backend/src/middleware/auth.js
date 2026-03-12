@@ -283,6 +283,13 @@ export const can = (user, action) => {
     return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
   }
 
+  if (action === 'notification:read') {
+    return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
+  }
+  if (action === 'notification:update') {
+    return meets('L0') ? { allowed: true } : { allowed: false, reason: 'Trust level L0 required' };
+  }
+
   return { allowed: false, reason: 'Unknown action' };
 };
 

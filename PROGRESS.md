@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-11
+> อัพเดทล่าสุด: 2026-03-12
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -126,23 +126,23 @@ careconnect/
 
 - [x] แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
-- [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยังเป็น manual step)
+- [x] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยืนยันแบบ manual โดยผู้ใช้; automation ยังเสี่ยงโดน Google anti-bot block)
 - [x] E2E smoke tests ฝั่ง backend (Jest + Supertest) ครอบคลุม 4 happy paths
-- [ ] E2E tests ฝั่ง browser (Playwright หรือ Cypress)
+- [x] E2E tests ฝั่ง browser (Playwright baseline + smoke specs)
 
 ### Medium Priority
 
-- [ ] Email notification (ส่ง email จริงเมื่อมี notification)
-- [ ] Push notification (PWA)
-- [ ] Caregiver availability calendar
+- [x] Email notification (ส่ง email จริงเมื่อมี notification)
+- [x] Push notification (PWA)
+- [x] Caregiver availability calendar
 
 ### Low Priority
 
-- [ ] Dark mode
-- [ ] Tabular numerals สำหรับตัวเลขเงิน
-- [ ] Badge color sole indicator → เพิ่ม icon/pattern
-- [ ] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
-- [ ] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
+- [x] ยกเลิก Dark mode (บังคับ Light mode เท่านั้น)
+- [x] Tabular numerals สำหรับตัวเลขเงิน
+- [x] Badge color sole indicator → เพิ่ม icon/pattern
+- [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
+- [x] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
 
 ---
 
@@ -173,6 +173,138 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-12 — Security cleanup: remove local Google OAuth test credentials
+
+- chore(env): ลบ credential ทดสอบ Google OAuth ออกจาก `/home/careconnect/Careconnect/.env`
+  - ลบ `PLAYWRIGHT_RUN_GOOGLE_OAUTH`
+  - ลบ `PLAYWRIGHT_GOOGLE_EMAIL`
+  - ลบ `PLAYWRIGHT_GOOGLE_PASSWORD`
+- verify:
+  - ผ่าน: ตรวจซ้ำด้วย `grep` แล้วไม่พบ key ทั้ง 3 ตัวในไฟล์ `.env*`
+
+### 2026-03-12 — Remove dark theme + remove Google OAuth Playwright tests
+
+- refactor(frontend): ลบระบบสลับธีมออกทั้งหมด
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/App.tsx` เอา `ThemeProvider` ออก และบังคับ `colorScheme='light'`
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/pages/shared/SettingsPage.tsx` ลบ UI สลับธีม
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/index.css` ลบ `:root.dark` overrides ทั้งหมด
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/contexts/ThemeContext.tsx` ให้เหลือเฉพาะ helper `cn()`
+  - ปรับ `/home/careconnect/Careconnect/frontend/src/contexts/index.ts` เอา export theme hooks/provider ออก
+- test(frontend): ลบ Google OAuth Playwright tests ตามคำสั่งผู้ใช้
+  - ลบไฟล์ `/home/careconnect/Careconnect/frontend/e2e/google-oauth.real.spec.ts`
+  - ลบไฟล์ `/home/careconnect/Careconnect/frontend/e2e/google-oauth.smoke.spec.ts`
+  - ปรับ `/home/careconnect/Careconnect/frontend/package.json` ลบ scripts `test:e2e:oauth` และ `test:e2e:docker:oauth`
+  - ปรับ `/home/careconnect/Careconnect/docker-compose.test.yml` ลบ env `PLAYWRIGHT_*GOOGLE*` ที่ใช้เฉพาะ OAuth test
+- verify:
+  - ผ่าน: `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false docker compose -f docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm ci --no-audit --no-fund --silent && npm run build"`
+  - ผ่าน: `docker compose -f /home/careconnect/Careconnect/docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm ci --no-audit --no-fund --silent && npx playwright test --reporter=line"` → `2 passed`
+
+### 2026-03-12 — Final release checklist + stabilize E2E docker commands
+
+- chore(frontend): ปรับ `/home/careconnect/Careconnect/frontend/package.json`
+  - `test:e2e:docker` บังคับ `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false` เพื่อให้ smoke run เสถียร
+  - เพิ่ม `test:e2e:docker:oauth` สำหรับรัน `google-oauth.real.spec.ts` แยกต่างหาก
+- chore(test-infra): ปรับ `/home/careconnect/Careconnect/docker-compose.test.yml`
+  - service `frontend-e2e` เปลี่ยนจาก `npm install` เป็น `npm ci --no-audit --no-fund --silent`
+- verify:
+  - ผ่าน: `docker compose -f docker-compose.test.yml run --rm backend-test sh -lc "npm ci --no-audit --no-fund --silent && npm run test:e2e-smoke"` → `4 passed`
+  - ผ่าน: `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false docker compose -f docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm ci --no-audit --no-fund --silent && npm run build"`
+  - ผ่าน: `npm run test:e2e:docker` (ที่ `/home/careconnect/Careconnect/frontend`) → `3 passed, 1 skipped`
+- status:
+  - real Google OAuth login flow ปิดงานด้วย manual verification โดยผู้ใช้
+
+### 2026-03-11 — Stabilize Playwright Docker runtime + settings smoke resilience
+
+- test(infra): เพิ่ม service `frontend-e2e` ใน `/home/careconnect/Careconnect/docker-compose.test.yml`
+  - ใช้ image `mcr.microsoft.com/playwright:v1.58.2-jammy` แทน alpine runtime
+  - รองรับ env สำหรับ real OAuth (`PLAYWRIGHT_RUN_GOOGLE_OAUTH`, `PLAYWRIGHT_GOOGLE_EMAIL`, `PLAYWRIGHT_GOOGLE_PASSWORD`)
+  - เพิ่ม `host.docker.internal` mapping + default `VITE_API_TARGET`
+- chore(frontend): เพิ่ม script `/home/careconnect/Careconnect/frontend/package.json`
+  - `test:e2e:docker` → `docker compose -f ../docker-compose.test.yml --profile e2e run --rm frontend-e2e`
+- fix(test): ปรับ `/home/careconnect/Careconnect/frontend/e2e/settings-availability.smoke.spec.ts`
+  - เปลี่ยน email toggle action จาก `.check()` เป็น `.click()` เพื่อลด flaky กับ controlled checkbox
+  - เพิ่ม mock `POST /api/auth/role`
+  - รองรับกรณีถูก redirect ไป `/select-role` ก่อนเข้าหน้า `/caregiver/availability`
+- docs(system): อัปเดต `/home/careconnect/Careconnect/SYSTEM.md` section Env ให้มี Playwright E2E env set สำหรับ profile `e2e`
+- verify:
+  - ผ่าน: `docker compose -f docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm install --no-audit --no-fund --silent && npx playwright test --reporter=line"`
+  - ผลลัพธ์: `3 passed, 1 skipped` (real Google OAuth spec ถูก skip ตาม env guard)
+
+### 2026-03-11 — Add real-browser Google OAuth E2E spec scaffold
+
+- test(frontend): เพิ่ม `/frontend/e2e/google-oauth.real.spec.ts`
+  - รันจริงเมื่อกำหนด env:
+    - `PLAYWRIGHT_RUN_GOOGLE_OAUTH=true`
+    - `PLAYWRIGHT_GOOGLE_EMAIL`
+    - `PLAYWRIGHT_GOOGLE_PASSWORD`
+- chore(frontend): เพิ่ม script `/frontend/package.json`
+  - `test:e2e:oauth` สำหรับรันเฉพาะ Google OAuth real-flow spec
+- status:
+  - ยังต้องรันบน environment ที่มี Playwright/browser dependencies และ credential จริง
+
+### 2026-03-11 — Add dark mode baseline (toggle + persistence)
+
+- feat(frontend): เพิ่ม dark mode context state ใน `/frontend/src/contexts/ThemeContext.tsx`
+  - เก็บค่าใน localStorage (`careconnect_theme_mode`)
+  - apply class `dark` ที่ `document.documentElement`
+  - รองรับ `prefers-color-scheme` ตอนเปิดครั้งแรก
+- feat(frontend): เพิ่มปุ่มสลับธีมที่หน้า `/frontend/src/pages/shared/SettingsPage.tsx`
+- style(frontend): เพิ่ม dark overrides ใน `/frontend/src/index.css` สำหรับพื้นหลัง/ข้อความ/เส้นขอบที่ใช้บ่อย
+- verify:
+  - ยังไม่สามารถรัน frontend lint/build ได้ครบใน environment ปัจจุบัน (Node/tooling ต่ำกว่า requirements)
+
+### 2026-03-11 — Add non-color indicators to badges
+
+- style(frontend): ปรับ `/frontend/src/components/ui/Badge.tsx` ให้มี marker ตาม variant (`OK`, `!`, `X`, `i`, `-`) เพื่อลดการพึ่งพา "สีอย่างเดียว" ในการสื่อความหมาย
+- accessibility:
+  - marker ถูกกำหนดเป็น decorative (`aria-hidden="true"`) และยังคงแสดงข้อความ label เดิมครบ
+- verify:
+  - ไม่สามารถรัน frontend lint/build ใน environment ปัจจุบันได้ครบ เนื่องจาก Node `v12` ต่ำกว่า dependency requirements
+
+### 2026-03-11 — Apply tabular numerals to money-heavy pages
+
+- style(frontend): เพิ่ม `tabular-nums` ให้ตัวเลขการเงินในหน้าหลัก
+  - `/frontend/src/pages/hirer/HirerWalletPage.tsx`
+  - `/frontend/src/pages/caregiver/CaregiverWalletPage.tsx`
+  - `/frontend/src/pages/hirer/HirerPaymentHistoryPage.tsx`
+  - `/frontend/src/pages/hirer/JobReceiptPage.tsx`
+  - `/frontend/src/pages/hirer/HirerHomePage.tsx`
+  - `/frontend/src/pages/hirer/CreateJobPage.tsx`
+  - `/frontend/src/pages/shared/JobDetailPage.tsx`
+  - `/frontend/src/pages/admin/AdminFinancialPage.tsx`
+  - `/frontend/src/pages/admin/AdminReportsPage.tsx`
+- verify:
+  - `npx eslint ...` ไม่ผ่านใน environment ปัจจุบัน (Node `v12` ต่ำกว่า engine requirement ของ eslint รุ่นที่ถูกดึงผ่าน npx)
+  - `./node_modules/.bin/eslint ...` ไม่ผ่าน (ไม่มี local eslint binary เพราะ frontend deps ยังติดตั้งไม่ครบ)
+
+### 2026-03-11 — Extract backend mock seeds from server bootstrap
+
+- refactor(backend): ย้าย mock data ขนาดใหญ่จาก `/backend/src/server.js` ไป `/backend/src/seeds/mockData.js`
+  - export: `DEV_MOCK_CAREGIVERS`, `DEV_MOCK_HIRERS`, `DEV_MOCK_ESCORT_JOB_TEMPLATES`
+  - update import usage ใน `server.js` โดยไม่เปลี่ยนพฤติกรรม seed
+- verify:
+  - `npx eslint src/server.js src/seeds/mockData.js` ผ่าน
+  - `npm run lint` ทั้ง backend ยัง fail จากปัญหาเดิมของโปรเจค (`import/no-unresolved` ใน `src/utils/migrate.js`)
+
+### 2026-03-11 — Add Playwright baseline + remove duplicate table bootstrap
+
+- test(frontend): เพิ่ม baseline browser E2E (Playwright)
+  - เพิ่ม `/frontend/playwright.config.ts`
+  - เพิ่ม smoke specs:
+    - `/frontend/e2e/settings-availability.smoke.spec.ts`
+    - `/frontend/e2e/google-oauth.smoke.spec.ts`
+  - เพิ่ม scripts ใน `/frontend/package.json`: `test:e2e`, `test:e2e:headed`, `test:e2e:ui`
+  - เพิ่ม `@playwright/test` ใน devDependencies และอัพเดท `/frontend/package-lock.json`
+- chore(frontend): เพิ่ม `data-testid` สำหรับ settings notification toggles และ availability controls เพื่อให้ E2E selectors เสถียร
+- chore(backend): ลบ fallback bootstrap `ensureReviewsAndFavoritesTables()` ใน `/backend/src/server.js` เพราะ schema/migration ครอบคลุมแล้ว
+- verify:
+  - `npm install --package-lock-only --ignore-scripts` ผ่าน
+  - `npm run test:e2e -- --list` ไม่ผ่านใน environment ปัจจุบัน (`playwright: not found`)
+  - `npm run build` ไม่ผ่านใน environment ปัจจุบัน (`tsc: not found`)
+- next:
+  - ติดตั้ง frontend dependencies แบบเต็ม (`npm install`) ใน environment ที่เขียน `node_modules` ได้
+  - รัน `npm run test:e2e` และ `npm run build` ซ้ำเพื่อยืนยันผล
 
 ### 2026-03-11 — Add backend E2E smoke suite + docs sync
 

@@ -1,6 +1,6 @@
 import { HTMLAttributes, ReactNode } from 'react';
 import { MapPin, Calendar, Clock, DollarSign, User, ChevronRight } from 'lucide-react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 import { Job, CareRecipient } from '../../mocks';
 import { StatusBadge } from './Badge';
 import { Avatar } from './Avatar';

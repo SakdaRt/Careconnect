@@ -4,6 +4,10 @@ import {
   markAllAsRead as markAllAsReadService,
   clearNotifications as clearNotificationsService,
   getUnreadCount as getUnreadCountService,
+  getNotificationPreferences as getNotificationPreferencesService,
+  updateNotificationPreferences as updateNotificationPreferencesService,
+  savePushSubscription as savePushSubscriptionService,
+  removePushSubscription as removePushSubscriptionService,
 } from '../services/notificationService.js';
 
 /**
@@ -101,4 +105,64 @@ export const clearNotifications = async (req, res) => {
   }
 };
 
-export default { getNotifications, getUnreadCount, markAsRead, markAllAsRead, clearNotifications };
+export const getNotificationPreferences = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const preferences = await getNotificationPreferencesService(userId);
+    res.status(200).json({ success: true, data: preferences });
+  } catch (error) {
+    console.error('getNotificationPreferences error:', error);
+    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
+};
+
+export const updateNotificationPreferences = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { email_enabled, push_enabled } = req.body;
+    const updated = await updateNotificationPreferencesService(userId, {
+      email_enabled,
+      push_enabled,
+    });
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    console.error('updateNotificationPreferences error:', error);
+    res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+  }
+};
+
+export const savePushSubscription = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const userAgent = req.get('user-agent') || null;
+    const subscription = await savePushSubscriptionService(userId, req.body, userAgent);
+    res.status(201).json({ success: true, data: subscription });
+  } catch (error) {
+    console.error('savePushSubscription error:', error);
+    res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+  }
+};
+
+export const removePushSubscription = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { endpoint } = req.body;
+    const removed = await removePushSubscriptionService(userId, endpoint);
+    res.status(200).json({ success: true, data: { removed: Boolean(removed) } });
+  } catch (error) {
+    console.error('removePushSubscription error:', error);
+    res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+  }
+};
+
+export default {
+  getNotifications,
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  clearNotifications,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  savePushSubscription,
+  removePushSubscription,
+};

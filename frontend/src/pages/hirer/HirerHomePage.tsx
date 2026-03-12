@@ -178,7 +178,8 @@ function JobPostCard({
             <div>ผู้รับการดูแล: {recipientName}</div>
             <div>ประเภทงาน: {job.job_type}</div>
             <div>
-              ราคา: {job.total_amount.toLocaleString()} บาท ({job.hourly_rate.toLocaleString()} บาท/ชม. ×{' '}
+              ราคา: <span className="tabular-nums">{job.total_amount.toLocaleString()}</span> บาท (
+              <span className="tabular-nums">{job.hourly_rate.toLocaleString()}</span> บาท/ชม. ×{' '}
               {job.total_hours} ชม.)
             </div>
           </div>

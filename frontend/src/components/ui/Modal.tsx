@@ -1,7 +1,7 @@
 import { ReactNode, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export interface ModalProps {
   isOpen: boolean;

@@ -1,9 +1,103 @@
 import { Notification } from '../models/Notification.js';
 import { emitToUserRoom } from '../sockets/realtimeHub.js';
+import { query } from '../utils/db.js';
 
 /**
  * Create an in-app notification
  */
+const getMockProviderBaseUrl = () => process.env.MOCK_PROVIDER_BASE_URL || process.env.MOCK_PROVIDER_URL || 'http://mock-provider:4000';
+
+const getEmailProvider = () => String(process.env.EMAIL_PROVIDER || 'mock').toLowerCase();
+
+const ensureNotificationPreferences = async (userId) => {
+  await query(
+    `INSERT INTO notification_preferences (user_id, email_enabled, push_enabled, created_at, updated_at)
+     VALUES ($1, false, false, NOW(), NOW())
+     ON CONFLICT (user_id) DO NOTHING`,
+    [userId]
+  );
+};
+
+const safeGetPreferences = async (userId) => {
+  try {
+    await ensureNotificationPreferences(userId);
+    const result = await query(
+      `SELECT email_enabled, push_enabled
+       FROM notification_preferences
+       WHERE user_id = $1`,
+      [userId]
+    );
+    const row = result.rows[0] || {};
+    return {
+      email_enabled: Boolean(row.email_enabled),
+      push_enabled: Boolean(row.push_enabled),
+    };
+  } catch (error) {
+    if (error && typeof error === 'object' && String(error.code || '') === '42P01') {
+      return {
+        email_enabled: false,
+        push_enabled: false,
+      };
+    }
+    throw error;
+  }
+};
+
+const sendEmailNotification = async ({ userId, title, body }) => {
+  const userResult = await query(
+    `SELECT email, is_email_verified
+     FROM users
+     WHERE id = $1`,
+    [userId]
+  );
+
+  const user = userResult.rows[0];
+  if (!user?.email || user.is_email_verified !== true) {
+    return { sent: false };
+  }
+
+  const provider = getEmailProvider();
+
+  if (provider === 'smtp') {
+    const nodemailer = await import('nodemailer');
+    const transporter = nodemailer.default.createTransport({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'noreply@careconnect.local',
+      to: user.email,
+      subject: title,
+      text: body,
+      html: `<div style="font-family:Sarabun,'Noto Sans Thai',sans-serif;line-height:1.6"><h2 style="margin-bottom:12px">${title}</h2><p>${body}</p></div>`,
+    });
+
+    return { sent: true, provider: 'smtp' };
+  }
+
+  try {
+    await fetch(`${getMockProviderBaseUrl()}/email/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: user.email,
+        otp_code: String(Date.now()).slice(-6),
+      }),
+    });
+  } catch {
+    console.log(`[Notification] Mock email provider unavailable; fallback console send to ${user.email}`);
+  }
+
+  console.log(`[Notification] Email notification (mock) to ${user.email}: ${title}`);
+  return { sent: true, provider: 'mock' };
+};
+
 export const createNotification = async ({ userId, templateKey, title, body, data, referenceType, referenceId }) => {
   let notification = null;
   try {
@@ -37,6 +131,55 @@ export const createNotification = async ({ userId, templateKey, title, body, dat
       created_at: new Date().toISOString(),
     },
   });
+
+  try {
+    const preferences = await safeGetPreferences(userId);
+
+    if (preferences.email_enabled) {
+      await sendEmailNotification({ userId, title, body });
+      await Notification.create({
+        userId,
+        channel: 'email',
+        templateKey,
+        title,
+        body,
+        data,
+        referenceType,
+        referenceId,
+      });
+    }
+
+    if (preferences.push_enabled) {
+      await Notification.create({
+        userId,
+        channel: 'push',
+        templateKey,
+        title,
+        body,
+        data,
+        referenceType,
+        referenceId,
+      });
+
+      emitToUserRoom(userId, 'notification:push', {
+        notification: {
+          id: null,
+          user_id: userId,
+          channel: 'push',
+          template_key: templateKey,
+          title,
+          body,
+          data: data ?? null,
+          reference_type: referenceType ?? null,
+          reference_id: referenceId ?? null,
+          status: 'sent',
+          created_at: new Date().toISOString(),
+        },
+      });
+    }
+  } catch (deliveryError) {
+    console.error('[Notification] Multi-channel delivery failed:', deliveryError.message);
+  }
 
   return notification;
 };
@@ -74,6 +217,82 @@ export const clearNotifications = async (userId, options = {}) => {
  */
 export const getUnreadCount = async (userId) => {
   return await Notification.getUnreadCount(userId);
+};
+
+export const getNotificationPreferences = async (userId) => {
+  const preferences = await safeGetPreferences(userId);
+  return {
+    email_enabled: preferences.email_enabled,
+    push_enabled: preferences.push_enabled,
+  };
+};
+
+export const updateNotificationPreferences = async (userId, { email_enabled, push_enabled }) => {
+  await ensureNotificationPreferences(userId);
+
+  const result = await query(
+    `UPDATE notification_preferences
+     SET email_enabled = $2,
+         push_enabled = $3,
+         updated_at = NOW()
+     WHERE user_id = $1
+     RETURNING user_id, email_enabled, push_enabled, updated_at`,
+    [userId, Boolean(email_enabled), Boolean(push_enabled)]
+  );
+
+  return result.rows[0];
+};
+
+export const savePushSubscription = async (userId, subscription, userAgent = null) => {
+  const endpoint = String(subscription?.endpoint || '');
+  const p256dh = String(subscription?.keys?.p256dh || '');
+  const auth = String(subscription?.keys?.auth || '');
+
+  if (!endpoint || !p256dh || !auth) {
+    throw new Error('Invalid push subscription payload');
+  }
+
+  const result = await query(
+    `INSERT INTO push_subscriptions (
+       user_id,
+       endpoint,
+       p256dh_key,
+       auth_key,
+       user_agent,
+       is_active,
+       created_at,
+       updated_at,
+       last_seen_at
+     ) VALUES (
+       $1, $2, $3, $4, $5, true, NOW(), NOW(), NOW()
+     )
+     ON CONFLICT (user_id, endpoint)
+     DO UPDATE SET
+       p256dh_key = EXCLUDED.p256dh_key,
+       auth_key = EXCLUDED.auth_key,
+       user_agent = EXCLUDED.user_agent,
+       is_active = true,
+       updated_at = NOW(),
+       last_seen_at = NOW()
+     RETURNING id, user_id, endpoint, is_active, updated_at, last_seen_at`,
+    [userId, endpoint, p256dh, auth, userAgent]
+  );
+
+  return result.rows[0];
+};
+
+export const removePushSubscription = async (userId, endpoint) => {
+  const result = await query(
+    `UPDATE push_subscriptions
+     SET is_active = false,
+         updated_at = NOW()
+     WHERE user_id = $1
+       AND endpoint = $2
+     RETURNING id, user_id, endpoint, is_active, updated_at`,
+    [userId, endpoint]
+  );
+
+  return result.rows[0] || null;
 };
 
 // ============================================================================

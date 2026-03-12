@@ -375,8 +375,8 @@ export default function JobDetailPage() {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-xl font-bold text-blue-600">{job.total_amount.toLocaleString()} บาท</div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xl font-bold text-blue-600 tabular-nums">{job.total_amount.toLocaleString()} บาท</div>
+                <div className="text-xs text-gray-500 tabular-nums">
                   {job.hourly_rate.toLocaleString()} บาท/ชม. × {job.total_hours} ชม.
                 </div>
               </div>

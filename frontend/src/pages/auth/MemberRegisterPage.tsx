@@ -50,9 +50,9 @@ export default function MemberRegisterPage() {
       if (verifiedRef.current) return;
       try {
         await api.cancelUnverifiedAccount();
-        if (logout) logout();
+        logout();
       } catch {
-        if (logout) logout();
+        logout();
       } finally {
         navigate('/register', { replace: true });
       }
@@ -73,9 +73,9 @@ export default function MemberRegisterPage() {
   const handleCancelRegistration = async () => {
     try {
       await api.cancelUnverifiedAccount();
-      if (logout) logout();
+      logout();
     } catch {
-      if (logout) logout();
+      logout();
     } finally {
       navigate('/register', { replace: true });
     }
@@ -98,17 +98,9 @@ export default function MemberRegisterPage() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSendOTP = async () => {
+  const handleSendOTP = () => {
     if (!validatePhone()) return;
-
-    setLoading(true);
-    try {
-      setStep('password');
-    } catch (error: any) {
-      toast.error('เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
-    } finally {
-      setLoading(false);
-    }
+    setStep('password');
   };
 
   // Step 2: OTP verification
@@ -255,11 +247,7 @@ export default function MemberRegisterPage() {
         <div className="flex items-center justify-center mb-8">
         <div className="flex items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step === 'phone'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-green-600 text-white'
-              }`}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold bg-green-600 text-white"
             >
               1
             </div>

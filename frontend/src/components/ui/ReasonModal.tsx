@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export interface ReasonModalProps {
   isOpen: boolean;

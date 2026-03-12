@@ -1,6 +1,6 @@
 import { InputHTMLAttributes, forwardRef, useId, useState } from 'react';
 import { Eye, EyeOff } from 'lucide-react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;

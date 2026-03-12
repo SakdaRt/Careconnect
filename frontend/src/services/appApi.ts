@@ -269,12 +269,32 @@ export const appApi = {
     return api.getCareRecipient(id);
   },
 
-  async createCareRecipient(payload: any) {
-    return api.createCareRecipient(payload);
+  async clearNotifications(unreadOnly = false) {
+    return api.clearNotifications(unreadOnly);
+  },
+
+  async getNotificationPreferences() {
+    return api.getNotificationPreferences();
+  },
+
+  async updateNotificationPreferences(input: { email_enabled: boolean; push_enabled: boolean }) {
+    return api.updateNotificationPreferences(input);
+  },
+
+  async savePushSubscription(subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) {
+    return api.savePushSubscription(subscription);
+  },
+
+  async removePushSubscription(endpoint: string) {
+    return api.removePushSubscription(endpoint);
   },
 
   async updateCareRecipient(id: string, payload: any) {
     return api.updateCareRecipient(id, payload);
+  },
+
+  async createCareRecipient(payload: any) {
+    return api.createCareRecipient(payload);
   },
 
   async deactivateCareRecipient(id: string) {

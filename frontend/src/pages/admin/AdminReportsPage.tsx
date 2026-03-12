@@ -9,7 +9,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <div className="text-xs text-gray-500 mb-1">{label}</div>
-      <div className={`text-2xl font-bold ${color || 'text-gray-900'}`}>{value}</div>
+      <div className={`text-2xl font-bold tabular-nums ${color || 'text-gray-900'}`}>{value}</div>
       {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
     </div>
   );
@@ -130,10 +130,10 @@ export default function AdminReportsPage() {
                   <Card className="p-4">
                     <div className="text-sm font-semibold text-gray-800 mb-3">รายได้ระบบ</div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                      <div><div className="text-xs text-gray-500">รายได้จากงาน</div><div className="text-lg font-bold text-green-700">{Number(summaryData.revenue.total_job_revenue || 0).toLocaleString()} ฿</div></div>
-                      <div><div className="text-xs text-gray-500">ค่าธรรมเนียมแพลตฟอร์ม</div><div className="text-lg font-bold text-blue-700">{Number(summaryData.revenue.total_platform_fee || 0).toLocaleString()} ฿</div></div>
-                      <div><div className="text-xs text-gray-500">ยอดเติมเงินรวม</div><div className="text-lg font-bold text-purple-700">{Number(summaryData.revenue.total_topup || 0).toLocaleString()} ฿</div></div>
-                      <div><div className="text-xs text-gray-500">จำนวนการชำระงาน</div><div className="text-lg font-bold text-gray-800">{Number(summaryData.revenue.job_payment_count || 0).toLocaleString()} ครั้ง</div></div>
+                      <div><div className="text-xs text-gray-500">รายได้จากงาน</div><div className="text-lg font-bold text-green-700 tabular-nums">{Number(summaryData.revenue.total_job_revenue || 0).toLocaleString()} ฿</div></div>
+                      <div><div className="text-xs text-gray-500">ค่าธรรมเนียมแพลตฟอร์ม</div><div className="text-lg font-bold text-blue-700 tabular-nums">{Number(summaryData.revenue.total_platform_fee || 0).toLocaleString()} ฿</div></div>
+                      <div><div className="text-xs text-gray-500">ยอดเติมเงินรวม</div><div className="text-lg font-bold text-purple-700 tabular-nums">{Number(summaryData.revenue.total_topup || 0).toLocaleString()} ฿</div></div>
+                      <div><div className="text-xs text-gray-500">จำนวนการชำระงาน</div><div className="text-lg font-bold text-gray-800 tabular-nums">{Number(summaryData.revenue.job_payment_count || 0).toLocaleString()} ครั้ง</div></div>
                     </div>
                   </Card>
                 )}
@@ -146,7 +146,7 @@ export default function AdminReportsPage() {
                       {(summaryData.users as any[]).map((r: any) => (
                         <div key={`${r.role}-${r.status}`} className="flex justify-between text-sm">
                           <span className="text-gray-600">{r.role} / {r.status}</span>
-                          <span className="font-semibold">{Number(r.count).toLocaleString()}</span>
+                          <span className="font-semibold tabular-nums">{Number(r.count).toLocaleString()}</span>
                         </div>
                       ))}
                     </div>
@@ -163,7 +163,7 @@ export default function AdminReportsPage() {
                           <div key={r.trust_level}>
                             <div className="flex justify-between text-xs mb-1">
                               <span className="font-medium">{r.trust_level}</span>
-                              <span className="text-gray-500">{Number(r.count).toLocaleString()} ({pct}%)</span>
+                              <span className="text-gray-500 tabular-nums">{Number(r.count).toLocaleString()} ({pct}%)</span>
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${colors[r.trust_level] || 'bg-gray-400'}`} style={{ width: `${pct}%` }} />
@@ -181,7 +181,7 @@ export default function AdminReportsPage() {
                       {(summaryData.jobs as any[]).map((r: any) => (
                         <div key={r.status} className="flex justify-between text-sm">
                           <span className="text-gray-600">{r.status}</span>
-                          <span className="font-semibold">{Number(r.count).toLocaleString()}</span>
+                          <span className="font-semibold tabular-nums">{Number(r.count).toLocaleString()}</span>
                         </div>
                       ))}
                     </div>
@@ -202,7 +202,7 @@ export default function AdminReportsPage() {
                         {(summaryData.new_users_7d as any[]).map((r: any) => (
                           <div key={r.day} className="flex justify-between text-sm">
                             <span className="text-gray-600">{new Date(r.day).toLocaleDateString('th-TH')}</span>
-                            <span className="font-semibold text-blue-700">+{Number(r.count)}</span>
+                            <span className="font-semibold text-blue-700 tabular-nums">+{Number(r.count)}</span>
                           </div>
                         ))}
                       </div>
@@ -217,7 +217,7 @@ export default function AdminReportsPage() {
                         {(summaryData.new_jobs_7d as any[]).map((r: any) => (
                           <div key={r.day} className="flex justify-between text-sm">
                             <span className="text-gray-600">{new Date(r.day).toLocaleDateString('th-TH')}</span>
-                            <span className="font-semibold text-indigo-700">+{Number(r.count)}</span>
+                            <span className="font-semibold text-indigo-700 tabular-nums">+{Number(r.count)}</span>
                           </div>
                         ))}
                       </div>
@@ -232,7 +232,7 @@ export default function AdminReportsPage() {
                     <div className="flex flex-wrap gap-4">
                       {(summaryData.disputes as any[]).map((r: any) => (
                         <div key={r.status} className="text-center">
-                          <div className="text-2xl font-bold text-gray-800">{Number(r.count)}</div>
+                          <div className="text-2xl font-bold text-gray-800 tabular-nums">{Number(r.count)}</div>
                           <div className="text-xs text-gray-500">{r.status}</div>
                         </div>
                       ))}
@@ -262,7 +262,11 @@ export default function AdminReportsPage() {
                 <Button variant="outline" onClick={load}>รีเฟรช</Button>
                 <div className="text-xs text-gray-500 self-center">
                   {Object.keys(ledgerSummary.byType).length === 0 ? 'ไม่มีข้อมูล' : Object.entries(ledgerSummary.byType).map(([k, v]) => `${k}:${v}`).join(' • ')}
-                  {items.length > 0 ? ` • sum:${ledgerSummary.total.toLocaleString()}` : ''}
+                  {items.length > 0 && (
+                    <>
+                      {' '}• sum:<span className="tabular-nums">{ledgerSummary.total.toLocaleString()}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </Card>
@@ -290,7 +294,7 @@ export default function AdminReportsPage() {
                               </div>
                             )}
                           </div>
-                          <div className="text-sm font-bold text-gray-900 whitespace-nowrap">{Number(t.amount || 0).toLocaleString()} บาท</div>
+                          <div className="text-sm font-bold text-gray-900 whitespace-nowrap tabular-nums">{Number(t.amount || 0).toLocaleString()} บาท</div>
                         </div>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                           <div className="text-[11px] text-gray-600 font-mono break-all">from: {t.from_wallet_id || '-'} ({t.from_wallet_type || '-'}) {t.from_user_email ? `• ${t.from_user_email}` : ''}</div>

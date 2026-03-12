@@ -60,7 +60,9 @@ export default function CaregiverJobFeedPage() {
       } else {
         setProfile(null);
       }
-    } catch {}
+    } catch (error) {
+      void error;
+    }
     setProfileLoading(false);
   };
 
@@ -86,7 +88,9 @@ export default function CaregiverJobFeedPage() {
       } else {
         toast.error(res.error || 'เปลี่ยนการแสดงตนไม่สำเร็จ');
       }
-    } catch {}
+    } catch (error) {
+      void error;
+    }
     setTogglingVisibility(false);
   };
 

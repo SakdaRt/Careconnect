@@ -1,5 +1,5 @@
 import { ReactNode } from 'react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export interface EmptyStateProps {
   icon?: ReactNode;

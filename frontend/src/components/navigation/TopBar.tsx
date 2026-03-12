@@ -4,7 +4,7 @@ import { useAuth } from '../../contexts';
 import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
-import { api, AppNotification } from '../../services/api';
+import { api, AppNotification, NotificationPreferences } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { getScopedStorageItem, setScopedStorageItem } from '../../utils/authStorage';
 
@@ -51,12 +51,31 @@ function trustLevelStyle(level: string) {
   }
 }
 
+function getNotificationLink(n: AppNotification): string | null {
+  if (!n.reference_id) return null;
+  if (n.reference_type === 'dispute') return `/dispute/${n.reference_id}`;
+  if (n.reference_type === 'job') {
+    const title = (n.title || '').toLowerCase();
+    const body = (n.body || '').toLowerCase();
+    if (title.includes('ข้อพิพาท') || body.includes('dispute')) return `/dispute/${n.reference_id}`;
+    if (title.includes('ยกเลิก') || title.includes('เผยแพร่') || title.includes('สร้าง') || body.includes('draft')) {
+      return `/jobs/${n.reference_id}`;
+    }
+    return `/chat/${n.reference_id}`;
+  }
+  return '/notifications';
+}
+
 export function TopBar() {
   const { user, logout, activeRole, setActiveRole, updateUser } = useAuth();
   const navigate = useNavigate();
   const [showMenu, setShowMenu] = useState(false);
   const [switchingRole, setSwitchingRole] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notificationPrefs, setNotificationPrefs] = useState<NotificationPreferences>({
+    email_enabled: false,
+    push_enabled: false,
+  });
   const seenRealtimeNotificationIds = useRef<Set<string>>(new Set());
 
   const fetchUnread = useCallback(async () => {
@@ -97,6 +116,47 @@ export function TopBar() {
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [fetchUnread]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    let mounted = true;
+
+    const loadPreferences = async () => {
+      try {
+        const res = await appApi.getNotificationPreferences();
+        if (!mounted || !res.success || !res.data) return;
+        setNotificationPrefs({
+          email_enabled: Boolean(res.data.email_enabled),
+          push_enabled: Boolean(res.data.push_enabled),
+        });
+      } catch {
+        if (mounted) {
+          setNotificationPrefs({
+            email_enabled: false,
+            push_enabled: false,
+          });
+        }
+      }
+    };
+
+    const handlePreferencesUpdated = (event: Event) => {
+      const customEvent = event as CustomEvent<NotificationPreferences>;
+      const detail = customEvent.detail;
+      if (!detail) return;
+      setNotificationPrefs({
+        email_enabled: Boolean(detail.email_enabled),
+        push_enabled: Boolean(detail.push_enabled),
+      });
+    };
+
+    loadPreferences();
+    window.addEventListener('notification-preferences-updated', handlePreferencesUpdated as EventListener);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('notification-preferences-updated', handlePreferencesUpdated as EventListener);
+    };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -142,6 +202,36 @@ export function TopBar() {
         ? `${notification.title}: ${notification.body}`
         : notification.title;
       toast(message, { icon: '🔔' });
+
+      if (
+        notificationPrefs.push_enabled &&
+        document.visibilityState !== 'visible' &&
+        'Notification' in window &&
+        Notification.permission === 'granted'
+      ) {
+        const url = getNotificationLink(notification) || '/notifications';
+        const body = notification.body || 'มีการแจ้งเตือนใหม่';
+        const options: NotificationOptions = {
+          body,
+          icon: '/vite.svg',
+          badge: '/vite.svg',
+          data: { url },
+        };
+
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistration().then((registration) => {
+            if (registration) {
+              registration.showNotification(notification.title || 'Careconnect', options).catch(() => {});
+              return;
+            }
+            new Notification(notification.title || 'Careconnect', options);
+          }).catch(() => {
+            new Notification(notification.title || 'Careconnect', options);
+          });
+        } else {
+          new Notification(notification.title || 'Careconnect', options);
+        }
+      }
     };
 
     // Re-fetch unread count on every reconnect to catch missed events
@@ -157,7 +247,7 @@ export function TopBar() {
       socket.io.off('reconnect', onReconnect);
       socket.disconnect();
     };
-  }, [user?.id]);
+  }, [user?.id, fetchUnread, notificationPrefs.push_enabled]);
 
   if (!user) return null;
 

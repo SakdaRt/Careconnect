@@ -7,10 +7,6 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate();
   const { loginWithTokens } = useAuth();
   const handledRef = useRef(false);
-  const loginWithTokensRef = useRef(loginWithTokens);
-  const navigateRef = useRef(navigate);
-  loginWithTokensRef.current = loginWithTokens;
-  navigateRef.current = navigate;
 
   useEffect(() => {
     if (handledRef.current) return;
@@ -23,23 +19,22 @@ export default function AuthCallbackPage() {
     window.history.replaceState({}, document.title, window.location.pathname);
 
     if (!token) {
-      navigateRef.current('/login?error=oauth_failed', { replace: true });
+      navigate('/login?error=oauth_failed', { replace: true });
       return;
     }
 
-    loginWithTokensRef.current(token, refreshToken)
+    loginWithTokens(token, refreshToken)
       .then((user) => {
         const destination = user.role === 'admin' ? '/admin/dashboard' : '/select-role';
-        navigateRef.current(destination, {
+        navigate(destination, {
           replace: true,
           state: user.role === 'admin' ? undefined : { mode: 'login' },
         });
       })
       .catch(() => {
-        navigateRef.current('/login?error=oauth_failed', { replace: true });
+        navigate('/login?error=oauth_failed', { replace: true });
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [loginWithTokens, navigate]);
 
   return (
     <AuthLayout>

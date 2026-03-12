@@ -22,8 +22,7 @@ pool.on('connect', () => {
 });
 
 pool.on('error', (err) => {
-  console.error('[Database] Unexpected error on idle client', err);
-  process.exit(-1);
+  console.error('[Database] Unexpected error on idle client:', err.message);
 });
 
 // Helper function to execute queries
@@ -87,6 +86,19 @@ export const testConnection = async () => {
     console.error('[Database] Connection failed:', error.message);
     return false;
   }
+};
+
+// Test connection with retry (for startup)
+export const testConnectionWithRetry = async (maxRetries = 10, delayMs = 2000) => {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    const ok = await testConnection();
+    if (ok) return true;
+    if (attempt < maxRetries) {
+      console.log(`[Database] Retry ${attempt}/${maxRetries} in ${delayMs / 1000}s...`);
+      await new Promise((r) => setTimeout(r, delayMs));
+    }
+  }
+  return false;
 };
 
 // Graceful shutdown

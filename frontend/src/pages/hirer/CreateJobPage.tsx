@@ -7,7 +7,7 @@ import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 import { computeRiskLevel } from '../../utils/risk';
 
 type JobType =
@@ -1674,7 +1674,7 @@ export default function CreateJobPage() {
                 </div>
 
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-900">ราคารวมประมาณการ: <strong>{totalAmount.toLocaleString()} บาท</strong></p>
+                  <p className="text-sm text-blue-900">ราคารวมประมาณการ: <strong className="tabular-nums">{totalAmount.toLocaleString()} บาท</strong></p>
                 </div>
               </>
             )}
@@ -1701,7 +1701,7 @@ export default function CreateJobPage() {
                 {form.required_skills_flags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{labelByValue(SKILL_OPTIONS, form.required_skills_flags).map((l) => <Badge key={l} variant="default">{l}</Badge>)}</div>}
                 {form.equipment_available_flags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{labelByValue(EQUIPMENT_OPTIONS, form.equipment_available_flags).map((l) => <Badge key={l} variant="success">{l}</Badge>)}</div>}
                 {form.precautions_flags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{labelByValue(PRECAUTION_OPTIONS, form.precautions_flags).map((l) => <Badge key={l} variant="warning">{l}</Badge>)}</div>}
-                <div className="text-sm text-gray-800 mt-2">ราคารวมประมาณการ: <strong>{totalAmount.toLocaleString()} บาท</strong></div>
+                <div className="text-sm text-gray-800 mt-2">ราคารวมประมาณการ: <strong className="tabular-nums">{totalAmount.toLocaleString()} บาท</strong></div>
                 <div className="flex flex-wrap gap-2 mt-4">
                   <Button variant="outline" size="sm" onClick={() => setCurrentStep(1)}>แก้ข้อมูลหลัก</Button>
                   <Button variant="outline" size="sm" onClick={() => setCurrentStep(2)}>แก้งานที่ต้องทำ</Button>

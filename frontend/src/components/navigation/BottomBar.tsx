@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Briefcase, Search, Users, Wallet, User } from 'lucide-react';
 import { useAuth } from '../../contexts';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export function BottomBar() {
   const { user, activeRole } = useAuth();

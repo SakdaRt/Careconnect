@@ -51,9 +51,9 @@ export default function GuestRegisterPage() {
       if (verifiedRef.current) return;
       try {
         await api.cancelUnverifiedAccount();
-        if (logout) logout();
+        logout();
       } catch {
-        if (logout) logout();
+        logout();
       } finally {
         navigate('/register', { replace: true });
       }
@@ -74,9 +74,9 @@ export default function GuestRegisterPage() {
   const handleCancelRegistration = async () => {
     try {
       await api.cancelUnverifiedAccount();
-      if (logout) logout();
+      logout();
     } catch {
-      if (logout) logout();
+      logout();
     } finally {
       navigate('/register', { replace: true });
     }
@@ -161,7 +161,6 @@ export default function GuestRegisterPage() {
 
       if (!response.success) {
         toast.error(response.error || 'Invalid OTP');
-        setLoading(false);
         return;
       }
 
@@ -186,13 +185,11 @@ export default function GuestRegisterPage() {
         const response = await api.sendEmailOtp();
         if (!response.success || !response.data) {
           toast.error(response.error || 'ส่งรหัสยืนยันไม่สำเร็จ');
-          setLoading(false);
           return;
         }
         setOtpId(response.data.otp_id);
         toast.success('OTP sent to your email');
         startCooldown();
-        setLoading(false);
         return;
       }
 
@@ -200,7 +197,6 @@ export default function GuestRegisterPage() {
 
       if (!response.success || !response.data) {
         toast.error(response.error || 'Failed to resend OTP');
-        setLoading(false);
         return;
       }
 
@@ -252,11 +248,7 @@ export default function GuestRegisterPage() {
         <div className="flex items-center justify-center mb-8">
           <div className="flex items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step === 'credentials'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
-              }`}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold bg-blue-600 text-white"
             >
               1
             </div>

@@ -152,15 +152,15 @@ export default function JobReceiptPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-gray-700">ค่าจ้างงาน</div>
-                  <div className="font-semibold text-gray-900">{totalAmount.toLocaleString()} บาท</div>
+                  <div className="font-semibold text-gray-900 tabular-nums">{totalAmount.toLocaleString()} บาท</div>
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <div className="text-gray-700">ค่าบริการแพลตฟอร์ม</div>
-                  <div className="font-semibold text-gray-900">{feeAmount.toLocaleString()} บาท</div>
+                  <div className="font-semibold text-gray-900 tabular-nums">{feeAmount.toLocaleString()} บาท</div>
                 </div>
                 <div className="border-t border-gray-200 pt-2 flex items-center justify-between text-sm">
                   <div className="text-gray-900 font-semibold">รวม</div>
-                  <div className="text-gray-900 font-bold">{gross.toLocaleString()} บาท</div>
+                  <div className="text-gray-900 font-bold tabular-nums">{gross.toLocaleString()} บาท</div>
                 </div>
               </div>
             </Card>
@@ -181,7 +181,7 @@ export default function JobReceiptPage() {
                         {t.description && <div className="text-xs text-gray-600 mt-1">{t.description}</div>}
                         <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">{t.id}</div>
                       </div>
-                      <div className="text-sm font-semibold text-gray-900">{t.amount.toLocaleString()} บาท</div>
+                      <div className="text-sm font-semibold text-gray-900 tabular-nums">{t.amount.toLocaleString()} บาท</div>
                     </div>
                   ))}
                 </div>
