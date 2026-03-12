@@ -50,9 +50,9 @@ export default function MemberRegisterPage() {
       if (verifiedRef.current) return;
       try {
         await api.cancelUnverifiedAccount();
-        if (logout) logout();
+        logout();
       } catch {
-        if (logout) logout();
+        logout();
       } finally {
         navigate('/register', { replace: true });
       }
@@ -73,9 +73,9 @@ export default function MemberRegisterPage() {
   const handleCancelRegistration = async () => {
     try {
       await api.cancelUnverifiedAccount();
-      if (logout) logout();
+      logout();
     } catch {
-      if (logout) logout();
+      logout();
     } finally {
       navigate('/register', { replace: true });
     }

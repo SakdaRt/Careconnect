@@ -51,9 +51,9 @@ export default function GuestRegisterPage() {
       if (verifiedRef.current) return;
       try {
         await api.cancelUnverifiedAccount();
-        if (logout) logout();
+        logout();
       } catch {
-        if (logout) logout();
+        logout();
       } finally {
         navigate('/register', { replace: true });
       }
@@ -74,9 +74,9 @@ export default function GuestRegisterPage() {
   const handleCancelRegistration = async () => {
     try {
       await api.cancelUnverifiedAccount();
-      if (logout) logout();
+      logout();
     } catch {
-      if (logout) logout();
+      logout();
     } finally {
       navigate('/register', { replace: true });
     }
