@@ -68,7 +68,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: sh -lc "npm install && npm run test:e2e"
+    command: sh -lc "npm ci --no-audit --no-fund --silent && npm run test:e2e"
     profiles: ["e2e"]
 
 volumes:

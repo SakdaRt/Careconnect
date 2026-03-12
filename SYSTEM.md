@@ -1097,6 +1097,8 @@ VITE_GOOGLE_MAPS_API_KEY=
 ### Playwright E2E (`docker-compose.test.yml` profile `e2e`)
 
 > Service `frontend-e2e` ใช้ image `mcr.microsoft.com/playwright:v1.58.2-jammy`
+> Smoke run ควรใช้ `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false` เป็นค่า default
+> Real OAuth run แยกด้วย script `frontend/package.json` (`test:e2e:docker:oauth`)
 
 ```env
 PLAYWRIGHT_BASE_URL=http://127.0.0.1:4173

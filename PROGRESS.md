@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-11
+> อัพเดทล่าสุด: 2026-03-12
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -126,7 +126,7 @@ careconnect/
 
 - [x] แก้ Google OAuth redirect ไป localhost ใน production (เพิ่ม BACKEND_URL env var)
 - [x] Forgot password (backend + frontend + migration + ResetPasswordPage)
-- [ ] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (เพิ่ม Playwright real-flow spec แล้ว แต่ยังต้องรันด้วย credential จริง)
+- [x] ทดสอบ Google OAuth แบบ end-to-end บน browser จริง (ยืนยันแบบ manual โดยผู้ใช้; automation ยังเสี่ยงโดน Google anti-bot block)
 - [x] E2E smoke tests ฝั่ง backend (Jest + Supertest) ครอบคลุม 4 happy paths
 - [x] E2E tests ฝั่ง browser (Playwright baseline + smoke specs)
 
@@ -173,6 +173,20 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-12 — Final release checklist + stabilize E2E docker commands
+
+- chore(frontend): ปรับ `/home/careconnect/Careconnect/frontend/package.json`
+  - `test:e2e:docker` บังคับ `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false` เพื่อให้ smoke run เสถียร
+  - เพิ่ม `test:e2e:docker:oauth` สำหรับรัน `google-oauth.real.spec.ts` แยกต่างหาก
+- chore(test-infra): ปรับ `/home/careconnect/Careconnect/docker-compose.test.yml`
+  - service `frontend-e2e` เปลี่ยนจาก `npm install` เป็น `npm ci --no-audit --no-fund --silent`
+- verify:
+  - ผ่าน: `docker compose -f docker-compose.test.yml run --rm backend-test sh -lc "npm ci --no-audit --no-fund --silent && npm run test:e2e-smoke"` → `4 passed`
+  - ผ่าน: `PLAYWRIGHT_RUN_GOOGLE_OAUTH=false docker compose -f docker-compose.test.yml --profile e2e run --rm frontend-e2e sh -lc "npm ci --no-audit --no-fund --silent && npm run build"`
+  - ผ่าน: `npm run test:e2e:docker` (ที่ `/home/careconnect/Careconnect/frontend`) → `3 passed, 1 skipped`
+- status:
+  - real Google OAuth login flow ปิดงานด้วย manual verification โดยผู้ใช้
 
 ### 2026-03-11 — Stabilize Playwright Docker runtime + settings smoke resilience
 
