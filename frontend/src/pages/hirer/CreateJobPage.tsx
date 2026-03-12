@@ -7,7 +7,7 @@ import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 import { computeRiskLevel } from '../../utils/risk';
 
 type JobType =

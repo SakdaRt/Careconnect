@@ -1,5 +1,5 @@
 import { Loader2 } from 'lucide-react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export interface SpinnerProps {
   size?: 'sm' | 'md' | 'lg' | 'xl';

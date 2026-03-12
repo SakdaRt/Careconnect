@@ -6,14 +6,14 @@ import {
   Users,
   DollarSign,
   MessageSquare,
-  Settings,
   FileText,
+  Settings,
   LogOut,
   Menu,
   X,
 } from 'lucide-react';
 import { useAuth } from '../contexts';
-import { cn } from '../contexts/ThemeContext';
+import { cn } from '../utils/cn';
 
 interface AdminLayoutProps {
   children: ReactNode;

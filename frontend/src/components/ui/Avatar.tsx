@@ -1,5 +1,5 @@
 import { HTMLAttributes, useState } from 'react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 

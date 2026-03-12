@@ -1,5 +1,5 @@
 import { HTMLAttributes } from 'react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 import { JobStatus, TrustLevel } from '../../mocks';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {

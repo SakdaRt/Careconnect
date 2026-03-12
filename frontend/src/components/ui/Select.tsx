@@ -1,5 +1,5 @@
 import { SelectHTMLAttributes, forwardRef, useId } from 'react';
-import { cn } from '../../contexts/ThemeContext';
+import { cn } from '../../utils/cn';
 
 export interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label?: string;
