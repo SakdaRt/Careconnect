@@ -247,11 +247,7 @@ export default function MemberRegisterPage() {
         <div className="flex items-center justify-center mb-8">
         <div className="flex items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step === 'phone'
-                  ? 'bg-green-600 text-white'
-                  : 'bg-green-600 text-white'
-              }`}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold bg-green-600 text-white"
             >
               1
             </div>

@@ -248,11 +248,7 @@ export default function GuestRegisterPage() {
         <div className="flex items-center justify-center mb-8">
           <div className="flex items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                step === 'credentials'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-blue-600 text-white'
-              }`}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold bg-blue-600 text-white"
             >
               1
             </div>
