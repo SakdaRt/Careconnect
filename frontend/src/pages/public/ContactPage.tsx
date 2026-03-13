@@ -131,6 +131,17 @@ export default function ContactPage() {
               </div>
             </div>
 
+            {/* Complaint Link */}
+            <div className="lg:col-span-2 mb-4">
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center justify-between gap-4">
+                <div>
+                  <div className="font-semibold text-gray-900 text-sm">พบปัญหาหรือต้องการร้องเรียน?</div>
+                  <div className="text-xs text-gray-600 mt-1">แจ้งเรื่องร้องเรียนให้แอดมินตรวจสอบ เช่น ชื่อไม่เหมาะสม, รูปภาพไม่เหมาะสม, หลอกลวง, คุกคาม ฯลฯ</div>
+                </div>
+                <a href="/complaint" className="shrink-0 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">แจ้งเรื่องร้องเรียน</a>
+              </div>
+            </div>
+
             {/* Contact Form */}
             <div>
               <div className="bg-white rounded-lg shadow-md p-8">
