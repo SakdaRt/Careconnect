@@ -33,6 +33,7 @@ const COMPLAINT_CATEGORY_LABELS: Record<string, string> = {
   safety_concern: 'ความปลอดภัย',
   payment_issue: 'ปัญหาการเงิน',
   service_quality: 'คุณภาพบริการ',
+  fake_certificate: 'ใบรับรองปลอม/เอกสารไม่น่าเชื่อถือ',
   other: 'อื่นๆ',
 };
 

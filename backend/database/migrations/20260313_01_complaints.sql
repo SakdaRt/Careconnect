@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS complaints (
     'safety_concern',
     'payment_issue',
     'service_quality',
+    'fake_certificate',
     'other'
   )),
 

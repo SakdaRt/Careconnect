@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Star, Briefcase, Clock3, Heart, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Star, Briefcase, Clock3, Heart, ArrowLeft, ShieldCheck, FileText } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState } from '../../components/ui';
 import { appApi } from '../../services/appApi';
@@ -86,6 +86,15 @@ export default function CaregiverPublicProfilePage() {
   const [reviewsLoading, setReviewsLoading] = useState(false);
   const [favorited, setFavorited] = useState(false);
   const [togglingFav, setTogglingFav] = useState(false);
+  const [documents, setDocuments] = useState<any[]>([]);
+
+  const loadDocuments = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await appApi.getCaregiverDocumentsByCaregiver(id);
+      if (res.success && res.data) setDocuments(Array.isArray(res.data) ? res.data : []);
+    } catch { void 0; }
+  }, [id]);
 
   const loadProfile = useCallback(async () => {
     if (!id) return;
@@ -120,7 +129,8 @@ export default function CaregiverPublicProfilePage() {
   useEffect(() => {
     loadProfile();
     loadReviews();
-  }, [loadProfile, loadReviews]);
+    loadDocuments();
+  }, [loadProfile, loadReviews, loadDocuments]);
 
   const handleToggleFavorite = async () => {
     if (!id || togglingFav) return;
@@ -264,6 +274,38 @@ export default function CaregiverPublicProfilePage() {
             {fromTime && toTime && (
               <div className="text-sm text-gray-600">เวลา: {fromTime} - {toTime}</div>
             )}
+          </Card>
+        )}
+
+        {/* Certificates / Documents */}
+        {documents.length > 0 && (
+          <Card className="p-4">
+            <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-600" aria-hidden="true" />
+              ใบรับรอง/เอกสาร ({documents.length})
+            </div>
+            <div className="space-y-2">
+              {documents.map((doc: any) => (
+                <a
+                  key={doc.id}
+                  href={`/uploads/${doc.file_path}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <FileText className="w-5 h-5 text-blue-500 flex-shrink-0" aria-hidden="true" />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-gray-900 truncate">{doc.title || doc.file_name || 'เอกสาร'}</div>
+                    <div className="text-xs text-gray-500">
+                      {doc.document_type || 'certification'}
+                      {doc.issuer ? ` • ${doc.issuer}` : ''}
+                      {doc.issued_date ? ` • ${new Date(doc.issued_date).toLocaleDateString('th-TH')}` : ''}
+                    </div>
+                  </div>
+                  <span className="text-xs text-blue-600 flex-shrink-0">เปิดดู</span>
+                </a>
+              ))}
+            </div>
           </Card>
         )}
 

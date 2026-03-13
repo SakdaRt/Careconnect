@@ -12,6 +12,7 @@ const VALID_CATEGORIES = [
   'safety_concern',
   'payment_issue',
   'service_quality',
+  'fake_certificate',
   'other',
 ];
 

@@ -15,6 +15,7 @@ const CATEGORIES = [
   { value: 'safety_concern', label: 'ความปลอดภัย' },
   { value: 'payment_issue', label: 'ปัญหาการเงิน/ชำระเงิน' },
   { value: 'service_quality', label: 'คุณภาพบริการ' },
+  { value: 'fake_certificate', label: 'ใบรับรองปลอม/เอกสารไม่น่าเชื่อถือ' },
   { value: 'other', label: 'อื่นๆ' },
 ];
 

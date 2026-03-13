@@ -3,13 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, Star, Briefcase, Clock3, Heart } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, Modal, Select } from '../../components/ui';
+import { Avatar, Button, Card, LoadingState, Modal, Select } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 
 interface CaregiverResult {
   id: string;
+  avatar?: string | null;
   email?: string;
   phone_number?: string;
   trust_level: string;
@@ -612,6 +613,13 @@ export default function SearchCaregiversPage() {
               const availability = formatAvailability(cg.available_days, cg.available_from, cg.available_to);
               return (
                 <Card key={cg.id} className="flex flex-col sm:flex-row gap-4 items-start">
+                  <button type="button" onClick={() => handleOpenDetails(cg)} className="flex-shrink-0">
+                    <Avatar
+                      src={cg.avatar ? `/uploads/${cg.avatar}` : undefined}
+                      name={cg.display_name || 'ผู้ดูแล'}
+                      size="lg"
+                    />
+                  </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <button type="button" onClick={() => handleOpenDetails(cg)} className="font-semibold text-gray-900 hover:text-blue-600 hover:underline transition-colors text-left">{cg.display_name || 'ผู้ดูแล'}</button>

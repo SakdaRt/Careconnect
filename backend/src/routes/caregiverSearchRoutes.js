@@ -26,6 +26,7 @@ router.get("/public/featured", async (req, res) => {
     const result = await query(
       `SELECT
          u.id,
+         u.avatar,
          u.trust_level,
          u.completed_jobs_count,
          cp.display_name,
@@ -175,6 +176,7 @@ router.get(
       const result = await query(
         `SELECT
          u.id,
+         u.avatar,
          u.email,
          u.phone_number,
          u.trust_level,
@@ -397,6 +399,7 @@ router.get(
            u.id,
            u.email,
            u.phone_number,
+           u.avatar,
            u.trust_level,
            u.trust_score,
            u.completed_jobs_count,
