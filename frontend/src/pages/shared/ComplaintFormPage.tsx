@@ -145,11 +145,11 @@ export default function ComplaintFormPage() {
             <p className="text-xs text-gray-500 mt-1">รองรับ JPG, PNG, GIF, WebP, PDF (ไม่เกิน 10MB ต่อไฟล์)</p>
           </div>
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Button variant="primary" fullWidth loading={loading} onClick={handleSubmit}>
               ส่งเรื่องร้องเรียน
             </Button>
-            <Button variant="outline" onClick={() => navigate(-1)}>
+            <Button variant="outline" fullWidth onClick={() => navigate(-1)}>
               ยกเลิก
             </Button>
           </div>

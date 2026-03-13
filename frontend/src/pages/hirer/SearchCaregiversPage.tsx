@@ -668,22 +668,24 @@ export default function SearchCaregiversPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2 flex-shrink-0 items-center">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFavorite(cg.id)}
-                      aria-label={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
-                      aria-pressed={favoritedIds.has(cg.id)}
-                      className="p-2 rounded-full hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-                    >
-                      <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden="true" />
-                    </button>
-                    <Link to={`/hirer/caregiver/${cg.id}`}>
-                      <Button variant="outline" size="sm">ดูโปรไฟล์</Button>
-                    </Link>
-                    <Button variant="primary" size="sm" onClick={() => handleOpenAssign(cg)}>
-                      มอบหมายงาน
-                    </Button>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:flex-shrink-0 sm:items-center mt-3 sm:mt-0">
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFavorite(cg.id)}
+                        aria-label={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+                        aria-pressed={favoritedIds.has(cg.id)}
+                        className="p-2.5 rounded-full hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      >
+                        <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden="true" />
+                      </button>
+                      <Link to={`/hirer/caregiver/${cg.id}`} className="flex-1 sm:flex-none">
+                        <Button variant="outline" size="sm" fullWidth>ดูโปรไฟล์</Button>
+                      </Link>
+                      <Button variant="primary" size="sm" onClick={() => handleOpenAssign(cg)} className="flex-1 sm:flex-none">
+                        มอบหมายงาน
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );

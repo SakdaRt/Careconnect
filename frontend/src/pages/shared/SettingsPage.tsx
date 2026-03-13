@@ -300,7 +300,7 @@ export default function SettingsPage() {
             <div className="text-sm font-semibold text-gray-900">การแจ้งเตือน</div>
           </div>
           <div className="space-y-3">
-            <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
+            <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-3 min-h-[56px]">
               <div>
                 <div className="text-sm font-medium text-gray-900">Email notification</div>
                 <div className="text-xs text-gray-500">รับอีเมลเมื่อมีเหตุการณ์สำคัญ</div>
@@ -309,13 +309,13 @@ export default function SettingsPage() {
                 type="checkbox"
                 data-testid="notification-email-toggle"
                 aria-label="เปิดปิดอีเมลแจ้งเตือน"
-                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-6 h-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 checked={notificationPrefs.email_enabled}
                 disabled={notificationPrefLoading || notificationPrefSaving}
                 onChange={(e) => handleNotificationPrefChange('email_enabled', e.target.checked)}
               />
             </div>
-            <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-2">
+            <div className="flex items-center justify-between border border-gray-200 rounded-lg px-3 py-3 min-h-[56px]">
               <div>
                 <div className="text-sm font-medium text-gray-900">Push notification</div>
                 <div className="text-xs text-gray-500">แจ้งเตือนทันทีบนเบราว์เซอร์</div>
@@ -324,7 +324,7 @@ export default function SettingsPage() {
                 type="checkbox"
                 data-testid="notification-push-toggle"
                 aria-label="เปิดปิดพุชแจ้งเตือน"
-                className="w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="w-6 h-6 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                 checked={notificationPrefs.push_enabled}
                 disabled={notificationPrefLoading || notificationPrefSaving}
                 onChange={(e) => handleNotificationPrefChange('push_enabled', e.target.checked)}

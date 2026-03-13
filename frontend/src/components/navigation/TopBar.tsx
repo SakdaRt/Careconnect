@@ -335,7 +335,7 @@ export function TopBar() {
 
                   {/* Menu */}
                   <div
-                    className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                    className="absolute right-0 mt-2 w-64 max-h-[calc(100vh-5rem)] overflow-y-auto bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
                     role="menu"
                     aria-label="เมนูผู้ใช้"
                     onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Escape') setShowMenu(false); }}
