@@ -346,6 +346,7 @@ export default function SettingsPage() {
             <div className="text-sm font-semibold text-gray-900">ช่วยเหลือ</div>
           </div>
           <div className="flex flex-wrap gap-2">
+            <Link to="/complaint"><Button variant="outline" size="sm">แจ้งเรื่องร้องเรียน</Button></Link>
             <Link to="/faq"><Button variant="outline" size="sm">คำถามที่พบบ่อย</Button></Link>
             <Link to="/contact"><Button variant="outline" size="sm">ติดต่อเรา</Button></Link>
             <Link to="/about"><Button variant="outline" size="sm">เกี่ยวกับเรา</Button></Link>

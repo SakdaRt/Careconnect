@@ -11,6 +11,7 @@ const ProfilePage = lazy(() => import('./pages/shared/ProfilePage'));
 const SettingsPage = lazy(() => import('./pages/shared/SettingsPage'));
 const KycPage = lazy(() => import('./pages/shared/KycPage'));
 const BankAccountsPage = lazy(() => import('./pages/shared/BankAccountsPage'));
+const ComplaintFormPage = lazy(() => import('./pages/shared/ComplaintFormPage'));
 
 // Public Pages
 const LandingPage = lazy(() => import('./pages/public/LandingPage'));
@@ -461,6 +462,16 @@ export const router = createBrowserRouter([
       <RequireAuth>
         <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
           <ProfilePage />
+        </Suspense>
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/complaint',
+    element: (
+      <RequireAuth>
+        <Suspense fallback={<LoadingState message="กำลังโหลด..." />}>
+          <ComplaintFormPage />
         </Suspense>
       </RequireAuth>
     ),
