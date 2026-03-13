@@ -24,7 +24,20 @@ function DisputeStatusBadge({ status }: { status: AdminDisputeListItem['status']
   return <span className={`text-xs px-2 py-1 rounded ${cls}`}>{String(status)}</span>;
 }
 
+const COMPLAINT_CATEGORY_LABELS: Record<string, string> = {
+  inappropriate_name: 'ชื่อไม่เหมาะสม',
+  inappropriate_photo: 'รูปภาพไม่เหมาะสม',
+  inappropriate_chat: 'ข้อความ/แชทไม่เหมาะสม',
+  scam_fraud: 'หลอกลวง/ฉ้อโกง',
+  harassment: 'คุกคาม/ข่มขู่',
+  safety_concern: 'ความปลอดภัย',
+  payment_issue: 'ปัญหาการเงิน',
+  service_quality: 'คุณภาพบริการ',
+  other: 'อื่นๆ',
+};
+
 export default function AdminDisputesPage() {
+  const [activeTab, setActiveTab] = useState<'disputes' | 'complaints'>('disputes');
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<AdminDisputeListItem[]>([]);
   const [page, setPage] = useState(1);
@@ -32,6 +45,14 @@ export default function AdminDisputesPage() {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'all' | string>('all');
   const [assigned, setAssigned] = useState<'all' | 'me' | 'unassigned'>('all');
+
+  const [complaintsLoading, setComplaintsLoading] = useState(false);
+  const [complaints, setComplaints] = useState<any[]>([]);
+  const [complaintsPage, setComplaintsPage] = useState(1);
+  const [complaintsTotalPages, setComplaintsTotalPages] = useState(1);
+  const [complaintsStatus, setComplaintsStatus] = useState<string>('');
+  const [selectedComplaint, setSelectedComplaint] = useState<any>(null);
+  const [complaintAdminNote, setComplaintAdminNote] = useState('');
 
   const [selected, setSelected] = useState<AdminDisputeListItem | null>(null);
   const [events, setEvents] = useState<AdminDisputeEvent[]>([]);
@@ -200,10 +221,144 @@ export default function AdminDisputesPage() {
     }
   };
 
+  const loadComplaints = useCallback(async () => {
+    setComplaintsLoading(true);
+    try {
+      const res = await api.adminGetComplaints({
+        status: complaintsStatus || undefined,
+        page: complaintsPage,
+        limit: 20,
+      });
+      if (!res.success || !res.data) {
+        setComplaints([]);
+        setComplaintsTotalPages(1);
+        return;
+      }
+      setComplaints(res.data.data || []);
+      setComplaintsTotalPages(res.data.totalPages || 1);
+    } finally {
+      setComplaintsLoading(false);
+    }
+  }, [complaintsStatus, complaintsPage]);
+
+  useEffect(() => {
+    if (activeTab === 'complaints') loadComplaints();
+  }, [activeTab, loadComplaints]);
+
+  const handleComplaintUpdate = async (id: string, input: { status?: string; admin_note?: string; assign_to_me?: boolean }) => {
+    setActionLoading(id);
+    try {
+      const res = await api.adminUpdateComplaint(id, input);
+      if (!res.success) { toast.error(res.error || 'อัปเดตไม่สำเร็จ'); return; }
+      toast.success('อัปเดตแล้ว');
+      if (res.data?.complaint) setSelectedComplaint(res.data.complaint);
+      await loadComplaints();
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto space-y-4">
-        <Card className="p-4">
+        <div className="flex gap-2 mb-2">
+          <button
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${activeTab === 'disputes' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            onClick={() => setActiveTab('disputes')}
+          >
+            ข้อพิพาท (Disputes)
+          </button>
+          <button
+            className={`px-4 py-2 rounded-lg font-medium text-sm transition-colors ${activeTab === 'complaints' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+            onClick={() => setActiveTab('complaints')}
+          >
+            ร้องเรียนทั่วไป (Complaints)
+          </button>
+        </div>
+
+        {activeTab === 'complaints' && (
+          <div className="space-y-4">
+            <Card className="p-4">
+              <div className="flex gap-3 items-end">
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs text-gray-500">สถานะ</label>
+                  <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={complaintsStatus} onChange={(e) => { setComplaintsStatus(e.target.value); setComplaintsPage(1); }}>
+                    <option value="">ทั้งหมด</option>
+                    <option value="open">open</option>
+                    <option value="in_review">in_review</option>
+                    <option value="resolved">resolved</option>
+                    <option value="dismissed">dismissed</option>
+                  </select>
+                </div>
+                <Button variant="primary" onClick={() => { setComplaintsPage(1); loadComplaints(); }}>ค้นหา</Button>
+              </div>
+            </Card>
+
+            {complaintsLoading ? <LoadingState message="กำลังโหลด..." /> : complaints.length === 0 ? (
+              <Card className="p-6 text-center text-sm text-gray-600">ยังไม่มีเรื่องร้องเรียน</Card>
+            ) : (
+              <div className="space-y-3">
+                {complaints.map((c: any) => (
+                  <Card key={c.id} className="p-4 cursor-pointer hover:shadow-md transition-shadow" onClick={() => { setSelectedComplaint(c); setComplaintAdminNote(c.admin_note || ''); }}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-gray-900 text-sm">{c.subject}</div>
+                        <div className="text-xs text-gray-600 mt-1">
+                          ประเภท: {COMPLAINT_CATEGORY_LABELS[c.category] || c.category} • ผู้แจ้ง: {c.reporter_name || c.reporter_email || c.reporter_id}
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">สร้าง: {formatDateTime(c.created_at)}</div>
+                      </div>
+                      <DisputeStatusBadge status={c.status} />
+                    </div>
+                  </Card>
+                ))}
+                <div className="flex justify-center gap-2 mt-2">
+                  <Button variant="outline" size="sm" disabled={complaintsPage <= 1} onClick={() => setComplaintsPage((p) => p - 1)}>ก่อนหน้า</Button>
+                  <span className="text-sm text-gray-600 self-center">{complaintsPage}/{complaintsTotalPages}</span>
+                  <Button variant="outline" size="sm" disabled={complaintsPage >= complaintsTotalPages} onClick={() => setComplaintsPage((p) => p + 1)}>ถัดไป</Button>
+                </div>
+              </div>
+            )}
+
+            {selectedComplaint && (
+              <Card className="p-4 sm:p-6 space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-bold text-gray-900">{selectedComplaint.subject}</h3>
+                    <div className="text-xs text-gray-600 mt-1">ประเภท: {COMPLAINT_CATEGORY_LABELS[selectedComplaint.category] || selectedComplaint.category}</div>
+                    <div className="text-xs text-gray-500">ผู้แจ้ง: {selectedComplaint.reporter_name || selectedComplaint.reporter_email || selectedComplaint.reporter_id} ({selectedComplaint.reporter_role || '-'})</div>
+                    {selectedComplaint.target_user_id && <div className="text-xs text-gray-500">ผู้ถูกร้องเรียน: {selectedComplaint.target_name || selectedComplaint.target_user_id}</div>}
+                  </div>
+                  <DisputeStatusBadge status={selectedComplaint.status} />
+                </div>
+                <div className="text-sm text-gray-800 whitespace-pre-wrap">{selectedComplaint.description}</div>
+                {selectedComplaint.attachments && selectedComplaint.attachments.length > 0 && (
+                  <div>
+                    <div className="text-xs font-semibold text-gray-700 mb-1">ไฟล์แนบ:</div>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedComplaint.attachments.map((a: any) => (
+                        <a key={a.id} href={`/uploads/${a.file_path}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 underline">{a.file_name}</a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedComplaint.admin_note && <div className="text-sm text-gray-700 bg-gray-50 p-3 rounded-lg">หมายเหตุแอดมิน: {selectedComplaint.admin_note}</div>}
+                <div className="space-y-2 pt-2 border-t border-gray-200">
+                  <Input label="หมายเหตุแอดมิน" value={complaintAdminNote} onChange={(e) => setComplaintAdminNote(e.target.value)} placeholder="บันทึกสำหรับแอดมิน" />
+                  <div className="flex flex-wrap gap-2">
+                    {!selectedComplaint.assigned_admin_id && <Button variant="outline" size="sm" loading={actionLoading === selectedComplaint.id} onClick={() => handleComplaintUpdate(selectedComplaint.id, { assign_to_me: true })}>รับเรื่อง</Button>}
+                    <Button variant="outline" size="sm" loading={actionLoading === selectedComplaint.id} onClick={() => handleComplaintUpdate(selectedComplaint.id, { status: 'in_review', admin_note: complaintAdminNote || undefined })}>เปลี่ยนเป็น in_review</Button>
+                    <Button variant="primary" size="sm" loading={actionLoading === selectedComplaint.id} onClick={() => handleComplaintUpdate(selectedComplaint.id, { status: 'resolved', admin_note: complaintAdminNote || undefined })}>ปิดเรื่อง (resolved)</Button>
+                    <Button variant="ghost" size="sm" loading={actionLoading === selectedComplaint.id} onClick={() => handleComplaintUpdate(selectedComplaint.id, { status: 'dismissed', admin_note: complaintAdminNote || undefined })}>ยกเลิก (dismissed)</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setSelectedComplaint(null)}>ปิด</Button>
+                  </div>
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'disputes' && <><Card className="p-4">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3">
             <div className="flex-1">
               <Input
@@ -530,7 +685,7 @@ export default function AdminDisputesPage() {
               ถัดไป
             </Button>
           </div>
-        </Card>
+        </Card></>}
       </div>
     </AdminLayout>
   );
