@@ -245,10 +245,13 @@ class User extends BaseModel {
     const { limit = 20, offset = 0 } = options;
 
     const result = await query(
-      `SELECT * FROM users
-       WHERE (display_name ILIKE $1 OR email ILIKE $1)
-       AND status = 'active'
-       ORDER BY created_at DESC
+      `SELECT u.*, COALESCE(hp.display_name, cp.display_name) AS display_name
+       FROM users u
+       LEFT JOIN hirer_profiles hp ON hp.user_id = u.id
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = u.id
+       WHERE (COALESCE(hp.display_name, cp.display_name) ILIKE $1 OR u.email ILIKE $1)
+       AND u.status = 'active'
+       ORDER BY u.created_at DESC
        LIMIT $2 OFFSET $3`,
       [`%${searchTerm}%`, limit, offset]
     );

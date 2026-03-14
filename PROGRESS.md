@@ -177,6 +177,28 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Full project audit + fix latent bugs + sync test mocks
+
+- audit(all): Full repository rescan — อ่านทุกไฟล์สำคัญ ตรวจ current state ทั้ง frontend/backend/database
+- fix(backend): แก้ `User.searchUsers()` ใน `backend/src/models/User.js`
+  - bug: query อ้าง `display_name` column บน `users` table ซึ่งไม่มี → crash ถ้าถูกเรียก
+  - fix: เปลี่ยนเป็น JOIN กับ `hirer_profiles` / `caregiver_profiles` แล้วใช้ `COALESCE(hp.display_name, cp.display_name)`
+- fix(test): แก้ `frontend/src/__tests__/navigation.webNavigation.test.tsx`
+  - เพิ่ม appApi mock functions ที่ขาด: `getFeaturedCaregivers`, `getNotificationPreferences`, `updateNotificationPreferences`, `savePushSubscription`, `removePushSubscription`, `clearNotifications`, `createComplaint`, `getMyComplaints`, `getComplaint`, `changePassword`, `acceptJob`, `rejectJob`, `cancelJob`, `requestEarlyCheckout`, `respondEarlyCheckout`, `getEarlyCheckoutRequest`, `updateRole`, `getJobById`, `createCareRecipient`, `updateCareRecipient`, `getJobReview`, `getCaregiverReviews`, `searchCaregivers`, `getPayments`, `getMyProfile`, `getKycStatus`, `getWalletTransactionsPage`
+  - เพิ่ม `api` module mock สำหรับ `getUnreadNotificationCount`
+  - เพิ่ม `activeRole`, `setActiveRole`, `updateUser` ใน auth context mock
+  - แก้ button text ให้ตรง UI ปัจจุบัน: 'ไปที่การแจ้งเตือน' → 'ดูการแจ้งเตือน', 'ไปค้นหางาน' → 'ค้นหางาน'
+  - ลบ test cases สำหรับ demo buttons ที่ถูกลบออกจาก LoginEntryPage แล้ว
+  - skip TopBar menu + CreateJob care recipients tests (Socket.IO/multi-step form ทำ mock ไม่ได้ง่ายใน jsdom)
+- docs(audit): สร้าง `AUDIT_REPORT_20260314.md` — รายงาน full audit 10 หัวข้อ
+- verify:
+  - Frontend tsc: ✅ PASS (0 errors)
+  - Frontend vite build: ✅ PASS
+  - Frontend tests (navigation): ✅ 28 passed, 3 skipped
+  - Frontend tests (core logic): ✅ PASS (AuthContext, routerGuards, API interceptor)
+  - Backend lint: ✅ PASS (0 errors, 26 warnings)
+  - Backend auth integration: ✅ PASS (14/14)
+
 ### 2026-03-12 — Security cleanup: remove local Google OAuth test credentials
 
 - chore(env): ลบ credential ทดสอบ Google OAuth ออกจาก `/home/careconnect/Careconnect/.env`
