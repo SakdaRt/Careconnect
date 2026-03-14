@@ -177,6 +177,20 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — CRITICAL FIX: BottomBar ทับ wizard sticky nav ทำให้ไป Step 2 ไม่ได้
+
+- fix(frontend): **ROOT CAUSE** — `MainLayout.tsx` `shouldShowBottomBar` logic ผิด
+  - `showBottomBar || showBottomBar === false` === `true` เสมอ!
+  - BottomBar (`z-40`) render ทับ wizard sticky nav (`z-30`) ทุกหน้าที่ส่ง `showBottomBar={false}`
+  - Fix: ลบ broken logic ใช้ `showBottomBar` ตรง ๆ
+  - ผลกระทบ: CreateJobPage wizard Step 1 (และทุก step) ไม่มีปุ่ม "ถัดไป" เห็นบน UI → dead-end
+- fix(frontend): Bump wizard sticky nav `z-30` → `z-40` + เพิ่ม shadow
+- verify:
+  - ✅ TypeScript: PASS
+  - ✅ Vite build: PASS (5.59s)
+  - MainLayout ไม่แสดง BottomBar เมื่อ `showBottomBar={false}` แล้ว
+  - Wizard sticky nav ("ถัดไป →") มองเห็นได้ทุก step
+
 ### 2026-03-14 — Fix UI Flow Bugs: wizard step routing + validation gaps + dead-end prevention
 
 - fix(frontend): **BUG #1** — `openReview` error routing ใช้ step numbers เดิม (4-step) แทน 5-step
