@@ -1111,6 +1111,11 @@ export default function CreateJobPage() {
   };
 
   const validateStepThree = () => {
+    if (!form.title.trim()) {
+      setStepError({ section: 'job_basic', message: 'กรุณากรอกชื่องาน', fields: { title: 'กรุณากรอกชื่องาน' } });
+      return false;
+    }
+
     if (!form.scheduled_start_at || !form.scheduled_end_at) {
       setStepError({
         section: 'job_schedule',
@@ -1517,29 +1522,25 @@ export default function CreateJobPage() {
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'กรอกข้อมูลไม่ครบ';
       setErrorMessage(msg);
+      const routeToSection = (section: string) => {
+        const step = SECTION_STEP_MAP[section];
+        if (step) setCurrentStep(step);
+        setErrorSection(section);
+        setErrorAnchorId(`section-${section}`);
+      };
       if (msg.includes('วันและเวลา')) {
-        setCurrentStep(3);
-        setErrorSection('job_schedule');
+        routeToSection('job_schedule');
         setFieldErrors({ scheduled_start_at: msg, scheduled_end_at: msg });
-        setErrorAnchorId('section-job_schedule');
       } else if (msg.includes('ชื่องาน') || msg.includes('รายละเอียดงาน')) {
-        setCurrentStep(1);
-        setErrorSection('job_basic');
-        setErrorAnchorId('section-job_basic');
+        routeToSection('job_basic');
       } else if (msg.includes('ที่อยู่') || msg.includes('Google Maps')) {
-        setCurrentStep(3);
-        setErrorSection('job_location');
+        routeToSection('job_location');
         setFieldErrors({ address_line1: msg });
-        setErrorAnchorId('section-job_location');
       } else if (msg.includes('ผู้รับการดูแล')) {
-        setCurrentStep(1);
-        setErrorSection('patient');
-        setErrorAnchorId('section-patient');
+        routeToSection('patient');
       } else if (msg.includes('งานที่ต้องทำ')) {
-        setCurrentStep(2);
-        setErrorSection('job_tasks');
+        routeToSection('job_tasks');
         setFieldErrors({ job_tasks_flags: msg });
-        setErrorAnchorId('section-job_tasks');
       }
       toast.error(msg);
     }
@@ -2376,6 +2377,9 @@ export default function CreateJobPage() {
             >
               {loading ? 'กำลังบันทึก...' : 'ยืนยันบันทึกแบบร่าง'}
             </button>
+            {!form.description.trim() && !loading && (
+              <div className="text-xs text-red-600 mt-1">กรุณากรอกรายละเอียดงานก่อนบันทึก</div>
+            )}
           </div>
         }
       >

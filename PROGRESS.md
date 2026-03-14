@@ -177,6 +177,28 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Fix UI Flow Bugs: wizard step routing + validation gaps + dead-end prevention
+
+- fix(frontend): **BUG #1** — `openReview` error routing ใช้ step numbers เดิม (4-step) แทน 5-step
+  - Root cause: hardcoded `setCurrentStep(1)` / `setCurrentStep(2)` แทนที่จะใช้ `SECTION_STEP_MAP`
+  - Fix: สร้าง `routeToSection()` helper ที่ใช้ `SECTION_STEP_MAP` lookup
+  - ผลกระทบ: เมื่อ submit fail → user ถูกพาไปผิด step → ดูเหมือน dead-end
+- fix(frontend): **BUG #2** — `validateStepThree` ไม่ตรวจ title (required field)
+  - Root cause: title check อยู่ใน `toCreatePayload()` แต่ไม่อยู่ใน step validation
+  - Fix: เพิ่ม `form.title.trim()` check ใน `validateStepThree()`
+  - ผลกระทบ: user ผ่าน Step 3 โดยไม่กรอกชื่องาน → Step 5 submit fail → route ไป step ผิด
+- fix(frontend): **BUG #3** — Review modal submit disabled เมื่อ description ว่างแต่ไม่มีข้อความอธิบาย
+  - Root cause: `disabled={!form.description.trim()}` โดยไม่มี helper text
+  - Fix: เพิ่มข้อความ "กรุณากรอกรายละเอียดงานก่อนบันทึก" เมื่อ description ว่าง
+  - ผลกระทบ: user เห็นปุ่ม disabled แต่ไม่รู้ว่าต้องทำอะไร → dead-end
+- audit: ตรวจ empty states + CTA ของ hirer/caregiver/admin pages
+  - ทุก empty state มี actionable CTA ครบ (HirerHomePage, CaregiverJobFeed, CareRecipients ฯลฯ)
+  - Sticky bottom nav ของ wizard ทำงานครบทุก step 1→2→3→4→5
+- verify:
+  - ✅ TypeScript: PASS (0 errors)
+  - ✅ Vite build: PASS (5.28s)
+  - ไม่แก้ backend / submit payload / match score
+
 ### 2026-03-14 — Post-Selection Flow: outcome messaging + success screen + caregiver summary ใน Step 5
 
 - feat(frontend): Step 5 — เพิ่ม caregiver selection summary card
