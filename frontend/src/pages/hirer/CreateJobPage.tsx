@@ -1389,33 +1389,35 @@ export default function CreateJobPage() {
               </div>
             )}
 
-            <Card className="p-4 border-blue-200 bg-blue-50/50">
-              <div className="text-sm font-semibold text-gray-900 mb-2">ขั้นตอนการสร้างงาน</div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="mb-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold text-gray-900">ขั้นตอนที่ {currentStep}/4: {CREATE_JOB_STEPS.find((s) => s.id === currentStep)?.title}</span>
+                <span className="text-xs text-gray-500">{Math.round((currentStep / 4) * 100)}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-blue-500 h-2 rounded-full transition-all duration-300" style={{ width: `${(currentStep / 4) * 100}%` }} />
+              </div>
+              <div className="flex justify-between mt-1">
                 {CREATE_JOB_STEPS.map((step) => {
-                  const isActive = currentStep === step.id;
-                  const isDone = currentStep > step.id;
                   const canJump = step.id <= maxVisitedStep;
                   return (
                     <button
                       key={step.id}
                       type="button"
                       disabled={!canJump}
-                      onClick={() => setCurrentStep(step.id)}
+                      onClick={() => canJump && setCurrentStep(step.id)}
                       className={cn(
-                        'text-left border rounded-lg px-3 py-2 transition-colors',
-                        isActive ? 'border-blue-500 bg-blue-100' : isDone ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-white text-gray-600',
+                        'text-[10px] px-1 transition-colors',
+                        currentStep === step.id ? 'text-blue-600 font-bold' : currentStep > step.id ? 'text-green-600' : 'text-gray-400',
                         !canJump && 'cursor-not-allowed'
                       )}
                     >
-                      <div className="text-xs font-semibold">{step.id}</div>
-                      <div className="text-sm font-semibold text-gray-900 mt-0.5">{step.title}</div>
-                      <div className="text-xs text-gray-600 mt-0.5 hidden sm:block">{step.helper}</div>
+                      {step.title}
                     </button>
                   );
                 })}
               </div>
-            </Card>
+            </div>
 
             {/* ───── Step 1: ผู้รับการดูแล + ประเภทงาน ───── */}
             {currentStep === 1 && (
@@ -1710,20 +1712,23 @@ export default function CreateJobPage() {
               </Card>
             )}
 
-            <div className="pt-2 flex flex-col sm:flex-row gap-2 sm:justify-end">
-              {currentStep > 1 && (
-                <Button variant="outline" onClick={handlePrevStep} disabled={loading}>ย้อนกลับ</Button>
-              )}
-              {currentStep < 4 ? (
-                <Button variant="primary" onClick={handleNextStep} disabled={loading} fullWidth={currentStep === 1}>
-                  {currentStep === 1 ? 'ถัดไป: เลือกงานและคุณสมบัติ' : currentStep === 2 ? 'ถัดไป: เวลาและสถานที่' : 'ถัดไป: ตรวจทาน'}
-                </Button>
-              ) : (
-                <Button variant="primary" fullWidth loading={loading} onClick={openReview}>ตรวจทาน</Button>
-              )}
-            </div>
           </div>
         </Card>
+
+        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 -mx-4 mt-4 z-30">
+          <div className="max-w-3xl mx-auto flex gap-3">
+            {currentStep > 1 && (
+              <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>ย้อนกลับ</Button>
+            )}
+            {currentStep < 4 ? (
+              <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
+                {currentStep === 1 ? 'ถัดไป →' : currentStep === 2 ? 'ถัดไป →' : 'ตรวจทาน →'}
+              </Button>
+            ) : (
+              <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
+            )}
+          </div>
+        </div>
       </div>
 
       <Modal
