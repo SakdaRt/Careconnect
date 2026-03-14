@@ -177,6 +177,22 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Feasibility indicators + avatar enhancement ใน Step 4
+
+- feat(frontend): `computeFeasibility()` — ประเมินความเป็นไปได้ในการรับงาน
+  - Schedule compatibility: เทียบ job day-of-week กับ `available_days` + time window กับ `available_from/to`
+  - Confidence levels: high ("มีแนวโน้มรับงานได้") / medium ("น่าจะรับงานได้") / low ("ต้องยืนยันกับผู้ดูแล")
+  - แสดง badges บน caregiver cards: schedule status + confidence level
+- feat(frontend): Avatar enhancement
+  - ใช้ `avatar` field จาก search API ถ้ามี → แสดงรูปจริง
+  - ถ้าไม่มี → initials จาก display_name (e.g., "สม" จาก "สมชาย ใจดี")
+  - `getInitials()` helper function
+- ไม่แก้ match score เดิม — feasibility เป็น visual cue เพิ่มเติม
+- verify:
+  - ✅ TypeScript: PASS (0 errors)
+  - ✅ Vite build: PASS (4.63s)
+  - ไม่มี backend changes
+
 ### 2026-03-14 — Contextual caregiver matching + profile preview modal + best match highlight
 
 - feat(frontend): Frontend-driven match scoring ใน `CreateJobPage.tsx`

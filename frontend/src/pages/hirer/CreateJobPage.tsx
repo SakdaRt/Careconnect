@@ -931,6 +931,73 @@ export default function CreateJobPage() {
     return Math.min(score, 100);
   }, [form.required_skills_flags, computedRisk.risk_level]);
 
+  type FeasibilityResult = {
+    schedule: 'available' | 'maybe' | 'unknown';
+    scheduleLabel: string;
+    time: 'within' | 'outside' | 'unknown';
+    timeLabel: string;
+    confidence: 'high' | 'medium' | 'low';
+    confidenceLabel: string;
+  };
+
+  const computeFeasibility = useCallback((cg: any): FeasibilityResult => {
+    const availDays: number[] = cg.available_days || [];
+    const availFrom: string = cg.available_from || '';
+    const availTo: string = cg.available_to || '';
+
+    let schedule: FeasibilityResult['schedule'] = 'unknown';
+    let scheduleLabel = 'ความพร้อมไม่ชัดเจน';
+    let time: FeasibilityResult['time'] = 'unknown';
+    let timeLabel = '';
+
+    if (form.scheduled_start_at) {
+      const jobDate = new Date(form.scheduled_start_at);
+      if (!isNaN(jobDate.getTime())) {
+        const jobDay = jobDate.getDay();
+        if (availDays.length > 0) {
+          schedule = availDays.includes(jobDay) ? 'available' : 'maybe';
+          scheduleLabel = availDays.includes(jobDay) ? 'น่าจะว่างในวันนั้น' : 'อาจต้องยืนยันวัน';
+        }
+
+        if (availFrom && availTo) {
+          const jobHour = jobDate.getHours();
+          const jobMin = jobDate.getMinutes();
+          const jobTimeMin = jobHour * 60 + jobMin;
+          const [fH, fM] = availFrom.split(':').map(Number);
+          const [tH, tM] = availTo.split(':').map(Number);
+          const fromMin = (fH || 0) * 60 + (fM || 0);
+          const toMin = (tH || 0) * 60 + (tM || 0);
+          if (jobTimeMin >= fromMin && jobTimeMin <= toMin) {
+            time = 'within';
+            timeLabel = 'เวลาตรงช่วงที่ว่าง';
+          } else {
+            time = 'outside';
+            timeLabel = 'อาจต้องยืนยันเวลา';
+          }
+        }
+      }
+    }
+
+    let confidence: FeasibilityResult['confidence'] = 'low';
+    let confidenceLabel = 'ต้องยืนยันกับผู้ดูแล';
+    if (schedule === 'available' && time === 'within') {
+      confidence = 'high';
+      confidenceLabel = 'มีแนวโน้มรับงานได้';
+    } else if (schedule === 'available' || time === 'within') {
+      confidence = 'medium';
+      confidenceLabel = 'น่าจะรับงานได้';
+    }
+
+    return { schedule, scheduleLabel, time, timeLabel, confidence, confidenceLabel };
+  }, [form.scheduled_start_at]);
+
+  const getInitials = (name?: string) => {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name[0]?.toUpperCase() || '?';
+  };
+
   const patientSummary = useMemo(() => {
     if (!selectedCareRecipient) return null;
     const p = selectedCareRecipient;
@@ -1882,6 +1949,9 @@ export default function CreateJobPage() {
                         const specs = (cg.specializations || []) as string[];
                         const requiredSkills = new Set(form.required_skills_flags);
                         const matchedSkills = [...specs, ...certs].filter((s: string) => requiredSkills.has(s));
+                        const feas = computeFeasibility(cg);
+                        const avatarUrl = cg.avatar ? `/uploads/${cg.avatar}` : null;
+                        const initials = getInitials(cg.display_name);
 
                         return (
                           <div key={cg.id} className={cn('border-2 rounded-xl transition-all', isSelected ? 'border-blue-500 bg-blue-50' : isBestMatch ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200')}>
@@ -1890,9 +1960,13 @@ export default function CreateJobPage() {
                             )}
                             <button type="button" onClick={() => setSelectedCaregiverId(isSelected ? '' : cg.id)} className="w-full p-3 text-left focus:outline-none">
                               <div className="flex items-start gap-3">
-                                <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5', isSelected ? 'bg-blue-200' : 'bg-gray-100')}>
-                                  <UserIcon className={cn('w-5 h-5', isSelected ? 'text-blue-700' : 'text-gray-500')} aria-hidden="true" />
-                                </div>
+                                {avatarUrl ? (
+                                  <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5" />
+                                ) : (
+                                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-sm font-bold', isSelected ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-600')}>
+                                    {initials}
+                                  </div>
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-semibold text-gray-900 line-clamp-1">{cg.display_name || 'ผู้ดูแล'}</span>
@@ -1919,6 +1993,16 @@ export default function CreateJobPage() {
                                   {certs.length > 0 && matchedSkills.length === 0 && (
                                     <div className="text-[10px] text-gray-500 mt-1">ใบรับรอง: {certs.slice(0, 2).join(', ')}{certs.length > 2 ? ` +${certs.length - 2}` : ''}</div>
                                   )}
+                                  <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                                    <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', feas.confidence === 'high' ? 'bg-green-100 text-green-800' : feas.confidence === 'medium' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600')}>
+                                      {feas.confidence === 'high' ? '✓' : feas.confidence === 'medium' ? '~' : '?'} {feas.confidenceLabel}
+                                    </span>
+                                    {feas.scheduleLabel && feas.schedule !== 'unknown' && (
+                                      <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full', feas.schedule === 'available' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>
+                                        {feas.scheduleLabel}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
                                   {isSelected ? <Check className="w-5 h-5 text-blue-600" aria-hidden="true" /> : (
