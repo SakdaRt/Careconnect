@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle, ShieldCheck, User as UserIcon, PlusCircle } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle, ShieldCheck, User as UserIcon, PlusCircle, Stethoscope, Heart, Brain, BedDouble, Activity, Car, UserPlus, ClipboardList } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, LoadingState, Modal, ReasonModal, Select, StatusBadge } from '../../components/ui';
 import { CANCEL_PRESETS } from '../../components/ui/ReasonModal';
@@ -634,40 +634,30 @@ export default function HirerHomePage() {
     { key: 'cancelled', label: 'ยกเลิก' },
   ];
 
+  const SERVICE_CATEGORIES = [
+    { key: 'hospital_transport_support', icon: Car, label: 'พาไปโรงพยาบาล', desc: 'พาไปพบแพทย์ รับยา รับผลตรวจ', color: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100' },
+    { key: 'general_patient_care', icon: Heart, label: 'ดูแลทั่วไป', desc: 'อยู่เป็นเพื่อน ช่วยกิจวัตร ดูแลยา', color: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' },
+    { key: 'post_surgery_recovery', icon: Activity, label: 'ดูแลหลังผ่าตัด', desc: 'เฝ้าระวังแผลและภาวะแทรกซ้อน', color: 'bg-green-50 text-green-600 border-green-200 hover:bg-green-100' },
+    { key: 'dementia_supervision', icon: Brain, label: 'ดูแลสมองเสื่อม', desc: 'เฝ้าระวังพฤติกรรมอย่างใกล้ชิด', color: 'bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100' },
+    { key: 'bedbound_high_dependency', icon: BedDouble, label: 'ดูแลผู้ป่วยติดเตียง', desc: 'ช่วยเหลือเกือบทั้งหมด ย้ายท่า สุขอนามัย', color: 'bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-100' },
+    { key: 'medical_device_home_care', icon: Stethoscope, label: 'ดูแลอุปกรณ์การแพทย์', desc: 'ออกซิเจน สายให้อาหาร สายสวน', color: 'bg-teal-50 text-teal-600 border-teal-200 hover:bg-teal-100' },
+  ];
+
+  const handleSelectService = (serviceKey: string) => {
+    const recipientId = careRecipients[0]?.id || '';
+    const params = new URLSearchParams();
+    params.set('service', serviceKey);
+    if (recipientId) params.set('recipient', recipientId);
+    navigate(`/hirer/create-job?${params.toString()}`);
+  };
+
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        <div className="mb-5 space-y-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">งานของฉัน</h1>
-            <p className="text-sm text-gray-600">จัดการงานทั้งหมดของคุณ</p>
-          </div>
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:justify-end">
-            <Button
-              variant="outline"
-              className="w-full sm:w-auto whitespace-nowrap"
-              leftIcon={<CalendarDays className="w-4 h-4" />}
-              onClick={handleOpenSchedule}
-            >
-              ดูตารางงาน
-            </Button>
-            <Button variant="outline" className="w-full sm:w-auto whitespace-nowrap" onClick={handleRefresh}>
-              รีเฟรช
-            </Button>
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mb-5">
-          <Link to="/hirer/create-job" className="block w-full">
-            <Button
-              variant="primary"
-              className="w-full py-2 rounded-xl"
-              leftIcon={<PlusCircle className="w-4 h-4" />}
-            >
-              สร้างงาน
-            </Button>
-          </Link>
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">สวัสดี{user?.name ? `, ${user.name.split(' ')[0]}` : ''}</h1>
+          <p className="text-sm text-gray-600 mt-1">เลือกบริการที่ต้องการเพื่อเริ่มจองผู้ดูแล</p>
         </div>
 
         {/* Onboarding Checklist */}
@@ -700,7 +690,7 @@ export default function HirerHomePage() {
           const doneCount = steps.filter((s) => s.done).length;
           if (doneCount >= steps.length) return null;
           return (
-            <Card className="mb-5 p-4">
+            <Card className="mb-6 p-4">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm font-bold text-gray-900">เริ่มต้นใช้งาน</div>
                 <span className="text-xs text-gray-500">{doneCount}/{steps.length}</span>
@@ -730,73 +720,176 @@ export default function HirerHomePage() {
           );
         })()}
 
-        <div className="mb-5">
-          <div className="text-xs font-medium text-gray-500 mb-2">สถานะงาน</div>
-          <div className="overflow-x-auto pb-1">
-            <div className="flex min-w-max gap-1.5">
-              {filters.map((f) => (
-                <Button
-                  key={f.key}
-                  size="sm"
-                  variant={status === f.key ? 'primary' : 'outline'}
-                  className="whitespace-nowrap"
-                  onClick={() => setStatus(f.key)}
+        {/* ============================================================ */}
+        {/* SECTION 1: Service Categories (Primary Entry Point) */}
+        {/* ============================================================ */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">เลือกบริการ</h2>
+            <Link to="/hirer/create-job">
+              <Button variant="outline" size="sm" leftIcon={<ClipboardList className="w-3.5 h-3.5" />}>สร้างงานเอง</Button>
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {SERVICE_CATEGORIES.map((svc) => {
+              const Icon = svc.icon;
+              return (
+                <button
+                  key={svc.key}
+                  type="button"
+                  onClick={() => handleSelectService(svc.key)}
+                  className={`border rounded-xl p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${svc.color}`}
                 >
-                  <span className="sm:hidden">{f.mobileLabel || f.label}</span>
-                  <span className="hidden sm:inline">{f.label}</span>
-                </Button>
+                  <Icon className="w-7 h-7 mb-2" aria-hidden="true" />
+                  <div className="text-sm font-semibold leading-tight">{svc.label}</div>
+                  <div className="text-xs mt-1 opacity-75 leading-snug line-clamp-2">{svc.desc}</div>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* ============================================================ */}
+        {/* SECTION 2: Care Recipients Quick Access */}
+        {/* ============================================================ */}
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">ผู้รับการดูแล</h2>
+            <Link to="/hirer/care-recipients">
+              <Button variant="outline" size="sm">จัดการทั้งหมด</Button>
+            </Link>
+          </div>
+          {careRecipients.length === 0 ? (
+            <Card className="p-5 text-center">
+              <UserPlus className="w-10 h-10 text-gray-300 mx-auto mb-2" aria-hidden="true" />
+              <p className="text-sm text-gray-700 font-medium">ยังไม่มีผู้รับการดูแล</p>
+              <p className="text-xs text-gray-500 mt-1">เพิ่มข้อมูลผู้ที่จะได้รับบริการเพื่อใช้ในการจองผู้ดูแล</p>
+              <div className="mt-3">
+                <Link to="/hirer/care-recipients/new">
+                  <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>เพิ่มผู้รับการดูแลคนแรก</Button>
+                </Link>
+              </div>
+            </Card>
+          ) : (
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {careRecipients.filter((r) => r.is_active).slice(0, 5).map((r) => (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => {
+                    const params = new URLSearchParams();
+                    params.set('recipient', r.id);
+                    navigate(`/hirer/create-job?${params.toString()}`);
+                  }}
+                  className="flex-shrink-0 w-36 border border-gray-200 rounded-xl p-3 text-left hover:border-blue-300 hover:bg-blue-50/50 transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center mb-2">
+                    <UserIcon className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                  </div>
+                  <div className="text-sm font-medium text-gray-900 line-clamp-1">{r.patient_display_name}</div>
+                  <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-1">
+                    {r.age_band ? `${r.gender === 'male' ? 'ชาย' : r.gender === 'female' ? 'หญิง' : ''} ${r.age_band.replace('_', '-')}` : 'ดูแลทั่วไป'}
+                  </div>
+                  <div className="text-[10px] text-blue-600 mt-1 font-medium">สร้างงานให้คนนี้ →</div>
+                </button>
+              ))}
+              <Link
+                to="/hirer/care-recipients/new"
+                className="flex-shrink-0 w-36 border-2 border-dashed border-gray-300 rounded-xl p-3 flex flex-col items-center justify-center text-center hover:border-blue-400 hover:bg-blue-50/30 transition-all"
+              >
+                <PlusCircle className="w-6 h-6 text-gray-400 mb-1" aria-hidden="true" />
+                <div className="text-xs text-gray-600 font-medium">เพิ่มผู้รับการดูแล</div>
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* ============================================================ */}
+        {/* SECTION 3: Active Jobs Dashboard */}
+        {/* ============================================================ */}
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-900">งานของฉัน</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" leftIcon={<CalendarDays className="w-3.5 h-3.5" />} onClick={handleOpenSchedule}>ตารางงาน</Button>
+              <Button variant="outline" size="sm" onClick={handleRefresh}>รีเฟรช</Button>
+            </div>
+          </div>
+
+          {showKycPrompt && (
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-900">ต้องยืนยันตัวตนก่อนเผยแพร่งาน</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  {(user?.trust_level || 'L0') === 'L0'
+                    ? 'กรุณายืนยันเบอร์โทรศัพท์ก่อน (Trust Level L1) จากนั้นยืนยันตัวตน KYC เพื่อเผยแพร่งานความเสี่ยงสูง (L2)'
+                    : 'งานความเสี่ยงสูงต้อง Trust Level L2 ขึ้นไป กรุณายืนยันตัวตน KYC'}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <Link to="/kyc">
+                    <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
+                  </Link>
+                  <Button variant="outline" size="sm" onClick={() => setShowKycPrompt(false)}>ปิด</Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-4">
+            <div className="overflow-x-auto pb-1">
+              <div className="flex min-w-max gap-1.5">
+                {filters.map((f) => (
+                  <Button
+                    key={f.key}
+                    size="sm"
+                    variant={status === f.key ? 'primary' : 'outline'}
+                    className="whitespace-nowrap"
+                    onClick={() => setStatus(f.key)}
+                  >
+                    <span className="sm:hidden">{f.mobileLabel || f.label}</span>
+                    <span className="hidden sm:inline">{f.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <LoadingState message="กำลังโหลดรายการงาน..." />
+          ) : jobs.length === 0 ? (
+            <Card className="p-6 text-center">
+              <div className="text-3xl mb-2">{status === 'completed' ? '🎉' : status === 'cancelled' ? '📭' : '🔍'}</div>
+              <p className="text-sm font-medium text-gray-900">
+                {status === 'all' ? 'ยังไม่มีงาน' : `ไม่มีงานสถานะ "${filters.find((f) => f.key === status)?.label || status}"`}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {status === 'all' ? 'เลือกบริการด้านบนเพื่อเริ่มสร้างงานแรกของคุณ' : 'ลองเปลี่ยนตัวกรองดูหรือสร้างงานใหม่'}
+              </p>
+              <div className="mt-3 flex justify-center gap-2">
+                {status !== 'all' && (
+                  <Button variant="outline" size="sm" onClick={() => setStatus('all')}>ดูงานทั้งหมด</Button>
+                )}
+                <Link to="/hirer/create-job">
+                  <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>สร้างงาน</Button>
+                </Link>
+              </div>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {jobs.map((job) => (
+                <JobPostCard
+                  key={job.id}
+                  job={job}
+                  onPublish={() => handlePublish(job.id)}
+                  onOpenDispute={() => handleOpenDispute(job.id)}
+                  onCancel={() => handleOpenCancel(job.id)}
+                  getRecipientName={getRecipientName}
+                />
               ))}
             </div>
-          </div>
-        </div>
-
-        {showKycPrompt && (
-          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
-            <ShieldCheck className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-900">ต้องยืนยันตัวตนก่อนเผยแพร่งาน</p>
-              <p className="text-xs text-amber-700 mt-1">
-                {(user?.trust_level || 'L0') === 'L0'
-                  ? 'กรุณายืนยันเบอร์โทรศัพท์ก่อน (Trust Level L1) จากนั้นยืนยันตัวตน KYC เพื่อเผยแพร่งานความเสี่ยงสูง (L2)'
-                  : 'งานความเสี่ยงสูงต้อง Trust Level L2 ขึ้นไป กรุณายืนยันตัวตน KYC'}
-              </p>
-              <div className="mt-2 flex gap-2">
-                <Link to="/kyc">
-                  <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
-                </Link>
-                <Button variant="outline" size="sm" onClick={() => setShowKycPrompt(false)}>ปิด</Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {loading ? (
-          <LoadingState message="กำลังโหลดรายการงาน..." />
-        ) : jobs.length === 0 ? (
-          <Card className="p-4 sm:p-6">
-            <div className="text-center">
-              <p className="text-gray-700">ยังไม่มีงานในสถานะนี้</p>
-              <div className="mt-4">
-                <Link to="/hirer/create-job">
-                  <Button variant="primary">สร้างงานแรก</Button>
-                </Link>
-              </div>
-            </div>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {jobs.map((job) => (
-              <JobPostCard
-                key={job.id}
-                job={job}
-                onPublish={() => handlePublish(job.id)}
-                onOpenDispute={() => handleOpenDispute(job.id)}
-                onCancel={() => handleOpenCancel(job.id)}
-                getRecipientName={getRecipientName}
-              />
-            ))}
-          </div>
-        )}
+          )}
+        </section>
         <Modal
           isOpen={scheduleOpen}
           onClose={() => setScheduleOpen(false)}

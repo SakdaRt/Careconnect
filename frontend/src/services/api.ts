@@ -793,6 +793,23 @@ class ApiClient {
     );
   }
 
+  async adminGetComplaints(options?: { status?: string; category?: string; page?: number; limit?: number }) {
+    const params = new URLSearchParams();
+    if (options?.status) params.append('status', options.status);
+    if (options?.category) params.append('category', options.category);
+    if (options?.page) params.append('page', String(options.page));
+    if (options?.limit) params.append('limit', String(options.limit));
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<any>(`/api/complaints/admin/list${query}`);
+  }
+
+  async adminUpdateComplaint(id: string, input: { status?: string; admin_note?: string; assign_to_me?: boolean }) {
+    return this.request<{ complaint: any }>(`/api/complaints/admin/${id}`, {
+      method: 'POST',
+      body: input,
+    });
+  }
+
   async createDispute(job_id: string, reason: string) {
     return this.request<{ dispute: { id: string } }>('/api/disputes', {
       method: 'POST',

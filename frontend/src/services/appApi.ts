@@ -373,4 +373,23 @@ export const appApi = {
       body: { job_post_id: jobPostId, caregiver_id: caregiverId },
     });
   },
+
+  async createComplaint(formData: FormData) {
+    const { getScopedStorageItem: getToken } = await import('../utils/authStorage');
+    const token = getToken('careconnect_token');
+    const res = await fetch('/api/complaints', {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    return res.json();
+  },
+
+  async getMyComplaints() {
+    return api.request<any[]>('/api/complaints');
+  },
+
+  async getComplaint(id: string) {
+    return api.request<{ complaint: any }>(`/api/complaints/${id}`);
+  },
 };

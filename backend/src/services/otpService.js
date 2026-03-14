@@ -2,7 +2,8 @@
  * OTP Service
  *
  * Handles OTP generation, sending, and verification for email and phone.
- * Uses mock provider in development, real providers in production.
+ * OTP codes stored in PostgreSQL (otp_codes table) — survives backend restarts.
+ * Uses SMSOK for SMS, SMTP for email, mock provider as fallback.
  */
 
 import { query } from '../utils/db.js';
@@ -14,20 +15,88 @@ import nodemailer from 'nodemailer';
 const MOCK_PROVIDER_URL = process.env.MOCK_PROVIDER_URL || 'http://mock-provider:4000';
 const OTP_EXPIRY_MINUTES = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
+const MAX_VERIFY_ATTEMPTS = 5;
 const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'mock';
 const SMS_PROVIDER = process.env.SMS_PROVIDER || 'mock';
-const SMSOK_API_URL = process.env.SMSOK_API_URL || 'https://smsok.co/api/v1/s';
+const SMSOK_API_URL = process.env.SMSOK_API_URL || 'https://api.smsok.co/s';
 const SMSOK_API_KEY = process.env.SMSOK_API_KEY || '';
 const SMSOK_API_SECRET = process.env.SMSOK_API_SECRET || '';
 const SMSOK_SENDER = process.env.SMSOK_SENDER || 'CareConnect';
+const IS_DEV = process.env.NODE_ENV !== 'production';
 
-// In-memory OTP storage (for development)
-// In production, this should be stored in Redis or database
-const otpStore = new Map();
+// ============================================================================
+// DB helpers — ensure otp_codes table exists
+// ============================================================================
 
-/**
- * Create a nodemailer SMTP transporter from environment variables
- */
+let _tableReady = false;
+
+async function ensureOtpTable() {
+  if (_tableReady) return;
+  try {
+    await query(`
+      CREATE TABLE IF NOT EXISTS otp_codes (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        type VARCHAR(10) NOT NULL CHECK (type IN ('email', 'phone')),
+        destination VARCHAR(255) NOT NULL,
+        code_hash VARCHAR(255) NOT NULL,
+        verified BOOLEAN NOT NULL DEFAULT FALSE,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS idx_otp_codes_user_id ON otp_codes(user_id)`);
+    await query(`CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON otp_codes(expires_at)`);
+    _tableReady = true;
+  } catch (err) {
+    console.error('[OTP Service] Failed to ensure otp_codes table:', err.message);
+  }
+}
+
+function hashCode(code) {
+  return crypto.createHash('sha256').update(code).digest('hex');
+}
+
+async function storeOtp(otpId, userId, type, destination, code, expiresAt) {
+  await ensureOtpTable();
+  await query(
+    `INSERT INTO otp_codes (id, user_id, type, destination, code_hash, expires_at, sent_at)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
+    [otpId, userId, type, destination, hashCode(code), expiresAt]
+  );
+}
+
+async function findOtp(otpId) {
+  await ensureOtpTable();
+  const res = await query(`SELECT * FROM otp_codes WHERE id = $1`, [otpId]);
+  return res.rows[0] || null;
+}
+
+async function markOtpVerified(otpId) {
+  await query(`UPDATE otp_codes SET verified = true WHERE id = $1`, [otpId]);
+}
+
+async function incrementAttempts(otpId) {
+  await query(`UPDATE otp_codes SET attempts = attempts + 1 WHERE id = $1`, [otpId]);
+}
+
+async function deleteOtp(otpId) {
+  await query(`DELETE FROM otp_codes WHERE id = $1`, [otpId]);
+}
+
+async function cleanExpired() {
+  try {
+    await ensureOtpTable();
+    await query(`DELETE FROM otp_codes WHERE expires_at < NOW()`);
+  } catch { /* ignore */ }
+}
+
+// ============================================================================
+// Providers
+// ============================================================================
+
 function createSmtpTransporter() {
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -40,39 +109,23 @@ function createSmtpTransporter() {
   });
 }
 
-/**
- * Generate a random 6-digit OTP
- * @returns {string} - 6-digit OTP code
- */
 function generateOtpCode() {
   return crypto.randomInt(100000, 999999).toString();
 }
 
-/**
- * Send OTP to email
- * @param {string} userId - User ID
- * @param {string} email - Email address
- * @returns {object} - OTP result with otp_id
- */
+// ============================================================================
+// Send Email OTP
+// ============================================================================
+
 async function sendEmailOtp(userId, email) {
   const otpCode = generateOtpCode();
   const otpId = uuidv4();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  // Store OTP
-  otpStore.set(otpId, {
-    type: 'email',
-    userId,
-    email,
-    code: otpCode,
-    expiresAt,
-    sentAt: new Date(),
-    verified: false,
-  });
+  await storeOtp(otpId, userId, 'email', email, otpCode, expiresAt);
 
   try {
     if (EMAIL_PROVIDER === 'smtp') {
-      // Send via real SMTP (nodemailer)
       const transporter = createSmtpTransporter();
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || 'noreply@careconnect.local',
@@ -90,20 +143,18 @@ async function sendEmailOtp(userId, email) {
       });
       console.log(`[OTP Service] Email OTP sent via SMTP to ${email}`);
     } else {
-      // Send via mock provider
       const response = await fetch(`${MOCK_PROVIDER_URL}/email/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, otp_code: otpCode }),
       });
-
       const result = await response.json();
-
-      if (!result.success) {
-        throw new Error('Failed to send email OTP');
-      }
-
+      if (!result.success) throw new Error('Failed to send email OTP via mock');
       console.log(`[OTP Service] Email OTP sent via mock to ${email}`);
+    }
+
+    if (IS_DEV) {
+      console.log(`[OTP Service] [DEV] Email OTP code for ${email}: ${otpCode}`);
     }
 
     return {
@@ -111,40 +162,41 @@ async function sendEmailOtp(userId, email) {
       otp_id: otpId,
       email,
       expires_in: OTP_EXPIRY_MINUTES * 60,
+      ...(IS_DEV ? { _dev_code: otpCode } : {}),
     };
   } catch (error) {
-    console.error('[OTP Service] Failed to send email OTP:', error);
-    otpStore.delete(otpId);
+    console.error('[OTP Service] Failed to send email OTP:', error.message || error);
+    await deleteOtp(otpId);
     throw error;
   }
 }
 
-/**
- * Send OTP to phone
- * @param {string} userId - User ID
- * @param {string} phoneNumber - Phone number
- * @returns {object} - OTP result with otp_id
- */
+// ============================================================================
+// Send Phone OTP (SMS)
+// ============================================================================
+
 async function sendPhoneOtp(userId, phoneNumber) {
   const otpCode = generateOtpCode();
   const otpId = uuidv4();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  // Store OTP
-  otpStore.set(otpId, {
-    type: 'phone',
-    userId,
-    phoneNumber,
-    code: otpCode,
-    expiresAt,
-    sentAt: new Date(),
-    verified: false,
-  });
+  await storeOtp(otpId, userId, 'phone', phoneNumber, otpCode, expiresAt);
 
   try {
     if (SMS_PROVIDER === 'smsok') {
-      // Send via SMSOK API (BasicAuth)
+      if (!SMSOK_API_KEY || !SMSOK_API_SECRET) {
+        throw new Error('SMSOK credentials not configured (SMSOK_API_KEY / SMSOK_API_SECRET)');
+      }
+
       const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
+      const smsBody = {
+        sender: SMSOK_SENDER,
+        text: `รหัส OTP CareConnect ของคุณคือ: ${otpCode} (หมดอายุใน ${OTP_EXPIRY_MINUTES} นาที)`,
+        destinations: [{ destination: phoneNumber }],
+      };
+
+      console.log(`[OTP Service] Sending SMS via SMSOK to ${phoneNumber}...`);
+
       const response = await fetch(SMSOK_API_URL, {
         method: 'POST',
         headers: {
@@ -152,35 +204,37 @@ async function sendPhoneOtp(userId, phoneNumber) {
           'Accept': '*/*',
           'Authorization': `Basic ${credentials}`,
         },
-        body: JSON.stringify({
-          sender: SMSOK_SENDER,
-          text: `รหัส OTP CareConnect ของคุณคือ: ${otpCode} (หมดอายุใน ${OTP_EXPIRY_MINUTES} นาที)`,
-          destinations: [{ destination: phoneNumber }],
-        }),
+        body: JSON.stringify(smsBody),
       });
 
       if (!response.ok) {
         const errText = await response.text();
+        console.error(`[OTP Service] SMSOK HTTP error ${response.status}:`, errText);
         throw new Error(`SMSOK API error ${response.status}: ${errText}`);
       }
 
       const result = await response.json();
-      console.log(`[OTP Service] SMS OTP sent via SMSOK to ${phoneNumber}`, result);
+
+      const dest = result.destinations?.[0];
+      if (dest && dest.status !== 'NO_ERROR') {
+        console.error(`[OTP Service] SMSOK destination error for ${phoneNumber}:`, dest.status);
+        throw new Error(`SMS delivery failed: ${dest.status}`);
+      }
+
+      console.log(`[OTP Service] SMS OTP sent via SMSOK to ${phoneNumber} — message_id: ${dest?.message_id}, balance: ${result.remaining_balance}`);
     } else {
-      // Send via mock provider
       const response = await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone_number: phoneNumber, otp_code: otpCode }),
       });
-
       const result = await response.json();
-
-      if (!result.success) {
-        throw new Error('Failed to send SMS OTP');
-      }
-
+      if (!result.success) throw new Error('Failed to send SMS OTP via mock');
       console.log(`[OTP Service] SMS OTP sent via mock to ${phoneNumber}`);
+    }
+
+    if (IS_DEV) {
+      console.log(`[OTP Service] [DEV] Phone OTP code for ${phoneNumber}: ${otpCode}`);
     }
 
     return {
@@ -188,22 +242,23 @@ async function sendPhoneOtp(userId, phoneNumber) {
       otp_id: otpId,
       phone_number: phoneNumber,
       expires_in: OTP_EXPIRY_MINUTES * 60,
+      ...(IS_DEV ? { _dev_code: otpCode } : {}),
     };
   } catch (error) {
-    console.error('[OTP Service] Failed to send SMS OTP:', error);
-    otpStore.delete(otpId);
+    console.error('[OTP Service] Failed to send SMS OTP:', error.message || error);
+    await deleteOtp(otpId);
     throw error;
   }
 }
 
-/**
- * Verify OTP code
- * @param {string} otpId - OTP ID
- * @param {string} code - OTP code to verify
- * @returns {object} - Verification result
- */
+// ============================================================================
+// Verify OTP
+// ============================================================================
+
 async function verifyOtp(otpId, code) {
-  const otpData = otpStore.get(otpId);
+  await cleanExpired();
+
+  const otpData = await findOtp(otpId);
 
   if (!otpData) {
     return { success: false, error: 'OTP not found or expired' };
@@ -213,27 +268,30 @@ async function verifyOtp(otpId, code) {
     return { success: false, error: 'OTP already used' };
   }
 
-  if (new Date() > otpData.expiresAt) {
-    otpStore.delete(otpId);
+  if (new Date() > new Date(otpData.expires_at)) {
+    await deleteOtp(otpId);
     return { success: false, error: 'OTP expired' };
   }
 
-  const isValid = otpData.code === code;
+  if (otpData.attempts >= MAX_VERIFY_ATTEMPTS) {
+    await deleteOtp(otpId);
+    return { success: false, error: 'Too many failed attempts. Please request a new OTP.' };
+  }
+
+  const isValid = hashCode(code) === otpData.code_hash;
 
   if (!isValid) {
+    await incrementAttempts(otpId);
     return { success: false, error: 'Invalid OTP code' };
   }
 
-  // Mark as verified
-  otpData.verified = true;
-  otpStore.set(otpId, otpData);
+  await markOtpVerified(otpId);
 
-  // Update user verification status
   try {
     if (otpData.type === 'email') {
       await query(
         `UPDATE users SET is_email_verified = true, email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [otpData.userId]
+        [otpData.user_id]
       );
     } else if (otpData.type === 'phone') {
       await query(
@@ -243,19 +301,20 @@ async function verifyOtp(otpId, code) {
              account_type = CASE WHEN account_type = 'guest' THEN 'member' ELSE account_type END,
              updated_at = NOW()
          WHERE id = $1`,
-        [otpData.userId]
+        [otpData.user_id]
       );
     }
 
-    await triggerUserTrustUpdate(otpData.userId, 'otp');
+    await triggerUserTrustUpdate(otpData.user_id, 'otp');
 
-    // Clean up
-    otpStore.delete(otpId);
+    await deleteOtp(otpId);
+
+    console.log(`[OTP Service] OTP verified — type: ${otpData.type}, user: ${otpData.user_id}`);
 
     return {
       success: true,
       type: otpData.type,
-      userId: otpData.userId,
+      userId: otpData.user_id,
       verified: true,
     };
   } catch (error) {
@@ -264,20 +323,18 @@ async function verifyOtp(otpId, code) {
   }
 }
 
-/**
- * Resend OTP
- * @param {string} otpId - Original OTP ID
- * @returns {object} - New OTP result
- */
+// ============================================================================
+// Resend OTP
+// ============================================================================
+
 async function resendOtp(otpId) {
-  const otpData = otpStore.get(otpId);
+  const otpData = await findOtp(otpId);
 
   if (!otpData) {
     return { success: false, error: 'OTP not found' };
   }
 
-  // Cooldown check: must wait RESEND_COOLDOWN_SECONDS before resending
-  const secondsSinceSent = (Date.now() - new Date(otpData.sentAt).getTime()) / 1000;
+  const secondsSinceSent = (Date.now() - new Date(otpData.sent_at).getTime()) / 1000;
   if (secondsSinceSent < RESEND_COOLDOWN_SECONDS) {
     const remainingSeconds = Math.ceil(RESEND_COOLDOWN_SECONDS - secondsSinceSent);
     return {
@@ -287,14 +344,12 @@ async function resendOtp(otpId) {
     };
   }
 
-  // Delete old OTP
-  otpStore.delete(otpId);
+  await deleteOtp(otpId);
 
-  // Send new OTP
   if (otpData.type === 'email') {
-    return await sendEmailOtp(otpData.userId, otpData.email);
+    return await sendEmailOtp(otpData.user_id, otpData.destination);
   } else {
-    return await sendPhoneOtp(otpData.userId, otpData.phoneNumber);
+    return await sendPhoneOtp(otpData.user_id, otpData.destination);
   }
 }
 

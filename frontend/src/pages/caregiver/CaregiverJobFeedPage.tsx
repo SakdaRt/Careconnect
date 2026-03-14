@@ -269,14 +269,25 @@ export default function CaregiverJobFeedPage() {
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
           <Card className="p-6 sm:p-8 text-center">
-            <div className="text-4xl mb-3">📋</div>
+            <div className="text-4xl mb-3">{typeFilter ? '�' : '☕'}</div>
             <h3 className="text-lg font-bold text-gray-900 mb-1">{typeFilter ? 'ไม่พบงานประเภทนี้' : 'ยังไม่มีงานเปิดรับในขณะนี้'}</h3>
-            <p className="text-sm text-gray-600 mb-4">{typeFilter ? 'ลองเปลี่ยนตัวกรองหรือรอสักครู่' : 'ผู้ว่าจ้างยังไม่ได้โพสต์งานใหม่ ลองกลับมาดูใหม่ภายหลัง'}</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {typeFilter && <Button variant="outline" size="sm" onClick={() => setTypeFilter('')}>ล้างตัวกรอง</Button>}
-              <Button variant="outline" size="sm" onClick={load}>รีเฟรช</Button>
-              <Link to="/profile"><Button variant="primary" size="sm">ปรับปรุงโปรไฟล์</Button></Link>
+            <p className="text-sm text-gray-600 mb-4">{typeFilter ? 'ลองเปลี่ยนตัวกรองหรือรอสักครู่' : 'ระหว่างรอ ลองปรับปรุงโปรไฟล์ให้ครบ เพื่อเพิ่มโอกาสได้รับงาน'}</p>
+            <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-2">
+              {typeFilter && <Button variant="outline" size="sm" onClick={() => setTypeFilter('')} fullWidth>ล้างตัวกรอง</Button>}
+              <Button variant="outline" size="sm" onClick={load} fullWidth>รีเฟรช</Button>
+              <Link to="/profile" className="w-full sm:w-auto"><Button variant="primary" size="sm" fullWidth>ปรับปรุงโปรไฟล์</Button></Link>
             </div>
+            {!typeFilter && (
+              <div className="mt-4 text-left bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <div className="text-xs font-semibold text-blue-800 mb-1">💡 เพิ่มโอกาสได้รับงาน</div>
+                <ul className="text-xs text-blue-700 space-y-1">
+                  <li>• กรอก bio และทักษะให้ครบ</li>
+                  <li>• ตั้งวันและเวลาที่พร้อมรับงาน</li>
+                  <li>• อัปโหลดใบรับรองหรือเอกสารยืนยัน</li>
+                  <li>• ยืนยันตัวตน KYC เพื่อรับงานทุกประเภท</li>
+                </ul>
+              </div>
+            )}
           </Card>
         ) : (
           <div className="space-y-3">

@@ -3,13 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Search, Star, Briefcase, Clock3, Heart } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState, Modal, Select } from '../../components/ui';
+import { Avatar, Button, Card, LoadingState, Modal, Select } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 
 interface CaregiverResult {
   id: string;
+  avatar?: string | null;
   email?: string;
   phone_number?: string;
   trust_level: string;
@@ -612,6 +613,13 @@ export default function SearchCaregiversPage() {
               const availability = formatAvailability(cg.available_days, cg.available_from, cg.available_to);
               return (
                 <Card key={cg.id} className="flex flex-col sm:flex-row gap-4 items-start">
+                  <button type="button" onClick={() => handleOpenDetails(cg)} className="flex-shrink-0">
+                    <Avatar
+                      src={cg.avatar ? `/uploads/${cg.avatar}` : undefined}
+                      name={cg.display_name || 'ผู้ดูแล'}
+                      size="lg"
+                    />
+                  </button>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <button type="button" onClick={() => handleOpenDetails(cg)} className="font-semibold text-gray-900 hover:text-blue-600 hover:underline transition-colors text-left">{cg.display_name || 'ผู้ดูแล'}</button>
@@ -660,22 +668,24 @@ export default function SearchCaregiversPage() {
                     )}
                   </div>
 
-                  <div className="flex gap-2 flex-shrink-0 items-center">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFavorite(cg.id)}
-                      aria-label={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
-                      aria-pressed={favoritedIds.has(cg.id)}
-                      className="p-2 rounded-full hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400"
-                    >
-                      <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden="true" />
-                    </button>
-                    <Link to={`/hirer/caregiver/${cg.id}`}>
-                      <Button variant="outline" size="sm">ดูโปรไฟล์</Button>
-                    </Link>
-                    <Button variant="primary" size="sm" onClick={() => handleOpenAssign(cg)}>
-                      มอบหมายงาน
-                    </Button>
+                  <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto sm:flex-shrink-0 sm:items-center mt-3 sm:mt-0">
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFavorite(cg.id)}
+                        aria-label={favoritedIds.has(cg.id) ? 'ลบออกจากรายการโปรด' : 'เพิ่มในรายการโปรด'}
+                        aria-pressed={favoritedIds.has(cg.id)}
+                        className="p-2.5 rounded-full hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-400 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                      >
+                        <Heart className={`w-5 h-5 ${favoritedIds.has(cg.id) ? 'fill-red-500 text-red-500' : 'text-gray-500'}`} aria-hidden="true" />
+                      </button>
+                      <Link to={`/hirer/caregiver/${cg.id}`} className="flex-1 sm:flex-none">
+                        <Button variant="outline" size="sm" fullWidth>ดูโปรไฟล์</Button>
+                      </Link>
+                      <Button variant="primary" size="sm" onClick={() => handleOpenAssign(cg)} className="flex-1 sm:flex-none">
+                        มอบหมายงาน
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               );

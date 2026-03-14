@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users, ArrowLeftRight } from 'lucide-react';
+import { Bell, User, Settings, LogOut, Menu, ShieldCheck, Wallet, Users, ArrowLeftRight, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts';
 import { useCallback, useEffect, useRef, useState, KeyboardEvent } from 'react';
 import toast from 'react-hot-toast';
@@ -335,7 +335,7 @@ export function TopBar() {
 
                   {/* Menu */}
                   <div
-                    className="absolute right-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+                    className="absolute right-0 mt-2 w-64 max-h-[calc(100vh-5rem)] overflow-y-auto bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
                     role="menu"
                     aria-label="เมนูผู้ใช้"
                     onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Escape') setShowMenu(false); }}
@@ -448,6 +448,18 @@ export function TopBar() {
                         <ArrowLeftRight className="w-5 h-5" aria-hidden="true" />
                         <span>{switchingRole ? 'กำลังเปลี่ยน...' : `เปลี่ยนเป็น${targetRoleLabel}`}</span>
                       </button>
+                    )}
+
+                    {resolvedRole !== 'admin' && (
+                      <Link
+                        to="/complaint"
+                        role="menuitem"
+                        className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-colors focus:outline-none focus:bg-gray-50"
+                        onClick={() => setShowMenu(false)}
+                      >
+                        <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+                        <span>แจ้งเรื่องร้องเรียน</span>
+                      </Link>
                     )}
 
                     <Link
