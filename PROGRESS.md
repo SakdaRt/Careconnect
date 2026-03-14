@@ -177,6 +177,30 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Fix SMS OTP system: persistent storage + SMSOK integration + password validation
+
+- fix(backend): เขียน `backend/src/services/otpService.js` ใหม่ทั้งไฟล์
+  - **Root cause #1**: OTP เก็บใน in-memory Map → backend restart ทำ OTP หายทั้งหมด → verify ไม่ได้
+  - **Fix**: ย้ายไปเก็บใน PostgreSQL `otp_codes` table (hash OTP code ด้วย SHA-256)
+  - เพิ่ม brute-force protection: max 5 verify attempts ต่อ OTP
+  - เพิ่ม SMSOK destination status check (ตรวจ `NO_ERROR` per destination)
+  - เพิ่ม SMSOK credential validation (throw ถ้าไม่มี API key)
+  - เพิ่ม comprehensive logging: ทุก step ของ send/verify flow
+  - เพิ่ม dev mode: แสดง OTP code ใน console + response (`_dev_code`)
+  - แก้ default SMSOK URL: `https://smsok.co/api/v1/s` → `https://api.smsok.co/s`
+  - เพิ่ม auto-cleanup expired OTPs
+- feat(database): สร้าง migration `backend/database/migrations/20260314_01_otp_codes.sql`
+  - `otp_codes` table: id, user_id, type, destination, code_hash, verified, attempts, sent_at, expires_at
+- fix(frontend): **Root cause #2** แก้ password validation mismatch
+  - `MemberRegisterPage.tsx`: เปลี่ยน min 6 → 8 ให้ตรง backend Joi schema `min(8)`
+  - `GuestRegisterPage.tsx`: เปลี่ยน min 6 → 8 เช่นเดียวกัน
+- verify (end-to-end test ใน Docker):
+  - ✅ SMSOK API: 201 NO_ERROR, message_id ได้, balance 109.68
+  - ✅ OTP stored in PostgreSQL: survive backend restart
+  - ✅ Dev mode: `_dev_code` in response + console log
+  - ✅ Verify OTP: success, `is_phone_verified=true`, `trust_level=L1`
+  - ✅ Frontend tsc: PASS (0 errors)
+
 ### 2026-03-14 — Full project audit + fix latent bugs + sync test mocks
 
 - audit(all): Full repository rescan — อ่านทุกไฟล์สำคัญ ตรวจ current state ทั้ง frontend/backend/database

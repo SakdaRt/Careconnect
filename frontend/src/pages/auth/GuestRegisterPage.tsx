@@ -104,8 +104,8 @@ export default function GuestRegisterPage() {
 
     if (!formData.password) {
       newErrors.password = 'Please enter a password';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters';
     }
 
     if (!formData.confirmPassword) {

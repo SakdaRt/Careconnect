@@ -173,8 +173,8 @@ export default function MemberRegisterPage() {
 
     if (!formData.password) {
       newErrors.password = 'กรุณากรอกรหัสผ่าน';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+    } else if (formData.password.length < 8) {
+      newErrors.password = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
     }
 
     if (!formData.confirmPassword) {
@@ -412,7 +412,7 @@ export default function MemberRegisterPage() {
 
             <PasswordInput
               label="รหัสผ่าน"
-              placeholder="กรอกรหัสผ่าน (อย่างน้อย 6 ตัวอักษร)"
+              placeholder="กรอกรหัสผ่าน (อย่างน้อย 8 ตัวอักษร)"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               error={errors.password}
