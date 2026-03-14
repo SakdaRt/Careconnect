@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Car, Heart, Brain, BedDouble, Activity, Stethoscope, User as UserIcon, PlusCircle, Check, Search } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
@@ -504,15 +505,6 @@ const DETAILED_JOB_TEMPLATES: Record<DetailedJobType, DetailedJobTemplate> = {
   },
 };
 
-const DETAILED_JOB_TYPE_ORDER: DetailedJobType[] = [
-  'hospital_transport_support',
-  'general_patient_care',
-  'post_surgery_recovery',
-  'dementia_supervision',
-  'bedbound_high_dependency',
-  'medical_device_home_care',
-];
-
 const DEFAULT_DETAILED_JOB_TYPE: DetailedJobType = 'general_patient_care';
 
 const SPECIALIZED_TYPE_DIFFERENCE_HINT: Partial<Record<DetailedJobType, string>> = {
@@ -589,23 +581,26 @@ const labelByValue = (options: ReadonlyArray<OptionItem>, values: readonly strin
   return values.map((v) => map.get(v) || v);
 };
 
-type CreateJobStep = 1 | 2 | 3 | 4;
+type CreateJobStep = 1 | 2 | 3 | 4 | 5;
 
 const CREATE_JOB_STEPS: Array<{ id: CreateJobStep; title: string; helper: string }> = [
-  { id: 1, title: 'ข้อมูลหลักและคำถาม', helper: 'ผู้รับการดูแล + ประเภทงาน + คำถาม' },
-  { id: 2, title: 'งานและคุณสมบัติ', helper: 'งานที่ต้องทำ + ทักษะ/อุปกรณ์' },
-  { id: 3, title: 'เวลาและสถานที่', helper: 'วัน เวลา สถานที่ ราคา' },
-  { id: 4, title: 'ตรวจทาน', helper: 'สรุปก่อนยืนยันบันทึก' },
+  { id: 1, title: 'เลือกบริการ', helper: 'ประเภทการดูแลที่ต้องการ' },
+  { id: 2, title: 'ผู้รับการดูแล', helper: 'เลือกผู้ที่จะได้รับบริการ' },
+  { id: 3, title: 'รายละเอียดงาน', helper: 'วัน เวลา สถานที่ ราคา' },
+  { id: 4, title: 'ผู้ดูแล', helper: 'เลือกผู้ดูแลหรือโพสต์หา' },
+  { id: 5, title: 'ตรวจทาน', helper: 'สรุปก่อนยืนยัน' },
 ];
 
 const SECTION_STEP_MAP: Record<string, CreateJobStep> = {
-  patient: 1,
-  job_basic: 1,
-  dynamic_questions: 2,
-  job_tasks: 2,
-  job_requirements: 2,
+  service: 1,
+  patient: 2,
+  job_basic: 3,
+  dynamic_questions: 3,
+  job_tasks: 3,
+  job_requirements: 3,
   job_schedule: 3,
   job_location: 3,
+  caregiver: 4,
 };
 
 export default function CreateJobPage() {
@@ -886,27 +881,12 @@ export default function CreateJobPage() {
   };
 
   const validateStepOne = () => {
-    if (!careRecipientId) {
-      setStepError({ section: 'patient', message: 'กรุณาเลือกผู้รับการดูแล' });
-      return false;
-    }
-
-    if (!form.title.trim()) {
-      setStepError({ section: 'job_basic', message: 'กรุณากรอกชื่องาน', fields: { title: 'กรุณากรอกชื่องาน' } });
-      return false;
-    }
-
-    if (!form.description.trim()) {
-      setStepError({ section: 'job_basic', message: 'กรุณากรอกรายละเอียดงาน', fields: { description: 'กรุณากรอกรายละเอียดงาน' } });
-      return false;
-    }
-
     return true;
   };
 
   const validateStepTwo = () => {
-    if (!form.job_tasks_flags.length) {
-      setStepError({ section: 'job_tasks', message: 'กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง', fields: { job_tasks_flags: 'กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง' } });
+    if (!careRecipientId) {
+      setStepError({ section: 'patient', message: 'กรุณาเลือกผู้รับการดูแล' });
       return false;
     }
     return true;
@@ -958,6 +938,15 @@ export default function CreateJobPage() {
       return false;
     }
 
+    if (!form.job_tasks_flags.length) {
+      setStepError({ section: 'job_tasks', message: 'กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง', fields: { job_tasks_flags: 'กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง' } });
+      return false;
+    }
+
+    return true;
+  };
+
+  const validateStepFour = () => {
     return true;
   };
 
@@ -979,6 +968,10 @@ export default function CreateJobPage() {
       if (!validateStepThree()) return;
       clearErrors();
       setCurrentStep(4);
+    } else if (currentStep === 4) {
+      if (!validateStepFour()) return;
+      clearErrors();
+      setCurrentStep(5);
     }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -1363,9 +1356,19 @@ export default function CreateJobPage() {
     setForm((prev) => ({ ...prev, description: value }));
   };
 
+  const SERVICE_CARDS = [
+    { key: 'hospital_transport_support' as DetailedJobType, icon: Car, label: 'พาไปโรงพยาบาล', desc: 'พาไปพบแพทย์ รับยา รับผลตรวจ', color: 'bg-red-50 text-red-600 border-red-200' },
+    { key: 'general_patient_care' as DetailedJobType, icon: Heart, label: 'ดูแลทั่วไป', desc: 'อยู่เป็นเพื่อน ช่วยกิจวัตร ดูแลยา', color: 'bg-blue-50 text-blue-600 border-blue-200' },
+    { key: 'post_surgery_recovery' as DetailedJobType, icon: Activity, label: 'ดูแลหลังผ่าตัด', desc: 'เฝ้าระวังแผลและภาวะแทรกซ้อน', color: 'bg-green-50 text-green-600 border-green-200' },
+    { key: 'dementia_supervision' as DetailedJobType, icon: Brain, label: 'ดูแลสมองเสื่อม', desc: 'เฝ้าระวังพฤติกรรมอย่างใกล้ชิด', color: 'bg-purple-50 text-purple-600 border-purple-200' },
+    { key: 'bedbound_high_dependency' as DetailedJobType, icon: BedDouble, label: 'ดูแลผู้ป่วยติดเตียง', desc: 'ช่วยเหลือเกือบทั้งหมด ย้ายท่า สุขอนามัย', color: 'bg-amber-50 text-amber-600 border-amber-200' },
+    { key: 'medical_device_home_care' as DetailedJobType, icon: Stethoscope, label: 'ดูแลอุปกรณ์การแพทย์', desc: 'ออกซิเจน สายให้อาหาร สายสวน', color: 'bg-teal-50 text-teal-600 border-teal-200' },
+  ];
+
+  const totalSteps = CREATE_JOB_STEPS.length;
+
   return (
     <MainLayout showBottomBar={false}>
-      {/* Unsaved changes blocker modal */}
       {blocker.state === 'blocked' && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-xl shadow-xl max-w-sm w-full mx-4 p-6">
@@ -1378,362 +1381,431 @@ export default function CreateJobPage() {
           </div>
         </div>
       )}
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between gap-3 mb-2">
-          <h1 className="text-2xl font-bold text-gray-900">สร้างงานใหม่</h1>
-          <Button variant="outline" onClick={() => navigate(-1)} disabled={loading}>
-            ย้อนกลับ
-          </Button>
-        </div>
-        <p className="text-sm text-gray-600 mb-6">สร้างเป็นแบบร่างก่อน แล้วค่อยเผยแพร่ในหน้า “งานของฉัน”</p>
 
-        <Card className="p-4 sm:p-6">
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-28">
+        {/* ── Mobile-first progress header ── */}
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium text-gray-500">ขั้นตอน {currentStep}/{totalSteps}</span>
+            <span className="text-xs text-gray-500">{Math.round((currentStep / totalSteps) * 100)}%</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="bg-blue-500 h-2 rounded-full transition-all duration-300" style={{ width: `${(currentStep / totalSteps) * 100}%` }} />
+          </div>
+          <div className="flex justify-between mt-2 overflow-x-auto gap-1">
+            {CREATE_JOB_STEPS.map((step) => {
+              const canJump = step.id <= maxVisitedStep;
+              const isCurrent = step.id === currentStep;
+              const isDone = step.id < currentStep;
+              return (
+                <button
+                  key={step.id}
+                  type="button"
+                  disabled={!canJump}
+                  onClick={() => canJump && setCurrentStep(step.id)}
+                  className={cn(
+                    'flex items-center gap-1 text-[10px] sm:text-xs px-1.5 py-0.5 rounded-full whitespace-nowrap transition-colors',
+                    isCurrent ? 'bg-blue-100 text-blue-700 font-bold' : isDone ? 'text-green-600' : 'text-gray-400',
+                    !canJump && 'cursor-not-allowed'
+                  )}
+                >
+                  {isDone && <Check className="w-3 h-3" aria-hidden="true" />}
+                  {step.title}
+                </button>
+              );
+            })}
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mt-3">{CREATE_JOB_STEPS.find((s) => s.id === currentStep)?.title}</h2>
+          <p className="text-sm text-gray-500">{CREATE_JOB_STEPS.find((s) => s.id === currentStep)?.helper}</p>
+        </div>
+
+        {errorSection && errorMessage && (
+          <div className="p-3 border border-red-300 bg-red-50 rounded-lg text-sm text-red-800 mb-4">
+            {errorMessage}
+          </div>
+        )}
+
+        {/* ═══════════ Step 1: เลือกบริการ ═══════════ */}
+        {currentStep === 1 && (
           <div className="space-y-4">
-            {errorSection && errorMessage && (
-              <div className="p-3 border border-red-300 bg-red-50 rounded-lg text-sm text-red-800">
-                {errorMessage}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {SERVICE_CARDS.map((svc) => {
+                const Icon = svc.icon;
+                const isSelected = form.detailed_job_type === svc.key;
+                return (
+                  <button
+                    key={svc.key}
+                    type="button"
+                    onClick={() => {
+                      if (svc.key !== form.detailed_job_type) {
+                        handleDetailedTypeSelection(svc.key);
+                      }
+                    }}
+                    className={cn(
+                      'border-2 rounded-xl p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500',
+                      isSelected ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-200' : `border-gray-200 hover:border-blue-300 ${svc.color}`
+                    )}
+                  >
+                    <div className="flex items-start gap-3">
+                      <Icon className={cn('w-8 h-8 flex-shrink-0', isSelected ? 'text-blue-600' : '')} aria-hidden="true" />
+                      <div>
+                        <div className={cn('text-sm font-semibold', isSelected ? 'text-blue-900' : 'text-gray-900')}>{svc.label}</div>
+                        <div className={cn('text-xs mt-0.5', isSelected ? 'text-blue-700' : 'text-gray-600')}>{svc.desc}</div>
+                      </div>
+                      {isSelected && <Check className="w-5 h-5 text-blue-600 flex-shrink-0 ml-auto" aria-hidden="true" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+            {currentDetailedTemplate && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm font-medium text-blue-900">เลือก: {currentDetailedTemplate.label}</div>
+                <div className="text-xs text-blue-700 mt-1">{currentDetailedTemplate.helper}</div>
+                {SPECIALIZED_TYPE_DIFFERENCE_HINT[form.detailed_job_type] && (
+                  <div className="text-xs text-amber-700 mt-1">{SPECIALIZED_TYPE_DIFFERENCE_HINT[form.detailed_job_type]}</div>
+                )}
               </div>
             )}
+          </div>
+        )}
 
-            <div className="mb-2">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-gray-900">ขั้นตอนที่ {currentStep}/4: {CREATE_JOB_STEPS.find((s) => s.id === currentStep)?.title}</span>
-                <span className="text-xs text-gray-500">{Math.round((currentStep / 4) * 100)}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div className="bg-blue-500 h-2 rounded-full transition-all duration-300" style={{ width: `${(currentStep / 4) * 100}%` }} />
-              </div>
-              <div className="flex justify-between mt-1">
-                {CREATE_JOB_STEPS.map((step) => {
-                  const canJump = step.id <= maxVisitedStep;
-                  return (
-                    <button
-                      key={step.id}
-                      type="button"
-                      disabled={!canJump}
-                      onClick={() => canJump && setCurrentStep(step.id)}
-                      className={cn(
-                        'text-[10px] px-1 transition-colors',
-                        currentStep === step.id ? 'text-blue-600 font-bold' : currentStep > step.id ? 'text-green-600' : 'text-gray-400',
-                        !canJump && 'cursor-not-allowed'
-                      )}
-                    >
-                      {step.title}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* ═══════════ Step 2: เลือกผู้รับการดูแล ═══════════ */}
+        {currentStep === 2 && (
+          <div className="space-y-4">
+            <div id="section-patient" className={cn(errorSection === 'patient' ? 'border border-red-400 bg-red-50 rounded-lg p-3' : '')}>
+              {careRecipients.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {careRecipients.map((p) => {
+                    const isSelected = careRecipientId === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setCareRecipientId(p.id)}
+                        className={cn(
+                          'border-2 rounded-xl p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500',
+                          isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', isSelected ? 'bg-blue-200' : 'bg-gray-100')}>
+                            <UserIcon className={cn('w-5 h-5', isSelected ? 'text-blue-700' : 'text-gray-500')} aria-hidden="true" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={cn('text-sm font-semibold line-clamp-1', isSelected ? 'text-blue-900' : 'text-gray-900')}>{p.patient_display_name}</div>
+                            <div className="text-xs text-gray-500 mt-0.5">{p.gender === 'male' ? 'ชาย' : p.gender === 'female' ? 'หญิง' : ''} {p.age_band?.replace('_', '-') || ''}</div>
+                          </div>
+                          {isSelected && <Check className="w-5 h-5 text-blue-600 flex-shrink-0" aria-hidden="true" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <Card className="p-5 text-center">
+                  <UserIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" aria-hidden="true" />
+                  <p className="text-sm text-gray-700 font-medium">ยังไม่มีผู้รับการดูแล</p>
+                  <p className="text-xs text-gray-500 mt-1">เพิ่มข้อมูลผู้ที่จะได้รับบริการก่อน</p>
+                </Card>
+              )}
             </div>
 
-            {/* ───── Step 1: ผู้รับการดูแล + ประเภทงาน ───── */}
-            {currentStep === 1 && (
-              <>
-                <div
-                  id="section-patient"
-                  className={cn('flex flex-col gap-1 p-3 border rounded-lg', errorSection === 'patient' ? 'border-red-400 bg-red-50' : 'border-gray-200 bg-white')}
-                >
-                  <Select label="ผู้รับการดูแล" value={careRecipientId} onChange={(e) => setCareRecipientId(e.target.value)}>
-                    <option value="">ยังไม่ได้เลือก</option>
-                    {careRecipients.map((p) => (<option key={p.id} value={p.id}>{p.patient_display_name}</option>))}
+            <div className="flex flex-wrap gap-2">
+              {!showQuickAddRecipient && (
+                <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />} onClick={() => setShowQuickAddRecipient(true)}>เพิ่มผู้รับการดูแลใหม่</Button>
+              )}
+              <Link to="/hirer/care-recipients"><Button variant="outline" size="sm">จัดการทั้งหมด</Button></Link>
+            </div>
+
+            {showQuickAddRecipient && (
+              <Card className="p-4 border-blue-200 bg-blue-50/50">
+                <div className="text-sm font-semibold text-blue-800 mb-2">เพิ่มผู้รับการดูแลแบบเร็ว</div>
+                <input type="text" value={quickRecipientName} onChange={(e) => setQuickRecipientName(e.target.value)} placeholder="ชื่อ เช่น คุณแม่สมศรี" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-2" />
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  <Select aria-label="เพศ" value={quickRecipientGender} onChange={(e) => setQuickRecipientGender(e.target.value)}>
+                    <option value="female">หญิง</option><option value="male">ชาย</option><option value="other">อื่นๆ</option>
                   </Select>
-                  {careRecipients.length === 0 && !showQuickAddRecipient && <div className="text-xs text-red-600">ยังไม่มีผู้รับการดูแล</div>}
-                  <div className="flex flex-wrap gap-2">
-                    {!showQuickAddRecipient && (
-                      <Button variant="primary" size="sm" onClick={() => setShowQuickAddRecipient(true)}>+ เพิ่มเร็ว</Button>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => navigate('/hirer/care-recipients')}>จัดการผู้รับการดูแล</Button>
-                  </div>
-                  {showQuickAddRecipient && (
-                    <div className="mt-2 p-3 border border-blue-200 bg-blue-50/50 rounded-lg space-y-2">
-                      <div className="text-xs font-semibold text-blue-800">เพิ่มผู้รับการดูแลแบบเร็ว</div>
-                      <input
-                        type="text"
-                        value={quickRecipientName}
-                        onChange={(e) => setQuickRecipientName(e.target.value)}
-                        placeholder="ชื่อผู้รับการดูแล เช่น คุณแม่สมศรี"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <div className="grid grid-cols-3 gap-2">
-                        <Select aria-label="เพศ" value={quickRecipientGender} onChange={(e) => setQuickRecipientGender(e.target.value)}>
-                          <option value="female">หญิง</option>
-                          <option value="male">ชาย</option>
-                          <option value="other">อื่นๆ</option>
-                        </Select>
-                        <Select aria-label="ช่วงอายุ" value={quickRecipientAge} onChange={(e) => setQuickRecipientAge(e.target.value)}>
-                          <option value="0_12">เด็ก (0-12)</option>
-                          <option value="13_17">วัยรุ่น (13-17)</option>
-                          <option value="18_59">ผู้ใหญ่ (18-59)</option>
-                          <option value="60_74">ผู้สูงอายุ (60-74)</option>
-                          <option value="75_89">ผู้สูงอายุ (75-89)</option>
-                          <option value="90_plus">ผู้สูงอายุ (90+)</option>
-                        </Select>
-                        <Select aria-label="การเคลื่อนไหว" value={quickRecipientMobility} onChange={(e) => setQuickRecipientMobility(e.target.value)}>
-                          <option value="walk_independent">เดินได้เอง</option>
-                          <option value="walk_assisted">ต้องพยุง</option>
-                          <option value="wheelchair">รถเข็น</option>
-                          <option value="bedbound">ติดเตียง</option>
-                        </Select>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button variant="primary" size="sm" onClick={handleQuickAddRecipient} loading={quickRecipientSaving}>บันทึก</Button>
-                        <Button variant="outline" size="sm" onClick={() => setShowQuickAddRecipient(false)}>ยกเลิก</Button>
-                      </div>
-                      <div className="text-[10px] text-gray-500">แก้ไขรายละเอียดเพิ่มเติมได้ภายหลังที่เมนู "ผู้รับการดูแล"</div>
-                    </div>
-                  )}
+                  <Select aria-label="ช่วงอายุ" value={quickRecipientAge} onChange={(e) => setQuickRecipientAge(e.target.value)}>
+                    <option value="60_74">60-74</option><option value="75_89">75-89</option><option value="90_plus">90+</option><option value="18_59">18-59</option><option value="0_12">0-12</option>
+                  </Select>
+                  <Select aria-label="การเคลื่อนไหว" value={quickRecipientMobility} onChange={(e) => setQuickRecipientMobility(e.target.value)}>
+                    <option value="walk_independent">เดินเอง</option><option value="walk_assisted">ต้องพยุง</option><option value="wheelchair">รถเข็น</option><option value="bedbound">ติดเตียง</option>
+                  </Select>
                 </div>
-
-                {selectedCareRecipient && patientSummary && (
-                  <Card className="p-4">
-                    <div className="text-sm font-semibold text-gray-900">สรุปผู้ได้รับการดูแล</div>
-                    <div className="text-xs text-gray-600 mt-1">{selectedCareRecipient.patient_display_name}</div>
-                    {selectedCareRecipient.general_health_summary && <div className="text-sm text-gray-800 mt-2 whitespace-pre-wrap">{selectedCareRecipient.general_health_summary}</div>}
-                    <div className="flex flex-wrap gap-2 mt-3">
-                      {patientSummary.tags.slice(0, 20).map((t, idx) => (<Badge key={idx} variant={t.variant}>{t.label}</Badge>))}
-                      {patientSummary.tags.length > 20 && <Badge variant="default">+{patientSummary.tags.length - 20}</Badge>}
-                    </div>
-                  </Card>
-                )}
-
-                <Card id="section-job_basic" className={cn(errorSection === 'job_basic' ? 'border-red-400 bg-red-50' : undefined)}>
-                  <div className="text-sm font-semibold text-gray-900 mb-3">ข้อมูลงาน</div>
-                  <Input label="ชื่องาน" value={form.title} error={fieldErrors.title} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, title: '' })); setForm({ ...form, title: e.target.value }); }} placeholder="เช่น ดูแลผู้สูงอายุช่วงเช้า" required />
-                  <div className="mt-3">
-                    <Textarea label="รายละเอียดงาน" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="อธิบายสิ่งที่ต้องทำ ข้อควรระวัง อุปกรณ์ ฯลฯ" error={fieldErrors.description} className="min-h-28" />
-                  </div>
-
-                  <div className="flex flex-col gap-1 mt-3">
-                    <Select label="ประเภทงานหลัก" value={form.detailed_job_type} onChange={(e) => handleDetailedTypeSelection(e.target.value as DetailedJobType)}>
-                      {DETAILED_JOB_TYPE_ORDER.map((value) => (<option key={value} value={value}>{DETAILED_JOB_TEMPLATES[value].label}</option>))}
-                    </Select>
-                    <div className="text-xs text-gray-500 mt-1">{currentDetailedTemplate.helper}</div>
-                    {SPECIALIZED_TYPE_DIFFERENCE_HINT[form.detailed_job_type] && (
-                      <div className="text-xs text-amber-700 mt-1">
-                        {SPECIALIZED_TYPE_DIFFERENCE_HINT[form.detailed_job_type]}
-                      </div>
-                    )}
-                    <div className="text-xs text-gray-500">หมวดงานหลัก: {JOB_TYPE_LABEL[currentDetailedTemplate.jobType]}</div>
-                  </div>
-                </Card>
-
-                {currentDetailedTemplate.dynamicQuestions.length > 0 && (
-                  <Card id="section-dynamic_questions" className="border-amber-200 bg-amber-50/50">
-                    <div className="text-sm font-semibold text-gray-900 mb-1">คำถามเพิ่มเติมสำหรับ &quot;{currentDetailedTemplate.label}&quot;</div>
-                    <div className="text-xs text-gray-600 mb-3">ตอบคำถามเพื่อให้ระบบเลือกงาน ทักษะ และอุปกรณ์ที่เกี่ยวข้องให้อัตโนมัติ</div>
-                    <div className="space-y-4">
-                      {currentDetailedTemplate.dynamicQuestions.map((q) => (
-                        <div key={q.id} className="p-3 border border-amber-200 bg-white rounded-lg">
-                          <div className="text-sm font-semibold text-gray-900">{q.label}</div>
-                          {q.helper && <div className="text-xs text-gray-600 mt-0.5">{q.helper}</div>}
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                            {q.options.map((opt) => {
-                              const checked = dynamicAnswers[q.id] === opt.value;
-                              return (
-                                <label key={opt.value} className={cn('flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer', checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white')}>
-                                  <input type="radio" name={`dq_${q.id}`} checked={checked} onChange={() => applyDynamicAnswer(q.id, opt.value)} />
-                                  <span className="text-sm text-gray-900">{opt.label}</span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-              </>
+                <div className="flex gap-2">
+                  <Button variant="primary" size="sm" onClick={handleQuickAddRecipient} loading={quickRecipientSaving}>บันทึก</Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowQuickAddRecipient(false)}>ยกเลิก</Button>
+                </div>
+              </Card>
             )}
 
-            {/* ───── Step 2: งานที่ต้องทำ + ทักษะ/อุปกรณ์/ข้อควรระวัง ───── */}
-            {currentStep === 2 && (
-              <>
+            {selectedCareRecipient && patientSummary && (
+              <Card className="p-4">
+                <div className="text-sm font-semibold text-gray-900">ข้อมูลผู้รับการดูแล</div>
+                <div className="text-xs text-gray-600 mt-1">{selectedCareRecipient.patient_display_name}</div>
+                {selectedCareRecipient.general_health_summary && <div className="text-sm text-gray-800 mt-2 whitespace-pre-wrap line-clamp-3">{selectedCareRecipient.general_health_summary}</div>}
+                <div className="flex flex-wrap gap-1.5 mt-3">
+                  {patientSummary.tags.slice(0, 12).map((t, idx) => (<Badge key={idx} variant={t.variant}>{t.label}</Badge>))}
+                  {patientSummary.tags.length > 12 && <Badge variant="default">+{patientSummary.tags.length - 12}</Badge>}
+                </div>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ═══════════ Step 3: รายละเอียดงาน (merged) ═══════════ */}
+        {currentStep === 3 && (
+          <div className="space-y-4">
+            {currentDetailedTemplate.dynamicQuestions.length > 0 && (
+              <Card id="section-dynamic_questions" className="border-amber-200 bg-amber-50/50">
+                <div className="text-sm font-semibold text-gray-900 mb-1">คำถามสำหรับ &quot;{currentDetailedTemplate.label}&quot;</div>
+                <div className="text-xs text-gray-600 mb-3">ตอบเพื่อให้ระบบเลือกงาน/ทักษะ/อุปกรณ์ให้อัตโนมัติ</div>
+                <div className="space-y-3">
+                  {currentDetailedTemplate.dynamicQuestions.map((q) => (
+                    <div key={q.id} className="p-3 border border-amber-200 bg-white rounded-lg">
+                      <div className="text-sm font-semibold text-gray-900">{q.label}</div>
+                      {q.helper && <div className="text-xs text-gray-600 mt-0.5">{q.helper}</div>}
+                      <div className="grid grid-cols-1 gap-2 mt-2">
+                        {q.options.map((opt) => {
+                          const checked = dynamicAnswers[q.id] === opt.value;
+                          return (
+                            <label key={opt.value} className={cn('flex items-center gap-3 border rounded-lg px-3 py-2.5 cursor-pointer', checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white')}>
+                              <input type="radio" name={`dq_${q.id}`} checked={checked} onChange={() => applyDynamicAnswer(q.id, opt.value)} className="w-4 h-4" />
+                              <span className="text-sm text-gray-900">{opt.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
+
+            <div id="section-job_schedule" />
+            <Card className={cn(errorSection === 'job_schedule' ? 'border-red-400 bg-red-50' : undefined)}>
+              <div className="text-sm font-semibold text-gray-900 mb-3">วันและเวลา</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="เริ่มงาน" type="datetime-local" value={form.scheduled_start_at} error={fieldErrors.scheduled_start_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_start_at: '' })); setForm({ ...form, scheduled_start_at: e.target.value }); }} required />
+                <Input label="สิ้นสุด" type="datetime-local" value={form.scheduled_end_at} error={fieldErrors.scheduled_end_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_end_at: '' })); setForm({ ...form, scheduled_end_at: e.target.value }); }} required />
+              </div>
+            </Card>
+
+            <div id="section-job_location" className={cn(errorSection === 'job_location' ? 'border border-red-400 bg-red-50 rounded-lg p-3' : undefined, 'space-y-3')}>
+              <GooglePlacesInput label="ที่อยู่" value={form.address_line1} placeholder="ค้นหาที่อยู่ด้วย Google Maps" disabled={loading} error={fieldErrors.address_line1} showMap lat={form.lat} lng={form.lng} onChange={(next) => { const nextLat = typeof next.lat === 'number' ? next.lat : undefined; const nextLng = typeof next.lng === 'number' ? next.lng : undefined; setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, address_line1: '' })); setForm((prev) => ({ ...prev, address_line1: next.address_line1 || '', district: next.district || prev.district, province: next.province || prev.province, postal_code: next.postal_code || prev.postal_code, lat: nextLat, lng: nextLng })); }} />
+              <Input label="รายละเอียดเพิ่มเติม" value={form.address_line2} onChange={(e) => setForm((prev) => ({ ...prev, address_line2: e.target.value }))} placeholder="เช่น หมู่บ้าน ชั้น ห้อง" />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Input label="เรท/ชม. (บาท)" type="number" value={form.hourly_rate} onChange={(e) => setForm({ ...form, hourly_rate: Number(e.target.value) })} min={0} required />
+              <Input label="จำนวนชม." type="number" value={form.total_hours} onChange={(e) => setForm({ ...form, total_hours: Number(e.target.value) })} min={1} required />
+            </div>
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+              <span className="text-sm text-blue-900">ราคารวมประมาณ</span>
+              <strong className="text-lg tabular-nums text-blue-900">{totalAmount.toLocaleString()} บาท</strong>
+            </div>
+
+            <Card id="section-job_basic" className={cn(errorSection === 'job_basic' ? 'border-red-400 bg-red-50' : undefined)}>
+              <div className="text-sm font-semibold text-gray-900 mb-2">ชื่องานและรายละเอียด</div>
+              <Input label="ชื่องาน" value={form.title} error={fieldErrors.title} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, title: '' })); setForm({ ...form, title: e.target.value }); }} placeholder="เช่น ดูแลผู้สูงอายุช่วงเช้า" required />
+              <div className="mt-3">
+                <Textarea label="รายละเอียดงาน" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="อธิบายสิ่งที่ต้องทำเพิ่มเติม" error={fieldErrors.description} className="min-h-20" />
+              </div>
+            </Card>
+
+            <details className="group">
+              <summary className="cursor-pointer text-sm text-blue-600 font-medium py-2 select-none">ปรับงาน/ทักษะ/อุปกรณ์ขั้นสูง ▾</summary>
+              <div className="space-y-4 mt-2">
                 {suggestions && (
-                  <Card className="p-4">
-                    <div className="text-sm font-semibold text-gray-900">คำแนะนำจากข้อมูลผู้ป่วย</div>
-                    <div className="text-xs text-gray-600 mt-1">กดใช้คำแนะนำเพื่อเติมตัวเลือกที่สอดคล้องกับผู้ป่วยอัตโนมัติ</div>
-                    {suggestions.tasks.length > 0 && <div className="mt-3"><div className="text-xs text-gray-600">งานที่แนะนำ</div><div className="flex flex-wrap gap-2 mt-2">{labelByValue(JOB_TASK_OPTIONS, suggestions.tasks).map((l) => (<Badge key={l} variant="info">{l}</Badge>))}</div></div>}
-                    <div className="flex gap-2 mt-4 justify-end"><Button variant="outline" size="sm" onClick={applySuggestions}>ใช้คำแนะนำ</Button></div>
+                  <Card className="p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold text-gray-900">คำแนะนำจากข้อมูลผู้ป่วย</div>
+                      <Button variant="outline" size="sm" onClick={applySuggestions}>ใช้คำแนะนำ</Button>
+                    </div>
                   </Card>
                 )}
 
                 <Card id="section-job_tasks" className={cn(errorSection === 'job_tasks' ? 'border-red-400 bg-red-50' : undefined)}>
-                  <div className="text-sm font-semibold text-gray-900 mb-1">งานที่ต้องทำ</div>
-                  <div className="text-xs text-gray-600 mb-2">ระบบเลือกงานตามประเภท &quot;{currentDetailedTemplate.label}&quot; + คำตอบของคุณแล้ว ปรับเพิ่ม/ลดได้</div>
+                  <div className="text-sm font-semibold text-gray-900 mb-1">งานที่ต้องทำ ({form.job_tasks_flags.length})</div>
                   {fieldErrors.job_tasks_flags && <div className="text-sm text-red-700 mb-2">{fieldErrors.job_tasks_flags}</div>}
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {JOB_TASK_OPTIONS.filter((opt) => relevantTaskValues.has(opt.v) || form.job_tasks_flags.includes(opt.v)).map((opt) => {
                       const checked = form.job_tasks_flags.includes(opt.v);
                       return (
-                        <label key={opt.v} className={cn('flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer', highlightTask === opt.v ? 'border-red-500 bg-red-50' : checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white')}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleJobTask(opt.v)} />
-                          <span className="text-sm text-gray-900">{opt.label}</span>
+                        <label key={opt.v} className={cn('flex items-center gap-2 border rounded-lg px-3 py-2 cursor-pointer text-sm', highlightTask === opt.v ? 'border-red-500 bg-red-50' : checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300')}>
+                          <input type="checkbox" checked={checked} onChange={() => toggleJobTask(opt.v)} className="w-4 h-4" />
+                          {opt.label}
                         </label>
                       );
                     })}
                   </div>
-
-                  {!showExtraTasks && (
-                    <button type="button" className="mt-2 text-xs text-blue-700 hover:text-blue-800 underline" onClick={() => setShowExtraTasks(true)}>
-                      แสดงงานอื่น ๆ ทั้งหมด
-                    </button>
-                  )}
+                  {!showExtraTasks && <button type="button" className="mt-2 text-xs text-blue-700 underline" onClick={() => setShowExtraTasks(true)}>แสดงงานอื่น ๆ</button>}
                   {showExtraTasks && (
-                    <>
-                      <div className="text-xs text-gray-500 mt-3 mb-1">งานอื่น ๆ</div>
+                    <div className="mt-2 space-y-2">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {JOB_TASK_OPTIONS.filter((opt) => !relevantTaskValues.has(opt.v) && !form.job_tasks_flags.includes(opt.v)).map((opt) => (
-                          <label key={opt.v} className="flex items-center gap-3 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer bg-gray-50">
-                            <input type="checkbox" checked={false} onChange={() => toggleJobTask(opt.v)} />
-                            <span className="text-sm text-gray-700">{opt.label}</span>
+                          <label key={opt.v} className="flex items-center gap-2 border border-gray-200 rounded-lg px-3 py-2 cursor-pointer bg-gray-50 text-sm">
+                            <input type="checkbox" checked={false} onChange={() => toggleJobTask(opt.v)} className="w-4 h-4" />{opt.label}
                           </label>
                         ))}
                       </div>
-                      <button type="button" className="mt-2 text-xs text-gray-500 hover:text-gray-700 underline" onClick={() => setShowExtraTasks(false)}>ซ่อนงานอื่น ๆ</button>
-                    </>
+                      <button type="button" className="text-xs text-gray-500 underline" onClick={() => setShowExtraTasks(false)}>ซ่อน</button>
+                    </div>
                   )}
                 </Card>
 
-                <div id="section-job_requirements" />
-                <Card className={cn(errorSection === 'job_requirements' ? 'border-red-400 bg-red-50' : undefined)}>
-                  <div className="text-sm font-semibold text-gray-900 mb-1">ทักษะที่ต้องมี</div>
-                  <div className="text-xs text-gray-600 mb-2">ระบบแนะนำตามประเภทงานแล้ว ปรับเพิ่ม/ลดได้</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {SKILL_OPTIONS.map((opt) => {
-                      const checked = form.required_skills_flags.includes(opt.v);
-                      return (
-                        <label key={opt.v} className={cn('flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer', checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white')}>
-                          <input type="checkbox" checked={checked} onChange={() => { setErrorSection(null); const next = new Set(form.required_skills_flags); if (next.has(opt.v)) next.delete(opt.v); else next.add(opt.v); setForm({ ...form, required_skills_flags: Array.from(next) }); }} />
-                          <span className="text-sm text-gray-900">{opt.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Card>
-
                 <Card>
-                  <div className="text-sm font-semibold text-gray-900 mb-1">อุปกรณ์ที่มีให้</div>
-                  <div className="text-xs text-gray-600 mb-2">ระบบแนะนำตามประเภทงานแล้ว ปรับเพิ่ม/ลดได้</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {EQUIPMENT_OPTIONS.map((opt) => {
-                      const checked = form.equipment_available_flags.includes(opt.v);
-                      return (
-                        <label key={opt.v} className={cn('flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer', checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white')}>
-                          <input type="checkbox" checked={checked} onChange={() => { setErrorSection(null); const next = new Set(form.equipment_available_flags); if (next.has(opt.v)) next.delete(opt.v); else next.add(opt.v); setForm({ ...form, equipment_available_flags: Array.from(next) }); }} />
-                          <span className="text-sm text-gray-900">{opt.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
+                  <div className="text-sm font-semibold text-gray-900 mb-1">ทักษะ/อุปกรณ์/ข้อควรระวัง</div>
+                  <div className="text-xs text-gray-600 mb-2">ระบบแนะนำตามบริการแล้ว ปรับได้</div>
+                  {[
+                    { title: 'ทักษะ', options: SKILL_OPTIONS, field: 'required_skills_flags' as const },
+                    { title: 'อุปกรณ์', options: EQUIPMENT_OPTIONS, field: 'equipment_available_flags' as const },
+                    { title: 'ข้อควรระวัง', options: PRECAUTION_OPTIONS, field: 'precautions_flags' as const },
+                  ].map(({ title, options, field }) => (
+                    <div key={field} className="mt-3">
+                      <div className="text-xs font-medium text-gray-700 mb-1">{title}</div>
+                      <div className="flex flex-wrap gap-2">
+                        {options.map((opt) => {
+                          const checked = (form[field] as string[]).includes(opt.v);
+                          return (
+                            <label key={opt.v} className={cn('flex items-center gap-1.5 border rounded-full px-2.5 py-1 cursor-pointer text-xs', checked ? 'border-blue-500 bg-blue-50 text-blue-800' : 'border-gray-300 text-gray-600')}>
+                              <input type="checkbox" checked={checked} onChange={() => { setErrorSection(null); const next = new Set(form[field] as string[]); if (next.has(opt.v)) next.delete(opt.v); else next.add(opt.v); setForm({ ...form, [field]: Array.from(next) }); }} className="w-3 h-3" />
+                              {opt.label}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </Card>
 
-                <Card>
-                  <div className="text-sm font-semibold text-gray-900 mb-1">ข้อควรระวัง/ความปลอดภัย</div>
-                  <div className="text-xs text-gray-600 mb-2">ระบบแนะนำตามประเภทงานแล้ว ปรับเพิ่ม/ลดได้</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {PRECAUTION_OPTIONS.map((opt) => {
-                      const checked = form.precautions_flags.includes(opt.v);
-                      return (
-                        <label key={opt.v} className={cn('flex items-center gap-3 border rounded-lg px-3 py-2 cursor-pointer', checked ? 'border-blue-500 bg-blue-50' : 'border-gray-300 bg-white')}>
-                          <input type="checkbox" checked={checked} onChange={() => { setErrorSection(null); const next = new Set(form.precautions_flags); if (next.has(opt.v)) next.delete(opt.v); else next.add(opt.v); setForm({ ...form, precautions_flags: Array.from(next) }); }} />
-                          <span className="text-sm text-gray-900">{opt.label}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Card>
-
-                <div className={cn('w-full px-4 py-2 border rounded-lg mt-1', computedRisk.risk_level === 'high_risk' ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50')}>
-                  <div className="text-sm font-semibold text-gray-900">{computedRisk.risk_level === 'high_risk' ? 'ความเสี่ยงสูง' : 'ความเสี่ยงต่ำ'}</div>
+                <div className={cn('p-3 border rounded-lg', computedRisk.risk_level === 'high_risk' ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50')}>
+                  <div className="text-sm font-semibold">{computedRisk.risk_level === 'high_risk' ? 'ความเสี่ยงสูง' : 'ความเสี่ยงต่ำ'}</div>
                   <div className="text-xs text-gray-600 mt-1">{computedRisk.reason}</div>
-                </div>
-              </>
-            )}
-
-            {/* ───── Step 3: เวลา สถานที่ ราคา ───── */}
-            {currentStep === 3 && (
-              <>
-                <div id="section-job_schedule" />
-                <Card className={cn(errorSection === 'job_schedule' ? 'border-red-400 bg-red-50' : undefined)}>
-                  <div className="text-sm font-semibold text-gray-900 mb-3">วันและเวลา</div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <Input label="เริ่มงาน" type="datetime-local" value={form.scheduled_start_at} error={fieldErrors.scheduled_start_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_start_at: '' })); setForm({ ...form, scheduled_start_at: e.target.value }); }} required />
-                    <Input label="สิ้นสุด" type="datetime-local" value={form.scheduled_end_at} error={fieldErrors.scheduled_end_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_end_at: '' })); setForm({ ...form, scheduled_end_at: e.target.value }); }} required />
-                  </div>
-                </Card>
-
-                <div id="section-job_location" className={cn(errorSection === 'job_location' ? 'border border-red-400 bg-red-50 rounded-lg p-3' : undefined, 'space-y-3')}>
-                  <GooglePlacesInput label="ที่อยู่" value={form.address_line1} placeholder="ค้นหาที่อยู่ด้วย Google Maps" disabled={loading} error={fieldErrors.address_line1} showMap lat={form.lat} lng={form.lng} onChange={(next) => { const nextLat = typeof next.lat === 'number' ? next.lat : undefined; const nextLng = typeof next.lng === 'number' ? next.lng : undefined; setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, address_line1: '' })); setForm((prev) => ({ ...prev, address_line1: next.address_line1 || '', district: next.district || prev.district, province: next.province || prev.province, postal_code: next.postal_code || prev.postal_code, lat: nextLat, lng: nextLng })); }} />
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {!form.district && !form.province && (<><Input label="เขต/อำเภอ" value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} placeholder="เช่น วัฒนา" /><Input label="จังหวัด" value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} placeholder="เช่น Bangkok" /></>)}
-                    {(form.district || form.province) && (<div className="sm:col-span-2"><div className="text-sm text-gray-600">ที่อยู่: {form.address_line1}{form.district && `, ${form.district}`}{form.province && `, ${form.province}`}{form.postal_code && ` ${form.postal_code}`}</div></div>)}
-                  </div>
-                  <Input label="รายละเอียดที่อยู่เพิ่มเติม" value={form.address_line2} onChange={(e) => setForm((prev) => ({ ...prev, address_line2: e.target.value }))} placeholder="เช่น หมู่บ้าน อาคาร ชั้น ห้อง หรือจุดสังเกต" />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Input label="เรทรายชั่วโมง (บาท)" type="number" value={form.hourly_rate} onChange={(e) => setForm({ ...form, hourly_rate: Number(e.target.value) })} min={0} required />
-                  <Input label="จำนวนชั่วโมงรวม" type="number" value={form.total_hours} onChange={(e) => setForm({ ...form, total_hours: Number(e.target.value) })} min={1} required />
                 </div>
 
                 <div className="flex items-center gap-2">
                   <input type="checkbox" checked={form.is_urgent} onChange={(e) => setForm({ ...form, is_urgent: e.target.checked })} className="w-4 h-4" />
                   <span className="text-sm text-gray-700">งานเร่งด่วน</span>
                 </div>
+              </div>
+            </details>
+          </div>
+        )}
 
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-900">ราคารวมประมาณการ: <strong className="tabular-nums">{totalAmount.toLocaleString()} บาท</strong></p>
+        {/* ═══════════ Step 4: เลือกผู้ดูแล (optional) ═══════════ */}
+        {currentStep === 4 && (
+          <div className="space-y-4">
+            {preferredCaregiverIdParam ? (
+              <Card className="p-4 border-blue-200 bg-blue-50/50">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
+                    <UserIcon className="w-5 h-5 text-blue-700" aria-hidden="true" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-blue-900">ผู้ดูแลที่เลือก: {preferredCaregiverNameParam || 'ผู้ดูแล'}</div>
+                    {preferredCaregiverTrustLevelParam && <div className="text-xs text-blue-700">Trust Level: {preferredCaregiverTrustLevelParam}</div>}
+                  </div>
+                  <Check className="w-5 h-5 text-blue-600 ml-auto" aria-hidden="true" />
+                </div>
+                <p className="text-xs text-blue-700 mt-2">งานจะถูกมอบหมายให้ผู้ดูแลคนนี้โดยตรง</p>
+              </Card>
+            ) : (
+              <>
+                <Card className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <Search className="w-5 h-5 text-green-600" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">โพสต์หาผู้ดูแล</div>
+                      <div className="text-xs text-gray-600">ระบบจะเผยแพร่งานให้ผู้ดูแลที่มีคุณสมบัติเหมาะสมเห็นและสมัครเข้ามา</div>
+                    </div>
+                    <Check className="w-5 h-5 text-green-600 ml-auto" aria-hidden="true" />
+                  </div>
+                </Card>
+                <div className="text-center">
+                  <Link to="/hirer/search-caregivers">
+                    <Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>หรือค้นหาผู้ดูแลก่อน</Button>
+                  </Link>
                 </div>
               </>
             )}
-
-            {/* ───── Step 4: ตรวจทาน ───── */}
-            {currentStep === 4 && (
-              <Card className="p-4 border-blue-200 bg-blue-50/40">
-                <div className="text-sm font-semibold text-gray-900">สรุปก่อนบันทึกแบบร่าง</div>
-                <div className="text-sm text-gray-800 mt-2">ผู้รับการดูแล: {selectedCareRecipient ? selectedCareRecipient.patient_display_name : 'ยังไม่ได้เลือก'}</div>
-                <div className="text-sm text-gray-800 mt-1">ประเภทงาน: {currentDetailedTemplate.label}</div>
-                {currentDetailedTemplate.dynamicQuestions.map((q) => {
-                  const ans = dynamicAnswers[q.id];
-                  if (!ans) return null;
-                  const optLabel = q.options.find((o) => o.value === ans)?.label || ans;
-                  return <div key={q.id} className="text-sm text-gray-800 mt-1">{q.label}: {optLabel}</div>;
-                })}
-                <div className="mt-3">
-                  <Textarea label="รายละเอียดงานที่ต้องการสื่อสาร" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="เขียนรายละเอียดงานเพิ่มเติมเพื่อสื่อสารกับผู้ดูแลให้ชัดเจน" error={fieldErrors.description} className="min-h-28" helperText="ข้อความนี้จะแสดงเป็นรายละเอียดงานหลัก และระบบจะเติมสรุปจากประเภทงานให้อัตโนมัติท้ายข้อความ" />
-                </div>
-                <div className="text-sm text-gray-800 mt-1">วันเวลา: {form.scheduled_start_at || '-'} ถึง {form.scheduled_end_at || '-'}</div>
-                <div className="text-sm text-gray-800 mt-1">ที่อยู่: {form.address_line1 || '-'}</div>
-                <div className="text-sm text-gray-800 mt-1">งานที่ต้องทำ: {form.job_tasks_flags.length} รายการ</div>
-                <div className="flex flex-wrap gap-1 mt-1">{labelByValue(JOB_TASK_OPTIONS, form.job_tasks_flags).map((l) => <Badge key={l} variant="info">{l}</Badge>)}</div>
-                {form.required_skills_flags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{labelByValue(SKILL_OPTIONS, form.required_skills_flags).map((l) => <Badge key={l} variant="default">{l}</Badge>)}</div>}
-                {form.equipment_available_flags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{labelByValue(EQUIPMENT_OPTIONS, form.equipment_available_flags).map((l) => <Badge key={l} variant="success">{l}</Badge>)}</div>}
-                {form.precautions_flags.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{labelByValue(PRECAUTION_OPTIONS, form.precautions_flags).map((l) => <Badge key={l} variant="warning">{l}</Badge>)}</div>}
-                <div className="text-sm text-gray-800 mt-2">ราคารวมประมาณการ: <strong className="tabular-nums">{totalAmount.toLocaleString()} บาท</strong></div>
-                <div className="flex flex-wrap gap-2 mt-4">
-                  <Button variant="outline" size="sm" onClick={() => setCurrentStep(1)}>แก้ข้อมูลหลัก</Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentStep(2)}>แก้งานที่ต้องทำ</Button>
-                  <Button variant="outline" size="sm" onClick={() => setCurrentStep(3)}>แก้เวลา/สถานที่</Button>
-                </div>
-              </Card>
-            )}
-
           </div>
-        </Card>
+        )}
 
-        <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 -mx-4 mt-4 z-30">
-          <div className="max-w-3xl mx-auto flex gap-3">
-            {currentStep > 1 && (
-              <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>ย้อนกลับ</Button>
-            )}
-            {currentStep < 4 ? (
-              <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
-                {currentStep === 1 ? 'ถัดไป →' : currentStep === 2 ? 'ถัดไป →' : 'ตรวจทาน →'}
-              </Button>
-            ) : (
-              <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
-            )}
+        {/* ═══════════ Step 5: สรุปก่อนยืนยัน ═══════════ */}
+        {currentStep === 5 && (
+          <div className="space-y-4">
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-900">บริการ</div>
+                <button type="button" onClick={() => setCurrentStep(1)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
+              </div>
+              <div className="text-sm text-gray-800 mt-1">{currentDetailedTemplate.label}</div>
+              {currentDetailedTemplate.dynamicQuestions.map((q) => {
+                const ans = dynamicAnswers[q.id];
+                if (!ans) return null;
+                const optLabel = q.options.find((o) => o.value === ans)?.label || ans;
+                return <div key={q.id} className="text-xs text-gray-600 mt-0.5">{q.label}: {optLabel}</div>;
+              })}
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-900">ผู้รับการดูแล</div>
+                <button type="button" onClick={() => setCurrentStep(2)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
+              </div>
+              <div className="text-sm text-gray-800 mt-1">{selectedCareRecipient?.patient_display_name || 'ยังไม่ได้เลือก'}</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-900">รายละเอียดงาน</div>
+                <button type="button" onClick={() => setCurrentStep(3)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
+              </div>
+              <div className="text-sm text-gray-800 mt-1">ชื่องาน: {form.title || '-'}</div>
+              <div className="text-sm text-gray-800 mt-1">วันเวลา: {form.scheduled_start_at ? new Date(form.scheduled_start_at).toLocaleString('th-TH') : '-'} — {form.scheduled_end_at ? new Date(form.scheduled_end_at).toLocaleString('th-TH') : '-'}</div>
+              <div className="text-sm text-gray-800 mt-1">ที่อยู่: {form.address_line1 || '-'}</div>
+              <div className="text-sm text-gray-800 mt-1">งาน: {form.job_tasks_flags.length} รายการ</div>
+              <div className="flex flex-wrap gap-1 mt-1">{labelByValue(JOB_TASK_OPTIONS, form.job_tasks_flags).map((l) => <Badge key={l} variant="info">{l}</Badge>)}</div>
+            </Card>
+
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-900">ค่าจ้าง</div>
+                <button type="button" onClick={() => setCurrentStep(3)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
+              </div>
+              <div className="text-lg font-bold tabular-nums text-gray-900 mt-1">{totalAmount.toLocaleString()} บาท</div>
+              <div className="text-xs text-gray-500">{form.hourly_rate} บาท/ชม. × {form.total_hours} ชม.</div>
+            </Card>
+
+            <div className="mt-3">
+              <Textarea label="รายละเอียดงานที่ต้องการสื่อสาร" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="เขียนรายละเอียดเพิ่มเติมสำหรับผู้ดูแล" error={fieldErrors.description} className="min-h-20" helperText="ระบบจะเติมสรุปจากบริการที่เลือกให้อัตโนมัติ" />
+            </div>
+
+            <div className={cn('p-3 border rounded-lg', computedRisk.risk_level === 'high_risk' ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50')}>
+              <div className="text-xs">{computedRisk.risk_level === 'high_risk' ? '⚠ ความเสี่ยงสูง' : '✓ ความเสี่ยงต่ำ'} — {computedRisk.reason}</div>
+            </div>
           </div>
+        )}
+      </div>
+
+      {/* ── Sticky bottom nav ── */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30 safe-area-bottom">
+        <div className="max-w-3xl mx-auto flex gap-3">
+          {currentStep > 1 && (
+            <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>← ย้อนกลับ</Button>
+          )}
+          {currentStep < totalSteps ? (
+            <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
+              ถัดไป →
+            </Button>
+          ) : (
+            <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
+          )}
         </div>
       </div>
 

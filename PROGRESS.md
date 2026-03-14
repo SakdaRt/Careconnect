@@ -177,6 +177,24 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Refactor CreateJobPage เป็น 5-step guided booking wizard (mobile-first)
+
+- feat(frontend): เปลี่ยน `CreateJobPage.tsx` จาก 4-step → 5-step wizard
+  - **Step 1** (เลือกบริการ): Service category cards แบบ visual — เลือกแล้ว auto-fill template
+  - **Step 2** (ผู้รับการดูแล): Card-based recipient picker + inline quick-add + patient summary
+  - **Step 3** (รายละเอียดงาน): Dynamic questions + schedule + location + price + tasks (progressive disclosure)
+  - **Step 4** (ผู้ดูแล): แสดง preferred caregiver ถ้ามี หรือ "โพสต์หาผู้ดูแล"
+  - **Step 5** (ตรวจทาน): Summary cards แต่ละส่วนพร้อมปุ่ม "แก้ไข" กลับไปแต่ละ step
+  - Mobile-first: progress bar + step chips + sticky bottom nav + large touch targets
+  - Progressive disclosure: tasks/skills/equipment/precautions ซ่อนใน `<details>` element
+  - URL params: `?service` pre-selects service, `?recipient` pre-selects care recipient
+  - คง preferred_caregiver_id + return_to_assign + blocker modal + review modal ไว้ทั้งหมด
+  - ไม่แก้ backend/API — ใช้ `appApi.createJob()` เดิม
+- verify:
+  - ✅ TypeScript typecheck: PASS (0 errors)
+  - ✅ Vite build: PASS (5.28s)
+  - ไม่มี backend changes
+
 ### 2026-03-14 — Redesign hirer UX: service-first home + guided booking flow
 
 - feat(frontend): Redesign `HirerHomePage.tsx` เป็น service-first layout
