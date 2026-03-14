@@ -568,7 +568,7 @@ export default function ProfilePage() {
           return;
         }
         applyProfile("hirer", res.data.profile);
-        updateUser({ name: res.data.profile.display_name || fullNameInput });
+        await refreshUser();
         toast.success("บันทึกแล้ว");
         if (profileRequired && returnTo) {
           navigate(returnTo, { replace: true });
@@ -611,7 +611,7 @@ export default function ProfilePage() {
         return;
       }
       applyProfile("caregiver", res.data.profile);
-      updateUser({ name: res.data.profile.display_name || fullNameInput });
+      await refreshUser();
       toast.success("บันทึกแล้ว");
       if (profileRequired && returnTo) {
         navigate(returnTo, { replace: true });

@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-12
+> อัพเดทล่าสุด: 2026-03-14
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -143,6 +143,9 @@ careconnect/
 - [x] Badge color sole indicator → เพิ่ม icon/pattern
 - [x] แยก mock data ออกจาก server.js → seeds/mockData.js (780 บรรทัด)
 - [x] ลบ ensureReviewsAndFavoritesTables() ซ้ำซ้อนกับ migration
+- [x] เพิ่ม `caregiver_documents` table ลง `schema.sql` (ก่อนหน้ามีแต่ migration, Docker init ไม่สร้าง table)
+- [x] แก้ profile name ไม่ persist หลัง logout/login — ใช้ `refreshUser()` แทน `updateUser()` หลัง save
+- [x] แก้ login Joi validation ปัด `.local` TLD — เพิ่ม `tlds: { allow: false }` ใน `authSchemas.login`
 
 ---
 
