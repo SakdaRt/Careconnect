@@ -177,6 +177,29 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — ยกระดับ Step 4 caregiver selection + Step 3 summary bar + draft persistence
+
+- feat(frontend): Step 4 เลือกผู้ดูแลจริงจาก `searchCaregivers` API
+  - ดึงผู้ดูแลที่แนะนำตาม skills + trust_level ของงาน (สูงสุด 6 คน)
+  - แสดง card list พร้อม ชื่อ, rating, ปีประสบการณ์, trust level
+  - เลือกผู้ดูแลได้ (wire เข้า `preferred_caregiver_id` ใน payload)
+  - "โพสต์หาผู้ดูแล" เป็น default option ที่เลือกได้ชัดเจน
+  - คง `preferred_caregiver_id` จาก URL params ไว้ทั้งหมด
+- feat(frontend): Step 3 summary bar แทน `<details>` เดิม
+  - แสดง badge counts เสมอ: งาน/ทักษะ/อุปกรณ์/ข้อควรระวัง
+  - แสดง badge preview ของ tasks ที่เลือก (สูงสุด 6)
+  - กด expand/collapse ด้วย ChevronDown/Up ได้
+  - field สำคัญไม่ถูกซ่อนจนมองไม่เห็นอีกต่อไป
+- feat(frontend): Draft persistence ด้วย sessionStorage
+  - บันทึก form, careRecipientId, dynamicAnswers, currentStep, selectedCaregiverId
+  - Restore draft เมื่อกลับเข้าหน้า (ข้าม restore ถ้ามี URL params ใหม่)
+  - Clear draft เมื่อ submit สำเร็จ
+  - Source of truth: URL params > draft > default
+- verify:
+  - ✅ TypeScript typecheck: PASS (0 errors)
+  - ✅ Vite build: PASS (5.16s)
+  - ไม่มี backend changes — ใช้ `searchCaregivers` API เดิม
+
 ### 2026-03-14 — Refactor CreateJobPage เป็น 5-step guided booking wizard (mobile-first)
 
 - feat(frontend): เปลี่ยน `CreateJobPage.tsx` จาก 4-step → 5-step wizard

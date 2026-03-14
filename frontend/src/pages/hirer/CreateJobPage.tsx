@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Car, Heart, Brain, BedDouble, Activity, Stethoscope, User as UserIcon, PlusCircle, Check, Search } from 'lucide-react';
+import { Car, Heart, Brain, BedDouble, Activity, Stethoscope, User as UserIcon, PlusCircle, Check, Search, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { MainLayout } from '../../layouts';
 import { Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
@@ -637,6 +637,10 @@ export default function CreateJobPage() {
   const [quickRecipientAge, setQuickRecipientAge] = useState('60_74');
   const [quickRecipientMobility, setQuickRecipientMobility] = useState('walk_independent');
   const [quickRecipientSaving, setQuickRecipientSaving] = useState(false);
+  const [suggestedCaregivers, setSuggestedCaregivers] = useState<any[]>([]);
+  const [suggestedLoading, setSuggestedLoading] = useState(false);
+  const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(preferredCaregiverIdParam || '');
+  const [showAdvancedStep3, setShowAdvancedStep3] = useState(false);
 
   const initialDetailedType = (serviceParam && DETAILED_JOB_TEMPLATES[serviceParam]) ? serviceParam : DEFAULT_DETAILED_JOB_TYPE;
   const initialTemplate = DETAILED_JOB_TEMPLATES[initialDetailedType];
@@ -663,6 +667,62 @@ export default function CreateJobPage() {
     equipment_available_flags: [...initialTemplate.defaultEquipment] as string[],
     precautions_flags: [...initialTemplate.defaultPrecautions] as string[],
   });
+
+  // ── Draft persistence (sessionStorage) ──
+  const DRAFT_KEY = 'careconnect_create_job_draft';
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem(DRAFT_KEY);
+    if (!saved) return;
+    try {
+      const draft = JSON.parse(saved);
+      if (serviceParam || recipientParam) return;
+      if (draft.form) setForm((prev) => ({ ...prev, ...draft.form }));
+      if (draft.careRecipientId) setCareRecipientId(draft.careRecipientId);
+      if (draft.dynamicAnswers) setDynamicAnswers(draft.dynamicAnswers);
+      if (draft.currentStep) setCurrentStep(draft.currentStep as CreateJobStep);
+      if (draft.maxVisitedStep) setMaxVisitedStep(draft.maxVisitedStep as CreateJobStep);
+      if (draft.selectedCaregiverId) setSelectedCaregiverId(draft.selectedCaregiverId);
+    } catch { /* ignore corrupt draft */ }
+  }, []);
+
+  useEffect(() => {
+    const draft = {
+      form,
+      careRecipientId,
+      dynamicAnswers,
+      currentStep,
+      maxVisitedStep,
+      selectedCaregiverId,
+    };
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }, [form, careRecipientId, dynamicAnswers, currentStep, maxVisitedStep, selectedCaregiverId]);
+
+  const clearDraft = () => sessionStorage.removeItem(DRAFT_KEY);
+
+  // ── Fetch caregiver suggestions when entering Step 4 ──
+  useEffect(() => {
+    if (currentStep !== 4 || preferredCaregiverIdParam) return;
+    let cancelled = false;
+    const run = async () => {
+      setSuggestedLoading(true);
+      try {
+        const skills = form.required_skills_flags.join(',');
+        const res = await appApi.searchCaregivers({
+          skills: skills || undefined,
+          trust_level: computedRisk.risk_level === 'high_risk' ? 'L2' : 'L1',
+          limit: 6,
+        });
+        if (cancelled) return;
+        if (res.success && res.data?.data) {
+          setSuggestedCaregivers(res.data.data);
+        }
+      } catch { /* ignore */ }
+      finally { if (!cancelled) setSuggestedLoading(false); }
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [currentStep]);
 
   useEffect(() => {
     if (currentStep > maxVisitedStep) {
@@ -1154,6 +1214,7 @@ export default function CreateJobPage() {
       total_hours: Number(form.total_hours),
       is_urgent: form.is_urgent,
       patient_profile_id: careRecipientId || undefined,
+      preferred_caregiver_id: (selectedCaregiverId || preferredCaregiverIdParam) || undefined,
       job_tasks_flags: Array.from(new Set(form.job_tasks_flags)),
       required_skills_flags: form.required_skills_flags,
       equipment_available_flags: form.equipment_available_flags,
@@ -1259,6 +1320,7 @@ export default function CreateJobPage() {
       }
 
       toast.success('สร้างงานแบบร่างสำเร็จ');
+      clearDraft();
       setReviewOpen(false);
       setPendingPayload(null);
 
@@ -1615,9 +1677,29 @@ export default function CreateJobPage() {
               </div>
             </Card>
 
-            <details className="group">
-              <summary className="cursor-pointer text-sm text-blue-600 font-medium py-2 select-none">ปรับงาน/ทักษะ/อุปกรณ์ขั้นสูง ▾</summary>
-              <div className="space-y-4 mt-2">
+            {/* ── Tasks/Skills/Equipment summary bar (always visible) ── */}
+            <Card id="section-job_tasks" className={cn('p-4', errorSection === 'job_tasks' ? 'border-red-400 bg-red-50' : undefined)}>
+              <button type="button" onClick={() => setShowAdvancedStep3(!showAdvancedStep3)} className="w-full flex items-center justify-between">
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-gray-900">งาน/ทักษะ/อุปกรณ์</div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">งาน: {form.job_tasks_flags.length}</span>
+                    <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-700 rounded-full">ทักษะ: {form.required_skills_flags.length}</span>
+                    <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">อุปกรณ์: {form.equipment_available_flags.length}</span>
+                    <span className="text-xs px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">ระวัง: {form.precautions_flags.length}</span>
+                  </div>
+                </div>
+                {showAdvancedStep3 ? <ChevronUp className="w-5 h-5 text-gray-400 flex-shrink-0" aria-hidden="true" /> : <ChevronDown className="w-5 h-5 text-gray-400 flex-shrink-0" aria-hidden="true" />}
+              </button>
+              {fieldErrors.job_tasks_flags && <div className="text-sm text-red-700 mt-2">{fieldErrors.job_tasks_flags}</div>}
+              <div className="flex flex-wrap gap-1 mt-2">
+                {labelByValue(JOB_TASK_OPTIONS, form.job_tasks_flags).slice(0, 6).map((l) => <Badge key={l} variant="info">{l}</Badge>)}
+                {form.job_tasks_flags.length > 6 && <Badge variant="default">+{form.job_tasks_flags.length - 6}</Badge>}
+              </div>
+            </Card>
+
+            {showAdvancedStep3 && (
+              <div className="space-y-4">
                 {suggestions && (
                   <Card className="p-3">
                     <div className="flex items-center justify-between">
@@ -1627,9 +1709,8 @@ export default function CreateJobPage() {
                   </Card>
                 )}
 
-                <Card id="section-job_tasks" className={cn(errorSection === 'job_tasks' ? 'border-red-400 bg-red-50' : undefined)}>
+                <Card>
                   <div className="text-sm font-semibold text-gray-900 mb-1">งานที่ต้องทำ ({form.job_tasks_flags.length})</div>
-                  {fieldErrors.job_tasks_flags && <div className="text-sm text-red-700 mb-2">{fieldErrors.job_tasks_flags}</div>}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {JOB_TASK_OPTIONS.filter((opt) => relevantTaskValues.has(opt.v) || form.job_tasks_flags.includes(opt.v)).map((opt) => {
                       const checked = form.job_tasks_flags.includes(opt.v);
@@ -1658,7 +1739,6 @@ export default function CreateJobPage() {
 
                 <Card>
                   <div className="text-sm font-semibold text-gray-900 mb-1">ทักษะ/อุปกรณ์/ข้อควรระวัง</div>
-                  <div className="text-xs text-gray-600 mb-2">ระบบแนะนำตามบริการแล้ว ปรับได้</div>
                   {[
                     { title: 'ทักษะ', options: SKILL_OPTIONS, field: 'required_skills_flags' as const },
                     { title: 'อุปกรณ์', options: EQUIPMENT_OPTIONS, field: 'equipment_available_flags' as const },
@@ -1680,22 +1760,22 @@ export default function CreateJobPage() {
                     </div>
                   ))}
                 </Card>
-
-                <div className={cn('p-3 border rounded-lg', computedRisk.risk_level === 'high_risk' ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50')}>
-                  <div className="text-sm font-semibold">{computedRisk.risk_level === 'high_risk' ? 'ความเสี่ยงสูง' : 'ความเสี่ยงต่ำ'}</div>
-                  <div className="text-xs text-gray-600 mt-1">{computedRisk.reason}</div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input type="checkbox" checked={form.is_urgent} onChange={(e) => setForm({ ...form, is_urgent: e.target.checked })} className="w-4 h-4" />
-                  <span className="text-sm text-gray-700">งานเร่งด่วน</span>
-                </div>
               </div>
-            </details>
+            )}
+
+            <div className={cn('p-3 border rounded-lg', computedRisk.risk_level === 'high_risk' ? 'border-red-300 bg-red-50' : 'border-green-300 bg-green-50')}>
+              <div className="text-sm font-semibold">{computedRisk.risk_level === 'high_risk' ? 'ความเสี่ยงสูง' : 'ความเสี่ยงต่ำ'}</div>
+              <div className="text-xs text-gray-600 mt-1">{computedRisk.reason}</div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={form.is_urgent} onChange={(e) => setForm({ ...form, is_urgent: e.target.checked })} className="w-4 h-4" />
+              <span className="text-sm text-gray-700">งานเร่งด่วน</span>
+            </div>
           </div>
         )}
 
-        {/* ═══════════ Step 4: เลือกผู้ดูแล (optional) ═══════════ */}
+        {/* ═══════════ Step 4: เลือกผู้ดูแล ═══════════ */}
         {currentStep === 4 && (
           <div className="space-y-4">
             {preferredCaregiverIdParam ? (
@@ -1714,22 +1794,76 @@ export default function CreateJobPage() {
               </Card>
             ) : (
               <>
-                <Card className="p-4">
+                {/* Option: post to marketplace */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedCaregiverId('')}
+                  className={cn('w-full border-2 rounded-xl p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500', !selectedCaregiverId ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-green-300')}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                    <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', !selectedCaregiverId ? 'bg-green-200' : 'bg-gray-100')}>
                       <Search className="w-5 h-5 text-green-600" aria-hidden="true" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <div className="text-sm font-semibold text-gray-900">โพสต์หาผู้ดูแล</div>
-                      <div className="text-xs text-gray-600">ระบบจะเผยแพร่งานให้ผู้ดูแลที่มีคุณสมบัติเหมาะสมเห็นและสมัครเข้ามา</div>
+                      <div className="text-xs text-gray-600">เผยแพร่งานให้ผู้ดูแลที่เหมาะสมมาสมัคร</div>
                     </div>
-                    <Check className="w-5 h-5 text-green-600 ml-auto" aria-hidden="true" />
+                    {!selectedCaregiverId && <Check className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />}
                   </div>
-                </Card>
-                <div className="text-center">
-                  <Link to="/hirer/search-caregivers">
-                    <Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>หรือค้นหาผู้ดูแลก่อน</Button>
-                  </Link>
+                </button>
+
+                {/* Suggested caregivers from search API */}
+                <div className="pt-2">
+                  <div className="text-sm font-semibold text-gray-900 mb-2">หรือเลือกผู้ดูแลที่แนะนำ</div>
+                  {suggestedLoading ? (
+                    <div className="text-center py-6 text-sm text-gray-500">กำลังค้นหาผู้ดูแลที่เหมาะสม...</div>
+                  ) : suggestedCaregivers.length === 0 ? (
+                    <Card className="p-4 text-center">
+                      <div className="text-sm text-gray-500">ยังไม่พบผู้ดูแลที่ตรงเงื่อนไขขณะนี้</div>
+                      <div className="mt-2">
+                        <Link to="/hirer/search-caregivers"><Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>ค้นหาเพิ่มเติม</Button></Link>
+                      </div>
+                    </Card>
+                  ) : (
+                    <div className="space-y-2">
+                      {suggestedCaregivers.map((cg) => {
+                        const isSelected = selectedCaregiverId === cg.id;
+                        const rating = Number(cg.avg_rating) || 0;
+                        return (
+                          <button
+                            key={cg.id}
+                            type="button"
+                            onClick={() => setSelectedCaregiverId(isSelected ? '' : cg.id)}
+                            className={cn('w-full border-2 rounded-xl p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500', isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300')}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', isSelected ? 'bg-blue-200' : 'bg-gray-100')}>
+                                <UserIcon className={cn('w-5 h-5', isSelected ? 'text-blue-700' : 'text-gray-500')} aria-hidden="true" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-gray-900 line-clamp-1">{cg.display_name || 'ผู้ดูแล'}</div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {rating > 0 && (
+                                    <span className="flex items-center gap-0.5 text-xs text-amber-600">
+                                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+                                      {rating.toFixed(1)}
+                                      {cg.total_reviews > 0 && <span className="text-gray-400">({cg.total_reviews})</span>}
+                                    </span>
+                                  )}
+                                  {cg.experience_years > 0 && <span className="text-xs text-gray-500">{cg.experience_years} ปี</span>}
+                                  <Badge variant="default">{cg.trust_level}</Badge>
+                                </div>
+                              </div>
+                              {isSelected && <Check className="w-5 h-5 text-blue-600 flex-shrink-0" aria-hidden="true" />}
+                            </div>
+                          </button>
+                        );
+                      })}
+                      <div className="text-center pt-1">
+                        <Link to="/hirer/search-caregivers"><Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>ค้นหาเพิ่มเติม</Button></Link>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             )}
