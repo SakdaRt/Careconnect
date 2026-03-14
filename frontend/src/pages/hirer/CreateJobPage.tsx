@@ -617,6 +617,8 @@ export default function CreateJobPage() {
   const preferredCaregiverNameParam = (searchParams.get('preferred_caregiver_name') || '').trim();
   const preferredCaregiverTrustLevelParam = (searchParams.get('preferred_caregiver_trust_level') || '').trim();
   const shouldReturnToAssign = searchParams.get('return_to_assign') === '1';
+  const serviceParam = (searchParams.get('service') || '').trim() as DetailedJobType | '';
+  const recipientParam = (searchParams.get('recipient') || '').trim();
 
   const [loading, setLoading] = useState(false);
   const [careRecipients, setCareRecipients] = useState<CareRecipient[]>([]);
@@ -641,11 +643,14 @@ export default function CreateJobPage() {
   const [quickRecipientMobility, setQuickRecipientMobility] = useState('walk_independent');
   const [quickRecipientSaving, setQuickRecipientSaving] = useState(false);
 
+  const initialDetailedType = (serviceParam && DETAILED_JOB_TEMPLATES[serviceParam]) ? serviceParam : DEFAULT_DETAILED_JOB_TYPE;
+  const initialTemplate = DETAILED_JOB_TEMPLATES[initialDetailedType];
+
   const [form, setForm] = useState({
-    title: '',
+    title: initialTemplate.defaultTitle || '',
     description: '',
-    job_type: DETAILED_JOB_TEMPLATES[DEFAULT_DETAILED_JOB_TYPE].jobType as JobType,
-    detailed_job_type: DEFAULT_DETAILED_JOB_TYPE as DetailedJobType,
+    job_type: initialTemplate.jobType as JobType,
+    detailed_job_type: initialDetailedType as DetailedJobType,
     scheduled_start_at: '',
     scheduled_end_at: '',
     address_line1: '',
@@ -658,10 +663,10 @@ export default function CreateJobPage() {
     hourly_rate: 350,
     total_hours: 8,
     is_urgent: false,
-    job_tasks_flags: [...DETAILED_JOB_TEMPLATES[DEFAULT_DETAILED_JOB_TYPE].defaultTasks] as string[],
-    required_skills_flags: [...DETAILED_JOB_TEMPLATES[DEFAULT_DETAILED_JOB_TYPE].defaultSkills] as string[],
-    equipment_available_flags: [...DETAILED_JOB_TEMPLATES[DEFAULT_DETAILED_JOB_TYPE].defaultEquipment] as string[],
-    precautions_flags: [...DETAILED_JOB_TEMPLATES[DEFAULT_DETAILED_JOB_TYPE].defaultPrecautions] as string[],
+    job_tasks_flags: [...initialTemplate.defaultTasks] as string[],
+    required_skills_flags: [...initialTemplate.defaultSkills] as string[],
+    equipment_available_flags: [...initialTemplate.defaultEquipment] as string[],
+    precautions_flags: [...initialTemplate.defaultPrecautions] as string[],
   });
 
   useEffect(() => {
@@ -1177,6 +1182,7 @@ export default function CreateJobPage() {
       setCareRecipients(active);
       setCareRecipientId((prev) => {
         if (prev && active.some((p) => p.id === prev)) return prev;
+        if (recipientParam && active.some((p) => p.id === recipientParam)) return recipientParam;
         return active[0]?.id || '';
       });
     };

@@ -177,6 +177,30 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Redesign hirer UX: service-first home + guided booking flow
+
+- feat(frontend): Redesign `HirerHomePage.tsx` เป็น service-first layout
+  - **Section 1**: Service category cards (6 ประเภท) เป็น primary entry point
+    - พาไปโรงพยาบาล, ดูแลทั่วไป, ดูแลหลังผ่าตัด, ดูแลสมองเสื่อม, ดูแลผู้ป่วยติดเตียง, ดูแลอุปกรณ์การแพทย์
+    - คลิก → navigate ไป CreateJobPage พร้อม `?service=<type>` pre-selected
+  - **Section 2**: Care recipients quick access (horizontal scroll cards)
+    - แสดง recipients ที่มีอยู่ + "เพิ่มผู้รับการดูแล" card
+    - คลิก recipient → navigate ไป CreateJobPage พร้อม `?recipient=<id>`
+  - **Section 3**: Active jobs dashboard (ปรับปรุง)
+    - Improved empty states (contextual messages + emoji + actionable buttons)
+    - Status filter tabs ที่ดีขึ้น
+  - Personalized greeting: "สวัสดี, {ชื่อผู้ใช้}"
+  - คง onboarding checklist, calendar modal, dispute/cancel modals ไว้ทั้งหมด
+- feat(frontend): เพิ่ม URL params support ใน `CreateJobPage.tsx`
+  - `?service=<DetailedJobType>` → pre-select service template + auto-fill title/tasks/skills
+  - `?recipient=<uuid>` → pre-select care recipient
+  - ใช้งานร่วมกับ params เดิม (`preferred_caregiver_id`, `return_to_assign`)
+- verify:
+  - ✅ TypeScript typecheck: PASS (0 errors)
+  - ✅ Vite build: PASS (4.67s)
+  - ไม่มี backend changes — ใช้ API เดิมทั้งหมด
+  - ไม่มี route changes — ใช้ URL เดิม `/hirer/home` + `/hirer/create-job`
+
 ### 2026-03-14 — Fix SMS OTP system: persistent storage + SMSOK integration + password validation
 
 - fix(backend): เขียน `backend/src/services/otpService.js` ใหม่ทั้งไฟล์
