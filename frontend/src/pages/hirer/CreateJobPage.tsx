@@ -645,6 +645,7 @@ export default function CreateJobPage() {
   const [previewData, setPreviewData] = useState<any>(null);
   const [previewReviews, setPreviewReviews] = useState<any[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [successJobId, setSuccessJobId] = useState<string | null>(null);
 
   const initialDetailedType = (serviceParam && DETAILED_JOB_TEMPLATES[serviceParam]) ? serviceParam : DEFAULT_DETAILED_JOB_TYPE;
   const initialTemplate = DETAILED_JOB_TEMPLATES[initialDetailedType];
@@ -1476,7 +1477,6 @@ export default function CreateJobPage() {
         return;
       }
 
-      toast.success('สร้างงานแบบร่างสำเร็จ');
       clearDraft();
       setReviewOpen(false);
       setPendingPayload(null);
@@ -1496,7 +1496,7 @@ export default function CreateJobPage() {
         return;
       }
 
-      navigate('/hirer/home', { replace: true });
+      setSuccessJobId(createdJob.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'สร้างงานไม่สำเร็จ');
     } finally {
@@ -2166,7 +2166,7 @@ export default function CreateJobPage() {
         </Modal>
 
         {/* ═══════════ Step 5: สรุปก่อนยืนยัน ═══════════ */}
-        {currentStep === 5 && (
+        {currentStep === 5 && !successJobId && (
           <div className="space-y-4">
             <Card className="p-4">
               <div className="flex items-center justify-between">
@@ -2211,6 +2211,39 @@ export default function CreateJobPage() {
               <div className="text-xs text-gray-500">{form.hourly_rate} บาท/ชม. × {form.total_hours} ชม.</div>
             </Card>
 
+            {/* Caregiver selection summary + outcome messaging */}
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-gray-900">ผู้ดูแล</div>
+                <button type="button" onClick={() => setCurrentStep(4)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
+              </div>
+              {(selectedCaregiverId || preferredCaregiverIdParam) ? (
+                <>
+                  <div className="flex items-center gap-2 mt-2">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                      <UserIcon className="w-4 h-4 text-blue-600" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {preferredCaregiverNameParam || suggestedCaregivers.find((c: any) => c.id === selectedCaregiverId)?.display_name || 'ผู้ดูแลที่เลือก'}
+                      </div>
+                      <div className="text-xs text-gray-500">มอบหมายงานโดยตรง</div>
+                    </div>
+                  </div>
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="text-xs text-blue-800">หลังบันทึก: งานจะถูกส่งให้ผู้ดูแลที่เลือก → รอการตอบรับ → เริ่มงาน</div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm text-gray-800 mt-1">โพสต์หาผู้ดูแลผ่าน marketplace</div>
+                  <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="text-xs text-green-800">หลังบันทึก: งานจะถูกเผยแพร่ → ผู้ดูแลที่สนใจจะสมัคร → คุณเลือกจากหน้า "งานของฉัน"</div>
+                  </div>
+                </>
+              )}
+            </Card>
+
             <div className="mt-3">
               <Textarea label="รายละเอียดงานที่ต้องการสื่อสาร" fullWidth value={form.description} onChange={(e) => handleDescriptionChange(e.target.value)} placeholder="เขียนรายละเอียดเพิ่มเติมสำหรับผู้ดูแล" error={fieldErrors.description} className="min-h-20" helperText="ระบบจะเติมสรุปจากบริการที่เลือกให้อัตโนมัติ" />
             </div>
@@ -2220,23 +2253,69 @@ export default function CreateJobPage() {
             </div>
           </div>
         )}
+
+        {/* ═══════════ Success Screen ═══════════ */}
+        {successJobId && (
+          <div className="space-y-5 text-center py-4">
+            <div className="text-5xl">✅</div>
+            <h2 className="text-xl font-bold text-gray-900">สร้างงานสำเร็จแล้ว!</h2>
+            <p className="text-sm text-gray-600">
+              {(selectedCaregiverId || preferredCaregiverIdParam)
+                ? 'งานถูกบันทึกเป็นแบบร่างแล้ว เผยแพร่จากหน้า "งานของฉัน" เพื่อส่งงานให้ผู้ดูแล'
+                : 'งานถูกบันทึกเป็นแบบร่างแล้ว เผยแพร่จากหน้า "งานของฉัน" เพื่อเปิดรับสมัครผู้ดูแล'}
+            </p>
+
+            <Card className="p-4 text-left">
+              <div className="text-sm font-semibold text-gray-900 mb-2">สิ่งที่ควรทำต่อ</div>
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold text-sm mt-0.5">1</span>
+                  <div className="text-sm text-gray-700">ไปที่ <strong>หน้า "งานของฉัน"</strong> เพื่อเผยแพร่งาน</div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold text-sm mt-0.5">2</span>
+                  <div className="text-sm text-gray-700">
+                    {(selectedCaregiverId || preferredCaregiverIdParam)
+                      ? 'รอผู้ดูแลตอบรับงาน จากนั้นแชทเพื่อนัดรายละเอียด'
+                      : 'รอผู้ดูแลสมัครเข้ามา จากนั้นเลือกผู้ดูแลที่เหมาะสม'}
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-green-600 font-bold text-sm mt-0.5">3</span>
+                  <div className="text-sm text-gray-700">สามารถแก้ไขหรือยกเลิกงานได้ก่อนเริ่มงาน</div>
+                </div>
+              </div>
+            </Card>
+
+            <div className="flex flex-col gap-2 pt-2">
+              <Link to={`/jobs/${successJobId}`}>
+                <Button variant="primary" fullWidth>ดูรายละเอียดงาน</Button>
+              </Link>
+              <Link to="/hirer/home">
+                <Button variant="outline" fullWidth>กลับหน้าหลัก</Button>
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ── Sticky bottom nav ── */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30 safe-area-bottom">
-        <div className="max-w-3xl mx-auto flex gap-3">
-          {currentStep > 1 && (
-            <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>← ย้อนกลับ</Button>
-          )}
-          {currentStep < totalSteps ? (
-            <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
-              ถัดไป →
-            </Button>
-          ) : (
-            <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
-          )}
+      {/* ── Sticky bottom nav (hide on success) ── */}
+      {!successJobId && (
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-30 safe-area-bottom">
+          <div className="max-w-3xl mx-auto flex gap-3">
+            {currentStep > 1 && (
+              <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>← ย้อนกลับ</Button>
+            )}
+            {currentStep < totalSteps ? (
+              <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
+                ถัดไป →
+              </Button>
+            ) : (
+              <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <Modal
         isOpen={templateSwitchOpen}

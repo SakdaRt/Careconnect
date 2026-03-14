@@ -177,6 +177,25 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Post-Selection Flow: outcome messaging + success screen + caregiver summary ใน Step 5
+
+- feat(frontend): Step 5 — เพิ่ม caregiver selection summary card
+  - แสดงผู้ดูแลที่เลือก (ชื่อ + "มอบหมายงานโดยตรง") หรือ "โพสต์หาผู้ดูแลผ่าน marketplace"
+  - ปุ่ม "แก้ไข" กลับ Step 4 ได้
+- feat(frontend): Outcome messaging — บอก hirer ว่าหลัง submit จะเกิดอะไร
+  - กรณีเลือก caregiver: "งานจะถูกส่งให้ผู้ดูแลที่เลือก → รอการตอบรับ → เริ่มงาน"
+  - กรณีโพสต์: "งานจะถูกเผยแพร่ → ผู้ดูแลที่สนใจจะสมัคร → คุณเลือกจากหน้า 'งานของฉัน'"
+- feat(frontend): Success screen หลัง submit สำเร็จ (แทน navigate ทันที)
+  - ✅ icon + "สร้างงานสำเร็จแล้ว!"
+  - 3 ขั้นตอนถัดไป: เผยแพร่ → รอตอบรับ/สมัคร → แก้ไข/ยกเลิกได้
+  - ปุ่ม "ดูรายละเอียดงาน" + "กลับหน้าหลัก"
+  - ซ่อน sticky bottom nav เมื่อแสดง success screen
+  - คง return_to_assign flow ไว้ (navigate ทันทีเหมือนเดิม)
+- verify:
+  - ✅ TypeScript: PASS (0 errors)
+  - ✅ Vite build: PASS (5.04s)
+  - ไม่แก้ backend / handleSubmit logic / submit payload
+
 ### 2026-03-14 — Decision Support Layer: reliability indicators + strengths summary + modal feasibility
 
 - feat(frontend): `computeReliability()` — reliability badges จากข้อมูลจริง
