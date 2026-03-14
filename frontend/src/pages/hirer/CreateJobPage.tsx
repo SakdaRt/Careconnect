@@ -998,6 +998,42 @@ export default function CreateJobPage() {
     return name[0]?.toUpperCase() || '?';
   };
 
+  const computeReliability = (cg: any): string[] => {
+    const tags: string[] = [];
+    const rating = Number(cg.avg_rating) || 0;
+    const reviews = Number(cg.total_reviews) || 0;
+    const exp = Number(cg.experience_years) || 0;
+    const jobs = Number(cg.completed_jobs_count) || 0;
+    const trust = String(cg.trust_level || 'L0');
+    if (rating >= 4.5 && reviews >= 3) tags.push('คะแนนรีวิวดีมาก');
+    else if (rating >= 4.0 && reviews >= 2) tags.push('คะแนนรีวิวดี');
+    if (jobs >= 20) tags.push('มีประสบการณ์สูง');
+    else if (jobs >= 5) tags.push('มีผลงานแล้ว');
+    if (trust === 'L3') tags.push('ผู้ใช้ไว้วางใจสูง');
+    else if (trust === 'L2') tags.push('ยืนยันตัวตนแล้ว');
+    if (exp >= 5) tags.push(`ประสบการณ์ ${exp} ปี`);
+    return tags.slice(0, 3);
+  };
+
+  const computeStrengthsSummary = (cg: any, feas: FeasibilityResult): string | null => {
+    const reasons: string[] = [];
+    const requiredSkills = new Set(form.required_skills_flags);
+    const cgSkills = new Set([...(cg.specializations || []), ...(cg.certifications || [])]);
+    let skillMatches = 0;
+    requiredSkills.forEach((s) => { if (cgSkills.has(s)) skillMatches++; });
+    if (requiredSkills.size > 0 && skillMatches > 0) {
+      const pct = Math.round((skillMatches / requiredSkills.size) * 100);
+      if (pct >= 80) reasons.push('ทักษะตรงกับงานมาก');
+      else if (pct >= 50) reasons.push('มีทักษะที่ตรงกับงาน');
+    }
+    if (feas.confidence === 'high') reasons.push('น่าจะว่างในเวลาที่ต้องการ');
+    else if (feas.confidence === 'medium') reasons.push('น่าจะรับงานได้');
+    const rating = Number(cg.avg_rating) || 0;
+    if (rating >= 4.0) reasons.push('ได้รับรีวิวดี');
+    if (reasons.length === 0) return null;
+    return 'เหมาะกับงานนี้: ' + reasons.slice(0, 2).join(' และ');
+  };
+
   const patientSummary = useMemo(() => {
     if (!selectedCareRecipient) return null;
     const p = selectedCareRecipient;
@@ -2002,7 +2038,11 @@ export default function CreateJobPage() {
                                         {feas.scheduleLabel}
                                       </span>
                                     )}
+                                    {computeReliability(cg).map((tag) => (
+                                      <span key={tag} className="text-[10px] px-1.5 py-0.5 bg-purple-50 text-purple-700 rounded-full">{tag}</span>
+                                    ))}
                                   </div>
+                                  {(() => { const s = computeStrengthsSummary(cg, feas); return s ? <div className="text-[10px] text-green-700 mt-1 leading-tight">{s}</div> : null; })()}
                                 </div>
                                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
                                   {isSelected ? <Check className="w-5 h-5 text-blue-600" aria-hidden="true" /> : (
@@ -2059,6 +2099,33 @@ export default function CreateJobPage() {
                 {Number(previewData.completed_jobs_count) > 0 && <div><div className="text-xs text-gray-500">งานสำเร็จ</div><div className="font-medium">{previewData.completed_jobs_count}</div></div>}
                 {Number(previewData.total_reviews) > 0 && <div><div className="text-xs text-gray-500">รีวิว</div><div className="font-medium">{previewData.total_reviews}</div></div>}
               </div>
+
+              {(() => {
+                const cgForFeas = suggestedCaregivers.find((c: any) => c.id === previewCaregiverId) || previewData;
+                const modalFeas = computeFeasibility(cgForFeas);
+                const modalReliability = computeReliability(cgForFeas);
+                const modalStrengths = computeStrengthsSummary(cgForFeas, modalFeas);
+                return (
+                  <div className="p-3 border border-blue-200 bg-blue-50/50 rounded-lg space-y-2">
+                    <div className="text-xs font-medium text-blue-900">ความเหมาะสมกับงานนี้</div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className={cn('text-[10px] px-2 py-0.5 rounded-full font-medium', modalFeas.confidence === 'high' ? 'bg-green-100 text-green-800' : modalFeas.confidence === 'medium' ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-600')}>
+                        {modalFeas.confidence === 'high' ? '✓' : modalFeas.confidence === 'medium' ? '~' : '?'} {modalFeas.confidenceLabel}
+                      </span>
+                      {modalFeas.schedule !== 'unknown' && (
+                        <span className={cn('text-[10px] px-2 py-0.5 rounded-full', modalFeas.schedule === 'available' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>{modalFeas.scheduleLabel}</span>
+                      )}
+                      {modalFeas.time !== 'unknown' && (
+                        <span className={cn('text-[10px] px-2 py-0.5 rounded-full', modalFeas.time === 'within' ? 'bg-green-50 text-green-700' : 'bg-amber-50 text-amber-700')}>{modalFeas.timeLabel}</span>
+                      )}
+                      {modalReliability.map((tag) => (
+                        <span key={tag} className="text-[10px] px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full">{tag}</span>
+                      ))}
+                    </div>
+                    {modalStrengths && <div className="text-xs text-green-700 leading-snug">{modalStrengths}</div>}
+                  </div>
+                );
+              })()}
 
               {((previewData.specializations || []).length > 0 || (previewData.certifications || []).length > 0) && (
                 <div>

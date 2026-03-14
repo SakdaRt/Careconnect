@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Decision Support Layer: reliability indicators + strengths summary + modal feasibility
+
+- feat(frontend): `computeReliability()` — reliability badges จากข้อมูลจริง
+  - "คะแนนรีวิวดีมาก" (rating ≥ 4.5 + reviews ≥ 3)
+  - "มีประสบการณ์สูง" (completed_jobs ≥ 20)
+  - "ผู้ใช้ไว้วางใจสูง" (trust L3)
+  - "ยืนยันตัวตนแล้ว" (trust L2)
+  - แสดง purple badges บน caregiver cards (สูงสุด 3)
+- feat(frontend): `computeStrengthsSummary()` — "เหมาะกับงานนี้: ..." summary line
+  - รวม skill match + feasibility + rating เป็นข้อความสรุปสั้น 1 บรรทัด
+  - แสดงบน cards เป็น green text
+- feat(frontend): Feasibility + reliability ใน preview modal
+  - เพิ่ม "ความเหมาะสมกับงานนี้" section ใน modal
+  - แสดง confidence badge + schedule/time status + reliability tags + strengths summary
+  - Modal เป็น source of truth สำหรับการตัดสินใจ
+- verify:
+  - ✅ TypeScript: PASS (0 errors)
+  - ✅ Vite build: PASS (5.37s)
+  - ไม่แก้ match score เดิม / backend / submit flow
+
 ### 2026-03-14 — Feasibility indicators + avatar enhancement ใน Step 4
 
 - feat(frontend): `computeFeasibility()` — ประเมินความเป็นไปได้ในการรับงาน
