@@ -177,6 +177,27 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-14 — Contextual caregiver matching + profile preview modal + best match highlight
+
+- feat(frontend): Frontend-driven match scoring ใน `CreateJobPage.tsx`
+  - `computeMatchScore()` คำนวณคะแนน 0-100: skills match (40%) + rating (25%) + trust (15%) + experience (10%) + completed jobs (10%)
+  - Caregiver suggestions ถูก rank ด้วย match score แล้วเรียงจากสูงไปต่ำ
+  - Best match badge: ⭐ "แนะนำ — เหมาะสมที่สุด" สำหรับผู้ดูแลอันดับ 1 (ถ้า score ≥ 40)
+  - Match score % แสดงบน card ทุกคน
+- feat(frontend): Enhanced caregiver cards
+  - เพิ่ม: completed jobs count, skill match indicators (✓ badges), certificates summary
+  - เพิ่ม: available_day จาก schedule ใน search params
+  - Fetch เพิ่มจาก 6 → 12 คน, แสดงสูงสุด 8 คน
+- feat(frontend): Caregiver profile preview modal
+  - เปิดจาก "ดูโปรไฟล์" link ใน Step 4 card — ไม่ redirect ออก flow
+  - แสดง: bio, ประสบการณ์, งานสำเร็จ, ทักษะ+ใบรับรอง (highlight ที่ match), รีวิวล่าสุด 3 รายการ
+  - ปุ่ม "เลือกผู้ดูแลคนนี้" — select แล้วปิด modal ทันที
+  - ใช้ `appApi.getCaregiverProfile()` + `appApi.getCaregiverReviews()` API เดิม
+- verify:
+  - ✅ TypeScript typecheck: PASS (0 errors)
+  - ✅ Vite build: PASS (4.97s)
+  - ไม่มี backend changes
+
 ### 2026-03-14 — ยกระดับ Step 4 caregiver selection + Step 3 summary bar + draft persistence
 
 - feat(frontend): Step 4 เลือกผู้ดูแลจริงจาก `searchCaregivers` API

@@ -641,6 +641,10 @@ export default function CreateJobPage() {
   const [suggestedLoading, setSuggestedLoading] = useState(false);
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(preferredCaregiverIdParam || '');
   const [showAdvancedStep3, setShowAdvancedStep3] = useState(false);
+  const [previewCaregiverId, setPreviewCaregiverId] = useState<string | null>(null);
+  const [previewData, setPreviewData] = useState<any>(null);
+  const [previewReviews, setPreviewReviews] = useState<any[]>([]);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   const initialDetailedType = (serviceParam && DETAILED_JOB_TEMPLATES[serviceParam]) ? serviceParam : DEFAULT_DETAILED_JOB_TYPE;
   const initialTemplate = DETAILED_JOB_TEMPLATES[initialDetailedType];
@@ -708,14 +712,23 @@ export default function CreateJobPage() {
       setSuggestedLoading(true);
       try {
         const skills = form.required_skills_flags.join(',');
+        let availableDay: number | undefined;
+        if (form.scheduled_start_at) {
+          const d = new Date(form.scheduled_start_at);
+          if (!isNaN(d.getTime())) availableDay = d.getDay();
+        }
         const res = await appApi.searchCaregivers({
           skills: skills || undefined,
           trust_level: computedRisk.risk_level === 'high_risk' ? 'L2' : 'L1',
-          limit: 6,
+          available_day: availableDay,
+          limit: 12,
         });
         if (cancelled) return;
         if (res.success && res.data?.data) {
-          setSuggestedCaregivers(res.data.data);
+          const ranked = res.data.data
+            .map((cg: any) => ({ ...cg, _matchScore: computeMatchScore(cg) }))
+            .sort((a: any, b: any) => b._matchScore - a._matchScore);
+          setSuggestedCaregivers(ranked);
         }
       } catch { /* ignore */ }
       finally { if (!cancelled) setSuggestedLoading(false); }
@@ -723,6 +736,25 @@ export default function CreateJobPage() {
     run();
     return () => { cancelled = true; };
   }, [currentStep]);
+
+  // ── Preview modal data fetch ──
+  const openPreview = useCallback(async (caregiverId: string) => {
+    setPreviewCaregiverId(caregiverId);
+    setPreviewLoading(true);
+    setPreviewData(null);
+    setPreviewReviews([]);
+    try {
+      const [profileRes, reviewsRes] = await Promise.all([
+        appApi.getCaregiverProfile(caregiverId),
+        appApi.getCaregiverReviews(caregiverId, 1, 5),
+      ]);
+      if (profileRes.success && profileRes.data) setPreviewData(profileRes.data);
+      if (reviewsRes.success && reviewsRes.data?.data) setPreviewReviews(reviewsRes.data.data);
+    } catch { /* ignore */ }
+    finally { setPreviewLoading(false); }
+  }, []);
+
+  const closePreview = () => { setPreviewCaregiverId(null); setPreviewData(null); setPreviewReviews([]); };
 
   useEffect(() => {
     if (currentStep > maxVisitedStep) {
@@ -876,6 +908,28 @@ export default function CreateJobPage() {
   const computedRisk = useMemo(() => {
     return computeRiskLevel({ jobType: form.job_type, careRecipient: selectedCareRecipient, jobTasksFlags: form.job_tasks_flags });
   }, [form.job_type, form.job_tasks_flags, selectedCareRecipient]);
+
+  const computeMatchScore = useCallback((cg: any) => {
+    let score = 0;
+    const requiredSkills = new Set(form.required_skills_flags);
+    const cgSkills = new Set([...(cg.specializations || []), ...(cg.certifications || [])]);
+    let skillMatches = 0;
+    requiredSkills.forEach((s) => { if (cgSkills.has(s)) skillMatches++; });
+    if (requiredSkills.size > 0) score += Math.round((skillMatches / requiredSkills.size) * 40);
+    else score += 20;
+    const rating = Number(cg.avg_rating) || 0;
+    score += Math.round((rating / 5) * 25);
+    const trustOrder = ['L0', 'L1', 'L2', 'L3'];
+    const minTrust = computedRisk.risk_level === 'high_risk' ? 'L2' : 'L1';
+    const cgTrustIdx = trustOrder.indexOf(cg.trust_level || 'L0');
+    const minTrustIdx = trustOrder.indexOf(minTrust);
+    if (cgTrustIdx >= minTrustIdx) score += 15;
+    const exp = Number(cg.experience_years) || 0;
+    score += Math.min(exp * 2, 10);
+    const jobs = Number(cg.completed_jobs_count) || 0;
+    score += Math.min(jobs, 10);
+    return Math.min(score, 100);
+  }, [form.required_skills_flags, computedRisk.risk_level]);
 
   const patientSummary = useMemo(() => {
     if (!selectedCareRecipient) return null;
@@ -1794,12 +1848,7 @@ export default function CreateJobPage() {
               </Card>
             ) : (
               <>
-                {/* Option: post to marketplace */}
-                <button
-                  type="button"
-                  onClick={() => setSelectedCaregiverId('')}
-                  className={cn('w-full border-2 rounded-xl p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500', !selectedCaregiverId ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-green-300')}
-                >
+                <button type="button" onClick={() => setSelectedCaregiverId('')} className={cn('w-full border-2 rounded-xl p-4 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500', !selectedCaregiverId ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-green-300')}>
                   <div className="flex items-center gap-3">
                     <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', !selectedCaregiverId ? 'bg-green-200' : 'bg-gray-100')}>
                       <Search className="w-5 h-5 text-green-600" aria-hidden="true" />
@@ -1812,51 +1861,76 @@ export default function CreateJobPage() {
                   </div>
                 </button>
 
-                {/* Suggested caregivers from search API */}
                 <div className="pt-2">
                   <div className="text-sm font-semibold text-gray-900 mb-2">หรือเลือกผู้ดูแลที่แนะนำ</div>
                   {suggestedLoading ? (
-                    <div className="text-center py-6 text-sm text-gray-500">กำลังค้นหาผู้ดูแลที่เหมาะสม...</div>
+                    <div className="text-center py-8 text-sm text-gray-500">กำลังค้นหาผู้ดูแลที่เหมาะสม...</div>
                   ) : suggestedCaregivers.length === 0 ? (
                     <Card className="p-4 text-center">
                       <div className="text-sm text-gray-500">ยังไม่พบผู้ดูแลที่ตรงเงื่อนไขขณะนี้</div>
-                      <div className="mt-2">
-                        <Link to="/hirer/search-caregivers"><Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>ค้นหาเพิ่มเติม</Button></Link>
-                      </div>
+                      <div className="mt-2"><Link to="/hirer/search-caregivers"><Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>ค้นหาเพิ่มเติม</Button></Link></div>
                     </Card>
                   ) : (
                     <div className="space-y-2">
-                      {suggestedCaregivers.map((cg) => {
+                      {suggestedCaregivers.slice(0, 8).map((cg, idx) => {
                         const isSelected = selectedCaregiverId === cg.id;
                         const rating = Number(cg.avg_rating) || 0;
+                        const matchScore = cg._matchScore || 0;
+                        const isBestMatch = idx === 0 && matchScore >= 40;
+                        const completedJobs = Number(cg.completed_jobs_count) || 0;
+                        const certs = (cg.certifications || []) as string[];
+                        const specs = (cg.specializations || []) as string[];
+                        const requiredSkills = new Set(form.required_skills_flags);
+                        const matchedSkills = [...specs, ...certs].filter((s: string) => requiredSkills.has(s));
+
                         return (
-                          <button
-                            key={cg.id}
-                            type="button"
-                            onClick={() => setSelectedCaregiverId(isSelected ? '' : cg.id)}
-                            className={cn('w-full border-2 rounded-xl p-3 text-left transition-all focus:outline-none focus:ring-2 focus:ring-blue-500', isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300')}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0', isSelected ? 'bg-blue-200' : 'bg-gray-100')}>
-                                <UserIcon className={cn('w-5 h-5', isSelected ? 'text-blue-700' : 'text-gray-500')} aria-hidden="true" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-semibold text-gray-900 line-clamp-1">{cg.display_name || 'ผู้ดูแล'}</div>
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  {rating > 0 && (
-                                    <span className="flex items-center gap-0.5 text-xs text-amber-600">
-                                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden="true" />
-                                      {rating.toFixed(1)}
-                                      {cg.total_reviews > 0 && <span className="text-gray-400">({cg.total_reviews})</span>}
-                                    </span>
+                          <div key={cg.id} className={cn('border-2 rounded-xl transition-all', isSelected ? 'border-blue-500 bg-blue-50' : isBestMatch ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200')}>
+                            {isBestMatch && !isSelected && (
+                              <div className="bg-amber-100 text-amber-800 text-[10px] font-bold text-center py-0.5 rounded-t-[10px]">⭐ แนะนำ — เหมาะสมที่สุด</div>
+                            )}
+                            <button type="button" onClick={() => setSelectedCaregiverId(isSelected ? '' : cg.id)} className="w-full p-3 text-left focus:outline-none">
+                              <div className="flex items-start gap-3">
+                                <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5', isSelected ? 'bg-blue-200' : 'bg-gray-100')}>
+                                  <UserIcon className={cn('w-5 h-5', isSelected ? 'text-blue-700' : 'text-gray-500')} aria-hidden="true" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-gray-900 line-clamp-1">{cg.display_name || 'ผู้ดูแล'}</span>
+                                    <Badge variant="default">{cg.trust_level}</Badge>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-600">
+                                    {rating > 0 && (
+                                      <span className="flex items-center gap-0.5 text-amber-600">
+                                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+                                        {rating.toFixed(1)}{cg.total_reviews > 0 && <span className="text-gray-400">({cg.total_reviews})</span>}
+                                      </span>
+                                    )}
+                                    {cg.experience_years > 0 && <span>ประสบการณ์ {cg.experience_years} ปี</span>}
+                                    {completedJobs > 0 && <span>งานสำเร็จ {completedJobs}</span>}
+                                  </div>
+                                  {matchedSkills.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1.5">
+                                      {matchedSkills.slice(0, 3).map((s: string) => (
+                                        <span key={s} className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-800 rounded-full">✓ {s}</span>
+                                      ))}
+                                      {matchedSkills.length > 3 && <span className="text-[10px] text-gray-500">+{matchedSkills.length - 3}</span>}
+                                    </div>
                                   )}
-                                  {cg.experience_years > 0 && <span className="text-xs text-gray-500">{cg.experience_years} ปี</span>}
-                                  <Badge variant="default">{cg.trust_level}</Badge>
+                                  {certs.length > 0 && matchedSkills.length === 0 && (
+                                    <div className="text-[10px] text-gray-500 mt-1">ใบรับรอง: {certs.slice(0, 2).join(', ')}{certs.length > 2 ? ` +${certs.length - 2}` : ''}</div>
+                                  )}
+                                </div>
+                                <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                                  {isSelected ? <Check className="w-5 h-5 text-blue-600" aria-hidden="true" /> : (
+                                    <div className="text-[10px] text-gray-400">{matchScore}%</div>
+                                  )}
                                 </div>
                               </div>
-                              {isSelected && <Check className="w-5 h-5 text-blue-600 flex-shrink-0" aria-hidden="true" />}
+                            </button>
+                            <div className="px-3 pb-2">
+                              <button type="button" onClick={(e) => { e.stopPropagation(); openPreview(cg.id); }} className="text-xs text-blue-600 hover:underline">ดูโปรไฟล์</button>
                             </div>
-                          </button>
+                          </div>
                         );
                       })}
                       <div className="text-center pt-1">
@@ -1869,6 +1943,76 @@ export default function CreateJobPage() {
             )}
           </div>
         )}
+
+        {/* ── Caregiver Preview Modal ── */}
+        <Modal isOpen={!!previewCaregiverId} onClose={closePreview} title="โปรไฟล์ผู้ดูแล" size="lg">
+          {previewLoading ? (
+            <div className="text-center py-10 text-sm text-gray-500">กำลังโหลด...</div>
+          ) : previewData ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                  <UserIcon className="w-7 h-7 text-blue-600" aria-hidden="true" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-gray-900">{previewData.display_name || 'ผู้ดูแล'}</div>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <Badge variant="default">{previewData.trust_level || 'L0'}</Badge>
+                    {Number(previewData.avg_rating) > 0 && (
+                      <span className="flex items-center gap-0.5 text-sm text-amber-600">
+                        <Star className="w-4 h-4 fill-amber-400 text-amber-400" aria-hidden="true" />
+                        {Number(previewData.avg_rating).toFixed(1)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {previewData.bio && <p className="text-sm text-gray-700 whitespace-pre-wrap">{previewData.bio}</p>}
+
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                {previewData.experience_years > 0 && <div><div className="text-xs text-gray-500">ประสบการณ์</div><div className="font-medium">{previewData.experience_years} ปี</div></div>}
+                {Number(previewData.completed_jobs_count) > 0 && <div><div className="text-xs text-gray-500">งานสำเร็จ</div><div className="font-medium">{previewData.completed_jobs_count}</div></div>}
+                {Number(previewData.total_reviews) > 0 && <div><div className="text-xs text-gray-500">รีวิว</div><div className="font-medium">{previewData.total_reviews}</div></div>}
+              </div>
+
+              {((previewData.specializations || []).length > 0 || (previewData.certifications || []).length > 0) && (
+                <div>
+                  <div className="text-xs font-medium text-gray-500 mb-1">ทักษะ / ใบรับรอง</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[...(previewData.specializations || []), ...(previewData.certifications || [])].map((s: string) => {
+                      const isMatch = form.required_skills_flags.includes(s);
+                      return <span key={s} className={cn('text-xs px-2 py-0.5 rounded-full', isMatch ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700')}>{isMatch ? '✓ ' : ''}{s}</span>;
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {previewReviews.length > 0 && (
+                <div>
+                  <div className="text-xs font-medium text-gray-500 mb-2">รีวิวล่าสุด</div>
+                  <div className="space-y-2">
+                    {previewReviews.slice(0, 3).map((rv: any) => (
+                      <div key={rv.id} className="p-2 border border-gray-200 rounded-lg">
+                        <div className="flex items-center gap-1 text-xs text-amber-600">
+                          {Array.from({ length: rv.rating || 0 }).map((_, i) => <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden="true" />)}
+                        </div>
+                        {rv.comment && <div className="text-xs text-gray-700 mt-1 line-clamp-2">{rv.comment}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="primary" fullWidth onClick={() => { setSelectedCaregiverId(previewCaregiverId || ''); closePreview(); }}>เลือกผู้ดูแลคนนี้</Button>
+                <Button variant="outline" fullWidth onClick={closePreview}>ปิด</Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-10 text-sm text-gray-500">ไม่พบข้อมูลผู้ดูแล</div>
+          )}
+        </Modal>
 
         {/* ═══════════ Step 5: สรุปก่อนยืนยัน ═══════════ */}
         {currentStep === 5 && (
