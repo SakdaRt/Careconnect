@@ -6,7 +6,9 @@ import {
   refreshAccessToken,
   generateAccessToken,
   generateRefreshToken,
+  hashPassword,
 } from '../services/authService.js';
+import otpService from '../services/otpService.js';
 import { acceptPolicy, getPolicyAcceptances } from '../services/policyService.js';
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
@@ -484,61 +486,54 @@ export const googleCallback = async (req, res) => {
 };
 
 /**
- * Register guest user (email + password)
- * POST /api/auth/register/guest
+ * Start registration — validate + send OTP (does NOT create user yet)
+ * POST /api/auth/register/guest  — email + password + role → sends email OTP
+ * POST /api/auth/register/member — phone + password + role → sends phone OTP
+ * User is created ONLY after OTP verification succeeds.
  */
 export const registerGuest = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    // Validate required fields
     if (!email || !password || !role) {
       return res.status(400).json({
         error: 'Validation error',
         message: 'Email, password, and role are required',
-        fields: {
-          email: email ? undefined : 'Email is required',
-          password: password ? undefined : 'Password is required',
-          role: role ? undefined : 'Role is required',
-        },
       });
     }
 
-    // Register user
-    const result = await registerGuestService({ email, password, role });
+    if (!['hirer', 'caregiver'].includes(role)) {
+      return res.status(400).json({ error: 'Validation error', message: 'Role must be hirer or caregiver' });
+    }
 
-    const policyAcceptances = await getPolicyAcceptances(result.user.id);
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existingUser = await User.findByEmail(normalizedEmail);
+    if (existingUser) {
+      return res.status(409).json({ error: 'Conflict', message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+    }
 
-    res.status(201).json({
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Validation error', message: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
+    }
+
+    const password_hash = await hashPassword(password);
+
+    const result = await otpService.sendRegistrationOtp('email', normalizedEmail, {
+      email: normalizedEmail,
+      phone: null,
+      password_hash,
+      account_type: 'guest',
+      role,
+    });
+
+    res.status(200).json({
       success: true,
-      message: 'Guest user registered successfully',
-      data: {
-        user: { ...result.user, policy_acceptances: policyAcceptances },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      },
+      message: 'ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี',
+      data: { otp_id: result.otp_id, expires_in: result.expires_in, ...(result._dev_code ? { _dev_code: result._dev_code } : {}) },
     });
   } catch (error) {
     console.error('[Auth Controller] Register guest error:', error);
-
-    if (error.message.includes('already registered')) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Invalid') || error.message.includes('must')) {
-      return res.status(400).json({
-        error: 'Validation error',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to register user',
-    });
+    res.status(500).json({ error: 'Server error', message: 'สมัครสมาชิกไม่สำเร็จ' });
   }
 };
 
@@ -548,56 +543,47 @@ export const registerGuest = async (req, res) => {
  */
 export const registerMember = async (req, res) => {
   try {
-    const { phone_number, password, role, email } = req.body;
+    const { phone_number, password, role } = req.body;
 
-    // Validate required fields
     if (!phone_number || !password || !role) {
       return res.status(400).json({
         error: 'Validation error',
         message: 'Phone number, password, and role are required',
-        fields: {
-          phone_number: phone_number ? undefined : 'Phone number is required',
-          password: password ? undefined : 'Password is required',
-          role: role ? undefined : 'Role is required',
-        },
       });
     }
 
-    // Register user
-    const result = await registerMemberService({ phone_number, password, role, email });
+    if (!['hirer', 'caregiver'].includes(role)) {
+      return res.status(400).json({ error: 'Validation error', message: 'Role must be hirer or caregiver' });
+    }
 
-    const policyAcceptances = await getPolicyAcceptances(result.user.id);
+    // phone_number is already normalized by Joi phoneSchema in route
+    const existing = await User.findByPhoneNumber(phone_number);
+    if (existing) {
+      return res.status(409).json({ error: 'Conflict', message: 'เบอร์โทรนี้ถูกใช้งานแล้ว' });
+    }
 
-    res.status(201).json({
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Validation error', message: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
+    }
+
+    const password_hash = await hashPassword(password);
+
+    const result = await otpService.sendRegistrationOtp('phone', phone_number, {
+      email: null,
+      phone: phone_number,
+      password_hash,
+      account_type: 'member',
+      role,
+    });
+
+    res.status(200).json({
       success: true,
-      message: 'Member user registered successfully',
-      data: {
-        user: { ...result.user, policy_acceptances: policyAcceptances },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      },
+      message: 'ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยันเพื่อสร้างบัญชี',
+      data: { otp_id: result.otp_id, expires_in: result.expires_in, ...(result._dev_code ? { _dev_code: result._dev_code } : {}) },
     });
   } catch (error) {
     console.error('[Auth Controller] Register member error:', error);
-
-    if (error.message.includes('already registered')) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Invalid') || error.message.includes('must')) {
-      return res.status(400).json({
-        error: 'Validation error',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to register user',
-    });
+    res.status(500).json({ error: 'Server error', message: 'สมัครสมาชิกไม่สำเร็จ' });
   }
 };
 

@@ -59,12 +59,13 @@ function hashCode(code) {
   return crypto.createHash('sha256').update(code).digest('hex');
 }
 
-async function storeOtp(otpId, userId, type, destination, code, expiresAt) {
+async function storeOtp(otpId, userId, type, destination, code, expiresAt, metadata = null) {
   await ensureOtpTable();
+  await query(`ALTER TABLE otp_codes ADD COLUMN IF NOT EXISTS metadata JSONB`);
   await query(
-    `INSERT INTO otp_codes (id, user_id, type, destination, code_hash, expires_at, sent_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW())`,
-    [otpId, userId, type, destination, hashCode(code), expiresAt]
+    `INSERT INTO otp_codes (id, user_id, type, destination, code_hash, expires_at, sent_at, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7)`,
+    [otpId, userId, type, destination, hashCode(code), expiresAt, metadata ? JSON.stringify(metadata) : null]
   );
 }
 
@@ -255,6 +256,90 @@ async function sendPhoneOtp(userId, phoneNumber) {
 }
 
 // ============================================================================
+// Send Registration OTP (no user_id — for pre-registration verification)
+// ============================================================================
+
+async function sendRegistrationOtp(type, destination, registrationData) {
+  const otpCode = generateOtpCode();
+  const otpId = uuidv4();
+  const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+
+  // Store OTP with registration metadata (no user_id)
+  await storeOtp(otpId, null, type, destination, otpCode, expiresAt, {
+    action: 'register',
+    ...registrationData,
+  });
+
+  try {
+    // Reuse existing send logic based on type
+    if (type === 'phone') {
+      const { normalizePhone, toE164 } = await import('../utils/phone.js');
+      const canonical = normalizePhone(destination) || destination;
+      const providerPhone = toE164(canonical) || canonical;
+
+      if (SMS_PROVIDER === 'smsok') {
+        if (!SMSOK_API_KEY || !SMSOK_API_SECRET) throw new Error('SMSOK credentials not configured');
+        const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
+        const response = await fetch(SMSOK_API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: '*/*', Authorization: `Basic ${credentials}` },
+          body: JSON.stringify({
+            sender: SMSOK_SENDER,
+            text: `รหัส OTP CareConnect: ${otpCode} ใช้ได้ ${OTP_EXPIRY_MINUTES} นาที`,
+            destinations: [{ destination: providerPhone }],
+          }),
+        });
+        if (!response.ok) { const t = await response.text(); throw new Error(`SMSOK error ${response.status}: ${t}`); }
+        const result = await response.json();
+        const dest = result.destinations?.[0];
+        if (dest && dest.status !== 'NO_ERROR') throw new Error(`SMS delivery failed: ${dest.status}`);
+        console.log(`[OTP Service] Registration SMS sent to ${providerPhone} (${canonical})`);
+      } else {
+        await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone_number: destination, otp_code: otpCode }),
+        });
+        console.log(`[OTP Service] Registration SMS sent via mock to ${destination}`);
+      }
+    } else if (type === 'email') {
+      // Email: use same transport as sendEmailOtp
+      try {
+        const nodemailer = await import('nodemailer');
+        const transport = nodemailer.default.createTransport({
+          host: process.env.SMTP_HOST,
+          port: parseInt(process.env.SMTP_PORT || '587'),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+        });
+        await transport.sendMail({
+          from: process.env.EMAIL_FROM || '"CareConnect" <noreply@careconnect.local>',
+          to: destination,
+          subject: 'CareConnect — รหัส OTP ยืนยันตัวตน',
+          text: `รหัส OTP ของคุณคือ: ${otpCode}\nใช้ได้ภายใน ${OTP_EXPIRY_MINUTES} นาที`,
+        });
+      } catch (emailErr) {
+        console.warn(`[OTP Service] Email send failed (registration): ${emailErr.message} — OTP stored, dev code in logs`);
+      }
+      console.log(`[OTP Service] Registration email OTP for ${destination}`);
+    }
+
+    if (IS_DEV) console.log(`[OTP Service] [DEV] Registration OTP for ${destination}: ${otpCode}`);
+
+    return {
+      success: true,
+      otp_id: otpId,
+      expires_in: OTP_EXPIRY_MINUTES * 60,
+      ...(IS_DEV ? { _dev_code: otpCode } : {}),
+    };
+  } catch (error) {
+    console.error('[OTP Service] Failed to send registration OTP:', error.message);
+    await deleteOtp(otpId);
+    throw error;
+  }
+}
+
+// ============================================================================
 // Verify OTP
 // ============================================================================
 
@@ -291,35 +376,82 @@ async function verifyOtp(otpId, code) {
   await markOtpVerified(otpId);
 
   try {
-    if (otpData.type === 'email') {
-      await query(
-        `UPDATE users SET email = $2, is_email_verified = true, email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [otpData.user_id, otpData.destination]
-      );
-    } else if (otpData.type === 'phone') {
-      await query(
-        `UPDATE users
-         SET phone_number = $2,
-             is_phone_verified = true,
-             phone_verified_at = NOW(),
-             account_type = CASE WHEN account_type = 'guest' THEN 'member' ELSE account_type END,
-             updated_at = NOW()
-         WHERE id = $1`,
-        [otpData.user_id, otpData.destination]
-      );
-    }
+    const metadata = typeof otpData.metadata === 'string' ? JSON.parse(otpData.metadata) : otpData.metadata;
+    let createdUser = null;
 
-    await triggerUserTrustUpdate(otpData.user_id, 'otp');
+    if (metadata?.action === 'register') {
+      // Registration OTP — create user now that verification is complete
+      const { transaction: txn } = await import('../utils/db.js');
+      createdUser = await txn(async (client) => {
+        const userQuery = await client.query(
+          `INSERT INTO users (id, email, phone_number, password_hash, account_type, role, trust_level, status,
+             is_email_verified, is_phone_verified, email_verified_at, phone_verified_at, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, 'L0', 'active', $7, $8, $9, $10, NOW(), NOW())
+           RETURNING *`,
+          [
+            uuidv4(),
+            metadata.email || null,
+            metadata.phone || null,
+            metadata.password_hash,
+            metadata.account_type || 'guest',
+            metadata.role || 'hirer',
+            otpData.type === 'email',
+            otpData.type === 'phone',
+            otpData.type === 'email' ? new Date() : null,
+            otpData.type === 'phone' ? new Date() : null,
+          ]
+        );
+        const user = userQuery.rows[0];
+        const walletType = user.role === 'hirer' ? 'hirer' : 'caregiver';
+        await client.query(
+          `INSERT INTO wallets (id, user_id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
+           VALUES ($1, $2, $3, 0, 0, 'THB', NOW(), NOW())`,
+          [uuidv4(), user.id, walletType]
+        );
+        const suffix = uuidv4().replace(/-/g, '').slice(0, 4).toUpperCase();
+        const displayName = user.role === 'caregiver' ? `ผู้ดูแล ${suffix}` : `ผู้ว่าจ้าง ${suffix}`;
+        const profileTable = user.role === 'hirer' ? 'hirer_profiles' : 'caregiver_profiles';
+        await client.query(
+          `INSERT INTO ${profileTable} (user_id, display_name, updated_at) VALUES ($1, $2, NOW()) ON CONFLICT (user_id) DO NOTHING`,
+          [user.id, displayName]
+        );
+        delete user.password_hash;
+        return user;
+      });
+      console.log(`[OTP Service] Registration complete — user: ${createdUser.id}, type: ${otpData.type}`);
+    } else if (otpData.user_id) {
+      // Existing user OTP (phone/email update or initial verification)
+      if (otpData.type === 'email') {
+        await query(
+          `UPDATE users SET email = $2, is_email_verified = true, email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
+          [otpData.user_id, otpData.destination]
+        );
+      } else if (otpData.type === 'phone') {
+        await query(
+          `UPDATE users
+           SET phone_number = $2,
+               is_phone_verified = true,
+               phone_verified_at = NOW(),
+               account_type = CASE WHEN account_type = 'guest' THEN 'member' ELSE account_type END,
+               updated_at = NOW()
+           WHERE id = $1`,
+          [otpData.user_id, otpData.destination]
+        );
+      }
+      await triggerUserTrustUpdate(otpData.user_id, 'otp');
+    }
 
     await deleteOtp(otpId);
 
-    console.log(`[OTP Service] OTP verified — type: ${otpData.type}, user: ${otpData.user_id}`);
+    const userId = createdUser?.id || otpData.user_id;
+    console.log(`[OTP Service] OTP verified — type: ${otpData.type}, user: ${userId}`);
 
     return {
       success: true,
       type: otpData.type,
-      userId: otpData.user_id,
+      userId: createdUser?.id || otpData.user_id,
       verified: true,
+      ...(createdUser ? { registeredUser: createdUser } : {}),
     };
   } catch (error) {
     console.error('[OTP Service] Failed to update user verification:', error);
@@ -360,6 +492,7 @@ async function resendOtp(otpId) {
 export default {
   sendEmailOtp,
   sendPhoneOtp,
+  sendRegistrationOtp,
   verifyOtp,
   resendOtp,
 };

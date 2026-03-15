@@ -168,7 +168,26 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    // Get updated user info
+    // Registration flow — return tokens for newly created user
+    if (result.registeredUser) {
+      const { generateAccessToken, generateRefreshToken } = await import('../services/authService.js');
+      const accessToken = generateAccessToken(result.registeredUser);
+      const refreshToken = generateRefreshToken(result.registeredUser);
+
+      return res.json({
+        success: true,
+        message: 'สมัครสมาชิกสำเร็จ',
+        data: {
+          type: result.type,
+          registered: true,
+          user: result.registeredUser,
+          accessToken,
+          refreshToken,
+        },
+      });
+    }
+
+    // Existing user verification flow
     const userResult = await query(
       `SELECT is_email_verified, is_phone_verified, trust_level FROM users WHERE id = $1`,
       [result.userId]
