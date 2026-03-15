@@ -74,8 +74,8 @@ export const appApi = {
     return api.resetPassword(token, email, newPassword);
   },
 
-  async sendEmailOtp() {
-    return api.sendEmailOtp();
+  async sendEmailOtp(email?: string) {
+    return api.sendEmailOtp(email);
   },
 
   async sendPhoneOtp(phone_number?: string) {

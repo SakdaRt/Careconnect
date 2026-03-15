@@ -15,7 +15,9 @@ export const sendEmailOtp = async (req, res) => {
   try {
     const userId = req.userId;
 
-    // Get user email
+    // Accept email from body (pre-verify flow) or fall back to DB
+    const bodyEmail = req.body?.email ? String(req.body.email).trim().toLowerCase() : null;
+
     const userResult = await query(`SELECT email, is_email_verified FROM users WHERE id = $1`, [userId]);
 
     if (!userResult.rows[0]) {
@@ -26,22 +28,37 @@ export const sendEmailOtp = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+    const emailToVerify = bodyEmail || user.email;
 
-    if (!user.email) {
+    if (!emailToVerify) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'No email address associated with this account',
+        message: 'กรุณากรอกอีเมล',
       });
     }
 
-    if (user.is_email_verified) {
+    // Check duplicate email
+    if (bodyEmail && bodyEmail !== user.email) {
+      const existing = await query(
+        `SELECT id FROM users WHERE email = $1 AND id != $2 LIMIT 1`,
+        [emailToVerify, userId]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          error: 'Conflict',
+          message: 'อีเมลนี้ถูกใช้งานแล้ว',
+        });
+      }
+    }
+
+    if (user.email === emailToVerify && user.is_email_verified) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'Email is already verified',
+        message: 'อีเมลนี้ยืนยันแล้ว',
       });
     }
 
-    const result = await otpService.sendEmailOtp(userId, user.email);
+    const result = await otpService.sendEmailOtp(userId, emailToVerify);
 
     res.json({
       success: true,

@@ -293,8 +293,8 @@ async function verifyOtp(otpId, code) {
   try {
     if (otpData.type === 'email') {
       await query(
-        `UPDATE users SET is_email_verified = true, email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [otpData.user_id]
+        `UPDATE users SET email = $2, is_email_verified = true, email_verified_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [otpData.user_id, otpData.destination]
       );
     } else if (otpData.type === 'phone') {
       await query(

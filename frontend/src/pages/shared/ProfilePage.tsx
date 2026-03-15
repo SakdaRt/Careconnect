@@ -217,19 +217,13 @@ export default function ProfilePage() {
     setEmailError("");
     setEmailOtpError("");
     try {
-      const updateResponse = await appApi.updateEmailAddress(emailValue.trim());
-      if (!updateResponse.success) {
-        toast.error(updateResponse.error || "บันทึกอีเมลไม่สำเร็จ");
-        return;
-      }
-      await refreshUser();
-      const response = await appApi.sendEmailOtp();
+      const response = await appApi.sendEmailOtp(emailValue.trim());
       if (!response.success || !response.data) {
         toast.error(response.error || "ส่งรหัส OTP ไม่สำเร็จ");
         return;
       }
       setEmailOtpId(response.data.otp_id);
-      toast.success("ส่งรหัส OTP แล้ว");
+      toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบอีเมล");
       startEmailCooldown();
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");

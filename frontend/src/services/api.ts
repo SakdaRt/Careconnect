@@ -396,10 +396,10 @@ class ApiClient {
   }
 
   // OTP endpoints
-  async sendEmailOtp() {
+  async sendEmailOtp(email?: string) {
     return this.request<{ otp_id: string; email: string; expires_in: number }>(
       '/api/otp/email/send',
-      { method: 'POST' }
+      { method: 'POST', body: email ? { email } : undefined }
     );
   }
 
