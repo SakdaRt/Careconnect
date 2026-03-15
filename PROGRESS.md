@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Technical Debt Cleanup: dead code removal + schema fallback simplification
+
+- delete(frontend): ลบ `frontend/src/services/demoStore.ts` (63KB, 1843 lines)
+  - 0 imports from any file — confirmed dead code
+  - ระบบใช้ real API (`appApi.ts`) แทนแล้วทั้งหมด
+- refactor(backend): ลบ compatibility fallback code ใน `backend/src/models/Job.js`
+  - ลบ: `isMissingColumnError`, `isMissingPatientProfileColumnError`, `isMissingPreferredCaregiverColumnError`, `isRecipientSchemaCompatibilityError` (50 lines)
+  - ลบ: `createJobPost` try/catch fallback chain (18 lines)
+  - แทน `queryWithRecipientFallback` ด้วย 1-line shim: `(queries, values) => query(queries[0], values)`
+  - เหตุผล: `patient_profile_id` + `preferred_caregiver_id` columns มีอยู่ใน DB แล้ว (verified)
+- refactor(backend): ลบ dispute dual-schema fallback ใน `backend/src/controllers/disputeController.js`
+  - ลบ: dual-insert try/catch (inner error 42703 fallback) — 35 lines
+  - ลบ: try/catch wrapper สำหรับ dispute_events + dispute_messages inserts
+  - แทนด้วย: single INSERT พร้อม columns ครบ + direct inserts ไม่มี fallback
+  - เหตุผล: ทุก column (hirer_id, caregiver_id, created_by_user_id, created_by_role, opened_by_user_id) มีอยู่ใน DB แล้ว
+- verify:
+  - ✅ Frontend tsc: PASS
+  - ✅ Vite build: PASS (4.75s)
+  - ✅ Backend tests: **63 passed, 0 failed** (--runInBand)
+
 ### 2026-03-15 — Documentation Drift Audit: SYSTEM.md + PROGRESS.md sync กับ implementation จริง
 
 - audit: เทียบ SYSTEM.md กับ code จริง 7 หัวข้อ — พบ 5 drift + 1 numbering error

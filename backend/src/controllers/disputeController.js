@@ -76,23 +76,11 @@ export const createDispute = async (req, res) => {
 
       const disputeId = uuidv4();
       try {
-        try {
-          await client.query(
-            `INSERT INTO disputes (id, job_post_id, job_id, hirer_id, caregiver_id, created_by_user_id, created_by_role, reason, status, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'open', NOW(), NOW())`,
-            [disputeId, ctx.job_post_id, ctx.job_id, ctx.hirer_id, ctx.caregiver_id, req.userId, requesterRole, reason]
-          );
-        } catch (innerError) {
-          if (innerError && typeof innerError === 'object' && String(innerError.code || '') === '42703') {
-            await client.query(
-              `INSERT INTO disputes (id, job_post_id, job_id, opened_by_user_id, status, reason, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, 'open', $5, NOW(), NOW())`,
-              [disputeId, ctx.job_post_id, ctx.job_id, req.userId, reason]
-            );
-          } else {
-            throw innerError;
-          }
-        }
+        await client.query(
+          `INSERT INTO disputes (id, job_post_id, job_id, hirer_id, caregiver_id, created_by_user_id, created_by_role, opened_by_user_id, reason, status, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $6, $8, 'open', NOW(), NOW())`,
+          [disputeId, ctx.job_post_id, ctx.job_id, ctx.hirer_id, ctx.caregiver_id, req.userId, requesterRole, reason]
+        );
       } catch (error) {
         if (error && typeof error === 'object' && String(error.code || '') === '23505') {
           const retry = await client.query(
@@ -104,40 +92,17 @@ export const createDispute = async (req, res) => {
         throw error;
       }
 
-      try {
-        await client.query(
-          `UPDATE disputes SET opened_by_user_id = created_by_user_id WHERE id = $1 AND opened_by_user_id IS NULL`,
-          [disputeId]
-        );
-      } catch (error) {
-        if (!error || typeof error !== 'object' || String(error.code || '') !== '42703') {
-          throw error;
-        }
-      }
+      await client.query(
+        `INSERT INTO dispute_events (id, dispute_id, actor_user_id, event_type, message, created_at)
+         VALUES ($1, $2, $3, 'status_change', $4, NOW())`,
+        [uuidv4(), disputeId, req.userId, 'Dispute opened: open']
+      );
 
-      try {
-        await client.query(
-          `INSERT INTO dispute_events (id, dispute_id, actor_user_id, event_type, message, created_at)
-           VALUES ($1, $2, $3, 'status_change', $4, NOW())`,
-          [uuidv4(), disputeId, req.userId, 'Dispute opened: open']
-        );
-      } catch (error) {
-        if (!error || typeof error !== 'object' || String(error.code || '') !== '42P01') {
-          throw error;
-        }
-      }
-
-      try {
-        await client.query(
-          `INSERT INTO dispute_messages (id, dispute_id, sender_id, type, content, is_system_message, created_at)
-           VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
-          [uuidv4(), disputeId, `Dispute opened by user. Reason: ${reason}`]
-        );
-      } catch (error) {
-        if (!error || typeof error !== 'object' || String(error.code || '') !== '42P01') {
-          throw error;
-        }
-      }
+      await client.query(
+        `INSERT INTO dispute_messages (id, dispute_id, sender_id, type, content, is_system_message, created_at)
+         VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
+        [uuidv4(), disputeId, `Dispute opened by user. Reason: ${reason}`]
+      );
 
       const row = await client.query(`SELECT * FROM disputes WHERE id = $1`, [disputeId]);
       return row.rows[0];

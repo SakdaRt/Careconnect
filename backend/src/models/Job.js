@@ -100,55 +100,8 @@ const getDistanceMeters = (lat1, lng1, lat2, lng2) => {
   return earthRadius * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
 };
 
-const isMissingColumnError = (error, columnName) => {
-  const code = String(error?.code || '').toUpperCase();
-  const message = String(error?.message || '').toLowerCase();
-  return code === '42703' && message.includes(columnName);
-};
 
-const isMissingPatientProfileColumnError = (error) => isMissingColumnError(error, 'patient_profile_id');
-const isMissingPreferredCaregiverColumnError = (error) => isMissingColumnError(error, 'preferred_caregiver_id');
-
-const isRecipientSchemaCompatibilityError = (error) => {
-  const code = String(error?.code || '').toUpperCase();
-  const message = String(error?.message || '').toLowerCase();
-
-  if (code === '42703') {
-    return (
-      message.includes('patient_profile_id') ||
-      message.includes('patient_id') ||
-      message.includes('patient_display_name')
-    );
-  }
-
-  if (code === '42P01') {
-    return message.includes('job_patient_requirements') || message.includes('patient_profiles');
-  }
-
-  return false;
-};
-
-const queryWithRecipientFallback = async (queries, values) => {
-  let lastError = null;
-
-  for (let i = 0; i < queries.length; i += 1) {
-    try {
-      return await query(queries[i], values);
-    } catch (error) {
-      lastError = error;
-      const isCompatibilityError = isRecipientSchemaCompatibilityError(error);
-      if (i === queries.length - 1) {
-        throw error;
-      }
-      if (!isCompatibilityError) {
-        // Keep trying remaining fallback queries to maximize compatibility
-        // across partially migrated environments.
-      }
-    }
-  }
-
-  throw lastError;
-};
+const queryWithRecipientFallback = async (queries, values) => query(queries[0], values);
 
 /**
  * Job Model
@@ -240,25 +193,7 @@ class Job extends BaseModel {
       updated_at: new Date(),
     };
 
-    try {
-      return await this.create(payload);
-    } catch (error) {
-      if (isMissingPreferredCaregiverColumnError(error)) {
-        const { preferred_caregiver_id: _pc, ...withoutPreferred } = payload;
-        try {
-          return await this.create(withoutPreferred);
-        } catch (innerError) {
-          if (!isMissingPatientProfileColumnError(innerError)) throw innerError;
-          const { patient_profile_id: _pp, ...legacyPayload } = withoutPreferred;
-          return await this.create(legacyPayload);
-        }
-      }
-      if (!isMissingPatientProfileColumnError(error)) {
-        throw error;
-      }
-      const { patient_profile_id: _ignored, ...legacyPayload } = payload;
-      return await this.create(legacyPayload);
-    }
+    return await this.create(payload);
   }
 
   /**
@@ -453,8 +388,7 @@ class Job extends BaseModel {
     const offsetParam = paramIndex++;
     const queryParams = [...values, limit, offset];
 
-    const result = await queryWithRecipientFallback(
-      [
+    const result = await query(
         `SELECT jp.*,
                 j.id as job_id,
                 j.status as job_status,
@@ -487,36 +421,6 @@ class Job extends BaseModel {
          WHERE ${whereClause}
          ORDER BY jp.created_at DESC
          LIMIT $${limitParam} OFFSET $${offsetParam}`,
-        `SELECT jp.*,
-                j.id as job_id,
-                j.status as job_status,
-                j.started_at,
-                j.completed_at,
-                COALESCE(ja.caregiver_id, jp.preferred_caregiver_id) as caregiver_id,
-                cp.display_name as caregiver_name,
-                NULL::text as patient_display_name,
-                ecr_sub.has_early_checkout_request,
-                ecr_sub.early_checkout_evidence
-         FROM job_posts jp
-         LEFT JOIN jobs j ON j.job_post_id = jp.id
-         LEFT JOIN LATERAL (
-           SELECT caregiver_id, status
-           FROM job_assignments
-           WHERE job_id = j.id AND status IN ('active', 'completed')
-           ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, assigned_at DESC NULLS LAST
-           LIMIT 1
-         ) ja ON true
-         LEFT JOIN caregiver_profiles cp ON cp.user_id = COALESCE(ja.caregiver_id, jp.preferred_caregiver_id)
-         LEFT JOIN LATERAL (
-           SELECT TRUE as has_early_checkout_request, ecr.evidence_note as early_checkout_evidence
-           FROM early_checkout_requests ecr
-           WHERE ecr.job_id = j.id AND ecr.status = 'pending'
-           ORDER BY ecr.created_at DESC LIMIT 1
-         ) ecr_sub ON j.status = 'in_progress'
-         WHERE ${whereClause}
-         ORDER BY jp.created_at DESC
-         LIMIT $${limitParam} OFFSET $${offsetParam}`,
-      ],
       queryParams
     );
 
