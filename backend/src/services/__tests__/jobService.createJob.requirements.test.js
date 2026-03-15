@@ -39,6 +39,7 @@ describe('jobService createJob requirements + risk reasons', () => {
     hourly_rate: 100,
     total_hours: 2,
     is_urgent: false,
+    patient_profile_id: 'patient-placeholder',
     job_tasks_flags: ['companionship'],
   });
 

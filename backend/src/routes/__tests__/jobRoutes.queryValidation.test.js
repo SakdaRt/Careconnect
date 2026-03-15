@@ -10,19 +10,23 @@ const getCaregiverJobsMock = jest.fn((req, res) => {
   res.status(200).json({ success: true, query: req.query });
 });
 
+const stubHandler = jest.fn((_req, res) => res.status(200).json({ success: true }));
 await jest.unstable_mockModule('../../controllers/jobController.js', () => ({
-  getJobStats: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  getJobFeed: jest.fn((_req, res) => res.status(200).json({ success: true })),
+  getJobStats: stubHandler,
+  getJobFeed: stubHandler,
   getHirerJobs: getHirerJobsMock,
   getCaregiverJobs: getCaregiverJobsMock,
-  getJobById: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  createJob: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  publishJob: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  acceptJob: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  rejectAssignedJob: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  checkIn: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  checkOut: jest.fn((_req, res) => res.status(200).json({ success: true })),
-  cancelJob: jest.fn((_req, res) => res.status(200).json({ success: true })),
+  getJobById: stubHandler,
+  createJob: stubHandler,
+  publishJob: stubHandler,
+  acceptJob: stubHandler,
+  rejectAssignedJob: stubHandler,
+  checkIn: stubHandler,
+  checkOut: stubHandler,
+  cancelJob: stubHandler,
+  getEarlyCheckoutRequest: stubHandler,
+  requestEarlyCheckout: stubHandler,
+  respondEarlyCheckout: stubHandler,
 }));
 
 await jest.unstable_mockModule('../../middleware/auth.js', () => ({

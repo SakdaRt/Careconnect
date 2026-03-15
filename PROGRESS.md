@@ -177,6 +177,22 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix Jest False FAIL Reports: project split + test mock fixes
+
+- fix(test): **Root cause** — `setupFilesAfterEnv` (setup.js) imports real DB pool → conflicts with `jest.unstable_mockModule('../../utils/db.js')` in unit tests
+  - ESM module resolver ไม่สามารถ mock module ที่ถูก import จริงแล้วโดย setup file
+  - ทำให้ unit tests ทั้งหมดใน `src/**/__tests__/` FAIL ด้วย "Cannot find module"
+- fix(test): **Solution** — แยก jest.config.mjs เป็น 2 projects:
+  - `integration`: `tests/**/*.test.js` + `setupFilesAfterEnv: setup.js` (real DB)
+  - `unit`: `src/**/__tests__/**/*.test.js` + ไม่มี setup.js (mock DB เอง)
+- fix(test): แก้ 4 unit tests ที่มี stale mocks:
+  - `Job.transitions.test.js`: เพิ่ม mock สำหรับ jobs table fallback query (2 queries ไม่ใช่ 1)
+  - `jobService.createJob.requirements.test.js`: เพิ่ม `patient_profile_id` ใน baseJob
+  - `otpService.recompute.test.js`: แก้ fetch mock ให้มี `ok`, `status`, `text()`, `json()`
+  - `jobRoutes.queryValidation.test.js`: เพิ่ม `getEarlyCheckoutRequest` + 2 exports ใน mock
+- **ก่อนแก้**: Test Suites: 14 failed, 6 passed | Tests: 63 passed, 63 total
+- **หลังแก้**: Test Suites: **20 passed, 0 failed** | Tests: **179 passed, 0 failed**
+
 ### 2026-03-15 — Final Technical Debt Cleanup: ลบ Job.js compatibility fallback ทั้งหมด
 
 - refactor(backend): ลบ `queryWithRecipientFallback` shim + inline direct `query()` ที่ทุก call site

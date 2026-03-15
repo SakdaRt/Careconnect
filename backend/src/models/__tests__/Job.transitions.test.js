@@ -153,6 +153,7 @@ describe('Job State Machine', () => {
 
     it('throws when job not found', async () => {
       mockQuery.mockResolvedValueOnce({ rows: [] }); // findById returns nothing
+      mockQuery.mockResolvedValueOnce({ rows: [] }); // jobs table fallback returns nothing
 
       await expect(
         Job.executeTransition('nonexistent', 'posted', 'h1', {}, jest.fn())

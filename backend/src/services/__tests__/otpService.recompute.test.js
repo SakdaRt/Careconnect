@@ -29,7 +29,10 @@ describe('otpService recompute trigger', () => {
 
   test('verifyOtp triggers trust recompute', async () => {
     global.fetch = jest.fn(async () => ({
-      json: async () => ({ success: true }),
+      ok: true,
+      status: 201,
+      json: async () => ({ destinations: [{ destination: '+66123456789', status: 'NO_ERROR' }] }),
+      text: async () => 'OK',
     }));
 
     query.mockResolvedValue({ rows: [] });
