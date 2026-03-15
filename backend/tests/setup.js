@@ -120,7 +120,7 @@ beforeAll(async () => {
     'job_gps_events', 'job_photo_evidence', 'job_patient_sensitive_data',
     'job_patient_requirements', 'job_assignments',
     'notifications',
-    'user_policy_acceptances', 'auth_sessions',
+    'auth_sessions',
     'trust_score_history', 'audit_events',
   ];
 
@@ -147,6 +147,7 @@ beforeAll(async () => {
     `DELETE FROM caregiver_profiles WHERE user_id IN ${testUserIds}`,
     `DELETE FROM hirer_profiles WHERE user_id IN ${testUserIds}`,
     `DELETE FROM user_kyc_info WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM user_policy_acceptances WHERE user_id IN ${testUserIds}`,
     `DELETE FROM users WHERE email LIKE '%@example.com'`,
   ];
 
