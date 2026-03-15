@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix /select-role UX: returning users skip role selection ทุก login method
+
+- fix(frontend): **Root cause** — `setActiveRole(null)` ใน AuthContext ทุก login function
+  - ทำให้ routerGuard เห็น `!activeRole` → redirect ไป `/select-role` ทุกครั้ง
+  - Fix: เพิ่ม `resolveActiveRole(user)` helper → set `activeRole` จาก `users.role` ทันทีหลัง login
+  - แก้ 3 login functions: `login()`, `loginWithTokens()`, `loginWithPhone()`
+- fix(frontend): LoginEmailPage + LoginPhonePage — skip `/select-role` ถ้ามี policy
+  - ก่อน: ทุก login → `/select-role` (hardcoded)
+  - หลัง: ถ้า `user.policy_acceptances[role]` มีอยู่ → ไปหน้า home ตรง
+  - ถ้ายังไม่มี policy → ไป `/select-role` (ปกติ สำหรับ user ใหม่)
+- last_used_role: ใช้ `users.role` column ที่มีอยู่แล้ว (อัพเดทโดย `updateRole()` ทุกครั้งที่สลับ role)
+  - ไม่ต้องเพิ่ม DB column ใหม่
+- ไฟล์ที่แก้:
+  - `frontend/src/contexts/AuthContext.tsx` — resolveActiveRole + 3 login functions
+  - `frontend/src/pages/auth/LoginEmailPage.tsx` — smart destination
+  - `frontend/src/pages/auth/LoginPhonePage.tsx` — smart destination
+  - `frontend/src/pages/auth/AuthCallbackPage.tsx` — (แก้แล้วใน commit ก่อน)
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — Safeguards + OAuth UX fix: ป้องกัน data loss + skip /select-role สำหรับ returning users
 
 - audit: **Dev/Test/Prod ใช้ DB ตัวเดียวกัน** — ไม่มี test DB แยก

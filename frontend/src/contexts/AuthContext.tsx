@@ -89,6 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [activeRole]);
 
+  const resolveActiveRole = (u: User): UserRole | null => {
+    if (u.role === 'admin') return 'admin';
+    const r = u.role as UserRole;
+    if (r === 'hirer' || r === 'caregiver') return r;
+    return null;
+  };
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -101,7 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data.user);
       removeScopedStorageItem('pendingRole');
       removeScopedStorageItem('pendingAccountType');
-      setActiveRole(null);
+      setActiveRole(resolveActiveRole(response.data.user));
       return response.data.user;
     } finally {
       setIsLoading(false);
@@ -123,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data.user);
       removeScopedStorageItem('pendingRole');
       removeScopedStorageItem('pendingAccountType');
-      setActiveRole(null);
+      setActiveRole(resolveActiveRole(response.data.user));
       return response.data.user;
     } catch (error) {
       api.clearTokens();
@@ -145,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data.user);
       removeScopedStorageItem('pendingRole');
       removeScopedStorageItem('pendingAccountType');
-      setActiveRole(null);
+      setActiveRole(resolveActiveRole(response.data.user));
       return response.data.user;
     } finally {
       setIsLoading(false);
