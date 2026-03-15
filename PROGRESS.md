@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix "งานของฉัน" ไม่อัปเดต + seed data preservation ครบทุก table
+
+- debug: หน้า "งานของฉัน" (HirerHomePage) แสดง 0 jobs
+  - **Root cause เดียวกับ caregiver search**: test cleanup ลบ seed data ใน child tables ทั้งหมด
+  - DB มี 0 job_posts, 0 caregiver_profiles, 0 wallets หลังรัน tests
+  - ไม่ใช่ stale cache / ไม่ใช่ backend query bug / ไม่ใช่ role-based branch issue
+- fix(test): แก้ cleanup ใน `tests/setup.js` อย่างสมบูรณ์
+  - แยก tables เป็น 2 กลุ่ม:
+    - `safeTruncate` (16 tables): ไม่มี seed data → TRUNCATE ปกติ
+    - `deleteQueries` (12 queries): มี seed data → DELETE เฉพาะ rows ของ test users
+  - ใช้ subquery `WHERE user_id NOT IN (SELECT id FROM users WHERE email LIKE '%@careconnect.local')`
+  - แก้ admin deletion: preserve seed admin (@careconnect.local) แต่ลบ test admin
+- ตัวเลขหลังแก้ (seed preserved after test run):
+  - seed users: 54 | caregiver_profiles: 51 | hirer_profiles: 4 | job_posts: 10 | wallets: 2
+- frontend refetch logic: ✅ ถูกต้อง — `loadJobs()` ถูกเรียกหลัง publish/cancel/refresh
+- backend query: ✅ ถูกต้อง — ใช้ LEFT JOIN ไม่มี hidden filter
+- verify:
+  - ✅ Tests: **20 passed, 0 failed** | **179 tests passed**
+  - ✅ Seed data preserved after test run
+
 ### 2026-03-15 — Fix Caregiver Search: seed data ถูก test cleanup ลบ → เหลือแค่ 3 คน
 
 - debug: หน้าค้นหาผู้ดูแลเหลือไม่กี่คน — ตรวจ SQL query, joins, filters

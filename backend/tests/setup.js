@@ -99,26 +99,22 @@ beforeAll(async () => {
   await addCol('caregiver_profiles', 'is_public_profile', 'BOOLEAN NOT NULL DEFAULT TRUE');
 });
 
-// Clean up before each test file — preserve mock/seed accounts
+// Clean up before each test file — preserve mock/seed accounts + their child data
 beforeAll(async () => {
-  // Delete test-generated data only (preserve @careconnect.local mock accounts + admin)
-  // Order: child tables first due to FK constraints
-  const childTables = [
+  // Tables safe to truncate (no seed data)
+  const safeTruncate = [
     'complaint_attachments', 'complaints', 'otp_codes', 'notification_preferences',
     'withdrawal_requests', 'topup_intents', 'ledger_transactions',
     'dispute_messages', 'dispute_events', 'disputes',
     'chat_messages', 'chat_threads', 'early_checkout_requests',
     'job_gps_events', 'job_photo_evidence', 'job_patient_sensitive_data',
-    'job_patient_requirements', 'job_assignments', 'jobs', 'job_posts',
-    'wallets', 'patient_profiles', 'bank_accounts',
-    'notifications', 'caregiver_reviews', 'caregiver_favorites', 'caregiver_documents',
-    'caregiver_profiles', 'hirer_profiles',
-    'user_policy_acceptances', 'user_kyc_info', 'auth_sessions',
+    'job_patient_requirements', 'job_assignments',
+    'notifications',
+    'user_policy_acceptances', 'auth_sessions',
     'trust_score_history', 'audit_events',
   ];
 
-  // Truncate non-user tables (safe — no seed data in these)
-  for (const table of childTables) {
+  for (const table of safeTruncate) {
     try {
       const tableName = table.replace(/[^a-zA-Z0-9_]/g, '');
       if (tableName !== table) throw new Error(`Invalid table name: ${table}`);
@@ -126,12 +122,26 @@ beforeAll(async () => {
     } catch { /* table might not exist */ }
   }
 
-  // Delete only test-generated users (preserve mock seed + admin accounts)
-  try {
-    await pool.query(
-      `DELETE FROM users WHERE email NOT LIKE '%@careconnect.local' AND role != 'admin'`
-    );
-  } catch { /* ignore */ }
+  // Tables with seed data — delete only test-generated rows (preserve mock @careconnect.local)
+  const seedUserIds = `(SELECT id FROM users WHERE email LIKE '%@careconnect.local' OR role = 'admin')`;
+  const deleteQueries = [
+    `DELETE FROM jobs WHERE hirer_id NOT IN ${seedUserIds}`,
+    `DELETE FROM job_posts WHERE hirer_id NOT IN ${seedUserIds}`,
+    `DELETE FROM wallets WHERE user_id NOT IN ${seedUserIds}`,
+    `DELETE FROM patient_profiles WHERE hirer_id NOT IN ${seedUserIds}`,
+    `DELETE FROM bank_accounts WHERE user_id NOT IN ${seedUserIds}`,
+    `DELETE FROM caregiver_reviews WHERE reviewer_id NOT IN ${seedUserIds}`,
+    `DELETE FROM caregiver_favorites WHERE hirer_id NOT IN ${seedUserIds}`,
+    `DELETE FROM caregiver_documents WHERE user_id NOT IN ${seedUserIds}`,
+    `DELETE FROM caregiver_profiles WHERE user_id NOT IN ${seedUserIds}`,
+    `DELETE FROM hirer_profiles WHERE user_id NOT IN ${seedUserIds}`,
+    `DELETE FROM user_kyc_info WHERE user_id NOT IN ${seedUserIds}`,
+    `DELETE FROM users WHERE email NOT LIKE '%@careconnect.local' AND NOT (role = 'admin' AND email LIKE '%@careconnect.local')`,
+  ];
+
+  for (const sql of deleteQueries) {
+    try { await pool.query(sql); } catch { /* ignore */ }
+  }
 });
 
 // Clean up after all tests
