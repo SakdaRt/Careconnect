@@ -99,61 +99,39 @@ beforeAll(async () => {
   await addCol('caregiver_profiles', 'is_public_profile', 'BOOLEAN NOT NULL DEFAULT TRUE');
 });
 
-// Clean up before each test file
+// Clean up before each test file — preserve mock/seed accounts
 beforeAll(async () => {
-  // Clean up test data but preserve schema
-  const validTables = [
-    'complaint_attachments',
-    'complaints',
-    'otp_codes',
-    'notification_preferences',
-    'withdrawal_requests',
-    'topup_intents',
-    'ledger_transactions',
-    'dispute_messages',
-    'dispute_events',
-    'disputes',
-    'chat_messages',
-    'chat_threads',
-    'early_checkout_requests',
-    'job_gps_events',
-    'job_photo_evidence',
-    'job_patient_sensitive_data',
-    'job_patient_requirements',
-    'job_assignments',
-    'jobs',
-    'job_posts',
-    'wallets',
-    'patient_profiles',
-    'bank_accounts',
-    'banks',
-    'notifications',
-    'caregiver_reviews',
-    'caregiver_favorites',
-    'caregiver_documents',
-    'caregiver_profiles',
-    'hirer_profiles',
-    'user_policy_acceptances',
-    'user_kyc_info',
-    'auth_sessions',
-    'trust_score_history',
-    'audit_events',
-    'users'
+  // Delete test-generated data only (preserve @careconnect.local mock accounts + admin)
+  // Order: child tables first due to FK constraints
+  const childTables = [
+    'complaint_attachments', 'complaints', 'otp_codes', 'notification_preferences',
+    'withdrawal_requests', 'topup_intents', 'ledger_transactions',
+    'dispute_messages', 'dispute_events', 'disputes',
+    'chat_messages', 'chat_threads', 'early_checkout_requests',
+    'job_gps_events', 'job_photo_evidence', 'job_patient_sensitive_data',
+    'job_patient_requirements', 'job_assignments', 'jobs', 'job_posts',
+    'wallets', 'patient_profiles', 'bank_accounts',
+    'notifications', 'caregiver_reviews', 'caregiver_favorites', 'caregiver_documents',
+    'caregiver_profiles', 'hirer_profiles',
+    'user_policy_acceptances', 'user_kyc_info', 'auth_sessions',
+    'trust_score_history', 'audit_events',
   ];
-  
-  for (const table of validTables) {
+
+  // Truncate non-user tables (safe — no seed data in these)
+  for (const table of childTables) {
     try {
-      // Validate table name to prevent SQL injection
       const tableName = table.replace(/[^a-zA-Z0-9_]/g, '');
-      if (tableName !== table) {
-        throw new Error(`Invalid table name: ${table}`);
-      }
-      
+      if (tableName !== table) throw new Error(`Invalid table name: ${table}`);
       await pool.query(`TRUNCATE TABLE "${tableName}" RESTART IDENTITY CASCADE`);
-    } catch (error) {
-      // Table might not exist, continue
-    }
+    } catch { /* table might not exist */ }
   }
+
+  // Delete only test-generated users (preserve mock seed + admin accounts)
+  try {
+    await pool.query(
+      `DELETE FROM users WHERE email NOT LIKE '%@careconnect.local' AND role != 'admin'`
+    );
+  } catch { /* ignore */ }
 });
 
 // Clean up after all tests

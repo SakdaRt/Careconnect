@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix Caregiver Search: seed data ถูก test cleanup ลบ → เหลือแค่ 3 คน
+
+- debug: หน้าค้นหาผู้ดูแลเหลือไม่กี่คน — ตรวจ SQL query, joins, filters
+  - **Root cause**: `tests/setup.js` ใช้ `TRUNCATE TABLE users CASCADE` ลบ seed data ทั้งหมด
+  - ไม่ใช่ query bug — search endpoint ใช้ `LEFT JOIN` + `COALESCE(is_public_profile, TRUE)` ถูกต้อง
+- ตัวเลขก่อนแก้:
+  - Users role=caregiver: **3** (เฉพาะ test accounts)
+  - Mock seed defined: **50** caregivers
+  - Mock seed ใน DB: **0** (ถูก truncate หมด)
+- fix(test): แก้ `tests/setup.js` cleanup logic
+  - เปลี่ยนจาก `TRUNCATE users CASCADE` → `DELETE FROM users WHERE email NOT LIKE '%@careconnect.local' AND role != 'admin'`
+  - ป้องกัน mock/seed accounts (@careconnect.local) + admin ไม่ถูกลบ
+  - Child tables ยัง truncate ปกติ (ไม่มี seed data)
+- ตัวเลขหลังแก้:
+  - Users role=caregiver: **53** (50 mock + 3 test)
+  - หลังรัน tests: **51** (50 mock preserved + 1 remaining test)
+- verify:
+  - ✅ Tests: 179 passed, 0 failed
+  - ✅ Mock seed data preserved after test run
+
 ### 2026-03-15 — Fix Trust Level Bug: email-verified users stuck at L0
 
 - fix(backend): **BUG** — `determineTrustLevel()` ใน `trustLevelWorker.js` ให้ L1 เฉพาะ `phoneVerified` แต่ `emailVerified` return `L0`
