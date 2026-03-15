@@ -3,7 +3,7 @@
 
 -- Create unique index on (reference_type, reference_id, transaction_type)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_ledger_transactions_reference_unique 
-ON ledger_transactions(reference_type, reference_id, transaction_type);
+ON ledger_transactions(reference_type, reference_id, type);
 
 -- Add comment for documentation
 COMMENT ON INDEX idx_ledger_transactions_reference_unique IS 

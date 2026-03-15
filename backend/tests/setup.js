@@ -42,30 +42,71 @@ beforeAll(async () => {
     // Bootstrap may have already run, continue silently
   }
 
-  await pool.query(
-    `CREATE TABLE IF NOT EXISTS early_checkout_requests (
-       id UUID PRIMARY KEY,
-       job_id UUID NOT NULL,
-       caregiver_id UUID NOT NULL,
-       status TEXT NOT NULL DEFAULT 'pending',
-       evidence_note TEXT,
-       reason TEXT,
-       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-     )`
-  );
-
+  await pool.query(`CREATE TABLE IF NOT EXISTS early_checkout_requests (
+    id UUID PRIMARY KEY, job_id UUID NOT NULL, caregiver_id UUID NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending', evidence_note TEXT, reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
   await pool.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS hirer_id UUID`);
   await pool.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS caregiver_id UUID`);
   await pool.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS created_by_user_id UUID`);
   await pool.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS created_by_role TEXT`);
-  await pool.query(`ALTER TABLE disputes ALTER COLUMN opened_by_user_id DROP NOT NULL`);
+  try { await pool.query(`ALTER TABLE disputes ALTER COLUMN opened_by_user_id DROP NOT NULL`); } catch { /* already nullable */ }
+  await pool.query(`CREATE TABLE IF NOT EXISTS otp_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(10) NOT NULL, destination VARCHAR(255) NOT NULL, code_hash VARCHAR(255) NOT NULL,
+    verified BOOLEAN NOT NULL DEFAULT FALSE, attempts INTEGER NOT NULL DEFAULT 0,
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), expires_at TIMESTAMPTZ NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS notification_preferences (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    email_enabled BOOLEAN NOT NULL DEFAULT FALSE, push_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS complaints (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category VARCHAR(50) NOT NULL, target_user_id UUID, related_job_post_id UUID,
+    subject VARCHAR(200) NOT NULL, description TEXT NOT NULL, status VARCHAR(20) NOT NULL DEFAULT 'open',
+    assigned_admin_id UUID, admin_note TEXT, resolved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+  await pool.query(`CREATE TABLE IF NOT EXISTS complaint_attachments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), complaint_id UUID NOT NULL,
+    file_path VARCHAR(500) NOT NULL, file_name VARCHAR(255) NOT NULL,
+    file_size INTEGER, mime_type VARCHAR(100), created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`);
+
+  // Ensure columns that may be missing from old Docker volume schemas
+  const addCol = async (table, col, def) => {
+    try { await pool.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${def}`); } catch { /* exists */ }
+  };
+  await addCol('job_posts', 'patient_profile_id', 'UUID');
+  await addCol('job_posts', 'preferred_caregiver_id', 'UUID');
+  await addCol('users', 'account_type', "VARCHAR(10) NOT NULL DEFAULT 'guest'");
+  await addCol('users', 'trust_score', 'INT NOT NULL DEFAULT 0');
+  await addCol('users', 'completed_jobs_count', 'INT NOT NULL DEFAULT 0');
+  await addCol('users', 'first_job_waiver_used', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'ban_login', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'ban_job_create', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'ban_job_accept', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'ban_withdraw', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'admin_note', 'TEXT');
+  await addCol('users', 'is_email_verified', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'is_phone_verified', 'BOOLEAN NOT NULL DEFAULT FALSE');
+  await addCol('users', 'avatar', 'TEXT');
+  await addCol('hirer_profiles', 'full_name', 'VARCHAR(255)');
+  await addCol('caregiver_profiles', 'full_name', 'VARCHAR(255)');
+  await addCol('caregiver_profiles', 'is_public_profile', 'BOOLEAN NOT NULL DEFAULT TRUE');
 });
 
 // Clean up before each test file
 beforeAll(async () => {
   // Clean up test data but preserve schema
   const validTables = [
+    'complaint_attachments',
+    'complaints',
+    'otp_codes',
+    'notification_preferences',
     'withdrawal_requests',
     'topup_intents',
     'ledger_transactions',
@@ -75,8 +116,9 @@ beforeAll(async () => {
     'chat_messages',
     'chat_threads',
     'early_checkout_requests',
-    'checkin_photos',
-    'gps_logs',
+    'job_gps_events',
+    'job_photo_evidence',
+    'job_patient_sensitive_data',
     'job_patient_requirements',
     'job_assignments',
     'jobs',
@@ -86,10 +128,16 @@ beforeAll(async () => {
     'bank_accounts',
     'banks',
     'notifications',
+    'caregiver_reviews',
+    'caregiver_favorites',
+    'caregiver_documents',
     'caregiver_profiles',
     'hirer_profiles',
     'user_policy_acceptances',
     'user_kyc_info',
+    'auth_sessions',
+    'trust_score_history',
+    'audit_events',
     'users'
   ];
   

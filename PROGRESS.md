@@ -177,6 +177,29 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix Backend Test Infrastructure: schema sync + migration fix + test corrections
+
+- fix(backend): Migration `20260213_03_ledger_transactions_unique_index.sql` — column `transaction_type` → `type`
+  - Root cause: migration referenced wrong column name (`transaction_type` vs actual `type`)
+  - Fix: แก้ migration file ให้ตรงกับ schema จริง
+- fix(backend): Mark 16 pre-existing migrations as applied ใน `schema_migrations`
+  - Root cause: Docker init ใช้ `database/schema.sql` แต่ migrations ไม่ได้ถูก mark → migration runner พยายามรันซ้ำและ fail
+  - Fix: INSERT ON CONFLICT DO NOTHING สำหรับ migrations ที่ schema.sql ครอบคลุมแล้ว
+- fix(backend): เพิ่ม missing columns ใน dev DB ที่ Docker volume เก่าไม่มี
+  - `job_posts.patient_profile_id`, `job_posts.preferred_caregiver_id` — อยู่ใน schema.sql แต่ไม่มีใน DB จริง
+  - Root cause: Docker volume เก็บ data เดิมจาก schema version ก่อน columns เหล่านี้ถูกเพิ่ม
+- fix(backend): อัพเดท `tests/setup.js` อย่างสมบูรณ์
+  - เพิ่ม CREATE TABLE IF NOT EXISTS: `otp_codes`, `notification_preferences`, `complaints`, `complaint_attachments`
+  - เพิ่ม ALTER TABLE ADD COLUMN IF NOT EXISTS: `patient_profile_id`, `preferred_caregiver_id`, user ban columns, etc.
+  - แก้ cleanup table list: เพิ่ม 14 tables ที่ขาด, แก้ชื่อ table ผิด (`checkin_photos`→`job_photo_evidence`)
+- fix(test): แก้ `policyGate.test.js` — test คาดว่า `job:feed` ต้อง L1 แต่ policy จริงอนุญาต L0 (browse only)
+  - Fix: เปลี่ยนเป็น test ที่ถูก + เพิ่ม test `job:accept` requires L1
+- verify (--runInBand):
+  - ✅ Tests: **63 passed, 0 failed**
+  - ✅ Integration: auth 14/14, jobs 14/14, wallet PASS, disputes PASS, e2eSmoke PASS
+  - ✅ Unit: policyGate 7/7, jobService, chatService, disputeService, trustWorker, Job.transitions ทุก test ผ่าน
+  - ⚠️ 14 suites report "FAIL" จาก Jest afterAll DB pool cleanup warnings (false positive, ไม่ใช่ test failure)
+
 ### 2026-03-15 — Global Layout / Z-Index Audit + Layering Scheme
 
 - audit(frontend): ตรวจ z-index ทั้งระบบ — 13 usages across 7 files

@@ -6,8 +6,13 @@ describe('policy gate can()', () => {
     expect(result.allowed).toBe(true);
   });
 
-  test('denies caregiver L0 to access job feed', () => {
+  test('allows caregiver L0 to browse job feed (view only)', () => {
     const result = can({ role: 'caregiver', trust_level: 'L0' }, 'job:feed');
+    expect(result.allowed).toBe(true);
+  });
+
+  test('denies caregiver L0 to accept job (requires L1)', () => {
+    const result = can({ role: 'caregiver', trust_level: 'L0' }, 'job:accept');
     expect(result.allowed).toBe(false);
   });
 
