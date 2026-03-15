@@ -25,11 +25,17 @@ export default function AuthCallbackPage() {
 
     loginWithTokens(token, refreshToken)
       .then((user) => {
-        const destination = user.role === 'admin' ? '/admin/dashboard' : '/select-role';
-        navigate(destination, {
-          replace: true,
-          state: user.role === 'admin' ? undefined : { mode: 'login' },
-        });
+        if (user.role === 'admin') {
+          navigate('/admin/dashboard', { replace: true });
+          return;
+        }
+        const hasAcceptedPolicy = !!user.policy_acceptances?.[user.role];
+        if (hasAcceptedPolicy) {
+          const home = user.role === 'caregiver' ? '/caregiver/jobs/feed' : '/hirer/home';
+          navigate(home, { replace: true });
+        } else {
+          navigate('/select-role', { replace: true, state: { mode: 'login' } });
+        }
       })
       .catch(() => {
         navigate('/login?error=oauth_failed', { replace: true });

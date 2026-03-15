@@ -14,6 +14,16 @@ if (process.env.NODE_ENV !== 'test') {
   process.env.NODE_ENV = 'test';
 }
 
+// SAFEGUARD: Prevent test cleanup from running against production database
+const dbName = process.env.DATABASE_NAME || 'careconnect';
+const nodeEnv = process.env.NODE_ENV;
+if (nodeEnv === 'production') {
+  throw new Error('FATAL: Test setup must not run in production environment. Aborting.');
+}
+if (dbName.includes('prod')) {
+  throw new Error(`FATAL: Test setup detected production-like database name "${dbName}". Aborting.`);
+}
+
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'test-secret';
 }

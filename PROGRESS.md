@@ -177,6 +177,24 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Safeguards + OAuth UX fix: ป้องกัน data loss + skip /select-role สำหรับ returning users
+
+- audit: **Dev/Test/Prod ใช้ DB ตัวเดียวกัน** — ไม่มี test DB แยก
+  - `backend/src/utils/db.js` ชี้ไป DB เดียวกับ server ทุก environment
+  - `tests/setup.js` import `pool` จาก `../src/utils/db.js` ตรงๆ
+  - ผลกระทบ: test cleanup ลบ data จริงของ dev DB ทุกครั้งที่รัน tests
+- fix(test): เพิ่ม production safeguard ใน `tests/setup.js`
+  - Abort ถ้า `NODE_ENV === 'production'`
+  - Abort ถ้า `DATABASE_NAME` contains 'prod'
+- fix(frontend): แก้ `AuthCallbackPage.tsx` — returning Google OAuth users ข้าม `/select-role`
+  - ก่อน: ทุกครั้งที่ login ด้วย Google → ไป `/select-role` → ดูเหมือนสมัครใหม่
+  - หลัง: ถ้า user มี role + accepted policy → ไปหน้า home ตรง (hirer/caregiver)
+  - ถ้ายังไม่มี policy acceptance → ไป `/select-role` (ปกติ สำหรับ user ใหม่)
+- verify:
+  - ✅ TypeScript: PASS
+  - ✅ Vite build: PASS (5.20s)
+  - ✅ Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — Audit Google OAuth: ไม่พบ duplication bug — อาการเกิดจาก seed data ถูกลบ
 
 - audit(backend): trace Google OAuth flow ตั้งแต่ button → callback → user lookup/create → JWT
