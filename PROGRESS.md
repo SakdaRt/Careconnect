@@ -177,6 +177,22 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Audit Google OAuth: ไม่พบ duplication bug — อาการเกิดจาก seed data ถูกลบ
+
+- audit(backend): trace Google OAuth flow ตั้งแต่ button → callback → user lookup/create → JWT
+  - `findOne({ google_id })` → login existing ✅
+  - `findByEmail(email)` → link google_id to existing ✅
+  - Neither found → create new (with unique email constraint) ✅
+- audit(db): ตรวจ duplicate users
+  - Users with google_id: 1 | Duplicate google_ids: **0** | Duplicate emails: **0**
+  - `users_email_key` UNIQUE constraint ✅
+  - `idx_users_google_id` UNIQUE WHERE NOT NULL ✅
+  - `normalizeEmail()` lowercase + trim ✅
+- audit(frontend): AuthCallbackPage → token-based login → RoleSelectionPage → updateRole (update only, no create) ✅
+- สรุป: **ไม่มี duplication bug** — อาการ "สมัครใหม่ได้อีก" เกิดจาก:
+  1. Seed data ถูก test cleanup ลบ → profile/jobs/trust หาย → ดูเหมือน account ใหม่ (แก้แล้ว)
+  2. `/select-role` แสดงทุกครั้งหลัง Google login → UX ดูเหมือนสมัครซ้ำ (by design: เลือก role per session)
+
 ### 2026-03-15 — Fix "งานของฉัน" ไม่อัปเดต + seed data preservation ครบทุก table
 
 - debug: หน้า "งานของฉัน" (HirerHomePage) แสดง 0 jobs
