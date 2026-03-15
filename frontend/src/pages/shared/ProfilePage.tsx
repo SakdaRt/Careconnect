@@ -301,19 +301,13 @@ export default function ProfilePage() {
     setPhoneError("");
     setOtpError("");
     try {
-      const updateResponse = await appApi.updatePhoneNumber(phoneValue.trim());
-      if (!updateResponse.success) {
-        toast.error(updateResponse.error || "บันทึกเบอร์โทรไม่สำเร็จ");
-        return;
-      }
-      await refreshUser();
-      const response = await appApi.sendPhoneOtp();
+      const response = await appApi.sendPhoneOtp(phoneValue.trim());
       if (!response.success || !response.data) {
         toast.error(response.error || "ส่งรหัส OTP ไม่สำเร็จ");
         return;
       }
       setOtpId(response.data.otp_id);
-      toast.success("ส่งรหัส OTP แล้ว");
+      toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบ SMS");
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
     } finally {

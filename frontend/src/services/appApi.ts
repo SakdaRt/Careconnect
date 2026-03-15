@@ -78,8 +78,8 @@ export const appApi = {
     return api.sendEmailOtp();
   },
 
-  async sendPhoneOtp() {
-    return api.sendPhoneOtp();
+  async sendPhoneOtp(phone_number?: string) {
+    return api.sendPhoneOtp(phone_number);
   },
 
   async resendOtp(otp_id: string) {

@@ -65,8 +65,11 @@ export const sendEmailOtp = async (req, res) => {
 export const sendPhoneOtp = async (req, res) => {
   try {
     const userId = req.userId;
+    const { normalizePhone } = await import('../utils/phone.js');
 
-    // Get user phone
+    // Accept phone from body (for pre-verify flow) or fall back to DB
+    const bodyPhone = req.body?.phone_number ? normalizePhone(req.body.phone_number) : null;
+
     const userResult = await query(`SELECT phone_number, is_phone_verified FROM users WHERE id = $1`, [userId]);
 
     if (!userResult.rows[0]) {
@@ -77,22 +80,37 @@ export const sendPhoneOtp = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+    const phoneToVerify = bodyPhone || normalizePhone(user.phone_number);
 
-    if (!user.phone_number) {
+    if (!phoneToVerify) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'No phone number associated with this account',
+        message: 'กรุณากรอกเบอร์โทรศัพท์',
       });
     }
 
-    if (user.is_phone_verified) {
+    // Check if this phone is already verified by another user
+    if (bodyPhone && bodyPhone !== normalizePhone(user.phone_number)) {
+      const existing = await query(
+        `SELECT id FROM users WHERE phone_number = $1 AND id != $2 LIMIT 1`,
+        [phoneToVerify, userId]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          error: 'Conflict',
+          message: 'เบอร์โทรนี้ถูกใช้งานแล้ว',
+        });
+      }
+    }
+
+    if (normalizePhone(user.phone_number) === phoneToVerify && user.is_phone_verified) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'Phone number is already verified',
+        message: 'เบอร์โทรนี้ยืนยันแล้ว',
       });
     }
 
-    const result = await otpService.sendPhoneOtp(userId, user.phone_number);
+    const result = await otpService.sendPhoneOtp(userId, phoneToVerify);
 
     res.json({
       success: true,

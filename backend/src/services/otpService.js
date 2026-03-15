@@ -194,7 +194,7 @@ async function sendPhoneOtp(userId, phoneNumber) {
       const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
       const smsBody = {
         sender: SMSOK_SENDER,
-        text: `รหัส OTP CareConnect ของคุณคือ: ${otpCode} (หมดอายุใน ${OTP_EXPIRY_MINUTES} นาที)`,
+        text: `รหัส OTP CareConnect: ${otpCode} ใช้ได้ ${OTP_EXPIRY_MINUTES} นาที`,
         destinations: [{ destination: providerPhone }],
       };
 
@@ -299,12 +299,13 @@ async function verifyOtp(otpId, code) {
     } else if (otpData.type === 'phone') {
       await query(
         `UPDATE users
-         SET is_phone_verified = true,
+         SET phone_number = $2,
+             is_phone_verified = true,
              phone_verified_at = NOW(),
              account_type = CASE WHEN account_type = 'guest' THEN 'member' ELSE account_type END,
              updated_at = NOW()
          WHERE id = $1`,
-        [otpData.user_id]
+        [otpData.user_id, otpData.destination]
       );
     }
 

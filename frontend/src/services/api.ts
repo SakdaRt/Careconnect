@@ -403,10 +403,10 @@ class ApiClient {
     );
   }
 
-  async sendPhoneOtp() {
+  async sendPhoneOtp(phone_number?: string) {
     return this.request<{ otp_id: string; phone_number: string; expires_in: number }>(
       '/api/otp/phone/send',
-      { method: 'POST' }
+      { method: 'POST', body: phone_number ? { phone_number } : undefined }
     );
   }
 
