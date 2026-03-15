@@ -177,6 +177,18 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix Google login toast "สมัครสำเร็จ" + SMS OTP investigation
+
+- fix(frontend): `ConsentPage.tsx` — toast "สมัครสมาชิกสำเร็จ" แสดงแม้ user มีบัญชีอยู่แล้ว
+  - Root cause: toast message hardcoded ไม่ดู `state.mode`
+  - Fix: ถ้า `mode === 'login'` → แสดง "เข้าสู่ระบบสำเร็จ" แทน
+- investigate: SMS OTP ไม่ส่ง
+  - ตรวจ logs: SMSOK API **ส่งได้จริง** (200 OK, message_id, balance 109.68)
+  - Env vars: `SMS_PROVIDER=smsok`, API keys ถูกต้อง
+  - ไม่ใช่ backend bug — อาจเป็น operator delay หรือ user ไม่ได้รับ SMS จริง
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — Fix onboarding/profile KYC display: explain why L2 not reached despite KYC approved
 
 - debug: user `sswk07939@gmail.com` — KYC approved แต่ trust level ยังเป็น L1
