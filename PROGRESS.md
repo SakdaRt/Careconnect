@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Refactor phone system: canonical 0xxxxxxxxx + shared utils + DB backfill
+
+- refactor(backend): สร้าง `backend/src/utils/phone.js` — canonical phone utilities
+  - `normalizePhone()`: ทุก format → `0xxxxxxxxx` (Thai mobile canonical)
+  - `toE164()`: `0xxxxxxxxx` → `+66xxxxxxxxx` (เฉพาะ SMSOK provider layer)
+  - `isValidThaiPhone()`: validation helper
+- refactor(frontend): สร้าง `frontend/src/utils/phone.ts` — matching utilities
+  - `normalizePhone()`, `formatPhoneDisplay()`, `isValidThaiPhone()`
+- refactor(backend): `authRoutes.js` — ใช้ shared `normalizePhone` แทน local function
+  - Joi phoneSchema normalize เป็น `0xxxxxxxxx` ก่อน save/lookup
+- refactor(backend): `otpService.js` — normalize ก่อน store, toE164 เฉพาะตอนส่ง SMSOK
+  - Log ทั้ง canonical + provider format สำหรับ debugging
+- refactor(frontend): ปรับ UI ทุกจุดที่เกี่ยวกับเบอร์โทร
+  - `PhoneInput` placeholder: `+66 8X XXXX XXXX` → `08x-xxx-xxxx`
+  - `LoginPhonePage`: ใช้ `normalizePhone` แทน ad-hoc formatting
+  - `MemberRegisterPage`: validation + placeholder เป็นเบอร์ไทย
+- DB backfill: normalize เบอร์เก่า `+66958503881` → `0958503881` (2 records)
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — CRITICAL FIX: test cleanup ลบ real user accounts (Google OAuth users ถูกสร้างใหม่)
 
 - debug: Google login สร้างบัญชีใหม่แทนที่จะ login เข้าบัญชีเดิม

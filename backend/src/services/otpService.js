@@ -176,11 +176,13 @@ async function sendEmailOtp(userId, email) {
 // ============================================================================
 
 async function sendPhoneOtp(userId, phoneNumber) {
+  const { normalizePhone, toE164 } = await import('../utils/phone.js');
+  const canonical = normalizePhone(phoneNumber) || phoneNumber;
   const otpCode = generateOtpCode();
   const otpId = uuidv4();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
-  await storeOtp(otpId, userId, 'phone', phoneNumber, otpCode, expiresAt);
+  await storeOtp(otpId, userId, 'phone', canonical, otpCode, expiresAt);
 
   try {
     if (SMS_PROVIDER === 'smsok') {
@@ -188,14 +190,15 @@ async function sendPhoneOtp(userId, phoneNumber) {
         throw new Error('SMSOK credentials not configured (SMSOK_API_KEY / SMSOK_API_SECRET)');
       }
 
+      const providerPhone = toE164(canonical) || canonical;
       const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
       const smsBody = {
         sender: SMSOK_SENDER,
         text: `รหัส OTP CareConnect ของคุณคือ: ${otpCode} (หมดอายุใน ${OTP_EXPIRY_MINUTES} นาที)`,
-        destinations: [{ destination: phoneNumber }],
+        destinations: [{ destination: providerPhone }],
       };
 
-      console.log(`[OTP Service] Sending SMS via SMSOK to ${phoneNumber}...`);
+      console.log(`[OTP Service] Sending SMS via SMSOK to ${providerPhone} (canonical: ${canonical})...`);
 
       const response = await fetch(SMSOK_API_URL, {
         method: 'POST',

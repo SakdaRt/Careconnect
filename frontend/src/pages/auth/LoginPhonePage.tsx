@@ -46,15 +46,14 @@ export default function LoginPhonePage() {
 
     setLoading(true);
     try {
-      // Extract digits only for API call
-      const phoneDigits = formData.phone.replace(/\D/g, '');
-      const formattedPhone = phoneDigits.startsWith('66')
-        ? `+${phoneDigits}`
-        : phoneDigits.startsWith('0')
-        ? `+66${phoneDigits.slice(1)}`
-        : `+66${phoneDigits}`;
+      const { normalizePhone } = await import('../../utils/phone');
+      const normalized = normalizePhone(formData.phone);
+      if (!normalized) {
+        toast.error('กรุณากรอกเบอร์โทรไทยให้ถูกต้อง (0xxxxxxxxx)');
+        return;
+      }
 
-      const user = await loginWithPhone(formattedPhone, formData.password);
+      const user = await loginWithPhone(normalized, formData.password);
       toast.success('เข้าสู่ระบบสำเร็จ');
 
       const state = location.state as { from?: string } | null;

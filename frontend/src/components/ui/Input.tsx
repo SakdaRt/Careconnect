@@ -198,7 +198,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         type="tel"
         value={value}
         onChange={handleChange}
-        placeholder="+66 8X XXXX XXXX"
+        placeholder="08x-xxx-xxxx"
         {...props}
       />
     );
