@@ -177,6 +177,30 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Global Layout / Z-Index Audit + Layering Scheme
+
+- audit(frontend): ตรวจ z-index ทั้งระบบ — 13 usages across 7 files
+  - z-40: BottomBar (×2), TopBar dropdown backdrop, AdminLayout backdrop, CreateJobPage wizard nav
+  - z-50: TopBar header, TopBar dropdown menu, AdminLayout sidebar, Modal, LoadingOverlay, LandingPage header
+  - z-[60]: CreateJobPage blocker modal
+  - z-[100]: Skip navigation link (accessibility)
+  - **ไม่พบ conflict เพิ่มเติม** นอกเหนือจากที่แก้แล้ว (MainLayout + wizard nav)
+- audit(frontend): ตรวจ 14 pages ที่ใช้ `showBottomBar={false}`
+  - ไม่มี page ไหนมี fixed/sticky element ของตัวเองที่ชนกับ BottomBar (นอกจาก CreateJobPage)
+  - MainLayout fix ทำให้ทุกหน้าทำงานถูกต้องแล้ว
+- feat(frontend): สร้าง `frontend/src/utils/zIndex.ts` — Z-Index Layering Scheme กลาง
+  - Constants: BASE_ELEVATED(10), PAGE_STICKY(30), APP_NAV(40), GLOBAL_CHROME(50), BLOCKER(60), ACCESSIBILITY(100)
+  - กฎ: page sticky nav → z-40, BottomBar → z-40, TopBar/Modal → z-50, blocker → z-60
+  - Documentation ของ hierarchy + rules ป้องกัน future conflicts
+- audit(frontend): ตรวจ AdminLayout, ChatLayout, TopBar dropdown logic
+  - AdminLayout: sidebar z-50 + backdrop z-40 ✅ ถูกต้อง
+  - ChatLayout: ใช้ BottomBar ตรง (ไม่มี showBottomBar prop) ✅
+  - TopBar: dropdown backdrop z-40 + menu z-50 ✅
+- verify:
+  - ✅ TypeScript: PASS
+  - ✅ Vite build: PASS (5.32s)
+  - ไม่มี z-index conflicts ที่ยังไม่ถูกแก้
+
 ### 2026-03-14 — CRITICAL FIX: BottomBar ทับ wizard sticky nav ทำให้ไป Step 2 ไม่ได้
 
 - fix(frontend): **ROOT CAUSE** — `MainLayout.tsx` `shouldShowBottomBar` logic ผิด
