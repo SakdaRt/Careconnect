@@ -177,6 +177,23 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Final Technical Debt Cleanup: ลบ Job.js compatibility fallback ทั้งหมด
+
+- refactor(backend): ลบ `queryWithRecipientFallback` shim + inline direct `query()` ที่ทุก call site
+  - `getJobWithDetails`: ลบ 3 fallback SQL queries (~100 lines)
+  - `getCaregiverJobs` activeResult: ลบ 3 fallback SQL queries (~80 lines)
+  - `getCaregiverJobs` pendingResult: ลบ 2 fallback SQL queries (~60 lines)
+  - ลบ shim function `queryWithRecipientFallback` (1 line)
+  - รวมลบ: ~240+ lines of dead fallback SQL
+  - ทุก query ใช้ `patient_profile_id` + `preferred_caregiver_id` columns ตรง — verified ว่ามีอยู่ใน DB
+- สิ่งที่คงไว้:
+  - Dispute dual-schema: ไม่แตะ — อาจจำเป็นข้าม environment (docker volume เก่า)
+  - Test setup `addCol` helpers: คงไว้ — ป้องกัน regression สำหรับ fresh environments
+- verify:
+  - ✅ Backend tests: **63 passed, 0 failed** (--runInBand)
+  - ✅ Vite build: PASS (4.85s)
+  - ✅ Job.js module import: OK
+
 ### 2026-03-15 — Release Preparation: demo readiness docs + env reference + known limitations
 
 - docs: สร้าง `ENV_REQUIRED.md` — reference ครบทุก env var (55 backend + 6 frontend)
