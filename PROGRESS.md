@@ -177,6 +177,18 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Documentation Drift Audit: SYSTEM.md + PROGRESS.md sync กับ implementation จริง
+
+- audit: เทียบ SYSTEM.md กับ code จริง 7 หัวข้อ — พบ 5 drift + 1 numbering error
+- fix(docs): แก้ SYSTEM.md ทั้ง 6 จุด:
+  1. Notification polling interval: 30s → **15s** (ตรงกับ `UNREAD_POLL_INTERVAL_MS = 15_000`)
+  2. Schema stats: "1111 lines, 25+ tables" → **"1228 lines, 34 tables"**
+  3. Missing `otp_codes` table — เพิ่มใน section 5.7 (SHA-256 hashed, brute-force protection)
+  4. Missing complaint system — เพิ่ม `complaints` + `complaint_attachments` + `payments` ใน section 5.7
+  5. Missing `/api/complaints` routes — เพิ่ม section 7.14 (5 endpoints)
+  6. Duplicate section numbering — 7.15 Webhooks / 7.16 Admin (แก้จาก two 7.15s)
+- ไม่พบ drift ใน: trust level rules, payment/Stripe flow, dispute schema, push subscriptions, admin settings
+
 ### 2026-03-15 — Fix Backend Test Infrastructure: schema sync + migration fix + test corrections
 
 - fix(backend): Migration `20260213_03_ledger_transactions_unique_index.sql` — column `transaction_type` → `type`
