@@ -177,6 +177,21 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — CRITICAL FIX: test cleanup ลบ real user accounts (Google OAuth users ถูกสร้างใหม่)
+
+- debug: Google login สร้างบัญชีใหม่แทนที่จะ login เข้าบัญชีเดิม
+  - **Root cause**: test cleanup ลบ user `dae64718` (sswk07939@gmail.com) จาก DB
+  - Cleanup query ใช้ `NOT IN @careconnect.local` → ลบทุก account ที่ไม่ใช่ seed
+  - Google OAuth callback ไม่เจอ user เดิม → สร้างใหม่ (`d30909ab`) → KYC, trust, profile หาย
+- fix(test): **เปลี่ยน cleanup strategy จาก whitelist เป็น blacklist**
+  - ก่อน: `DELETE WHERE email NOT LIKE '%@careconnect.local'` (ลบทุกอย่างยกเว้น seed)
+  - หลัง: `DELETE WHERE email LIKE '%@example.com'` (ลบเฉพาะ test accounts)
+  - Real users (@gmail.com etc.), seed (@careconnect.local), admin ถูก preserve ทั้งหมด
+- verify หลังแก้:
+  - ✅ Real user sswk07939@gmail.com: preserved after test run
+  - ✅ Seed users: 54 preserved
+  - ✅ Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — Fix Google login toast "สมัครสำเร็จ" + SMS OTP investigation
 
 - fix(frontend): `ConsentPage.tsx` — toast "สมัครสมาชิกสำเร็จ" แสดงแม้ user มีบัญชีอยู่แล้ว
