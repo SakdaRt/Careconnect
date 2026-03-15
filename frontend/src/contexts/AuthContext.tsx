@@ -46,13 +46,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (response.success && response.data) {
             setUser(response.data.user);
             setScopedStorageItem('careconnect_user', JSON.stringify(response.data.user));
+            const freshUser = response.data.user;
             const storedActiveRole = getScopedStorageItem('careconnect_active_role') as UserRole | null;
-            const isStoredRoleValid = storedActiveRole === 'hirer' || storedActiveRole === 'caregiver';
-            const isGuest = response.data.user.account_type === 'guest';
-            if (isStoredRoleValid && (!isGuest || storedActiveRole === 'hirer')) {
-              setActiveRole(storedActiveRole);
+            const serverRole = freshUser.role as UserRole;
+            const isGuest = freshUser.account_type === 'guest';
+
+            // Priority: localStorage role > server role > null
+            // But must validate against server state
+            let resolved: UserRole | null = null;
+
+            if (storedActiveRole === 'hirer' || storedActiveRole === 'caregiver') {
+              // Validate: guest can't use caregiver without phone verification
+              if (isGuest && storedActiveRole === 'caregiver' && !freshUser.is_phone_verified) {
+                resolved = null;
+              } else {
+                resolved = storedActiveRole;
+              }
+            }
+
+            // Fallback to server role if localStorage empty or invalid
+            if (!resolved && (serverRole === 'hirer' || serverRole === 'caregiver')) {
+              if (isGuest && serverRole === 'caregiver' && !freshUser.is_phone_verified) {
+                resolved = null;
+              } else {
+                resolved = serverRole;
+              }
+            }
+
+            if (serverRole === 'admin') {
+              resolved = 'admin';
+            }
+
+            setActiveRole(resolved);
+            if (resolved) {
+              setScopedStorageItem('careconnect_active_role', resolved);
             } else {
-              setActiveRole(null);
               removeScopedStorageItem('careconnect_active_role');
             }
           } else {

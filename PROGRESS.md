@@ -177,6 +177,25 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix active role persistence: fallback to users.role on page refresh
+
+- fix(frontend): `initAuth` ใน `AuthContext.tsx` — เพิ่ม fallback ไป `users.role` จาก server
+  - ก่อน: ถ้า localStorage `careconnect_active_role` หาย → `activeRole = null` → redirect ไป `/select-role`
+  - หลัง: priority chain: localStorage role → server `users.role` → null
+  - Validate: guest + caregiver + ไม่ verified phone → null (ป้องกัน unauthorized role)
+  - Admin: always resolve to 'admin'
+- audit: role persistence ทั้งระบบ
+  - Backend `requireAuth`: อ่าน `users.role` จาก DB ทุก request (ไม่ใช่ JWT) ✅
+  - `updateRole()`: อัพเดท `users.role` ใน DB ✅ → localStorage sync ผ่าน `setActiveRole` useEffect ✅
+  - RoleSelectionPage: `setActiveRole` + `updateRole` sync ทั้ง frontend + backend ✅
+  - ProfilePage role switch: ไป `/select-role` → same sync flow ✅
+- edge cases verified:
+  - localStorage หาย → fallback ไป server role ✅
+  - localStorage ค้าง role ผิด (guest+caregiver+no phone) → null ✅
+  - Admin user → always 'admin' ✅
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — Fix /select-role UX: returning users skip role selection ทุก login method
 
 - fix(frontend): **Root cause** — `setActiveRole(null)` ใน AuthContext ทุก login function
