@@ -177,6 +177,25 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Overlay & Mobile Viewport Audit + iOS Safe Area Fix
+
+- audit: ตรวจ overlay/z-index layering ทั้งระบบ — พบ 2 issues, แก้แล้ว
+- fix(frontend): เพิ่ม `viewport-fit=cover` ใน `index.html` meta viewport
+  - เปิด CSS `env(safe-area-inset-bottom)` สำหรับ iOS devices
+- fix(frontend): เพิ่ม `safe-area-bottom` CSS class + ใช้กับ:
+  - BottomBar (hirer + caregiver) — ป้องกัน home indicator ทับ tab buttons
+  - CreateJobPage wizard sticky nav — ป้องกัน home indicator ทับ "ถัดไป" button
+- docs: สร้าง `QA_OVERLAY_CHECKLIST.md` — 8 sections, 30+ test cases
+  - Toast + Modal, TopBar dropdown, BottomBar, Wizard nav, Modal stack, Admin, Mobile, Chat
+- audit results (no issues found):
+  - Toast z-9999 > Modal z-50 > Nav z-40 ✅
+  - LoadingOverlay (z-50) ไม่ถูกใช้จริง — ไม่ชน Modal ✅
+  - TopBar dropdown (z-50) + backdrop (z-40) ✅
+  - Admin sidebar (z-50) + backdrop (z-40) ✅
+- verify:
+  - ✅ TypeScript: PASS
+  - ✅ Vite build: PASS (4.96s)
+
 ### 2026-03-15 — Fix Jest False FAIL Reports: project split + test mock fixes
 
 - fix(test): **Root cause** — `setupFilesAfterEnv` (setup.js) imports real DB pool → conflicts with `jest.unstable_mockModule('../../utils/db.js')` in unit tests

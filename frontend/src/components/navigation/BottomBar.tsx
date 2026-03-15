@@ -32,7 +32,7 @@ export function BottomBar() {
   // Hirer Bottom Bar: งานของฉัน | ค้นหาผู้ดูแล | ผู้รับการดูแล | กระเป๋าเงิน
   if (resolvedRole === 'hirer') {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-bottom">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-around h-16">
             <TabLink to="/hirer/home" icon={Briefcase} label="งานของฉัน" paths={['/hirer/home', '/hirer/create-job', '/jobs']} />
@@ -48,7 +48,7 @@ export function BottomBar() {
   // Caregiver Bottom Bar: ค้นหางาน | งานของฉัน | กระเป๋าเงิน | โปรไฟล์
   if (resolvedRole === 'caregiver') {
     return (
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40">
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 safe-area-bottom">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-around h-16">
             <TabLink to="/caregiver/jobs/feed" icon={Search} label="ค้นหางาน" />
