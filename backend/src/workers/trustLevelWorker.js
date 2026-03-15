@@ -193,12 +193,8 @@ async function determineTrustLevel(userId, trustScore) {
     return 'L2';
   }
 
-  if (phoneVerified) {
+  if (phoneVerified || emailVerified) {
     return 'L1';
-  }
-
-  if (emailVerified) {
-    return 'L0';
   }
 
   return 'L0';

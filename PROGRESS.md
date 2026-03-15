@@ -177,6 +177,20 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix Trust Level Bug: email-verified users stuck at L0
+
+- fix(backend): **BUG** — `determineTrustLevel()` ใน `trustLevelWorker.js` ให้ L1 เฉพาะ `phoneVerified` แต่ `emailVerified` return `L0`
+  - Root cause: line 200 `if (emailVerified) return 'L0'` แทนที่จะเป็น `'L1'`
+  - ผลกระทบ: Guest users (email-registered) ที่ verify email แล้ว ติด L0 → ไม่สามารถเผยแพร่งาน low_risk ได้
+  - Fix: `if (phoneVerified || emailVerified) return 'L1'` — ตรงกับ SYSTEM.md "L1 = ยืนยัน Email OTP หรือ Phone OTP"
+- audit: Trust Level / KYC flow ทั้งระบบ
+  - `triggerUserTrustUpdate` ถูกเรียกจาก 8 จุด: OTP verify, KYC submit, KYC webhook, profile update, review, job complete, bank verify, admin
+  - DB fields ที่ถูก update หลัง KYC: `user_kyc_info.status='approved'` → trigger → `users.trust_level`, `users.trust_score`
+  - Frontend profile page ใช้ `user.trust_level` จาก `/api/auth/me` แสดงผลถูกต้อง
+- verify:
+  - ✅ Tests: 179 passed, 0 failed
+  - ✅ Business rules verified (ดู summary ด้านล่าง)
+
 ### 2026-03-15 — Overlay & Mobile Viewport Audit + iOS Safe Area Fix
 
 - audit: ตรวจ overlay/z-index layering ทั้งระบบ — พบ 2 issues, แก้แล้ว
