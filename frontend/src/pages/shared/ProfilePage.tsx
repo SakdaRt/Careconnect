@@ -1661,22 +1661,15 @@ export default function ProfilePage() {
                     <Button
                       variant="secondary"
                       loading={emailOtpLoading}
-                      onClick={handleSendEmailOtp}
+                      disabled={emailOtpId ? emailResendCooldown > 0 : false}
+                      onClick={emailOtpId ? handleResendEmailOtp : handleSendEmailOtp}
                     >
-                      ส่งรหัส OTP
-                    </Button>
-                    {emailOtpId && (
-                      <Button
-                        variant="outline"
-                        loading={emailOtpLoading}
-                        disabled={emailResendCooldown > 0}
-                        onClick={handleResendEmailOtp}
-                      >
-                        {emailResendCooldown > 0
+                      {emailOtpId
+                        ? emailResendCooldown > 0
                           ? `ส่งใหม่ได้ใน ${emailResendCooldown} วิ`
-                          : "ส่งใหม่อีกครั้ง"}
-                      </Button>
-                    )}
+                          : 'ส่งรหัส OTP ใหม่'
+                        : 'ส่งรหัส OTP'}
+                    </Button>
                   </div>
                   {emailOtpId && (
                     <div className="space-y-2">
@@ -1721,19 +1714,10 @@ export default function ProfilePage() {
                     <Button
                       variant="secondary"
                       loading={otpLoading}
-                      onClick={handleSendPhoneOtp}
+                      onClick={otpId ? handleResendOtp : handleSendPhoneOtp}
                     >
-                      ส่งรหัส OTP
+                      {otpId ? 'ส่งรหัส OTP ใหม่' : 'ส่งรหัส OTP'}
                     </Button>
-                    {otpId && (
-                      <Button
-                        variant="outline"
-                        loading={otpLoading}
-                        onClick={handleResendOtp}
-                      >
-                        ส่งใหม่อีกครั้ง
-                      </Button>
-                    )}
                   </div>
                   {otpId && (
                     <div className="space-y-2">
