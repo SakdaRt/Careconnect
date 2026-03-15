@@ -18,8 +18,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   loginWithTokens: (accessToken: string, refreshToken?: string) => Promise<User>;
   loginWithPhone: (phone: string, password: string) => Promise<User>;
-  registerGuest: (email: string, password: string, role: UserRole) => Promise<void>;
-  registerMember: (phone: string, password: string, role: UserRole) => Promise<void>;
+  registerGuest: (email: string, password: string, role: UserRole) => Promise<{ otp_id: string; expires_in: number; _dev_code?: string }>;
+  registerMember: (phone: string, password: string, role: UserRole) => Promise<{ otp_id: string; expires_in: number; _dev_code?: string }>;
   logout: () => void;
   setActiveRole: (role: UserRole | null) => void;
   updateUser: (updates: Partial<User>) => void;
@@ -188,33 +188,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const registerGuest = async (email: string, password: string, role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const response = await api.registerGuest(email, password, role);
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Registration failed');
-      }
-
-      setUser(response.data.user);
-    } finally {
-      setIsLoading(false);
+    const response = await api.registerGuest(email, password, role);
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Registration failed');
     }
+    return response.data as unknown as { otp_id: string; expires_in: number; _dev_code?: string };
   };
 
   const registerMember = async (phone: string, password: string, role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const response = await api.registerMember(phone, password, role);
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Registration failed');
-      }
-
-      setUser(response.data.user);
-    } finally {
-      setIsLoading(false);
+    const response = await api.registerMember(phone, password, role);
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Registration failed');
     }
+    return response.data as unknown as { otp_id: string; expires_in: number; _dev_code?: string };
   };
 
   const logout = async () => {

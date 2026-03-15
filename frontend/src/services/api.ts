@@ -413,9 +413,13 @@ class ApiClient {
   async verifyOtp(otp_id: string, code: string) {
     return this.request<{
       type: 'email' | 'phone';
-      is_email_verified: boolean;
-      is_phone_verified: boolean;
-      trust_level: string;
+      registered?: boolean;
+      user?: User;
+      accessToken?: string;
+      refreshToken?: string;
+      is_email_verified?: boolean;
+      is_phone_verified?: boolean;
+      trust_level?: string;
     }>('/api/otp/verify', {
       method: 'POST',
       body: { otp_id, code },

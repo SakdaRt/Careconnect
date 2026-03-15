@@ -39,24 +39,15 @@ export default function GuestRegisterPage() {
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
       if (otpTimerRef.current) clearTimeout(otpTimerRef.current);
-      if (stepRef.current === 'otp' && !verifiedRef.current) {
-        api.cancelUnverifiedAccount().catch(() => {});
-      }
     };
   }, []);
 
   useEffect(() => {
     if (step !== 'otp') return;
-    const timer = setTimeout(async () => {
+    const timer = setTimeout(() => {
       if (verifiedRef.current) return;
-      try {
-        await api.cancelUnverifiedAccount();
-        logout();
-      } catch {
-        logout();
-      } finally {
-        navigate('/register', { replace: true });
-      }
+      toast.error('รหัส OTP หมดอายุ กรุณาสมัครใหม่อีกครั้ง');
+      navigate('/register', { replace: true });
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
@@ -123,26 +114,13 @@ export default function GuestRegisterPage() {
 
     setLoading(true);
     try {
-      // Register guest user (this also logs them in)
-      await registerGuest(formData.email, formData.password, 'hirer');
-      await refreshUser();
-
-      // Send email OTP for verification
-      const otpResponse = await api.sendEmailOtp();
-
-      if (!otpResponse.success || !otpResponse.data) {
-        toast.error('ส่งรหัสยืนยันไม่สำเร็จ กรุณากดส่งใหม่อีกครั้ง');
-        setOtpId('');
-        setStep('otp');
-        return;
-      }
-
-      setOtpId(otpResponse.data.otp_id);
-      toast.success('OTP sent to your email');
+      const result = await registerGuest(formData.email, formData.password, 'hirer');
+      setOtpId(result.otp_id);
+      toast.success('ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี');
       startCooldown();
       setStep('otp');
     } catch (error: any) {
-      toast.error(error.message || 'Registration failed');
+      toast.error(error.message || 'สมัครสมาชิกไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
@@ -160,17 +138,23 @@ export default function GuestRegisterPage() {
       const response = await api.verifyOtp(otpId, formData.otp);
 
       if (!response.success) {
-        toast.error(response.error || 'Invalid OTP');
+        toast.error(response.error || 'รหัส OTP ไม่ถูกต้อง');
         return;
       }
 
-      // Refresh user to get updated trust level
-      await refreshUser();
-
       verifiedRef.current = true;
-      toast.success('Email verified successfully!');
-      setScopedStorageItem('pendingRole', 'hirer');
-      navigate('/register/consent', { replace: true });
+
+      if (response.data?.registered && response.data?.accessToken) {
+        api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
+        await refreshUser();
+        toast.success('สมัครสมาชิกสำเร็จ!');
+        setScopedStorageItem('pendingRole', 'hirer');
+        navigate('/register/consent', { replace: true });
+      } else {
+        await refreshUser();
+        toast.success('ยืนยันอีเมลสำเร็จ!');
+        navigate('/register/consent', { replace: true });
+      }
     } catch (error: any) {
       toast.error(error.message || 'Verification failed');
     } finally {

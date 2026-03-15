@@ -120,9 +120,17 @@ export default function MemberRegisterPage() {
         toast.error(response.error || 'รหัส OTP ไม่ถูกต้อง');
         return;
       }
-      await refreshUser();
       verifiedRef.current = true;
-      toast.success('ยืนยันเบอร์โทรสำเร็จ');
+
+      if (response.data?.registered && response.data?.accessToken) {
+        api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
+        await refreshUser();
+        toast.success('สมัครสมาชิกสำเร็จ!');
+      } else {
+        await refreshUser();
+        toast.success('ยืนยันเบอร์โทรสำเร็จ');
+      }
+
       setScopedStorageItem('pendingRole', selectedRole || 'hirer');
       navigate('/register/consent', { replace: true });
     } catch (error: any) {
@@ -191,17 +199,9 @@ export default function MemberRegisterPage() {
 
     setLoading(true);
     try {
-      await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
-      await refreshUser();
-      const otpResponse = await api.sendPhoneOtp();
-      if (!otpResponse.success || !otpResponse.data) {
-        toast.error('ส่งรหัส OTP ไม่สำเร็จ กรุณากดส่งใหม่อีกครั้ง');
-        setOtpId('');
-        setStep('otp');
-        return;
-      }
-      setOtpId(otpResponse.data.otp_id);
-      toast.success('ส่งรหัส OTP แล้ว');
+      const result = await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
+      setOtpId(result.otp_id);
+      toast.success('ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยัน');
       setStep('otp');
     } catch (error: any) {
       toast.error(error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
