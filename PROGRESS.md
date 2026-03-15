@@ -177,6 +177,26 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Fix onboarding/profile KYC display: explain why L2 not reached despite KYC approved
+
+- debug: user `sswk07939@gmail.com` — KYC approved แต่ trust level ยังเป็น L1
+  - **Root cause**: L2 ต้องการ `phoneVerified AND kycApproved` แต่ user ไม่มี phone verified
+  - DB: `is_phone_verified=false`, `is_email_verified=true`, `kyc_status=approved`, `trust_level=L1`
+  - Business rule ถูกต้อง — ไม่ใช่ bug ใน trust calculation
+  - ปัญหาคือ **UI ไม่สื่อสารว่าขาดอะไร**
+- fix(frontend): `HirerHomePage.tsx` onboarding checklist
+  - Phone verification step แสดงเสมอ (ไม่ซ่อนตาม guest/member)
+  - KYC step sub text อธิบายชัด: "ต้องยืนยันเบอร์โทรก่อน แล้วค่อยยืนยัน KYC"
+  - KYC link → `/profile` ถ้ายังไม่ verify phone (ไม่ไป `/kyc` เพราะทำ KYC ได้แต่ไม่ได้ L2)
+- fix(frontend): `ProfilePage.tsx` trust section
+  - เพิ่ม hint "ต้องยืนยันเบอร์โทรก่อน" ใต้ KYC step (amber text) เมื่อ phone ยังไม่ verified
+- Expected behavior ที่ถูกต้อง:
+  - KYC approved + no phone → **L1** (ถูกต้อง) + UI บอกว่าขาด phone
+  - KYC approved + phone verified → **L2** (ถูกต้อง)
+  - phone verified + no KYC → **L1** + UI บอกว่าต้องทำ KYC
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
 ### 2026-03-15 — Fix active role persistence: fallback to users.role on page refresh
 
 - fix(frontend): `initAuth` ใน `AuthContext.tsx` — เพิ่ม fallback ไป `users.role` จาก server

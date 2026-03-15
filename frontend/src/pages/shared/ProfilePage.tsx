@@ -882,16 +882,21 @@ export default function ProfilePage() {
                 >
                   {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : "2"}
                 </div>
-                <span
-                  className={
-                    ["L2", "L3"].includes(user.trust_level || "L0")
-                      ? "text-green-700"
-                      : "text-gray-600"
-                  }
-                >
-                  ยืนยันตัวตน KYC{" "}
-                  {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : ""}
-                </span>
+                <div>
+                  <span
+                    className={
+                      ["L2", "L3"].includes(user.trust_level || "L0")
+                        ? "text-green-700"
+                        : "text-gray-600"
+                    }
+                  >
+                    ยืนยันตัวตน KYC{" "}
+                    {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : ""}
+                  </span>
+                  {!["L2", "L3"].includes(user.trust_level || "L0") && !user.is_phone_verified && (
+                    <div className="text-[10px] text-amber-600">ต้องยืนยันเบอร์โทรก่อน</div>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <div

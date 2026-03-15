@@ -670,19 +670,26 @@ export default function HirerHomePage() {
           const hasRecipient = careRecipients.length > 0;
           const hasJob = hasEverCreatedJob || jobs.length > 0;
 
+          const isL2Plus = tl === 'L2' || tl === 'L3';
+
           const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
             { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
             { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ดูแลจะเห็น', link: '/profile' },
+            { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: hasPhone ? 'ยืนยันแล้ว' : 'จำเป็นสำหรับ L1+ และการติดต่อ', link: '/profile' },
           ];
 
-          if (isGuest) {
-            steps.push({ done: hasPhone, label: 'เพิ่มและยืนยันเบอร์โทร', sub: 'เพื่อให้ผู้ดูแลติดต่อได้ + เลื่อนเป็น L1', link: '/profile' });
-          } else {
-            steps.push({ done: hasEmail, label: 'เพิ่มอีเมล', sub: 'เพิ่มช่องทางการติดต่อ', link: '/profile' });
+          if (isGuest && !hasEmail) {
+            steps.push({ done: false, label: 'เพิ่มอีเมล', sub: 'เพิ่มช่องทางการติดต่อ', link: '/profile' });
           }
 
+          const kycSub = isL2Plus
+            ? 'ยืนยันแล้ว'
+            : !hasPhone
+              ? 'ต้องยืนยันเบอร์โทรก่อน แล้วค่อยยืนยัน KYC'
+              : 'ยืนยันบัตรประชาชน เพื่อเผยแพร่งานทุกประเภท';
+
           steps.push(
-            { done: tl === 'L2' || tl === 'L3', label: 'ยืนยันตัวตน KYC (L2)', sub: 'เผยแพร่งานทุกประเภท', link: '/kyc' },
+            { done: isL2Plus, label: 'ยืนยันตัวตน KYC (L2)', sub: kycSub, link: hasPhone ? '/kyc' : '/profile' },
             { done: hasRecipient, label: 'เพิ่มผู้รับการดูแล', sub: 'ข้อมูลผู้ที่จะได้รับบริการ', link: '/hirer/care-recipients/new' },
             { done: hasJob, label: 'สร้างงานแรก', sub: 'สร้างงานแล้วเลือกผู้ดูแล', link: '/hirer/create-job' },
           );
