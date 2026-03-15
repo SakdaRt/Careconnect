@@ -177,6 +177,21 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-15 — Release Preparation: demo readiness docs + env reference + known limitations
+
+- docs: สร้าง `ENV_REQUIRED.md` — reference ครบทุก env var (55 backend + 6 frontend)
+  - แยกเป็น: Required, Auth, Google OAuth, SMS, Email, Stripe, Mock Provider, Rate Limiting, Seed Data
+- docs: สร้าง `DEMO_LIMITATIONS.md` — known limitations + dev-only behaviors สำหรับรายงาน
+  - Dev-only: auto-topup, dev OTP code, mock provider, seed data, high rate limits
+  - Limitations: no location matching, sandbox Stripe, mock KYC, polling not WebSocket
+  - สรุปหน้าที่ทำงานสมบูรณ์ (Hirer ✅, Caregiver ✅, Admin ✅)
+  - ข้อมูลสำหรับใส่ในรายงาน: tech stack, scale (34 tables, 63 tests, 50+ pages, 11 modules)
+- docs: สร้าง `RELEASE_READINESS.md` — checklist สำหรับ dev/test/production
+  - Dev: infrastructure ✅, code quality ✅, dev-only behaviors ⚠️
+  - Test: manual test flows, test coverage summary
+  - Production: env setup, Stripe/SMS/Email providers, security, DB, monitoring
+  - Demo preparation: demo accounts, recommended flow, things to avoid
+
 ### 2026-03-15 — Technical Debt Cleanup: dead code removal + schema fallback simplification
 
 - delete(frontend): ลบ `frontend/src/services/demoStore.ts` (63KB, 1843 lines)
