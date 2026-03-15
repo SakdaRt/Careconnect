@@ -93,7 +93,7 @@ export default function LoginPhonePage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <PhoneInput
             label="เบอร์โทรศัพท์"
-            placeholder="+66 8X XXXX XXXX"
+            placeholder="08x-xxx-xxxx"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             error={errors.phone}

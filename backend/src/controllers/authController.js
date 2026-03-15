@@ -126,20 +126,7 @@ const parseCookieHeader = (cookieHeader = '') => cookieHeader
     return acc;
   }, {});
 
-const normalizePhoneNumber = (value) => {
-  if (!value) return null;
-  const digits = String(value).replace(/\D/g, '');
-  let national = '';
-  if (digits.startsWith('66')) {
-    national = digits.slice(2);
-  } else if (digits.startsWith('0')) {
-    national = digits.slice(1);
-  } else {
-    return null;
-  }
-  if (national.length !== 9) return null;
-  return `+66${national}`;
-};
+import { normalizePhone as normalizePhoneNumber } from '../utils/phone.js';
 
 export const updateAvatar = async (req, res) => {
   const uploadedFilePath = req.file?.path;
