@@ -281,7 +281,6 @@ export default function HirerHomePage() {
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleJobs, setScheduleJobs] = useState<HirerJob[]>([]);
   const [careRecipients, setCareRecipients] = useState<CareRecipient[]>([]);
-  const [hasEverCreatedJob, setHasEverCreatedJob] = useState(false);
   const [selectedRecipientId, setSelectedRecipientId] = useState('all');
   const [calendarMonth, setCalendarMonth] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(() => toDateKey(new Date()));
@@ -333,15 +332,6 @@ export default function HirerHomePage() {
   useEffect(() => {
     loadCareRecipients();
   }, [loadCareRecipients]);
-
-  useEffect(() => {
-    appApi.getMyJobs(hirerId, undefined, 1, 1).then((res) => {
-      if (res.success && res.data) {
-        const total = res.data.total ?? (res.data.data?.length ?? 0);
-        if (total > 0) setHasEverCreatedJob(true);
-      }
-    }).catch(() => {});
-  }, [hirerId]);
 
   const loadSchedule = useCallback(async () => {
     setScheduleLoading(true);
@@ -561,9 +551,9 @@ export default function HirerHomePage() {
       setShowKycPrompt(true);
       const tl = user?.trust_level || 'L0';
       if (tl === 'L0') {
-        toast.error('กรุณายืนยันเบอร์โทรก่อนเผยแพร่งาน (ต้อง L1+)');
+        toast.error('กรุณายืนยันเบอร์โทรก่อนเผยแพร่งาน');
       } else if (tl === 'L1') {
-        toast.error('งานความเสี่ยงสูงต้องยืนยันตัวตน KYC ก่อนเผยแพร่ (ต้อง L2+)');
+        toast.error('งานความเสี่ยงสูงต้องยืนยันตัวตน KYC ก่อนเผยแพร่');
       } else {
         toast.error(errMsg || 'ระดับความน่าเชื่อถือไม่เพียงพอ');
       }
@@ -662,36 +652,32 @@ export default function HirerHomePage() {
 
         {/* Onboarding Checklist */}
         {(() => {
-          const tl = user?.trust_level || 'L0';
           const isGuest = user?.account_type === 'guest';
           const hasName = isConfiguredDisplayName(user?.name);
           const hasPhone = !!user?.is_phone_verified;
           const hasEmail = !!user?.is_email_verified;
+          const hasKyc = user?.kyc_status === 'approved';
           const hasRecipient = careRecipients.length > 0;
-          const hasJob = hasEverCreatedJob || jobs.length > 0;
-
-          const isL2Plus = tl === 'L2' || tl === 'L3';
 
           const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
             { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
             { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ดูแลจะเห็น', link: '/profile' },
-            { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: hasPhone ? 'ยืนยันแล้ว' : 'จำเป็นสำหรับ L1+ และการติดต่อ', link: '/profile' },
+            { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: hasPhone ? 'ยืนยันแล้ว' : 'จำเป็นสำหรับการติดต่อและปลดล็อกฟีเจอร์', link: '/profile' },
           ];
 
           if (isGuest && !hasEmail) {
             steps.push({ done: false, label: 'เพิ่มอีเมล', sub: 'เพิ่มช่องทางการติดต่อ', link: '/profile' });
           }
 
-          const kycSub = isL2Plus
+          const kycSub = hasKyc
             ? 'ยืนยันแล้ว'
-            : !hasPhone
-              ? 'ต้องยืนยันเบอร์โทรก่อน แล้วค่อยยืนยัน KYC'
+            : !(hasEmail && hasPhone)
+              ? 'ต้องยืนยันอีเมลและเบอร์โทรก่อน แล้วค่อยยืนยัน KYC'
               : 'ยืนยันบัตรประชาชน เพื่อเผยแพร่งานทุกประเภท';
 
           steps.push(
-            { done: isL2Plus, label: 'ยืนยันตัวตน KYC (L2)', sub: kycSub, link: hasPhone ? '/kyc' : '/profile' },
+            { done: hasKyc, label: 'ยืนยันตัวตน KYC', sub: kycSub, link: (hasEmail && hasPhone) ? '/kyc' : '/profile' },
             { done: hasRecipient, label: 'เพิ่มผู้รับการดูแล', sub: 'ข้อมูลผู้ที่จะได้รับบริการ', link: '/hirer/care-recipients/new' },
-            { done: hasJob, label: 'สร้างงานแรก', sub: 'สร้างงานแล้วเลือกผู้ดูแล', link: '/hirer/create-job' },
           );
 
           const doneCount = steps.filter((s) => s.done).length;
@@ -830,8 +816,8 @@ export default function HirerHomePage() {
                 <p className="text-sm font-semibold text-amber-900">ต้องยืนยันตัวตนก่อนเผยแพร่งาน</p>
                 <p className="text-xs text-amber-700 mt-1">
                   {(user?.trust_level || 'L0') === 'L0'
-                    ? 'กรุณายืนยันเบอร์โทรศัพท์ก่อน (Trust Level L1) จากนั้นยืนยันตัวตน KYC เพื่อเผยแพร่งานความเสี่ยงสูง (L2)'
-                    : 'งานความเสี่ยงสูงต้อง Trust Level L2 ขึ้นไป กรุณายืนยันตัวตน KYC'}
+                    ? 'กรุณายืนยันเบอร์โทรศัพท์ก่อน จากนั้นยืนยันตัวตน KYC เพื่อเผยแพร่งานความเสี่ยงสูง'
+                    : 'งานความเสี่ยงสูงต้องยืนยันตัวตน KYC กรุณาดำเนินการ'}
                 </p>
                 <div className="mt-2 flex gap-2">
                   <Link to="/kyc">

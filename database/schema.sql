@@ -70,6 +70,12 @@ CREATE TYPE gps_event_type AS ENUM ('check_in', 'check_out', 'ping');
 -- Photo phase
 CREATE TYPE photo_phase AS ENUM ('before', 'after');
 
+-- Payment status
+CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'completed', 'failed', 'refunded');
+
+-- Complaint status
+CREATE TYPE complaint_status AS ENUM ('open', 'in_review', 'resolved', 'dismissed');
+
 -- ============================================================================
 -- TABLE: users (Main user table)
 -- ============================================================================
@@ -81,6 +87,9 @@ CREATE TABLE users (
     email VARCHAR(255) UNIQUE,
     phone_number VARCHAR(20) UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+
+    -- Google OAuth
+    google_id VARCHAR(255),
 
     -- Account type
     account_type VARCHAR(10) NOT NULL CHECK (account_type IN ('guest', 'member')),
@@ -125,6 +134,7 @@ CREATE INDEX idx_users_phone ON users(phone_number) WHERE phone_number IS NOT NU
 CREATE INDEX idx_users_role ON users(role);
 CREATE INDEX idx_users_trust_level ON users(trust_level);
 CREATE INDEX idx_users_status ON users(status);
+CREATE UNIQUE INDEX idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
 
 COMMENT ON TABLE users IS 'Main user table with auth credentials and trust level';
 COMMENT ON COLUMN users.trust_level IS 'DERIVED STATE - calculated by system worker, do NOT update directly';
@@ -268,6 +278,8 @@ CREATE TABLE hirer_profiles (
     district VARCHAR(100),
     province VARCHAR(100),
     postal_code VARCHAR(10),
+    lat DOUBLE PRECISION,
+    lng DOUBLE PRECISION,
 
     -- Stats
     total_jobs_posted INT NOT NULL DEFAULT 0 CHECK (total_jobs_posted >= 0),
@@ -1214,6 +1226,157 @@ CREATE INDEX idx_provider_webhooks_reference ON provider_webhooks(reference_type
 CREATE INDEX idx_provider_webhooks_processed ON provider_webhooks(processed);
 
 COMMENT ON TABLE provider_webhooks IS 'Webhook event log (for idempotency and deduplication)';
+
+-- ============================================================================
+-- TABLE: password_reset_tokens
+-- ============================================================================
+
+CREATE TABLE password_reset_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_password_reset_tokens_user ON password_reset_tokens(user_id);
+CREATE INDEX idx_password_reset_tokens_hash ON password_reset_tokens(token_hash);
+
+COMMENT ON TABLE password_reset_tokens IS 'Password reset tokens (hashed, time-limited)';
+
+-- ============================================================================
+-- TABLE: otp_codes (OTP verification — persistent storage)
+-- ============================================================================
+
+CREATE TABLE otp_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(10) NOT NULL CHECK (type IN ('email', 'phone')),
+    destination VARCHAR(255) NOT NULL,
+    code_hash VARCHAR(255) NOT NULL,
+    verified BOOLEAN NOT NULL DEFAULT FALSE,
+    attempts INTEGER NOT NULL DEFAULT 0,
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_otp_codes_user_id ON otp_codes(user_id);
+CREATE INDEX idx_otp_codes_expires_at ON otp_codes(expires_at);
+
+COMMENT ON TABLE otp_codes IS 'OTP codes (SHA-256 hashed, max 5 attempts, 5 min TTL)';
+
+-- ============================================================================
+-- TABLE: early_checkout_requests
+-- ============================================================================
+
+CREATE TABLE early_checkout_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    job_post_id UUID NOT NULL REFERENCES job_posts(id) ON DELETE CASCADE,
+    caregiver_id UUID NOT NULL REFERENCES users(id),
+    hirer_id UUID NOT NULL REFERENCES users(id),
+    evidence_note TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+    rejected_reason TEXT,
+    responded_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_early_checkout_job_id ON early_checkout_requests(job_id);
+CREATE INDEX idx_early_checkout_hirer_pending ON early_checkout_requests(hirer_id, status) WHERE status = 'pending';
+
+COMMENT ON TABLE early_checkout_requests IS 'Early checkout requests (caregiver requests hirer approval to checkout before scheduled end)';
+
+-- ============================================================================
+-- TABLE: payments (Payment records for UI display)
+-- ============================================================================
+
+CREATE TABLE payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    payer_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    payee_user_id UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    amount BIGINT NOT NULL CHECK (amount > 0),
+    fee_amount BIGINT NOT NULL DEFAULT 0 CHECK (fee_amount >= 0),
+    status payment_status NOT NULL DEFAULT 'pending',
+    payment_method VARCHAR(50) NOT NULL DEFAULT 'mock',
+    provider_payment_id VARCHAR(255),
+    metadata JSONB,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_payments_payer_user_id ON payments(payer_user_id);
+CREATE INDEX idx_payments_payee_user_id ON payments(payee_user_id);
+CREATE INDEX idx_payments_status ON payments(status);
+CREATE INDEX idx_payments_created_at ON payments(created_at DESC);
+CREATE INDEX idx_payments_job_id ON payments(job_id);
+CREATE INDEX idx_payments_user_access ON payments(payer_user_id, payee_user_id, status);
+
+COMMENT ON TABLE payments IS 'Payment records for UI display and simulation - actual money movement via wallet/ledger system';
+
+-- ============================================================================
+-- TABLE: complaints (General complaint/report system)
+-- ============================================================================
+
+CREATE TABLE complaints (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    reporter_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category VARCHAR(50) NOT NULL CHECK (category IN (
+        'inappropriate_name', 'inappropriate_photo', 'inappropriate_chat',
+        'scam_fraud', 'harassment', 'safety_concern', 'payment_issue',
+        'service_quality', 'fake_certificate', 'other'
+    )),
+    target_user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    related_job_post_id UUID REFERENCES job_posts(id) ON DELETE SET NULL,
+    subject VARCHAR(200) NOT NULL,
+    description TEXT NOT NULL,
+    status complaint_status NOT NULL DEFAULT 'open',
+    assigned_admin_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    admin_note TEXT,
+    resolved_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_complaints_reporter_id ON complaints(reporter_id);
+CREATE INDEX idx_complaints_target_user_id ON complaints(target_user_id);
+CREATE INDEX idx_complaints_status ON complaints(status);
+CREATE INDEX idx_complaints_category ON complaints(category);
+CREATE INDEX idx_complaints_created_at ON complaints(created_at DESC);
+
+COMMENT ON TABLE complaints IS 'General complaint/report system (not tied to specific job)';
+
+-- ============================================================================
+-- TABLE: complaint_attachments
+-- ============================================================================
+
+CREATE TABLE complaint_attachments (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    complaint_id UUID NOT NULL REFERENCES complaints(id) ON DELETE CASCADE,
+    file_path VARCHAR(500) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_size INTEGER,
+    mime_type VARCHAR(100),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_complaint_attachments_complaint_id ON complaint_attachments(complaint_id);
+
+COMMENT ON TABLE complaint_attachments IS 'File attachments for complaints (evidence images)';
+
+-- ============================================================================
+-- Additional Index: Ledger transactions reference uniqueness
+-- ============================================================================
+
+CREATE UNIQUE INDEX idx_ledger_transactions_reference_unique
+ON ledger_transactions(reference_type, reference_id, type);
+
+COMMENT ON INDEX idx_ledger_transactions_reference_unique IS 'Prevents duplicate ledger entries for the same reference type, ID, and transaction type';
 
 -- ============================================================================
 -- Initial Data: Platform wallets

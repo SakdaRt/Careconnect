@@ -1298,6 +1298,8 @@ export interface User {
   avatar?: string;
   is_email_verified: boolean;
   is_phone_verified: boolean;
+  kyc_status?: string | null;
+  bank_account_count?: number;
   completed_jobs_count: number;
   first_job_waiver_used: boolean;
   policy_acceptances?: Record<string, { policy_accepted_at: string; version_policy_accepted: string }>;

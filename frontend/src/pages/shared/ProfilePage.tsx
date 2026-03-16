@@ -9,9 +9,6 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  ShieldCheck,
-  BadgeCheck,
-  Shield,
   Upload,
   FileText,
   Trash2,
@@ -24,6 +21,7 @@ import {
   Avatar,
   Button,
   Card,
+  TrustLevelCard,
   CheckboxGroup,
   Input,
   OTPInput,
@@ -34,6 +32,7 @@ import {
 import { GooglePlacesInput } from "../../components/location/GooglePlacesInput";
 import { useAuth } from "../../contexts";
 import { appApi } from "../../services/appApi";
+import { getTrustLevelLabel } from "../../utils/trustLevel";
 import type {
   CaregiverProfile,
   CaregiverDocument,
@@ -822,98 +821,7 @@ export default function ProfilePage() {
         )}
 
         {user && user.role !== "admin" && (
-          <Card className="p-4 sm:p-6">
-            <div className="text-sm font-semibold text-gray-900 mb-3">
-              ระดับความน่าเชื่อถือ
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              {["L2", "L3"].includes(user.trust_level || "L0") ? (
-                <BadgeCheck className="w-6 h-6 text-green-600" />
-              ) : user.trust_level === "L1" ? (
-                <ShieldCheck className="w-6 h-6 text-yellow-600" />
-              ) : (
-                <Shield className="w-6 h-6 text-gray-400" />
-              )}
-              <div>
-                <div className="text-lg font-bold text-gray-900">
-                  {user.trust_level || "L0"}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {user.trust_level === "L3"
-                    ? "เชื่อถือสูง"
-                    : user.trust_level === "L2"
-                      ? "ยืนยันแล้ว"
-                      : user.trust_level === "L1"
-                        ? "พื้นฐาน"
-                        : "ยังไม่ยืนยัน"}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.is_phone_verified ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                >
-                  {user.is_phone_verified ? "✓" : "1"}
-                </div>
-                <span
-                  className={
-                    user.is_phone_verified ? "text-green-700" : "text-gray-600"
-                  }
-                >
-                  ยืนยันเบอร์โทร {user.is_phone_verified ? "✓" : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${["L2", "L3"].includes(user.trust_level || "L0") ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                >
-                  {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : "2"}
-                </div>
-                <div>
-                  <span
-                    className={
-                      ["L2", "L3"].includes(user.trust_level || "L0")
-                        ? "text-green-700"
-                        : "text-gray-600"
-                    }
-                  >
-                    ยืนยันตัวตน KYC{" "}
-                    {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : ""}
-                  </span>
-                  {!["L2", "L3"].includes(user.trust_level || "L0") && !user.is_phone_verified && (
-                    <div className="text-[10px] text-amber-600">ต้องยืนยันเบอร์โทรก่อน</div>
-                  )}
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.trust_level === "L3" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                >
-                  {user.trust_level === "L3" ? "✓" : "3"}
-                </div>
-                <span
-                  className={
-                    user.trust_level === "L3"
-                      ? "text-green-700"
-                      : "text-gray-600"
-                  }
-                >
-                  บัญชีธนาคารยืนยันแล้ว + Trust Score ≥80{" "}
-                  {user.trust_level === "L3" ? "✓" : ""}
-                </span>
-              </div>
-            </div>
-            {!["L2", "L3"].includes(user.trust_level || "L0") && (
-              <div className="mt-3">
-                <Link to="/kyc">
-                  <Button variant="primary" size="sm">
-                    ยืนยันตัวตน (KYC)
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </Card>
+          <TrustLevelCard user={user} />
         )}
 
         {user && user.role !== "admin" && (
@@ -979,8 +887,7 @@ export default function ProfilePage() {
             </div>
             {!bankVerified && bankVerified !== null && (
               <p className="text-xs text-gray-500 mt-2">
-                เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรด Trust
-                Level เป็น L3
+                เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรดเป็นระดับ "มืออาชีพ"
               </p>
             )}
           </Card>
@@ -1597,9 +1504,9 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500">Trust Level</div>
+                  <div className="text-xs text-gray-500">ระดับความน่าเชื่อถือ</div>
                   <div className="text-sm font-semibold text-gray-900">
-                    {user.trust_level}
+                    {getTrustLevelLabel(user.trust_level)}
                   </div>
                 </div>
                 <div>

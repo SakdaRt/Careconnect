@@ -17,11 +17,10 @@ interface FeaturedCaregiver {
   total_reviews?: number;
 }
 
-const TRUST_LABEL: Record<string, string> = {
-  L3: 'เชื่อถือสูง',
-  L2: 'ยืนยันแล้ว',
-  L1: 'พื้นฐาน',
-};
+function getCaregiverTrustLabel(level: string) {
+  const labels: Record<string, string> = { L3: 'มืออาชีพ', L2: 'ยืนยันตัวตน', L1: 'ยืนยันการติดต่อ' };
+  return labels[level] || '';
+}
 
 const SKILL_LABELS: Record<string, string> = {
   companionship: 'ดูแลทั่วไป',
@@ -52,7 +51,7 @@ export default function LandingPage() {
     {
       icon: <Shield className="w-8 h-8" />,
       title: 'ความปลอดภัยที่เชื่อถือได้',
-      description: 'ระบบ Trust Level และ KYC ตรวจสอบผู้ดูแลทุกคน เพื่อความปลอดภัยของคุณและคนที่คุณรัก',
+      description: 'ระบบยืนยันตัวตนและ KYC ตรวจสอบผู้ดูแลทุกคน เพื่อความปลอดภัยของคุณและคนที่คุณรัก',
     },
     {
       icon: <Users className="w-8 h-8" />,
@@ -286,8 +285,8 @@ export default function LandingPage() {
                     </div>
                     <div>
                       <div className="font-semibold text-gray-900">{cg.display_name || 'ผู้ดูแล'}</div>
-                      {TRUST_LABEL[cg.trust_level] && (
-                        <span className="text-xs text-blue-600">{TRUST_LABEL[cg.trust_level]}</span>
+                      {getCaregiverTrustLabel(cg.trust_level) && (
+                        <span className="text-xs text-blue-600">{getCaregiverTrustLabel(cg.trust_level)}</span>
                       )}
                     </div>
                   </div>

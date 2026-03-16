@@ -233,7 +233,7 @@ export default function CaregiverWalletPage() {
         const code = (res as any).code as string | undefined;
         const errMsg = String(res.error || '');
         if (code === 'POLICY_VIOLATION' || code === 'INSUFFICIENT_TRUST_LEVEL' || errMsg.includes('trust') || errMsg.includes('Trust') || errMsg.includes('L2')) {
-          toast.error('ต้องยืนยันตัวตน KYC ก่อนถอนเงิน (Trust Level L2+)');
+          toast.error('ต้องยืนยันตัวตน KYC ก่อนถอนเงิน');
         } else {
           toast.error(res.error || 'ถอนเงินไม่สำเร็จ');
         }
@@ -427,7 +427,7 @@ export default function CaregiverWalletPage() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-amber-900">ยืนยันเบอร์โทรก่อนถอนเงิน</p>
                   <p className="text-xs text-amber-700 mt-1">
-                    ผู้ดูแลต้องยืนยันเบอร์โทร (L1) ก่อน แล้วจึงยืนยันตัวตน KYC เพื่อปลดล็อกการถอนเงิน
+                    กรุณายืนยันเบอร์โทรก่อน แล้วยืนยันตัวตน KYC เพื่อปลดล็อกการถอนเงิน
                   </p>
                   <div className="mt-2">
                     <Link to="/profile">
@@ -444,7 +444,7 @@ export default function CaregiverWalletPage() {
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-amber-900">ยืนยันตัวตน KYC เพื่อถอนเงิน</p>
                   <p className="text-xs text-amber-700 mt-1">
-                    การถอนเงินต้อง Trust Level L2 ขึ้นไป (ยืนยันเบอร์โทรแล้ว + ยืนยันตัวตน KYC)
+                    การถอนเงินต้องยืนยันตัวตนก่อน (ยืนยันเบอร์โทร + ยืนยันตัวตน KYC)
                   </p>
                   <div className="mt-2">
                     <Link to="/kyc">

@@ -40,7 +40,7 @@ careconnect/
 │   │   └── migrations/
 │   └── tests/           Jest integration + unit (13 test files)
 ├── database/
-│   └── schema.sql             master schema (25+ tables, 1111 lines)
+│   └── schema.sql             master schema (40 tables, 1391 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
@@ -92,7 +92,7 @@ careconnect/
 
 ### Notifications
 
-- [x] Real-time notification count ใน TopBar (polling 30s)
+- [x] Real-time notification count ใน TopBar (polling 15s)
 - [x] NotificationsPage — อ่าน/mark as read
 - [x] Trigger: job accepted, check-in, check-out
 
@@ -154,9 +154,9 @@ careconnect/
 | ไฟล์                                      | หน้าที่                                         |
 | ----------------------------------------- | ----------------------------------------------- |
 | `frontend/src/router.tsx`                 | Route definitions + guards                      |
-| `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequireProfile        |
+| `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequirePolicy, RequireProfile, RequireAdmin |
 | `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
-| `frontend/src/services/api.ts`            | Axios instance + API methods                    |
+| `frontend/src/services/api.ts`            | fetch-based ApiClient + API methods             |
 | `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
 | `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
 | `frontend/src/layouts/MainLayout.tsx`     | Layout หลัก (TopBar + BottomBar)                |
@@ -165,7 +165,7 @@ careconnect/
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
 | `backend/src/models/Notification.js`      | Notification model                              |
-| `database/schema.sql`                     | Master DB schema (25+ tables)                   |
+| `database/schema.sql`                     | Master DB schema (40 tables)                    |
 | `backend/database/migrations/`            | Migration files                                 |
 | `backend/src/workers/trustLevelWorker.js` | Trust score calculation + level determination   |
 | `backend/src/utils/risk.js`               | Risk level auto-compute                         |

@@ -304,7 +304,22 @@ const buildSafeUserResponse = async (userId) => {
       ? String(profile.display_name)
       : (profile?.full_name ? String(profile.full_name) : rest.name || null);
     delete rest.password_hash;
-    return { ...rest, name };
+
+    // Fetch KYC status independently (so frontend doesn't infer from trust_level)
+    const kycRes = await query(
+      `SELECT status FROM user_kyc_info WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+    const kyc_status = kycRes.rows[0]?.status || null;
+
+    // Fetch bank account count
+    const bankRes = await query(
+      `SELECT COUNT(*)::int AS count FROM bank_accounts WHERE user_id = $1 AND is_verified = true`,
+      [userId]
+    );
+    const bank_account_count = bankRes.rows[0]?.count || 0;
+
+    return { ...rest, name, kyc_status, bank_account_count };
   } catch (err) {
     console.error('[buildSafeUserResponse] Error:', err.message, err.stack);
     return null;

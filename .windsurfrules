@@ -5,18 +5,22 @@
 - ตอบเป็นภาษาไทยเสมอ เว้นแต่ user จะขอเป็นภาษาอื่น
 - ตอบกระชับ ตรงประเด็น ไม่มีคำทักทายฟุ่มเฟือย
 - อ้างอิง file path แบบ absolute เสมอ
+- ถ้าข้อสรุปใดยังไม่ยืนยันจากโค้ด ให้ระบุชัดว่า `likely but unverified`
 
 ## ก่อนเริ่มทำงานทุกครั้ง (บังคับ)
-1. `git pull origin main` — ดึงโค้ดล่าสุดก่อนเสมอ
-2. อ่าน `PROGRESS.md` — สถานะปัจจุบัน, TODO, git log
-3. อ่าน `SYSTEM.md` — architecture, ERD, API routes, policy gates, error codes (15 sections)
+1. ตรวจสถานะ git ก่อนด้วย `git status`
+2. ถ้า working tree สะอาด ให้ sync โค้ดล่าสุดตามความเหมาะสม เช่น `git pull origin main`
+3. อ่าน `PROGRESS.md` — สถานะปัจจุบัน, TODO, git log
+4. อ่าน `SYSTEM.md` — architecture, ERD, API routes, policy gates, error codes (15 sections)
+5. ถ้ามีงานที่เกี่ยวข้องกับ flow เฉพาะส่วน ให้เปิดอ่านไฟล์โค้ดจริงที่เกี่ยวข้องก่อนเริ่มแก้
 
 ## บริบทโปรเจค
-- โปรเจคอยู่ที่: `c:\Users\SR\Desktop\careconnect`
 - Frontend: `frontend/` — React 18 + TypeScript + Tailwind CSS + Vite
 - Backend: `backend/` — Node.js + Express + PostgreSQL
 - Database Schema: `database/schema.sql` (25+ tables, 1111 lines)
-- **SYSTEM.md** — source of truth (15 sections: ERD, API, Page map, Sequence diagrams, Policy gates, Socket.IO, Errors, Trust score, Risk level)
+- `SYSTEM.md` เป็น architectural reference หลักของโปรเจค
+- ถ้า `SYSTEM.md` ขัดกับ source code ให้ถือ source code เป็น source of truth
+- ถ้าพบว่าเอกสารไม่ตรงกับโค้ด ให้รายงานและอัพเดทเอกสารเมื่อเหมาะสม
 
 ## Stack ที่ใช้
 - **Frontend**: React 18, TypeScript, Tailwind CSS, Vite, react-hot-toast, Lucide icons
@@ -41,17 +45,65 @@
 - **Wallet mount ที่** `/api/wallet/*` (รวม bank-accounts, topup, withdraw)
 - **Reviews + Favorites** mount ที่ `/api/reviews/*` และ `/api/favorites/*`
 
+## กฎการวิเคราะห์ก่อนแก้ (บังคับ)
+- ก่อนแก้ทุกงาน ต้อง trace implementation ปัจจุบันจาก source code จริงก่อน
+- ต้องสรุปอย่างน้อย:
+  1. current behavior
+  2. relevant files
+  3. end-to-end call flow
+  4. side effects / risks
+  5. minimal patch plan
+- ทุกข้อสรุปต้องแยกว่า:
+  - `verified from code`
+  - `likely but unverified`
+- ห้ามเริ่มเขียนโค้ดถ้ายัง trace flow ไม่ครบ
+- ถ้างานเกี่ยว frontend-backend contract, auth, role, policy, validation, response shape หรือ routing ต้องตรวจทั้งฝั่ง frontend และ backend
+
+## High-risk domains
+งานในกลุ่มต่อไปนี้ต้องระวังเป็นพิเศษ:
+- auth
+- OTP
+- wallet
+- ledger_transactions
+- escrow
+- policy / authorization
+- trust level
+- webhooks
+- token refresh
+- file uploads
+
+กฎเพิ่มเติมสำหรับงานกลุ่มนี้:
+- ต้องอ่าน flow จริงครบก่อน
+- ต้องเสนอ minimal patch
+- ต้องระบุ side effects และ regression risks เสมอ
+- ห้ามสรุปจากชื่อไฟล์หรือชื่อฟังก์ชันอย่างเดียว
+
 ## กฎการเขียนโค้ด
 - ห้ามเพิ่ม/ลบ comment โดยไม่ได้รับคำสั่ง
-- ห้ามเปลี่ยน business logic โดยไม่ได้รับคำสั่ง
+- ห้ามเปลี่ยน business logic เกินขอบเขตงานโดยไม่ได้อธิบายผลกระทบ
+- ถ้าจำเป็นต้องเปลี่ยน business logic เพื่อแก้ root cause ให้สรุป current behavior, proposed change, และผลกระทบก่อน
 - ใช้ Tailwind utility classes เท่านั้น ห้าม inline style
 - ใช้ `cn()` สำหรับ conditional classes
 - Component ใหม่ต้องมี TypeScript types ครบ
 - ห้าม hardcode ค่า secret หรือ API key
 - Backend ใช้ ESM (`import/export`) ไม่ใช่ CommonJS
-- Backend routes ทุกอันใช้ `requireAuth` + `requirePolicy()` middleware
+- Protected backend routes ต้องใช้ middleware ที่เหมาะสม เช่น `requireAuth` และ/หรือ `requirePolicy(action)` ตาม design จริงของ route group
+- Public/auth/bootstrap/webhook routes อาจไม่ใช้ `requireAuth` ตาม design จริงของระบบ
+- ก่อนเพิ่มหรือแก้ route ให้ตรวจ pattern ของ route group นั้นจากโค้ดจริงก่อน
 - Validation ใช้ Joi schemas (อยู่ใน route files หรือ `utils/validation.js`)
 - Error handling: ใช้ custom error classes จาก `utils/errors.js`
+
+## กฎ Frontend / Backend Consistency
+- ถ้าแก้ API contract, validation, auth, role, policy, หรือ response shape ต้องตรวจทั้ง frontend caller และ backend endpoint
+- ถ้าแก้ frontend route/guard ต้องตรวจ backend policy ที่สอดคล้องกัน
+- ถ้าแก้ backend endpoint ต้องตรวจ `frontend/src/services/api.ts`, `appApi.ts`, และหน้าที่เรียกใช้เมื่อเกี่ยวข้อง
+
+## กฎ Database Safety
+- ถ้าแก้ database schema ต้องเพิ่ม migration file ตาม pattern ของโปรเจค
+- ต้องอัพเดท `database/schema.sql` เมื่อ schema เปลี่ยน
+- ต้องอัพเดท `backend/MIGRATIONS.md` เมื่อมี migration ใหม่
+- ห้ามเสนอ schema change โดยไม่ระบุ migration impact
+- ถ้าแตะ financial tables หรือ ledger ต้องตรวจ transaction boundary, constraints, และ side effects ก่อนเสมอ
 
 ## กฎ Git
 - Commit message format: `type(scope): description` (ภาษาไทยได้)
@@ -68,10 +120,11 @@
 ## Verification Checklist (ตรวจก่อน commit)
 - [ ] ไม่มี TypeScript errors (`tsc --noEmit`)
 - [ ] ไม่มี hardcoded secrets
-- [ ] ทุก API endpoint มี auth middleware
-- [ ] ทุก body/query/params มี Joi validation
-- [ ] Frontend routes มี guards ตาม role
+- [ ] Protected API endpoints มี middleware ที่เหมาะสมตาม design จริงของ route group
+- [ ] ทุก body/query/params มี Joi validation เมื่อ endpoint นั้นรับข้อมูลดังกล่าว
+- [ ] Frontend routes มี guards ตาม role / policy ที่เกี่ยวข้อง
 - [ ] เพิ่ม migration file ถ้าแก้ DB schema
+- [ ] ตรวจ side effects สำหรับงานใน high-risk domains แล้ว
 
 ## หลังทำงานเสร็จทุกครั้ง (บังคับ ไม่ต้องรอ user สั่ง)
 1. อัพเดท `PROGRESS.md` — Git Log, TODO tick, วันที่
@@ -85,7 +138,7 @@
 
 ## ไฟล์เอกสารที่มีในโปรเจค (ห้ามสร้างไฟล์ .md ใหม่โดยไม่จำเป็น)
 - `PROGRESS.md` — ความคืบหน้า, TODO, git log
-- `SYSTEM.md` — architecture, ERD, UML, API routes, page map (source of truth)
+- `SYSTEM.md` — architecture, ERD, UML, API routes, page map
 - `.windsurfrules` — กฎ AI (ไฟล์นี้)
 - `backend/MIGRATIONS.md` — migration history
 - `database/schema.sql` — master schema (25+ tables)

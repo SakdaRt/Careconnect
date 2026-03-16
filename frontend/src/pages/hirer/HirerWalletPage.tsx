@@ -228,7 +228,7 @@ export default function HirerWalletPage() {
         const code = (res as any).code as string | undefined;
         const errMsg = String(res.error || '');
         if (code === 'POLICY_VIOLATION' || code === 'INSUFFICIENT_TRUST_LEVEL' || errMsg.includes('trust') || errMsg.includes('Trust') || errMsg.includes('L2')) {
-          toast.error('ต้องยืนยันตัวตน KYC ก่อนถอนเงิน (Trust Level L2+)');
+          toast.error('ต้องยืนยันตัวตน KYC ก่อนถอนเงิน');
         } else {
           toast.error(res.error || 'ถอนเงินไม่สำเร็จ');
         }
@@ -385,7 +385,6 @@ export default function HirerWalletPage() {
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">โหมดทดสอบ (Sandbox): ระบบจะพาไปหน้า Stripe Checkout แล้วค่อยกลับมากดยืนยันสถานะ</p>
             </Card>
 
             <Card className="p-4 sm:p-6">

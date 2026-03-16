@@ -7,6 +7,7 @@ import { Avatar, Button, Card, LoadingState, Modal, Select } from '../../compone
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
+import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 interface CaregiverResult {
   id: string;
@@ -39,12 +40,10 @@ interface CaregiverReview {
   created_at: string;
 }
 
-const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  L3: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'L3 เชื่อถือสูง' },
-  L2: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'L2 ยืนยันแล้ว' },
-  L1: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'L1 พื้นฐาน' },
-  L0: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'L0 ยังไม่ยืนยัน' },
-};
+function getTrustStyle(level: string) {
+  const c = getTrustLevelConfig(level);
+  return { bg: c.bgColor, text: c.textColor, label: c.label };
+}
 
 const SKILL_LABELS: Record<string, string> = {
   companionship: 'ดูแลทั่วไป/เพื่อนคุย',
@@ -493,9 +492,9 @@ export default function SearchCaregiversPage() {
               onChange={(e) => setTrustFilter(e.target.value)}
             >
               <option value="">ทุกระดับความเชื่อถือ</option>
-              <option value="L3">L3 เชื่อถือสูง</option>
-              <option value="L2">L2 ยืนยันแล้ว</option>
-              <option value="L1">L1 พื้นฐาน</option>
+              <option value="L3">มืออาชีพ</option>
+              <option value="L2">ยืนยันตัวตน</option>
+              <option value="L1">ยืนยันการติดต่อ</option>
             </Select>
             <Select
               aria-label="กรองตามประสบการณ์"
@@ -606,7 +605,7 @@ export default function SearchCaregiversPage() {
               const days = (cg.available_days || []).map(Number);
               return availableDayFilters.every((d) => days.includes(d));
             }).map((cg) => {
-              const tl = TRUST_STYLE[cg.trust_level] || TRUST_STYLE.L0;
+              const tl = getTrustStyle(cg.trust_level);
               const tags = Array.from(
                 new Set([...(cg.specializations || []), ...(cg.certifications || []), ...(cg.skills || [])])
               );
@@ -722,7 +721,7 @@ export default function SearchCaregiversPage() {
           }
         >
           {detailCaregiver && (() => {
-            const tl = TRUST_STYLE[detailCaregiver.trust_level] || TRUST_STYLE.L0;
+            const tl = getTrustStyle(detailCaregiver.trust_level);
             const availability = formatAvailability(
               detailCaregiver.available_days,
               detailCaregiver.available_from,

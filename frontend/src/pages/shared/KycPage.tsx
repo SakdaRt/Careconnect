@@ -7,6 +7,7 @@ import { Button, Card, Input, LoadingState, Select } from '../../components/ui';
 import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
 import type { KycStatus } from '../../services/api';
+import { getTrustLevelLabel } from '../../utils/trustLevel';
 
 const verifiedLevels = new Set(['L2', 'L3']);
 
@@ -207,7 +208,7 @@ export default function KycPage() {
       }
       setKyc(res.data?.kyc || null);
       await refreshUser();
-      toast.success('ยืนยันตัวตนสำเร็จ! Trust Level ของคุณได้รับการอัปเกรด');
+      toast.success('ยืนยันตัวตนสำเร็จ! ระดับความน่าเชื่อถือของคุณได้รับการอัปเกรด');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ยืนยันตัวตนไม่สำเร็จ');
     } finally {
@@ -249,7 +250,7 @@ export default function KycPage() {
             <BadgeCheck className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-xl font-bold text-green-700 mb-2">ยืนยันตัวตนเรียบร้อยแล้ว</h2>
             <p className="text-gray-600 mb-1">
-              Trust Level: <span className="font-bold text-gray-900">{user?.trust_level || 'L2'}</span>
+              ระดับ: <span className="font-bold text-gray-900">{getTrustLevelLabel(user?.trust_level)}</span>
             </p>
             {kyc?.verified_at && (
               <p className="text-sm text-gray-500">ยืนยันเมื่อ: {new Date(kyc.verified_at).toLocaleString('th-TH')}</p>
@@ -316,8 +317,8 @@ export default function KycPage() {
                 {kyc?.status === 'rejected' ? 'ไม่ผ่าน — กรุณาส่งใหม่' : 'ยังไม่ยืนยัน'}
               </span>
               <span className="text-gray-400 mx-2">•</span>
-              <span className="text-gray-600">Trust Level: </span>
-              <span className="font-semibold text-gray-900">{user?.trust_level || 'L0'}</span>
+              <span className="text-gray-600">ระดับ: </span>
+              <span className="font-semibold text-gray-900">{getTrustLevelLabel(user?.trust_level)}</span>
             </div>
           </div>
         </Card>

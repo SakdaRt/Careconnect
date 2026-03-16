@@ -154,15 +154,16 @@ export default function AdminReportsPage() {
 
                   {/* Trust distribution */}
                   <Card className="p-4">
-                    <div className="text-sm font-semibold text-gray-800 mb-3">Trust Level</div>
+                    <div className="text-sm font-semibold text-gray-800 mb-3">ระดับความน่าเชื่อถือ</div>
                     <div className="space-y-2">
                       {(summaryData.trust_distribution as any[]).map((r: any) => {
                         const pct = totalUsers > 0 ? Math.round(Number(r.count) / totalUsers * 100) : 0;
-                        const colors: Record<string, string> = { L0: 'bg-gray-300', L1: 'bg-yellow-400', L2: 'bg-blue-400', L3: 'bg-purple-500' };
+                        const colors: Record<string, string> = { L0: 'bg-gray-300', L1: 'bg-yellow-400', L2: 'bg-blue-400', L3: 'bg-amber-500' };
+                        const levelNames: Record<string, string> = { L0: 'เริ่มต้น', L1: 'ยืนยันการติดต่อ', L2: 'ยืนยันตัวตน', L3: 'มืออาชีพ' };
                         return (
                           <div key={r.trust_level}>
                             <div className="flex justify-between text-xs mb-1">
-                              <span className="font-medium">{r.trust_level}</span>
+                              <span className="font-medium">{r.trust_level} {levelNames[r.trust_level] || ''}</span>
                               <span className="text-gray-500 tabular-nums">{Number(r.count).toLocaleString()} ({pct}%)</span>
                             </div>
                             <div className="h-2 bg-gray-100 rounded-full overflow-hidden">

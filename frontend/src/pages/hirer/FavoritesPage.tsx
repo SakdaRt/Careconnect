@@ -7,6 +7,7 @@ import { Button, Card, LoadingState, Modal } from '../../components/ui';
 import { JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
+import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 interface FavoriteCaregiver {
   id: string;
@@ -26,12 +27,10 @@ interface FavoriteCaregiver {
   created_at: string;
 }
 
-const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  L3: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'L3 เชื่อถือสูง' },
-  L2: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'L2 ยืนยันแล้ว' },
-  L1: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'L1 พื้นฐาน' },
-  L0: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'L0 ยังไม่ยืนยัน' },
-};
+function getTrustStyle(level: string) {
+  const c = getTrustLevelConfig(level);
+  return { bg: c.bgColor, text: c.textColor, label: c.label };
+}
 
 const CREATE_NEW_JOB_OPTION = '__create_new_job__';
 
@@ -212,7 +211,7 @@ export default function FavoritesPage() {
         ) : (
           <div className="space-y-3">
             {favorites.map((fav) => {
-              const tl = TRUST_STYLE[fav.trust_level || 'L0'] || TRUST_STYLE.L0;
+              const tl = getTrustStyle(fav.trust_level || 'L0');
               const tags = Array.from(new Set([...(fav.specializations || []), ...(fav.certifications || [])]));
               return (
                 <Card key={fav.id} className="flex flex-col sm:flex-row gap-4 items-start">
