@@ -324,7 +324,7 @@ class ApiClient {
   }
 
   async uploadProfileAvatar(formData: FormData) {
-    return this.requestFormData<{ avatar: string }>('/api/auth/avatar', formData);
+    return this.requestFormData<{ avatar_version: number; avatar?: string }>('/api/auth/avatar', formData);
   }
 
   async updatePhoneNumber(phone_number: string) {
@@ -396,26 +396,30 @@ class ApiClient {
   }
 
   // OTP endpoints
-  async sendEmailOtp() {
+  async sendEmailOtp(email?: string) {
     return this.request<{ otp_id: string; email: string; expires_in: number }>(
       '/api/otp/email/send',
-      { method: 'POST' }
+      { method: 'POST', body: email ? { email } : undefined }
     );
   }
 
-  async sendPhoneOtp() {
+  async sendPhoneOtp(phone_number?: string) {
     return this.request<{ otp_id: string; phone_number: string; expires_in: number }>(
       '/api/otp/phone/send',
-      { method: 'POST' }
+      { method: 'POST', body: phone_number ? { phone_number } : undefined }
     );
   }
 
   async verifyOtp(otp_id: string, code: string) {
     return this.request<{
       type: 'email' | 'phone';
-      is_email_verified: boolean;
-      is_phone_verified: boolean;
-      trust_level: string;
+      registered?: boolean;
+      user?: User;
+      accessToken?: string;
+      refreshToken?: string;
+      is_email_verified?: boolean;
+      is_phone_verified?: boolean;
+      trust_level?: string;
     }>('/api/otp/verify', {
       method: 'POST',
       body: { otp_id, code },
@@ -587,11 +591,14 @@ class ApiClient {
     } as ApiResponse<{ withdrawal_id: string; status: string; message?: string }>;
   }
 
-  async adminGetWithdrawals(options?: { page?: number; limit?: number; status?: string }) {
+  async adminGetWithdrawals(options?: { page?: number; limit?: number; status?: string; search?: string; date_from?: string; date_to?: string }) {
     const params = new URLSearchParams();
     if (options?.page) params.append('page', String(options.page));
     if (options?.limit) params.append('limit', String(options.limit));
     if (options?.status) params.append('status', String(options.status));
+    if (options?.search) params.append('search', options.search);
+    if (options?.date_from) params.append('date_from', options.date_from);
+    if (options?.date_to) params.append('date_to', options.date_to);
     const query = params.toString() ? `?${params.toString()}` : '';
     const raw: any = await this.request<any>(`/api/wallet/admin/withdrawals${query}`);
     if (!raw.success) return raw as ApiResponse<Paginated<WithdrawalRequest>>;
@@ -628,13 +635,48 @@ class ApiClient {
     return { success: true, data: { withdrawal: raw.withdrawal } } as ApiResponse<{ withdrawal: WithdrawalRequest }>;
   }
 
-  async adminMarkWithdrawalPaid(withdrawalId: string, payout_reference?: string) {
+  async adminMarkWithdrawalPaid(withdrawalId: string, payout_reference: string, payout_proof_storage_key?: string) {
     const raw: any = await this.request<any>(`/api/wallet/admin/withdrawals/${withdrawalId}/mark-paid`, {
       method: 'POST',
-      body: { payout_reference },
+      body: { payout_reference, payout_proof_storage_key },
     });
     if (!raw.success) return raw as ApiResponse<{ withdrawal: WithdrawalRequest }>;
     return { success: true, data: { withdrawal: raw.withdrawal } } as ApiResponse<{ withdrawal: WithdrawalRequest }>;
+  }
+
+  async adminGetWithdrawalDetail(withdrawalId: string) {
+    const raw: any = await this.request<any>(`/api/wallet/admin/withdrawals/${withdrawalId}/detail`);
+    if (!raw.success) return raw as ApiResponse<WithdrawalDetail>;
+    return { success: true, data: raw.data } as ApiResponse<WithdrawalDetail>;
+  }
+
+  async adminGetDashboardStats() {
+    const raw: any = await this.request<any>(`/api/wallet/admin/dashboard`);
+    if (!raw.success) return raw as ApiResponse<DashboardStats>;
+    return { success: true, data: raw.data } as ApiResponse<DashboardStats>;
+  }
+
+  async adminGetTransactions(options?: { page?: number; limit?: number; type?: string; reference_type?: string; date_from?: string; date_to?: string }) {
+    const params = new URLSearchParams();
+    if (options?.page) params.append('page', String(options.page));
+    if (options?.limit) params.append('limit', String(options.limit));
+    if (options?.type) params.append('transaction_type', options.type);
+    if (options?.reference_type) params.append('reference_type', options.reference_type);
+    if (options?.date_from) params.append('start_date', options.date_from);
+    if (options?.date_to) params.append('end_date', options.date_to);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    const raw: any = await this.request<any>(`/api/wallet/admin/transactions${query}`);
+    if (!raw.success) return raw as ApiResponse<Paginated<LedgerTransaction>>;
+    return {
+      success: true,
+      data: {
+        data: raw.data || [],
+        total: raw.total || 0,
+        page: raw.page || options?.page || 1,
+        limit: raw.limit || options?.limit || 30,
+        totalPages: raw.totalPages || 1,
+      },
+    } as ApiResponse<Paginated<LedgerTransaction>>;
   }
 
   async adminGetUsers(options?: { q?: string; role?: string; status?: string; reg_type?: string; page?: number; limit?: number }) {
@@ -1292,8 +1334,11 @@ export interface User {
   trust_score: number;
   name?: string;
   avatar?: string;
+  avatar_version?: number;
   is_email_verified: boolean;
   is_phone_verified: boolean;
+  kyc_status?: string | null;
+  bank_account_count?: number;
   completed_jobs_count: number;
   first_job_waiver_used: boolean;
   policy_acceptances?: Record<string, { policy_accepted_at: string; version_policy_accepted: string }>;
@@ -1523,10 +1568,22 @@ export interface WithdrawalRequest {
   currency: string;
   status: string;
   user_email?: string | null;
+  user_phone?: string | null;
   user_role?: string | null;
+  user_display_name?: string | null;
+  user_full_name?: string | null;
+  user_trust_level?: string | null;
+  user_kyc_status?: string | null;
+  user_ban_withdraw?: boolean | null;
   bank_name?: string | null;
+  bank_code?: string | null;
   account_number_last4?: string | null;
   account_name?: string | null;
+  bank_account_verified?: boolean | null;
+  wallet_available_balance?: number | null;
+  wallet_held_balance?: number | null;
+  total_paid_count?: number | null;
+  total_paid_amount?: number | null;
   reviewed_by?: string | null;
   reviewed_at?: string | null;
   approved_by?: string | null;
@@ -1537,8 +1594,75 @@ export interface WithdrawalRequest {
   rejected_at?: string | null;
   rejection_reason?: string | null;
   payout_reference?: string | null;
+  payout_proof_storage_key?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface WithdrawalDetail extends WithdrawalRequest {
+  user_email_verified?: boolean | null;
+  user_phone_verified?: boolean | null;
+  withdrawal_history?: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    created_at: string;
+    paid_at?: string | null;
+  }>;
+}
+
+export interface WalletTypeSummary {
+  count: number;
+  total_available: number;
+  total_held: number;
+}
+
+export interface WithdrawalStatusSummary {
+  count: number;
+  total_amount: number;
+}
+
+export interface MonthlyStats {
+  month: string;
+  topup_count: number;
+  topup_amount: number;
+  fee_count: number;
+  fee_amount: number;
+  payout_count: number;
+  payout_amount: number;
+  reversal_count: number;
+  reversal_amount: number;
+}
+
+export interface DashboardStats {
+  wallets: Record<string, WalletTypeSummary>;
+  withdrawals: Record<string, WithdrawalStatusSummary>;
+  monthly: MonthlyStats[];
+  ledger_integrity: {
+    valid: boolean;
+    ledgerSum: number;
+    walletSum: number;
+    difference: number;
+    credits: number;
+    debits: number;
+  };
+}
+
+export interface LedgerTransaction {
+  id: string;
+  from_wallet_id?: string | null;
+  to_wallet_id?: string | null;
+  amount: number;
+  currency: string;
+  type: string;
+  reference_type: string;
+  reference_id?: string | null;
+  description?: string | null;
+  from_wallet_type?: string | null;
+  from_user_id?: string | null;
+  to_wallet_type?: string | null;
+  to_user_id?: string | null;
+  created_at: string;
 }
 
 export interface AppNotification {

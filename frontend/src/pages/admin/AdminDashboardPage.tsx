@@ -5,7 +5,7 @@ import { Card } from '../../components/ui';
 export default function AdminDashboardPage() {
   const tiles = [
     { title: 'จัดการงาน', desc: 'ค้นหา/ดูสถานะ/ยกเลิกงาน', to: '/admin/jobs' },
-    { title: 'จัดการผู้ใช้', desc: 'ค้นหา/ระงับ/ดู trust level', to: '/admin/users' },
+    { title: 'จัดการผู้ใช้', desc: 'ค้นหา/ระงับ/ดูระดับความน่าเชื่อถือ', to: '/admin/users' },
     { title: 'การเงิน', desc: 'รายการถอนเงิน/ตรวจสอบธุรกรรม', to: '/admin/financial' },
     { title: 'ข้อพิพาท', desc: 'ดูรายการและสถานะการแก้ไข', to: '/admin/disputes' },
     { title: 'รายงาน', desc: 'สรุปภาพรวมและ export', to: '/admin/reports' },

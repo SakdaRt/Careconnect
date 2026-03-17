@@ -49,17 +49,24 @@ Dev mock seed data ถูกแยกออกจาก `server.js` ไปที
 ## 2. Trust Level System
 
 ```
-L0 (Unverified)  ← สมัครสมาชิก
+L0 (เริ่มต้น)  ← สมัครสมาชิก ยังไม่ยืนยันอะไร
     │
-    ▼  ยืนยัน Email OTP หรือ Phone OTP
-L1 (Basic)
+    ▼  ยืนยัน Email AND Phone ทั้งคู่
+L1 (ยืนยันการติดต่อ)
     │
-    ▼  ยืนยัน KYC (บัตรประชาชน + selfie → Admin approve)
-L2 (Verified)
+    ▼  ยืนยัน KYC (บัตรประชาชน/passport + selfie)
+L2 (ยืนยันตัวตน)
     │
     ▼  ยืนยันบัญชีธนาคาร + Trust Score ≥ 80
-L3 (Trusted)
+L3 (มืออาชีพ)
 ```
+
+> Trust level เป็นค่ากลาง (role-neutral) ใช้ได้ทั้ง hirer และ caregiver
+>
+> `caregiver_documents` (ใบรับรอง/ใบประกอบวิชาชีพ) **ไม่ผูกกับ trust level**
+> แต่ใช้เป็นเงื่อนไขแยกสำหรับ caregiver job eligibility:
+> - งาน high_risk ต้องอัปโหลดเอกสารอย่างน้อย 1 รายการ (ตรวจตอน accept job)
+> - hirer สามารถกำหนด required_certifications เพิ่มเติมต่องานได้
 
 ### สิทธิ์ตาม Trust Level
 
@@ -186,7 +193,7 @@ Cancel (Refund):
 
 ## 5. Database Schema (ERD)
 
-> Source: `database/schema.sql` (1228 lines, 34 tables)
+> Source: `database/schema.sql` (1391 lines, 40 tables)
 
 ### 5.1 Users & Profiles
 
@@ -198,7 +205,6 @@ Cancel (Refund):
 │ email VARCHAR(255) UNIQUE (nullable)            │
 │ phone_number VARCHAR(20) UNIQUE (nullable)      │
 │ password_hash VARCHAR(255)                      │
-│ google_id VARCHAR(255) UNIQUE (nullable)        │
 │ account_type VARCHAR(10) ('guest'|'member')     │
 │ role ENUM(hirer, caregiver, admin)              │
 │ status ENUM(active, suspended, deleted)         │
@@ -210,7 +216,7 @@ Cancel (Refund):
 │ completed_jobs_count INT                        │
 │ ban_login, ban_job_create BOOLEAN               │
 │ ban_job_accept, ban_withdraw BOOLEAN            │
-│ ban_reason TEXT                                 │
+│ admin_note TEXT                                 │
 │ created_at, updated_at, last_login_at           │
 │ CHECK: email OR phone_number required           │
 │ CHECK: guest must have email                    │
@@ -230,11 +236,12 @@ Cancel (Refund):
 │ address  │ │ bio      │
 │ district │ │ experience_years     │
 │ province │ │ certifications[]     │
-│ lat, lng │ │ specializations[]    │
-│ total_   │ │ available_from/to    │
-│  jobs_*  │ │ available_days[]     │
-└──────────┘ │ average_rating       │
-             │ total_reviews        │
+│ postal_  │ │ specializations[]    │
+│  code    │ │ available_from/to    │
+│ lat, lng │ │ available_days[]     │
+│ total_   │ │ is_public_profile    │
+│  jobs_*  │ │ average_rating       │
+└──────────┘ │ total_reviews        │
              └─────────────────────┘
 ```
 
@@ -508,24 +515,32 @@ Cancel (Refund):
   - `id UUID PK`
   - `user_id FK → users`, `endpoint` (UNIQUE)
   - `p256dh_key`, `auth_key`, `created_at`, `updated_at`
-- `otp_codes` (OTP verification — persistent, replaces in-memory Map)
+- `otp_codes` (OTP verification — persistent storage)
   - `id UUID PK`
   - `user_id FK → users`, `type` (email|phone), `destination`
   - `code_hash VARCHAR(255)` (SHA-256 hashed)
   - `verified BOOLEAN`, `attempts INT` (brute-force protection, max 5)
   - `sent_at`, `expires_at` (5 min TTL)
+- `early_checkout_requests` (caregiver ขอ checkout ก่อนเวลา → hirer approve/reject)
+  - `id UUID PK`, `job_id`, `job_post_id`, `caregiver_id`, `hirer_id`, `evidence_note`, `status`, `rejected_reason`, `responded_at`
+- `password_reset_tokens` (forgot password flow)
+  - `id UUID PK`, `user_id FK → users`, `token_hash`, `expires_at`, `used_at`
+- `payments` (payment records for UI display)
+  - `id UUID PK`, `payer_user_id`, `payee_user_id`
+  - `job_id`, `amount`, `fee_amount`, `status` (payment_status ENUM), `payment_method`
 - `complaints` (general complaint/report system, ไม่ผูก job)
   - `id UUID PK`, `reporter_id FK → users`
   - `category` (inappropriate_name, scam_fraud, harassment, safety_concern, payment_issue, etc.)
   - `target_user_id FK → users` (nullable), `related_job_post_id FK → job_posts` (nullable)
-  - `subject`, `description`, `status` (open|in_review|resolved|dismissed)
+  - `subject`, `description`, `status` (complaint_status ENUM: open|in_review|resolved|dismissed)
   - `assigned_admin_id`, `admin_note`, `resolved_at`
 - `complaint_attachments`
   - `id UUID PK`, `complaint_id FK → complaints`
   - `file_path`, `file_name`, `file_size`, `mime_type`
-- `payments` (payment records)
-  - `id UUID PK`, `payer_user_id`, `payee_user_id`
-  - `job_id`, `amount`, `fee_amount`, `status`, `payment_method`
+
+> **Note**: `google_id` column บน `users` table อยู่ใน `schema.sql` แล้ว + มี runtime fallback ใน `authController.js` (`ALTER TABLE ADD COLUMN IF NOT EXISTS`)
+>
+> **Note**: `otp_codes` / `early_checkout_requests` มี runtime fallback (`CREATE TABLE IF NOT EXISTS`) ใน `otpService.js` / `jobController.js` ด้วย
 
 ---
 
@@ -721,7 +736,7 @@ Admin                                                                   │
 
 ## 7. API Routes Overview
 
-> Source: `backend/src/routes/` (18 route files), mounted in `server.js`
+> Source: `backend/src/routes/` (17 route files), mounted in `server.js`
 
 ### 7.1 Auth — `/api/auth`
 
@@ -955,7 +970,6 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 /about                         AboutPage
 /faq                           FAQPage
 /contact                       ContactPage
-/showcase                      ComponentShowcase (dev only)
 ```
 
 ### Auth (ไม่ต้อง login)
@@ -971,6 +985,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 /register/member               MemberRegisterPage (phone + password)
 /select-role                   RoleSelectionPage (เลือก hirer/caregiver)
 /register/consent              ConsentPage (ยอมรับ policy)
+/reset-password                ResetPasswordPage
 ```
 
 ### Hirer — RequireAuth + RequireRole(hirer) + RequirePolicy
@@ -996,6 +1011,7 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 /caregiver/jobs/my-jobs        CaregiverMyJobsPage
 /caregiver/jobs/:id/preview    JobPreviewPage
 /caregiver/profile             ProfilePage (caregiver-specific)
+/caregiver/availability        AvailabilityCalendarPage
 /caregiver/wallet              CaregiverWalletPage
 /caregiver/wallet/earning/:jobId JobEarningDetailPage
 /caregiver/wallet/history      EarningsHistoryPage
@@ -1005,11 +1021,12 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 
 ```
 /jobs/:id                      JobDetailPage
-/jobs/:id/cancel               CancelJobPage
+/jobs/:id/cancel               CancelJobRedirect (redirect → /jobs/:id)
 /chat/:jobId                   ChatRoomPage
 /dispute/:disputeId            DisputeChatPage
 /notifications                 NotificationsPage
 /profile                       ProfilePage
+/complaint                     ComplaintFormPage
 /settings                      SettingsPage
 /kyc                           KycPage
 /wallet/bank-accounts          BankAccountsPage (+RequireRole hirer|caregiver)
@@ -1057,15 +1074,14 @@ DATABASE_PASSWORD=careconnect_dev_password
 
 # Auth
 JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
+JWT_EXPIRES_IN=7d
+JWT_REFRESH_EXPIRES_IN=30d
 
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
-BACKEND_URL=http://localhost:3000
 
 # Providers (Stripe sandbox in dev)
 MOCK_PROVIDER_BASE_URL=http://mock-provider:4000
@@ -1155,7 +1171,7 @@ MOCK_KYC_AUTO_APPROVE=true
 | **One active assignment per job**            | UNIQUE constraint ระดับ DB ป้องกัน race condition                      |
 | **No negative balance**                      | CHECK constraint ระดับ DB ป้องกัน overdraft                            |
 | **5 wallet types**                           | hirer, caregiver, escrow (per job), platform, platform_replacement     |
-| **JWT + Refresh token**                      | stateless auth, access 15m, refresh 7d                                 |
+| **JWT + Refresh token**                      | stateless auth, access 7d, refresh 30d                                 |
 | **Display name ≠ email/phone**               | privacy — ไม่เปิดเผย PII ให้ user อื่น                                 |
 | **Risk-based job classification**            | high_risk ต้อง L2+, low_risk ต้อง L1+                                  |
 | **Thread-based chat**                        | 1 thread per job, thread-centric (ไม่ใช่ job-centric)                  |
@@ -1360,13 +1376,15 @@ HIRER_TRUST_RESTRICTION, INSUFFICIENT_BALANCE
 
 ```
 L0: default (no verification)
-L1: phone_verified = true
+L1: phone_verified OR email_verified
 L2: phone_verified + KYC approved
 L3: phone_verified + KYC approved + bank_verified + score ≥ 80
     (hysteresis: ลงจาก L3 เมื่อ score < 75)
 ```
 
-Note: `email_verified` alone ไม่เพียงพอสำหรับ L1 — ต้อง phone_verified
+Note: L1 ต้องการ `phoneVerified || emailVerified` — L2+ ต้อง `phoneVerified` ร่วมด้วยเสมอ
+
+Note: `RESPONSE_TIME_BONUS` (+5) ถูกประกาศใน SCORE_WEIGHTS แต่ยังไม่ถูก implement จริง (always = 0)
 
 ### Triggers
 
@@ -1386,10 +1404,15 @@ Note: `email_verified` alone ไม่เพียงพอสำหรับ L1
 ```
 high_risk IF:
   - job_type ∈ {emergency, post_surgery, dementia_care, medical_monitoring}
-  - OR patient has: feeding_tube, tracheostomy, urinary_catheter, oxygen
-  - OR patient mobility: bedbound
-  - OR patient cognitive: severe_dementia
-  - OR tasks include: tube_feeding, catheter_care, oxygen_monitoring, wound_dressing
+  - OR patient devices: ventilator, tracheostomy, oxygen, feeding_tube
+  - OR patient symptoms: shortness_of_breath, chest_pain, seizure,
+      altered_consciousness, uncontrolled_bleeding, high_fever
+  - OR patient needs: tube_feeding, medication_administration
+  - OR patient behavior: aggression
+  - OR patient cognitive: delirium
+  - OR patient behavior: wandering + (fall_risk | dementia | delirium)
+  - OR tasks include: tube_feeding, medication_administration,
+      wound_dressing, catheter_care, oxygen_monitoring, dementia_supervision
 
 low_risk: everything else
 ```
@@ -1419,7 +1442,7 @@ companionship, personal_care, medical_monitoring,
 dementia_care, post_surgery, emergency
 ```
 
-### Task Options (22 types)
+### Task Options (23 types)
 
 ```
 companionship, hospital_companion, hospital_registration_support,

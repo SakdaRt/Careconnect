@@ -18,40 +18,44 @@ describe('E2E Smoke Integration Tests', () => {
     const email = uniqueEmail('e2e-auth');
     const password = 'TestPassword123!';
 
+    // Step 1: Register (sends OTP, returns otp_id)
     const registerResponse = await request(app)
       .post('/api/auth/register/guest')
-      .send({
-        email,
-        password,
-        role: 'caregiver',
-      })
-      .expect(201);
+      .send({ email, password, role: 'caregiver' })
+      .expect(200);
 
     expect(registerResponse.body).toHaveProperty('success', true);
-    expect(registerResponse.body.data.user.email).toBe(email);
+    expect(registerResponse.body.data).toHaveProperty('otp_id');
 
+    // Step 2: Verify OTP (creates user, returns tokens)
+    const verifyResponse = await request(app)
+      .post('/api/otp/verify')
+      .send({ otp_id: registerResponse.body.data.otp_id, code: registerResponse.body.data._dev_code })
+      .expect(200);
+
+    expect(verifyResponse.body).toHaveProperty('success', true);
+    expect(verifyResponse.body.data).toHaveProperty('registered', true);
+    expect(verifyResponse.body.data.user.email).toBe(email);
+
+    // Step 3: Login with created account
     const loginResponse = await request(app)
       .post('/api/auth/login/email')
-      .send({
-        email,
-        password,
-      })
+      .send({ email, password })
       .expect(200);
 
     expect(loginResponse.body).toHaveProperty('success', true);
     expect(loginResponse.body.data).toHaveProperty('accessToken');
-    expect(loginResponse.body.data).toHaveProperty('refreshToken');
 
+    // Step 4: Refresh token
     const refreshResponse = await request(app)
       .post('/api/auth/refresh')
-      .send({
-        refreshToken: loginResponse.body.data.refreshToken,
-      })
+      .send({ refreshToken: loginResponse.body.data.refreshToken })
       .expect(200);
 
     expect(refreshResponse.body).toHaveProperty('success', true);
     expect(refreshResponse.body.data).toHaveProperty('accessToken');
 
+    // Step 5: Access /me
     const meResponse = await request(app)
       .get('/api/auth/me')
       .set('Authorization', `Bearer ${refreshResponse.body.data.accessToken}`)

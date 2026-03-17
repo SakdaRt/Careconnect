@@ -3,13 +3,14 @@ import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom
 import toast from 'react-hot-toast';
 import { Car, Heart, Brain, BedDouble, Activity, Stethoscope, User as UserIcon, PlusCircle, Check, Search, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
+import { Avatar, Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { useAuth } from '../../contexts';
 import { cn } from '../../utils/cn';
 import { computeRiskLevel } from '../../utils/risk';
+import { getTrustLevelConfig, getTrustLevelLabel } from '../../utils/trustLevel';
 
 type JobType =
   | 'companionship'
@@ -664,7 +665,7 @@ export default function CreateJobPage() {
     postal_code: '',
     lat: undefined as number | undefined,
     lng: undefined as number | undefined,
-    hourly_rate: 350,
+    hourly_rate: 150,
     total_hours: 8,
     is_urgent: false,
     job_tasks_flags: [...initialTemplate.defaultTasks] as string[],
@@ -992,13 +993,6 @@ export default function CreateJobPage() {
     return { schedule, scheduleLabel, time, timeLabel, confidence, confidenceLabel };
   }, [form.scheduled_start_at]);
 
-  const getInitials = (name?: string) => {
-    if (!name) return '?';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name[0]?.toUpperCase() || '?';
-  };
-
   const computeReliability = (cg: any): string[] => {
     const tags: string[] = [];
     const rating = Number(cg.avg_rating) || 0;
@@ -1010,8 +1004,8 @@ export default function CreateJobPage() {
     else if (rating >= 4.0 && reviews >= 2) tags.push('คะแนนรีวิวดี');
     if (jobs >= 20) tags.push('มีประสบการณ์สูง');
     else if (jobs >= 5) tags.push('มีผลงานแล้ว');
-    if (trust === 'L3') tags.push('ผู้ใช้ไว้วางใจสูง');
-    else if (trust === 'L2') tags.push('ยืนยันตัวตนแล้ว');
+    if (trust === 'L3') tags.push('มืออาชีพ');
+    else if (trust === 'L2') tags.push('ยืนยันตัวตน');
     if (exp >= 5) tags.push(`ประสบการณ์ ${exp} ปี`);
     return tags.slice(0, 3);
   };
@@ -1149,7 +1143,7 @@ export default function CreateJobPage() {
     }
 
     if (!form.address_line1.trim()) {
-      setStepError({ section: 'job_location', message: 'กรุณากรอกที่อยู่', fields: { address_line1: 'กรุณากรอกที่อยู่' } });
+      setStepError({ section: 'job_location', message: 'กรุณากรอกสถานที่ทำงาน', fields: { address_line1: 'กรุณากรอกสถานที่ทำงาน' } });
       return false;
     }
 
@@ -1338,7 +1332,7 @@ export default function CreateJobPage() {
     }
     if (!form.title.trim()) throw new Error('กรุณากรอกชื่องาน');
     if (!form.description.trim()) throw new Error('กรุณากรอกรายละเอียดงาน');
-    if (!form.address_line1.trim()) throw new Error('กรุณากรอกที่อยู่');
+    if (!form.address_line1.trim()) throw new Error('กรุณากรอกสถานที่ทำงาน');
     if (!form.job_tasks_flags.length) throw new Error('กรุณาเลือกงานที่ต้องทำอย่างน้อย 1 อย่าง');
     if (!careRecipientId) throw new Error('กรุณาเลือกผู้รับการดูแล');
 
@@ -1445,7 +1439,7 @@ export default function CreateJobPage() {
           const map: Record<string, string> = {
             title: 'กรุณากรอกชื่องาน',
             description: 'กรุณากรอกรายละเอียดงาน',
-            address_line1: 'กรุณากรอกที่อยู่',
+            address_line1: 'กรุณากรอกสถานที่ทำงาน',
             scheduled_start_at: 'กรุณาเลือกวันและเวลาเริ่มงาน',
             scheduled_end_at: 'กรุณาเลือกวันและเวลาสิ้นสุด',
             patient_profile_id: 'กรุณาเลือกผู้รับการดูแล',
@@ -1533,7 +1527,7 @@ export default function CreateJobPage() {
         setFieldErrors({ scheduled_start_at: msg, scheduled_end_at: msg });
       } else if (msg.includes('ชื่องาน') || msg.includes('รายละเอียดงาน')) {
         routeToSection('job_basic');
-      } else if (msg.includes('ที่อยู่') || msg.includes('Google Maps')) {
+      } else if (msg.includes('สถานที่ทำงาน') || msg.includes('Google Maps')) {
         routeToSection('job_location');
         setFieldErrors({ address_line1: msg });
       } else if (msg.includes('ผู้รับการดูแล')) {
@@ -1813,7 +1807,7 @@ export default function CreateJobPage() {
             </Card>
 
             <div id="section-job_location" className={cn(errorSection === 'job_location' ? 'border border-red-400 bg-red-50 rounded-lg p-3' : undefined, 'space-y-3')}>
-              <GooglePlacesInput label="ที่อยู่" value={form.address_line1} placeholder="ค้นหาที่อยู่ด้วย Google Maps" disabled={loading} error={fieldErrors.address_line1} showMap lat={form.lat} lng={form.lng} onChange={(next) => { const nextLat = typeof next.lat === 'number' ? next.lat : undefined; const nextLng = typeof next.lng === 'number' ? next.lng : undefined; setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, address_line1: '' })); setForm((prev) => ({ ...prev, address_line1: next.address_line1 || '', district: next.district || prev.district, province: next.province || prev.province, postal_code: next.postal_code || prev.postal_code, lat: nextLat, lng: nextLng })); }} />
+              <GooglePlacesInput label="สถานที่ทำงาน" value={form.address_line1} placeholder="ค้นหาสถานที่ทำงานด้วย Google Maps" disabled={loading} error={fieldErrors.address_line1} showMap lat={form.lat} lng={form.lng} onChange={(next) => { const nextLat = typeof next.lat === 'number' ? next.lat : undefined; const nextLng = typeof next.lng === 'number' ? next.lng : undefined; setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, address_line1: '' })); setForm((prev) => ({ ...prev, address_line1: next.address_line1 || '', district: next.district || prev.district, province: next.province || prev.province, postal_code: next.postal_code || prev.postal_code, lat: nextLat, lng: nextLng })); }} />
               <Input label="รายละเอียดเพิ่มเติม" value={form.address_line2} onChange={(e) => setForm((prev) => ({ ...prev, address_line2: e.target.value }))} placeholder="เช่น หมู่บ้าน ชั้น ห้อง" />
             </div>
 
@@ -1944,7 +1938,7 @@ export default function CreateJobPage() {
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-blue-900">ผู้ดูแลที่เลือก: {preferredCaregiverNameParam || 'ผู้ดูแล'}</div>
-                    {preferredCaregiverTrustLevelParam && <div className="text-xs text-blue-700">Trust Level: {preferredCaregiverTrustLevelParam}</div>}
+                    {preferredCaregiverTrustLevelParam && <div className="text-xs text-blue-700">ระดับ: {getTrustLevelLabel(preferredCaregiverTrustLevelParam)}</div>}
                   </div>
                   <Check className="w-5 h-5 text-blue-600 ml-auto" aria-hidden="true" />
                 </div>
@@ -1987,9 +1981,6 @@ export default function CreateJobPage() {
                         const requiredSkills = new Set(form.required_skills_flags);
                         const matchedSkills = [...specs, ...certs].filter((s: string) => requiredSkills.has(s));
                         const feas = computeFeasibility(cg);
-                        const avatarUrl = cg.avatar ? `/uploads/${cg.avatar}` : null;
-                        const initials = getInitials(cg.display_name);
-
                         return (
                           <div key={cg.id} className={cn('border-2 rounded-xl transition-all', isSelected ? 'border-blue-500 bg-blue-50' : isBestMatch ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200')}>
                             {isBestMatch && !isSelected && (
@@ -1997,17 +1988,17 @@ export default function CreateJobPage() {
                             )}
                             <button type="button" onClick={() => setSelectedCaregiverId(isSelected ? '' : cg.id)} className="w-full p-3 text-left focus:outline-none">
                               <div className="flex items-start gap-3">
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5" />
-                                ) : (
-                                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-sm font-bold', isSelected ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-600')}>
-                                    {initials}
-                                  </div>
-                                )}
+                                <Avatar
+                                  userId={cg.id}
+                                  avatarVersion={cg.avatar_version}
+                                  src={!cg.avatar_version && cg.avatar ? `/uploads/${cg.avatar}` : undefined}
+                                  name={cg.display_name || 'ผู้ดูแล'}
+                                  size="md"
+                                />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-semibold text-gray-900 line-clamp-1">{cg.display_name || 'ผู้ดูแล'}</span>
-                                    <Badge variant="default">{cg.trust_level}</Badge>
+                                    <Badge variant={getTrustLevelConfig(cg.trust_level).badgeVariant}>{getTrustLevelLabel(cg.trust_level)}</Badge>
                                   </div>
                                   <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-600">
                                     {rating > 0 && (
@@ -2082,7 +2073,7 @@ export default function CreateJobPage() {
                 <div>
                   <div className="text-lg font-bold text-gray-900">{previewData.display_name || 'ผู้ดูแล'}</div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <Badge variant="default">{previewData.trust_level || 'L0'}</Badge>
+                    <Badge variant={getTrustLevelConfig(previewData.trust_level).badgeVariant}>{getTrustLevelLabel(previewData.trust_level)}</Badge>
                     {Number(previewData.avg_rating) > 0 && (
                       <span className="flex items-center gap-0.5 text-sm text-amber-600">
                         <Star className="w-4 h-4 fill-amber-400 text-amber-400" aria-hidden="true" />
@@ -2198,7 +2189,7 @@ export default function CreateJobPage() {
               </div>
               <div className="text-sm text-gray-800 mt-1">ชื่องาน: {form.title || '-'}</div>
               <div className="text-sm text-gray-800 mt-1">วันเวลา: {form.scheduled_start_at ? new Date(form.scheduled_start_at).toLocaleString('th-TH') : '-'} — {form.scheduled_end_at ? new Date(form.scheduled_end_at).toLocaleString('th-TH') : '-'}</div>
-              <div className="text-sm text-gray-800 mt-1">ที่อยู่: {form.address_line1 || '-'}</div>
+              <div className="text-sm text-gray-800 mt-1">สถานที่ทำงาน: {form.address_line1 || '-'}</div>
               <div className="text-sm text-gray-800 mt-1">งาน: {form.job_tasks_flags.length} รายการ</div>
               <div className="flex flex-wrap gap-1 mt-1">{labelByValue(JOB_TASK_OPTIONS, form.job_tasks_flags).map((l) => <Badge key={l} variant="info">{l}</Badge>)}</div>
             </Card>

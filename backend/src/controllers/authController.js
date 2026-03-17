@@ -6,7 +6,9 @@ import {
   refreshAccessToken,
   generateAccessToken,
   generateRefreshToken,
+  hashPassword,
 } from '../services/authService.js';
+import otpService from '../services/otpService.js';
 import { acceptPolicy, getPolicyAcceptances } from '../services/policyService.js';
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
@@ -15,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { processAvatarUpload } from '../services/imageService.js';
 
 const GENERATED_DISPLAY_NAME_PATTERN = /^ผู้(?:ว่าจ้าง|ดูแล)\s+[A-Z0-9]{4}$/u;
 const DISPLAY_NAME_PATTERN = /^(\S+)\s+(\S)\.?$/u;
@@ -126,20 +129,7 @@ const parseCookieHeader = (cookieHeader = '') => cookieHeader
     return acc;
   }, {});
 
-const normalizePhoneNumber = (value) => {
-  if (!value) return null;
-  const digits = String(value).replace(/\D/g, '');
-  let national = '';
-  if (digits.startsWith('66')) {
-    national = digits.slice(2);
-  } else if (digits.startsWith('0')) {
-    national = digits.slice(1);
-  } else {
-    return null;
-  }
-  if (national.length !== 9) return null;
-  return `+66${national}`;
-};
+import { normalizePhone as normalizePhoneNumber } from '../utils/phone.js';
 
 export const updateAvatar = async (req, res) => {
   const uploadedFilePath = req.file?.path;
@@ -150,68 +140,50 @@ export const updateAvatar = async (req, res) => {
     const file = req.file;
     if (!file) {
       return res.status(400).json({
-        error: 'Validation error',
-        message: 'กรุณาอัปโหลดรูปโปรไฟล์',
+        success: false,
+        error: 'กรุณาอัปโหลดรูปโปรไฟล์',
       });
     }
-
-    const uploadDir = path.resolve(process.env.UPLOAD_DIR || '/app/uploads');
-    const relativePath = path
-      .relative(uploadDir, file.path)
-      .replace(/\\/g, '/');
 
     const existingUser = await User.findById(req.userId);
     if (!existingUser) {
       if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
         fs.unlinkSync(uploadedFilePath);
       }
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
-      });
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    const previousAvatar = typeof existingUser.avatar === 'string' ? existingUser.avatar : null;
+    await processAvatarUpload(file.path, req.userId);
 
-    const updatedUser = await User.updateById(req.userId, {
-      avatar: relativePath,
-      updated_at: new Date(),
-    });
+    const result = await query(
+      `UPDATE users
+       SET avatar_version = COALESCE(avatar_version, 0) + 1, updated_at = NOW()
+       WHERE id = $1
+       RETURNING avatar_version`,
+      [req.userId]
+    );
 
-    if (!updatedUser) {
-      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
-        fs.unlinkSync(uploadedFilePath);
-      }
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
-      });
-    }
-
-    if (previousAvatar && previousAvatar !== relativePath) {
-      const previousAvatarPath = path.join(uploadDir, previousAvatar);
-      if (fs.existsSync(previousAvatarPath)) {
-        fs.unlinkSync(previousAvatarPath);
-      }
-    }
+    const avatarVersion = result.rows[0]?.avatar_version || 1;
 
     return res.status(200).json({
       success: true,
       data: {
-        avatar: relativePath,
+        avatar_version: avatarVersion,
       },
     });
   } catch (error) {
     if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
-      fs.unlinkSync(uploadedFilePath);
+      try { fs.unlinkSync(uploadedFilePath); } catch (_) { /* ignore */ }
+    }
+
+    if (error.status) {
+      return res.status(error.status).json({ success: false, error: error.message });
     }
 
     console.error('[Auth Controller] Update avatar error:', error);
-    const detail = error instanceof Error ? error.message : 'Failed to update avatar';
-
     return res.status(500).json({
-      error: 'Server error',
-      message: process.env.NODE_ENV === 'production' ? 'Failed to update avatar' : detail,
+      success: false,
+      error: 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ',
     });
   }
 };
@@ -315,7 +287,22 @@ const buildSafeUserResponse = async (userId) => {
       ? String(profile.display_name)
       : (profile?.full_name ? String(profile.full_name) : rest.name || null);
     delete rest.password_hash;
-    return { ...rest, name };
+
+    // Fetch KYC status independently (so frontend doesn't infer from trust_level)
+    const kycRes = await query(
+      `SELECT status FROM user_kyc_info WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1`,
+      [userId]
+    );
+    const kyc_status = kycRes.rows[0]?.status || null;
+
+    // Fetch bank account count
+    const bankRes = await query(
+      `SELECT COUNT(*)::int AS count FROM bank_accounts WHERE user_id = $1 AND is_verified = true`,
+      [userId]
+    );
+    const bank_account_count = bankRes.rows[0]?.count || 0;
+
+    return { ...rest, name, kyc_status, bank_account_count };
   } catch (err) {
     console.error('[buildSafeUserResponse] Error:', err.message, err.stack);
     return null;
@@ -497,61 +484,54 @@ export const googleCallback = async (req, res) => {
 };
 
 /**
- * Register guest user (email + password)
- * POST /api/auth/register/guest
+ * Start registration — validate + send OTP (does NOT create user yet)
+ * POST /api/auth/register/guest  — email + password + role → sends email OTP
+ * POST /api/auth/register/member — phone + password + role → sends phone OTP
+ * User is created ONLY after OTP verification succeeds.
  */
 export const registerGuest = async (req, res) => {
   try {
     const { email, password, role } = req.body;
 
-    // Validate required fields
     if (!email || !password || !role) {
       return res.status(400).json({
         error: 'Validation error',
         message: 'Email, password, and role are required',
-        fields: {
-          email: email ? undefined : 'Email is required',
-          password: password ? undefined : 'Password is required',
-          role: role ? undefined : 'Role is required',
-        },
       });
     }
 
-    // Register user
-    const result = await registerGuestService({ email, password, role });
+    if (!['hirer', 'caregiver'].includes(role)) {
+      return res.status(400).json({ error: 'Validation error', message: 'Role must be hirer or caregiver' });
+    }
 
-    const policyAcceptances = await getPolicyAcceptances(result.user.id);
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existingUser = await User.findByEmail(normalizedEmail);
+    if (existingUser) {
+      return res.status(409).json({ error: 'Conflict', message: 'อีเมลนี้ถูกใช้งานแล้ว' });
+    }
 
-    res.status(201).json({
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Validation error', message: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
+    }
+
+    const password_hash = await hashPassword(password);
+
+    const result = await otpService.sendRegistrationOtp('email', normalizedEmail, {
+      email: normalizedEmail,
+      phone: null,
+      password_hash,
+      account_type: 'guest',
+      role,
+    });
+
+    res.status(200).json({
       success: true,
-      message: 'Guest user registered successfully',
-      data: {
-        user: { ...result.user, policy_acceptances: policyAcceptances },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      },
+      message: 'ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี',
+      data: { otp_id: result.otp_id, expires_in: result.expires_in, ...(result._dev_code ? { _dev_code: result._dev_code } : {}) },
     });
   } catch (error) {
     console.error('[Auth Controller] Register guest error:', error);
-
-    if (error.message.includes('already registered')) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Invalid') || error.message.includes('must')) {
-      return res.status(400).json({
-        error: 'Validation error',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to register user',
-    });
+    res.status(500).json({ error: 'Server error', message: 'สมัครสมาชิกไม่สำเร็จ' });
   }
 };
 
@@ -561,56 +541,47 @@ export const registerGuest = async (req, res) => {
  */
 export const registerMember = async (req, res) => {
   try {
-    const { phone_number, password, role, email } = req.body;
+    const { phone_number, password, role } = req.body;
 
-    // Validate required fields
     if (!phone_number || !password || !role) {
       return res.status(400).json({
         error: 'Validation error',
         message: 'Phone number, password, and role are required',
-        fields: {
-          phone_number: phone_number ? undefined : 'Phone number is required',
-          password: password ? undefined : 'Password is required',
-          role: role ? undefined : 'Role is required',
-        },
       });
     }
 
-    // Register user
-    const result = await registerMemberService({ phone_number, password, role, email });
+    if (!['hirer', 'caregiver'].includes(role)) {
+      return res.status(400).json({ error: 'Validation error', message: 'Role must be hirer or caregiver' });
+    }
 
-    const policyAcceptances = await getPolicyAcceptances(result.user.id);
+    // phone_number is already normalized by Joi phoneSchema in route
+    const existing = await User.findByPhoneNumber(phone_number);
+    if (existing) {
+      return res.status(409).json({ error: 'Conflict', message: 'เบอร์โทรนี้ถูกใช้งานแล้ว' });
+    }
 
-    res.status(201).json({
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Validation error', message: 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร' });
+    }
+
+    const password_hash = await hashPassword(password);
+
+    const result = await otpService.sendRegistrationOtp('phone', phone_number, {
+      email: null,
+      phone: phone_number,
+      password_hash,
+      account_type: 'member',
+      role,
+    });
+
+    res.status(200).json({
       success: true,
-      message: 'Member user registered successfully',
-      data: {
-        user: { ...result.user, policy_acceptances: policyAcceptances },
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-      },
+      message: 'ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยันเพื่อสร้างบัญชี',
+      data: { otp_id: result.otp_id, expires_in: result.expires_in, ...(result._dev_code ? { _dev_code: result._dev_code } : {}) },
     });
   } catch (error) {
     console.error('[Auth Controller] Register member error:', error);
-
-    if (error.message.includes('already registered')) {
-      return res.status(409).json({
-        error: 'Conflict',
-        message: error.message,
-      });
-    }
-
-    if (error.message.includes('Invalid') || error.message.includes('must')) {
-      return res.status(400).json({
-        error: 'Validation error',
-        message: error.message,
-      });
-    }
-
-    res.status(500).json({
-      error: 'Server error',
-      message: 'Failed to register user',
-    });
+    res.status(500).json({ error: 'Server error', message: 'สมัครสมาชิกไม่สำเร็จ' });
   }
 };
 

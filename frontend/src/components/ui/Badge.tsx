@@ -1,6 +1,7 @@
 import { HTMLAttributes } from 'react';
 import { cn } from '../../utils/cn';
 import { JobStatus, TrustLevel } from '../../mocks';
+import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
@@ -67,14 +68,6 @@ export interface TrustLevelBadgeProps {
 }
 
 export function TrustLevelBadge({ level }: TrustLevelBadgeProps) {
-  const levelConfig: Record<TrustLevel, { label: string; variant: BadgeProps['variant'] }> = {
-    L0: { label: 'L0 - ยังไม่ยืนยัน', variant: 'default' },
-    L1: { label: 'L1 - พื้นฐาน', variant: 'info' },
-    L2: { label: 'L2 - ยืนยันแล้ว', variant: 'success' },
-    L3: { label: 'L3 - เชื่อถือได้', variant: 'success' },
-  };
-
-  const config = levelConfig[level];
-
-  return <Badge variant={config.variant}>{config.label}</Badge>;
+  const config = getTrustLevelConfig(level);
+  return <Badge variant={config.badgeVariant}>{config.label}</Badge>;
 }

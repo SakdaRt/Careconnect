@@ -47,11 +47,16 @@ export default function LoginEmailPage() {
       toast.success('เข้าสู่ระบบสำเร็จ');
 
       const state = location.state as { from?: string } | null;
-      const destination = user.role === 'admin' ? '/admin/dashboard' : '/select-role';
+      const hasPolicy = !!user.policy_acceptances?.[user.role];
+      const destination = user.role === 'admin'
+        ? '/admin/dashboard'
+        : hasPolicy
+          ? (state?.from || (user.role === 'caregiver' ? '/caregiver/jobs/feed' : '/hirer/home'))
+          : '/select-role';
       setTimeout(() => {
         navigate(destination, {
           replace: true,
-          state: user.role === 'admin' ? undefined : { mode: 'login', from: state?.from },
+          state: destination === '/select-role' ? { mode: 'login', from: state?.from } : undefined,
         });
       }, 500);
     } catch (error: any) {

@@ -32,25 +32,12 @@ import Joi from 'joi';
 
 const router = express.Router();
 
-const normalizePhoneNumber = (value) => {
-  if (!value) return null;
-  const digits = String(value).replace(/\D/g, '');
-  let national = '';
-  if (digits.startsWith('66')) {
-    national = digits.slice(2);
-  } else if (digits.startsWith('0')) {
-    national = digits.slice(1);
-  } else {
-    return null;
-  }
-  if (national.length !== 9) return null;
-  return `+66${national}`;
-};
+import { normalizePhone } from '../utils/phone.js';
 
 const phoneSchema = Joi.string()
   .required()
   .custom((value, helpers) => {
-    const normalized = normalizePhoneNumber(value);
+    const normalized = normalizePhone(value);
     if (!normalized) {
       return helpers.error('string.pattern.base', { value });
     }
@@ -133,7 +120,7 @@ const avatarStorage = multer.diskStorage({
 
 const avatarUpload = multer({
   storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (allowed.includes(file.mimetype)) {

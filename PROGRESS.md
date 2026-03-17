@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-14
+> อัพเดทล่าสุด: 2026-03-17
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -40,7 +40,7 @@ careconnect/
 │   │   └── migrations/
 │   └── tests/           Jest integration + unit (13 test files)
 ├── database/
-│   └── schema.sql             master schema (25+ tables, 1111 lines)
+│   └── schema.sql             master schema (40 tables, 1391 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
@@ -92,7 +92,7 @@ careconnect/
 
 ### Notifications
 
-- [x] Real-time notification count ใน TopBar (polling 30s)
+- [x] Real-time notification count ใน TopBar (polling 15s)
 - [x] NotificationsPage — อ่าน/mark as read
 - [x] Trigger: job accepted, check-in, check-out
 
@@ -154,9 +154,9 @@ careconnect/
 | ไฟล์                                      | หน้าที่                                         |
 | ----------------------------------------- | ----------------------------------------------- |
 | `frontend/src/router.tsx`                 | Route definitions + guards                      |
-| `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequireProfile        |
+| `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequirePolicy, RequireProfile, RequireAdmin |
 | `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
-| `frontend/src/services/api.ts`            | Axios instance + API methods                    |
+| `frontend/src/services/api.ts`            | fetch-based ApiClient + API methods             |
 | `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
 | `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
 | `frontend/src/layouts/MainLayout.tsx`     | Layout หลัก (TopBar + BottomBar)                |
@@ -165,17 +165,184 @@ careconnect/
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
 | `backend/src/models/Notification.js`      | Notification model                              |
-| `database/schema.sql`                     | Master DB schema (25+ tables)                   |
+| `database/schema.sql`                     | Master DB schema (40 tables)                    |
 | `backend/database/migrations/`            | Migration files                                 |
 | `backend/src/workers/trustLevelWorker.js` | Trust score calculation + level determination   |
 | `backend/src/utils/risk.js`               | Risk level auto-compute                         |
 | `backend/src/utils/errors.js`             | Custom error classes (7 types) + error handler  |
 | `backend/src/sockets/chatSocket.js`       | Socket.IO chat events (12 events)               |
 | `backend/src/sockets/realtimeHub.js`      | Realtime push to user rooms                     |
+| `backend/src/services/imageService.js`    | Image processing (avatar crop/resize)           |
+| `backend/src/services/walletService.js`   | Wallet business logic (topup/withdraw/admin)    |
+| `frontend/src/components/ui/AvatarUpload.tsx` | Avatar upload + crop component              |
+| `frontend/src/utils/trustLevel.ts`        | Trust level labels, config, checklist utility    |
 
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-17 — Multi-feature: avatar upload/crop, wallet expansion, admin financial, auth kyc_status
+
+- feat(frontend): Avatar upload/crop system
+  - `AvatarUpload.tsx` — component สำหรับเลือก + crop รูปโปรไฟล์
+  - `CropModal.tsx` — modal crop รูปก่อนอัปโหลด
+  - `avatar.ts` — utility functions สำหรับ avatar handling
+  - `Avatar.tsx` — อัพเดทให้รองรับ avatar version (cache busting)
+- feat(backend): `imageService.js` — image processing service สำหรับ avatar
+- feat(database): migration `20260316_01_avatar_version.sql` — เพิ่ม avatar versioning
+- feat(backend): Wallet expansion — walletService/controller/routes
+  - เพิ่ม admin wallet operations, topup/withdraw improvements
+  - เพิ่ม wallet routes (20 lines)
+- feat(frontend): `AdminFinancialPage.tsx` — major update with financial reporting
+- feat(backend): `authController.js` — เพิ่ม `kyc_status` + `bank_account_count` ใน `buildSafeUserResponse`
+  - แก้ปัญหา frontend ต้อง infer KYC/bank status จาก trust_level → ใช้ค่าจริงจาก DB แทน
+- feat(frontend): `api.ts` — เพิ่ม `kyc_status`, `bank_account_count` ใน User interface + API methods ใหม่
+- refactor(frontend): `ProfilePage.tsx` — ปรับปรุง UI
+- fix(frontend): `CreateJobPage.tsx`, `SearchCaregiversPage.tsx` — UI fixes
+- feat(frontend): `AdminUsersPage.tsx` — เพิ่ม role filter (hirer/caregiver/admin) + document management section
+- docs: `ADMIN_FINANCIAL_REQUIREMENTS.md`, `PROFILE_IMAGE_SYSTEM.md`
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS
+
+### 2026-03-15 — Refactor phone system: canonical 0xxxxxxxxx + shared utils + DB backfill
+
+- refactor(backend): สร้าง `backend/src/utils/phone.js` — canonical phone utilities
+  - `normalizePhone()`: ทุก format → `0xxxxxxxxx` (Thai mobile canonical)
+  - `toE164()`: `0xxxxxxxxx` → `+66xxxxxxxxx` (เฉพาะ SMSOK provider layer)
+  - `isValidThaiPhone()`: validation helper
+- refactor(frontend): สร้าง `frontend/src/utils/phone.ts` — matching utilities
+  - `normalizePhone()`, `formatPhoneDisplay()`, `isValidThaiPhone()`
+- refactor(backend): `authRoutes.js` — ใช้ shared `normalizePhone` แทน local function
+  - Joi phoneSchema normalize เป็น `0xxxxxxxxx` ก่อน save/lookup
+- refactor(backend): `otpService.js` — normalize ก่อน store, toE164 เฉพาะตอนส่ง SMSOK
+  - Log ทั้ง canonical + provider format สำหรับ debugging
+- refactor(frontend): ปรับ UI ทุกจุดที่เกี่ยวกับเบอร์โทร
+  - `PhoneInput` placeholder: `+66 8X XXXX XXXX` → `08x-xxx-xxxx`
+  - `LoginPhonePage`: ใช้ `normalizePhone` แทน ad-hoc formatting
+  - `MemberRegisterPage`: validation + placeholder เป็นเบอร์ไทย
+- DB backfill: normalize เบอร์เก่า `+66958503881` → `0958503881` (2 records)
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
+### 2026-03-15 — CRITICAL FIX: test cleanup ลบ real user accounts (Google OAuth users ถูกสร้างใหม่)
+
+- debug: Google login สร้างบัญชีใหม่แทนที่จะ login เข้าบัญชีเดิม
+  - **Root cause**: test cleanup ลบ user `dae64718` (sswk07939@gmail.com) จาก DB
+  - Cleanup query ใช้ `NOT IN @careconnect.local` → ลบทุก account ที่ไม่ใช่ seed
+  - Google OAuth callback ไม่เจอ user เดิม → สร้างใหม่ (`d30909ab`) → KYC, trust, profile หาย
+- fix(test): **เปลี่ยน cleanup strategy จาก whitelist เป็น blacklist**
+  - ก่อน: `DELETE WHERE email NOT LIKE '%@careconnect.local'` (ลบทุกอย่างยกเว้น seed)
+  - หลัง: `DELETE WHERE email LIKE '%@example.com'` (ลบเฉพาะ test accounts)
+  - Real users (@gmail.com etc.), seed (@careconnect.local), admin ถูก preserve ทั้งหมด
+- verify หลังแก้:
+  - ✅ Real user sswk07939@gmail.com: preserved after test run
+  - ✅ Seed users: 54 preserved
+  - ✅ Tests: 179 passed, 0 failed
+
+### 2026-03-15 — Fix Google login toast "สมัครสำเร็จ" + SMS OTP investigation
+
+- fix(frontend): `ConsentPage.tsx` — toast "สมัครสมาชิกสำเร็จ" แสดงแม้ user มีบัญชีอยู่แล้ว
+  - Root cause: toast message hardcoded ไม่ดู `state.mode`
+  - Fix: ถ้า `mode === 'login'` → แสดง "เข้าสู่ระบบสำเร็จ" แทน
+- investigate: SMS OTP ไม่ส่ง
+  - ตรวจ logs: SMSOK API **ส่งได้จริง** (200 OK, message_id, balance 109.68)
+  - Env vars: `SMS_PROVIDER=smsok`, API keys ถูกต้อง
+  - ไม่ใช่ backend bug — อาจเป็น operator delay หรือ user ไม่ได้รับ SMS จริง
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
+### 2026-03-15 — Fix onboarding/profile KYC display: explain why L2 not reached despite KYC approved
+
+- debug: user `sswk07939@gmail.com` — KYC approved แต่ trust level ยังเป็น L1
+  - **Root cause**: L2 ต้องการ `phoneVerified AND kycApproved` แต่ user ไม่มี phone verified
+  - DB: `is_phone_verified=false`, `is_email_verified=true`, `kyc_status=approved`, `trust_level=L1`
+  - Business rule ถูกต้อง — ไม่ใช่ bug ใน trust calculation
+  - ปัญหาคือ **UI ไม่สื่อสารว่าขาดอะไร**
+- fix(frontend): `HirerHomePage.tsx` onboarding checklist
+  - Phone verification step แสดงเสมอ (ไม่ซ่อนตาม guest/member)
+  - KYC step sub text อธิบายชัด: "ต้องยืนยันเบอร์โทรก่อน แล้วค่อยยืนยัน KYC"
+  - KYC link → `/profile` ถ้ายังไม่ verify phone (ไม่ไป `/kyc` เพราะทำ KYC ได้แต่ไม่ได้ L2)
+- fix(frontend): `ProfilePage.tsx` trust section
+  - เพิ่ม hint "ต้องยืนยันเบอร์โทรก่อน" ใต้ KYC step (amber text) เมื่อ phone ยังไม่ verified
+- Expected behavior ที่ถูกต้อง:
+  - KYC approved + no phone → **L1** (ถูกต้อง) + UI บอกว่าขาด phone
+  - KYC approved + phone verified → **L2** (ถูกต้อง)
+  - phone verified + no KYC → **L1** + UI บอกว่าต้องทำ KYC
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
+### 2026-03-15 — Fix active role persistence: fallback to users.role on page refresh
+
+- fix(frontend): `initAuth` ใน `AuthContext.tsx` — เพิ่ม fallback ไป `users.role` จาก server
+  - ก่อน: ถ้า localStorage `careconnect_active_role` หาย → `activeRole = null` → redirect ไป `/select-role`
+  - หลัง: priority chain: localStorage role → server `users.role` → null
+  - Validate: guest + caregiver + ไม่ verified phone → null (ป้องกัน unauthorized role)
+  - Admin: always resolve to 'admin'
+- audit: role persistence ทั้งระบบ
+  - Backend `requireAuth`: อ่าน `users.role` จาก DB ทุก request (ไม่ใช่ JWT) ✅
+  - `updateRole()`: อัพเดท `users.role` ใน DB ✅ → localStorage sync ผ่าน `setActiveRole` useEffect ✅
+  - RoleSelectionPage: `setActiveRole` + `updateRole` sync ทั้ง frontend + backend ✅
+  - ProfilePage role switch: ไป `/select-role` → same sync flow ✅
+- edge cases verified:
+  - localStorage หาย → fallback ไป server role ✅
+  - localStorage ค้าง role ผิด (guest+caregiver+no phone) → null ✅
+  - Admin user → always 'admin' ✅
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
+### 2026-03-15 — Fix /select-role UX: returning users skip role selection ทุก login method
+
+- fix(frontend): **Root cause** — `setActiveRole(null)` ใน AuthContext ทุก login function
+  - ทำให้ routerGuard เห็น `!activeRole` → redirect ไป `/select-role` ทุกครั้ง
+  - Fix: เพิ่ม `resolveActiveRole(user)` helper → set `activeRole` จาก `users.role` ทันทีหลัง login
+  - แก้ 3 login functions: `login()`, `loginWithTokens()`, `loginWithPhone()`
+- fix(frontend): LoginEmailPage + LoginPhonePage — skip `/select-role` ถ้ามี policy
+  - ก่อน: ทุก login → `/select-role` (hardcoded)
+  - หลัง: ถ้า `user.policy_acceptances[role]` มีอยู่ → ไปหน้า home ตรง
+  - ถ้ายังไม่มี policy → ไป `/select-role` (ปกติ สำหรับ user ใหม่)
+- last_used_role: ใช้ `users.role` column ที่มีอยู่แล้ว (อัพเดทโดย `updateRole()` ทุกครั้งที่สลับ role)
+  - ไม่ต้องเพิ่ม DB column ใหม่
+- ไฟล์ที่แก้:
+  - `frontend/src/contexts/AuthContext.tsx` — resolveActiveRole + 3 login functions
+  - `frontend/src/pages/auth/LoginEmailPage.tsx` — smart destination
+  - `frontend/src/pages/auth/LoginPhonePage.tsx` — smart destination
+  - `frontend/src/pages/auth/AuthCallbackPage.tsx` — (แก้แล้วใน commit ก่อน)
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS | Tests: 179 passed, 0 failed
+
+### 2026-03-15 — Safeguards + OAuth UX fix: ป้องกัน data loss + skip /select-role สำหรับ returning users
+
+- audit: **Dev/Test/Prod ใช้ DB ตัวเดียวกัน** — ไม่มี test DB แยก
+  - `backend/src/utils/db.js` ชี้ไป DB เดียวกับ server ทุก environment
+  - `tests/setup.js` import `pool` จาก `../src/utils/db.js` ตรงๆ
+  - ผลกระทบ: test cleanup ลบ data จริงของ dev DB ทุกครั้งที่รัน tests
+- fix(test): เพิ่ม production safeguard ใน `tests/setup.js`
+  - Abort ถ้า `NODE_ENV === 'production'`
+  - Abort ถ้า `DATABASE_NAME` contains 'prod'
+- fix(frontend): แก้ `AuthCallbackPage.tsx` — returning Google OAuth users ข้าม `/select-role`
+  - ก่อน: ทุกครั้งที่ login ด้วย Google → ไป `/select-role` → ดูเหมือนสมัครใหม่
+  - หลัง: ถ้า user มี role + accepted policy → ไปหน้า home ตรง (hirer/caregiver)
+  - ถ้ายังไม่มี policy acceptance → ไป `/select-role` (ปกติ สำหรับ user ใหม่)
+- verify:
+  - ✅ TypeScript: PASS
+  - ✅ Vite build: PASS (5.20s)
+  - ✅ Tests: 179 passed, 0 failed
+
+### 2026-03-15 — Audit Google OAuth: ไม่พบ duplication bug — อาการเกิดจาก seed data ถูกลบ
+
+- audit(backend): trace Google OAuth flow ตั้งแต่ button → callback → user lookup/create → JWT
+  - `findOne({ google_id })` → login existing ✅
+  - `findByEmail(email)` → link google_id to existing ✅
+  - Neither found → create new (with unique email constraint) ✅
+- audit(db): ตรวจ duplicate users
+  - Users with google_id: 1 | Duplicate google_ids: **0** | Duplicate emails: **0**
+  - `users_email_key` UNIQUE constraint ✅
+  - `idx_users_google_id` UNIQUE WHERE NOT NULL ✅
+  - `normalizeEmail()` lowercase + trim ✅
+- audit(frontend): AuthCallbackPage → token-based login → RoleSelectionPage → updateRole (update only, no create) ✅
+- สรุป: **ไม่มี duplication bug** — อาการ "สมัครใหม่ได้อีก" เกิดจาก:
+  1. Seed data ถูก test cleanup ลบ → profile/jobs/trust หาย → ดูเหมือน account ใหม่ (แก้แล้ว)
+  2. `/select-role` แสดงทุกครั้งหลัง Google login → UX ดูเหมือนสมัครซ้ำ (by design: เลือก role per session)
 
 ### 2026-03-15 — Fix "งานของฉัน" ไม่อัปเดต + seed data preservation ครบทุก table
 

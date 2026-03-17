@@ -4,14 +4,10 @@ import {
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
-  ShieldCheck,
-  BadgeCheck,
-  Shield,
   Upload,
   FileText,
   Trash2,
@@ -21,9 +17,10 @@ import {
 } from "lucide-react";
 import { MainLayout } from "../../layouts";
 import {
-  Avatar,
+  AvatarUpload,
   Button,
   Card,
+  TrustLevelCard,
   CheckboxGroup,
   Input,
   OTPInput,
@@ -34,6 +31,7 @@ import {
 import { GooglePlacesInput } from "../../components/location/GooglePlacesInput";
 import { useAuth } from "../../contexts";
 import { appApi } from "../../services/appApi";
+import { getTrustLevelLabel } from "../../utils/trustLevel";
 import type {
   CaregiverProfile,
   CaregiverDocument,
@@ -116,7 +114,6 @@ export default function ProfilePage() {
     issued_date: "",
     expiry_date: "",
   });
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
@@ -154,56 +151,26 @@ export default function ProfilePage() {
     () => user?.email || user?.phone_number || "-",
     [user],
   );
-  const avatarSrc = useMemo(() => {
-    if (!user?.avatar) return undefined;
-    if (
-      user.avatar.startsWith("http://") ||
-      user.avatar.startsWith("https://") ||
-      user.avatar.startsWith("/")
-    ) {
-      return user.avatar;
-    }
-    return `/uploads/${user.avatar}`;
-  }, [user?.avatar]);
-  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} คนอื่นจะเห็นเป็น “ชื่อจริง น.” ก่อนมอบหมายงาน`;
+  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} คนอื่นจะเห็นเป็น "ชื่อจริง น." ก่อนมอบหมายงาน`;
 
-  const handleAvatarFileChange = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const supportedMime = ["image/jpeg", "image/png", "image/webp"];
-    if (!supportedMime.includes(file.type)) {
-      toast.error("อนุญาตเฉพาะไฟล์ JPEG, PNG หรือ WebP");
-      event.target.value = "";
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB");
-      event.target.value = "";
-      return;
-    }
-
+  const handleAvatarUpload = async (blob: Blob) => {
     setAvatarUploading(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", blob, "avatar.jpg");
 
       const res = await appApi.uploadProfileAvatar(formData);
-      if (!res.success || !res.data?.avatar) {
+      if (!res.success || !res.data?.avatar_version) {
         toast.error(res.error || "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ");
         return;
       }
 
-      updateUser({ avatar: res.data.avatar });
+      updateUser({ avatar_version: res.data.avatar_version });
       toast.success("อัปเดตรูปโปรไฟล์แล้ว");
     } catch (error: any) {
       toast.error(error.message || "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ");
     } finally {
       setAvatarUploading(false);
-      event.target.value = "";
     }
   };
 
@@ -217,19 +184,13 @@ export default function ProfilePage() {
     setEmailError("");
     setEmailOtpError("");
     try {
-      const updateResponse = await appApi.updateEmailAddress(emailValue.trim());
-      if (!updateResponse.success) {
-        toast.error(updateResponse.error || "บันทึกอีเมลไม่สำเร็จ");
-        return;
-      }
-      await refreshUser();
-      const response = await appApi.sendEmailOtp();
+      const response = await appApi.sendEmailOtp(emailValue.trim());
       if (!response.success || !response.data) {
         toast.error(response.error || "ส่งรหัส OTP ไม่สำเร็จ");
         return;
       }
       setEmailOtpId(response.data.otp_id);
-      toast.success("ส่งรหัส OTP แล้ว");
+      toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบอีเมล");
       startEmailCooldown();
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
@@ -301,19 +262,13 @@ export default function ProfilePage() {
     setPhoneError("");
     setOtpError("");
     try {
-      const updateResponse = await appApi.updatePhoneNumber(phoneValue.trim());
-      if (!updateResponse.success) {
-        toast.error(updateResponse.error || "บันทึกเบอร์โทรไม่สำเร็จ");
-        return;
-      }
-      await refreshUser();
-      const response = await appApi.sendPhoneOtp();
+      const response = await appApi.sendPhoneOtp(phoneValue.trim());
       if (!response.success || !response.data) {
         toast.error(response.error || "ส่งรหัส OTP ไม่สำเร็จ");
         return;
       }
       setOtpId(response.data.otp_id);
-      toast.success("ส่งรหัส OTP แล้ว");
+      toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบ SMS");
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
     } finally {
@@ -781,42 +736,26 @@ export default function ProfilePage() {
 
         {user && (
           <Card className="p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar src={avatarSrc} name={user.name || ""} size="lg" />
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate">
-                    {user.name || "-"}
-                  </div>
-                  <div className="text-xs text-gray-600 break-all">
-                    {primaryId}
-                  </div>
-                  <div className="text-xs text-gray-500 font-mono break-all">
-                    {user.id}
-                  </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <AvatarUpload
+                userId={user.id}
+                avatarVersion={user.avatar_version}
+                name={user.name || ""}
+                size="3xl"
+                onUpload={handleAvatarUpload}
+                loading={avatarUploading}
+              />
+              <div className="min-w-0">
+                <div className="text-base font-semibold text-gray-900 truncate">
+                  {user.name || "-"}
+                </div>
+                <div className="text-sm text-gray-600 break-all">
+                  {primaryId}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  คลิกที่รูปเพื่อเปลี่ยนรูปโปรไฟล์
                 </div>
               </div>
-
-              <div className="flex-shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={avatarUploading}
-                  onClick={() => avatarInputRef.current?.click()}
-                >
-                  เพิ่มรูปโปรไฟล์
-                </Button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleAvatarFileChange}
-                />
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              รองรับไฟล์ JPEG, PNG, WebP ขนาดไม่เกิน 5 MB
             </div>
           </Card>
         )}
@@ -834,93 +773,7 @@ export default function ProfilePage() {
         )}
 
         {user && user.role !== "admin" && (
-          <Card className="p-4 sm:p-6">
-            <div className="text-sm font-semibold text-gray-900 mb-3">
-              ระดับความน่าเชื่อถือ
-            </div>
-            <div className="flex items-center gap-3 mb-3">
-              {["L2", "L3"].includes(user.trust_level || "L0") ? (
-                <BadgeCheck className="w-6 h-6 text-green-600" />
-              ) : user.trust_level === "L1" ? (
-                <ShieldCheck className="w-6 h-6 text-yellow-600" />
-              ) : (
-                <Shield className="w-6 h-6 text-gray-400" />
-              )}
-              <div>
-                <div className="text-lg font-bold text-gray-900">
-                  {user.trust_level || "L0"}
-                </div>
-                <div className="text-xs text-gray-500">
-                  {user.trust_level === "L3"
-                    ? "เชื่อถือสูง"
-                    : user.trust_level === "L2"
-                      ? "ยืนยันแล้ว"
-                      : user.trust_level === "L1"
-                        ? "พื้นฐาน"
-                        : "ยังไม่ยืนยัน"}
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.is_phone_verified ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                >
-                  {user.is_phone_verified ? "✓" : "1"}
-                </div>
-                <span
-                  className={
-                    user.is_phone_verified ? "text-green-700" : "text-gray-600"
-                  }
-                >
-                  ยืนยันเบอร์โทร {user.is_phone_verified ? "✓" : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${["L2", "L3"].includes(user.trust_level || "L0") ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                >
-                  {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : "2"}
-                </div>
-                <span
-                  className={
-                    ["L2", "L3"].includes(user.trust_level || "L0")
-                      ? "text-green-700"
-                      : "text-gray-600"
-                  }
-                >
-                  ยืนยันตัวตน KYC{" "}
-                  {["L2", "L3"].includes(user.trust_level || "L0") ? "✓" : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${user.trust_level === "L3" ? "bg-green-500 text-white" : "bg-gray-200 text-gray-700"}`}
-                >
-                  {user.trust_level === "L3" ? "✓" : "3"}
-                </div>
-                <span
-                  className={
-                    user.trust_level === "L3"
-                      ? "text-green-700"
-                      : "text-gray-600"
-                  }
-                >
-                  บัญชีธนาคารยืนยันแล้ว + Trust Score ≥80{" "}
-                  {user.trust_level === "L3" ? "✓" : ""}
-                </span>
-              </div>
-            </div>
-            {!["L2", "L3"].includes(user.trust_level || "L0") && (
-              <div className="mt-3">
-                <Link to="/kyc">
-                  <Button variant="primary" size="sm">
-                    ยืนยันตัวตน (KYC)
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </Card>
+          <TrustLevelCard user={user} />
         )}
 
         {user && user.role !== "admin" && (
@@ -986,8 +839,7 @@ export default function ProfilePage() {
             </div>
             {!bankVerified && bankVerified !== null && (
               <p className="text-xs text-gray-500 mt-2">
-                เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรด Trust
-                Level เป็น L3
+                เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรดเป็นระดับ "มืออาชีพ"
               </p>
             )}
           </Card>
@@ -1604,9 +1456,9 @@ export default function ProfilePage() {
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500">Trust Level</div>
+                  <div className="text-xs text-gray-500">ระดับความน่าเชื่อถือ</div>
                   <div className="text-sm font-semibold text-gray-900">
-                    {user.trust_level}
+                    {getTrustLevelLabel(user.trust_level)}
                   </div>
                 </div>
                 <div>
@@ -1656,22 +1508,15 @@ export default function ProfilePage() {
                     <Button
                       variant="secondary"
                       loading={emailOtpLoading}
-                      onClick={handleSendEmailOtp}
+                      disabled={emailOtpId ? emailResendCooldown > 0 : false}
+                      onClick={emailOtpId ? handleResendEmailOtp : handleSendEmailOtp}
                     >
-                      ส่งรหัส OTP
-                    </Button>
-                    {emailOtpId && (
-                      <Button
-                        variant="outline"
-                        loading={emailOtpLoading}
-                        disabled={emailResendCooldown > 0}
-                        onClick={handleResendEmailOtp}
-                      >
-                        {emailResendCooldown > 0
+                      {emailOtpId
+                        ? emailResendCooldown > 0
                           ? `ส่งใหม่ได้ใน ${emailResendCooldown} วิ`
-                          : "ส่งใหม่อีกครั้ง"}
-                      </Button>
-                    )}
+                          : 'ส่งรหัส OTP ใหม่'
+                        : 'ส่งรหัส OTP'}
+                    </Button>
                   </div>
                   {emailOtpId && (
                     <div className="space-y-2">
@@ -1716,19 +1561,10 @@ export default function ProfilePage() {
                     <Button
                       variant="secondary"
                       loading={otpLoading}
-                      onClick={handleSendPhoneOtp}
+                      onClick={otpId ? handleResendOtp : handleSendPhoneOtp}
                     >
-                      ส่งรหัส OTP
+                      {otpId ? 'ส่งรหัส OTP ใหม่' : 'ส่งรหัส OTP'}
                     </Button>
-                    {otpId && (
-                      <Button
-                        variant="outline"
-                        loading={otpLoading}
-                        onClick={handleResendOtp}
-                      >
-                        ส่งใหม่อีกครั้ง
-                      </Button>
-                    )}
                   </div>
                   {otpId && (
                     <div className="space-y-2">

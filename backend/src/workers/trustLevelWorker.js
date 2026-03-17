@@ -4,11 +4,14 @@
  * Background job that recalculates user trust scores and levels.
  * Should be run periodically via cron job or scheduler.
  *
- * Trust Levels:
- * - L0 (Unverified): Just registered
- * - L1 (Basic): Email/Phone verified
- * - L2 (Verified): KYC approved
- * - L3 (Trusted): High trust score (>=80) + Bank verified
+ * Trust Levels (role-neutral — applies to both hirer and caregiver):
+ * - L0 (เริ่มต้น): Just registered, nothing verified
+ * - L1 (ยืนยันการติดต่อ): Email AND Phone verified
+ * - L2 (ยืนยันตัวตน): L1 + KYC approved
+ * - L3 (มืออาชีพ): L2 + Bank verified + Trust score >= 80
+ *
+ * Note: caregiver_documents (certification/license) are NOT part of trust level.
+ * They are used separately for caregiver job eligibility (e.g. high-risk jobs).
  *
  * Trust Score (0-100) calculated from:
  * - Completed jobs (+)
@@ -177,8 +180,12 @@ async function determineTrustLevel(userId, trustScore) {
 
   const currentLevel = user.trust_level || 'L0';
 
-  const hasL3Prereqs = phoneVerified && kycApproved && bankVerified;
-  const hasL2Prereqs = phoneVerified && kycApproved;
+  // L1 "ยืนยันการติดต่อ": email AND phone verified
+  const hasL1Prereqs = emailVerified && phoneVerified;
+  // L2 "ยืนยันตัวตน": L1 + KYC approved (role-neutral — works for both hirer and caregiver)
+  const hasL2Prereqs = hasL1Prereqs && kycApproved;
+  // L3 "มืออาชีพ": L2 + bank verified + trust score >= 80
+  const hasL3Prereqs = hasL2Prereqs && bankVerified;
 
   // Determine level with hysteresis (L2 ↔ L3 only)
   if (hasL3Prereqs && trustScore >= 80) {
@@ -193,7 +200,7 @@ async function determineTrustLevel(userId, trustScore) {
     return 'L2';
   }
 
-  if (phoneVerified || emailVerified) {
+  if (hasL1Prereqs) {
     return 'L1';
   }
 

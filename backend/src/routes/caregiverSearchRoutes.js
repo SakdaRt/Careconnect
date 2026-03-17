@@ -27,6 +27,7 @@ router.get("/public/featured", async (req, res) => {
       `SELECT
          u.id,
          u.avatar,
+         u.avatar_version,
          u.trust_level,
          u.completed_jobs_count,
          cp.display_name,
@@ -177,6 +178,7 @@ router.get(
         `SELECT
          u.id,
          u.avatar,
+         u.avatar_version,
          u.email,
          u.phone_number,
          u.trust_level,
@@ -400,6 +402,7 @@ router.get(
            u.email,
            u.phone_number,
            u.avatar,
+           u.avatar_version,
            u.trust_level,
            u.trust_score,
            u.completed_jobs_count,

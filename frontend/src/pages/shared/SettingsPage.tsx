@@ -8,12 +8,11 @@ import { useAuth } from '../../contexts';
 import { appApi } from '../../services/appApi';
 import { NotificationPreferences } from '../../services/api';
 import { setScopedStorageItem } from '../../utils/authStorage';
+import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 function trustLabel(level: string) {
-  if (level === 'L3') return { label: 'L3 เชื่อถือสูง', cls: 'bg-emerald-100 text-emerald-800' };
-  if (level === 'L2') return { label: 'L2 ยืนยันแล้ว', cls: 'bg-blue-100 text-blue-800' };
-  if (level === 'L1') return { label: 'L1 พื้นฐาน', cls: 'bg-yellow-100 text-yellow-800' };
-  return { label: 'L0 ยังไม่ยืนยัน', cls: 'bg-gray-100 text-gray-600' };
+  const c = getTrustLevelConfig(level);
+  return { label: c.label, cls: `${c.bgColor} ${c.textColor}` };
 }
 
 export default function SettingsPage() {
@@ -207,7 +206,7 @@ export default function SettingsPage() {
               <span className="text-gray-900 font-medium">{user?.account_type === 'guest' ? 'Guest (อีเมล)' : 'Member (เบอร์โทร)'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-500">Trust Level</span>
+              <span className="text-gray-500">ระดับความน่าเชื่อถือ</span>
               <span className={`text-xs px-2 py-0.5 rounded font-medium ${tl.cls}`}>{tl.label}</span>
             </div>
             <div className="flex justify-between">
@@ -277,7 +276,7 @@ export default function SettingsPage() {
               <ShieldCheck className="w-5 h-5 text-gray-500" />
               <div className="text-sm font-semibold text-gray-900">ยืนยันตัวตน (KYC)</div>
             </div>
-            <p className="text-xs text-gray-600 mb-3">ยืนยันตัวตนเพื่อเพิ่ม Trust Level และเข้าถึงฟีเจอร์เพิ่มเติม</p>
+            <p className="text-xs text-gray-600 mb-3">ยืนยันตัวตนเพื่อเพิ่มระดับความน่าเชื่อถือและเข้าถึงฟีเจอร์เพิ่มเติม</p>
             <Link to="/kyc"><Button variant="outline" size="sm">ยืนยันตัวตน</Button></Link>
           </Card>
         )}

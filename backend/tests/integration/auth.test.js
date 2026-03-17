@@ -21,23 +21,34 @@ describe('Auth Integration Tests', () => {
         role: 'caregiver'
       };
 
-      const response = await request(app)
+      // Step 1: Start registration — sends OTP, returns otp_id
+      const regResponse = await request(app)
         .post('/api/auth/register/guest')
         .send(userData)
-        .expect(201);
+        .expect(200);
 
-      expect(response.body).toHaveProperty('success', true);
-      expect(response.body).toHaveProperty('data');
-      expect(response.body.data).toHaveProperty('user');
-      expect(response.body.data.user).toHaveProperty('id');
-      expect(response.body.data.user.email).toBe(userData.email);
-      expect(response.body.data.user.role).toBe(userData.role);
-      expect(response.body.data).toHaveProperty('accessToken');
-      expect(response.body.data).toHaveProperty('refreshToken');
+      expect(regResponse.body).toHaveProperty('success', true);
+      expect(regResponse.body.data).toHaveProperty('otp_id');
 
-      // Store tokens for subsequent tests
-      accessToken = response.body.data.accessToken;
-      refreshToken = response.body.data.refreshToken;
+      const otpId = regResponse.body.data.otp_id;
+      const devCode = regResponse.body.data._dev_code;
+
+      // Step 2: Verify OTP — creates user and returns tokens
+      const verifyResponse = await request(app)
+        .post('/api/otp/verify')
+        .send({ otp_id: otpId, code: devCode })
+        .expect(200);
+
+      expect(verifyResponse.body).toHaveProperty('success', true);
+      expect(verifyResponse.body.data).toHaveProperty('registered', true);
+      expect(verifyResponse.body.data).toHaveProperty('user');
+      expect(verifyResponse.body.data.user.email).toBe(userData.email);
+      expect(verifyResponse.body.data.user.role).toBe(userData.role);
+      expect(verifyResponse.body.data).toHaveProperty('accessToken');
+      expect(verifyResponse.body.data).toHaveProperty('refreshToken');
+
+      accessToken = verifyResponse.body.data.accessToken;
+      refreshToken = verifyResponse.body.data.refreshToken;
     });
 
     it('should login with valid credentials', async () => {

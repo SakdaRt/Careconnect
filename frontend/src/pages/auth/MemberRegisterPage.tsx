@@ -84,14 +84,13 @@ export default function MemberRegisterPage() {
   // Step 1: Phone submission
   const validatePhone = () => {
     const newErrors: Record<string, string> = {};
+    const digits = formData.phone.replace(/\D/g, '');
+    const isValid = /^0[2-9]\d{7,8}$/.test(digits);
 
     if (!formData.phone) {
       newErrors.phone = 'กรุณากรอกเบอร์โทรศัพท์';
-    } else {
-      const digits = formData.phone.replace(/\D/g, '');
-      if (digits.length < 10) {
-        newErrors.phone = 'เบอร์โทรศัพท์ไม่ถูกต้อง';
-      }
+    } else if (!isValid) {
+      newErrors.phone = 'กรุณากรอกเบอร์มือถือไทย เช่น 08x-xxx-xxxx';
     }
 
     setErrors(newErrors);
@@ -121,9 +120,17 @@ export default function MemberRegisterPage() {
         toast.error(response.error || 'รหัส OTP ไม่ถูกต้อง');
         return;
       }
-      await refreshUser();
       verifiedRef.current = true;
-      toast.success('ยืนยันเบอร์โทรสำเร็จ');
+
+      if (response.data?.registered && response.data?.accessToken) {
+        api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
+        await refreshUser();
+        toast.success('สมัครสมาชิกสำเร็จ!');
+      } else {
+        await refreshUser();
+        toast.success('ยืนยันเบอร์โทรสำเร็จ');
+      }
+
       setScopedStorageItem('pendingRole', selectedRole || 'hirer');
       navigate('/register/consent', { replace: true });
     } catch (error: any) {
@@ -192,17 +199,9 @@ export default function MemberRegisterPage() {
 
     setLoading(true);
     try {
-      await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
-      await refreshUser();
-      const otpResponse = await api.sendPhoneOtp();
-      if (!otpResponse.success || !otpResponse.data) {
-        toast.error('ส่งรหัส OTP ไม่สำเร็จ กรุณากดส่งใหม่อีกครั้ง');
-        setOtpId('');
-        setStep('otp');
-        return;
-      }
-      setOtpId(otpResponse.data.otp_id);
-      toast.success('ส่งรหัส OTP แล้ว');
+      const result = await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
+      setOtpId(result.otp_id);
+      toast.success('ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยัน');
       setStep('otp');
     } catch (error: any) {
       toast.error(error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
@@ -293,7 +292,7 @@ export default function MemberRegisterPage() {
           <div className="space-y-4">
             <PhoneInput
               label="เบอร์โทรศัพท์"
-              placeholder="+66 8X XXXX XXXX"
+              placeholder="08x-xxx-xxxx"
               value={formData.phone}
               onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               error={errors.phone}

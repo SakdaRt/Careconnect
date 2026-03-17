@@ -128,19 +128,19 @@ export default function CaregiverJobFeedPage() {
 
         {/* Onboarding Checklist */}
         {(() => {
-          const tl = user?.trust_level || 'L0';
           const hasName = isConfiguredDisplayName(user?.name);
           const hasPhone = !!user?.is_phone_verified;
+          const hasKyc = user?.kyc_status === 'approved';
           const hasProfile = !!(profile?.bio || (profile?.specializations || []).length > 0);
           const hasAvailability = !!((profile?.available_days || []).length > 0);
 
           const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
             { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
             { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ว่าจ้างจะเห็น', link: '/profile' },
-            { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: 'เพื่อรับงานและเลื่อนเป็น L1', link: '/profile' },
+            { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: hasPhone ? 'ยืนยันแล้ว' : 'เพื่อรับงานและปลดล็อกฟีเจอร์', link: '/profile' },
             { done: hasProfile, label: 'กรอกข้อมูลโปรไฟล์', sub: 'bio ความเชี่ยวชาญ ประสบการณ์', link: '/caregiver/profile' },
             { done: hasAvailability, label: 'ตั้งวัน/เวลาว่าง', sub: 'ให้ผู้ว่าจ้างหาคุณเจอง่ายขึ้น', link: '/caregiver/profile' },
-            { done: tl === 'L2' || tl === 'L3', label: 'ยืนยันตัวตน KYC (L2)', sub: 'รับงานทุกประเภท', link: '/kyc' },
+            { done: hasKyc, label: 'ยืนยันตัวตน KYC', sub: hasKyc ? 'ยืนยันแล้ว' : 'รับงานทุกประเภท', link: '/kyc' },
           ];
 
           const doneCount = steps.filter((s) => s.done).length;
@@ -240,7 +240,7 @@ export default function CaregiverJobFeedPage() {
             <Shield className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1 text-sm text-yellow-900">
               <p className="font-semibold mb-1">ยืนยันเบอร์โทรเพื่อรับงาน</p>
-              <p>คุณยังไม่ได้ยืนยันเบอร์โทรศัพท์ กรุณายืนยัน OTP เพื่อเลื่อนเป็น Trust Level L1 แล้วจึงจะสามารถรับงานได้</p>
+              <p>คุณยังไม่ได้ยืนยันเบอร์โทรศัพท์ กรุณายืนยัน OTP เพื่อปลดล็อกการรับงาน</p>
               <div className="mt-2">
                 <Link to="/profile">
                   <Button variant="primary" size="sm">ไปยืนยันเบอร์โทร</Button>
@@ -255,7 +255,7 @@ export default function CaregiverJobFeedPage() {
             <ShieldCheck className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1 text-sm text-blue-900">
               <p className="font-semibold mb-1">ยืนยันตัวตน KYC เพื่อรับงานความเสี่ยงสูง</p>
-              <p>งานบางประเภทต้อง Trust Level L2 ขึ้นไป ยืนยันตัวตนเพื่อปลดล็อก</p>
+              <p>งานบางประเภทต้องยืนยันตัวตนก่อน กรุณายืนยัน KYC เพื่อปลดล็อก</p>
               <div className="mt-2">
                 <Link to="/kyc">
                   <Button variant="primary" size="sm">ยืนยันตัวตน (KYC)</Button>
@@ -319,7 +319,7 @@ export default function CaregiverJobFeedPage() {
                       </div>
                       {job.eligible === false && (
                         <div className="mt-2 text-xs text-orange-600 bg-orange-50 border border-orange-200 rounded px-2 py-1 inline-flex items-center gap-2 flex-wrap">
-                          <span>ต้อง Trust Level {job.min_trust_level} ขึ้นไปจึงจะรับงานนี้ได้</span>
+                          <span>ต้องยืนยันตัวตนเพิ่มเติมจึงจะรับงานนี้ได้</span>
                           <Link to="/kyc" className="text-blue-600 underline hover:text-blue-800">ยืนยันตัวตน</Link>
                         </div>
                       )}

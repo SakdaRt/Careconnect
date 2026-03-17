@@ -587,6 +587,21 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       });
     }
 
+    // High-risk jobs require caregiver to have uploaded at least one document (certification/license)
+    // This is separate from trust level (which is role-neutral)
+    if (jobPost.risk_level === 'high_risk') {
+      const docsCount = await client.query(
+        `SELECT COUNT(*)::int AS count FROM caregiver_documents WHERE user_id = $1`,
+        [caregiverId]
+      );
+      if ((docsCount.rows[0]?.count || 0) === 0) {
+        throw new ValidationError('งานความเสี่ยงสูงต้องอัปโหลดเอกสาร/ใบรับรองอย่างน้อย 1 รายการ', {
+          code: 'CAREGIVER_DOCUMENTS_REQUIRED',
+          section: 'caregiver_profile',
+        });
+      }
+    }
+
     // Check job-specific required certifications set by the hirer
     const profileRes = await client.query(
       `SELECT certifications FROM caregiver_profiles WHERE user_id = $1 LIMIT 1`,
@@ -594,7 +609,6 @@ export const acceptJob = async (jobPostId, caregiverId) => {
     );
     const caregiverCerts = Array.isArray(profileRes.rows[0]?.certifications) ? profileRes.rows[0].certifications : [];
 
-    // L2 trust level is sufficient for all job types.
     // Only enforce job-specific required_certifications set by the hirer (not a blanket rule).
     const requiredCerts = Array.isArray(jobPost.required_certifications) ? jobPost.required_certifications : [];
     if (requiredCerts.length > 0) {

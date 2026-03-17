@@ -7,6 +7,7 @@ import { io, Socket } from 'socket.io-client';
 import { api, AppNotification, NotificationPreferences } from '../../services/api';
 import { appApi } from '../../services/appApi';
 import { getScopedStorageItem, setScopedStorageItem } from '../../utils/authStorage';
+import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 const UNREAD_POLL_INTERVAL_MS = 15_000;
 
@@ -23,32 +24,8 @@ function maskPhone(phone: string): string {
 }
 
 function trustLevelStyle(level: string) {
-  switch (level) {
-    case "L3":
-      return {
-        bg: "bg-emerald-100",
-        text: "text-emerald-800",
-        label: "L3 เชื่อถือสูง",
-      };
-    case "L2":
-      return {
-        bg: "bg-blue-100",
-        text: "text-blue-800",
-        label: "L2 ยืนยันแล้ว",
-      };
-    case "L1":
-      return {
-        bg: "bg-yellow-100",
-        text: "text-yellow-800",
-        label: "L1 พื้นฐาน",
-      };
-    default:
-      return {
-        bg: "bg-gray-100",
-        text: "text-gray-600",
-        label: "L0 ยังไม่ยืนยัน",
-      };
-  }
+  const config = getTrustLevelConfig(level);
+  return { bg: config.bgColor, text: config.textColor, label: config.label };
 }
 
 function getNotificationLink(n: AppNotification): string | null {

@@ -11,8 +11,14 @@ export type { CardProps, JobCardProps, CareRecipientCardProps, WalletCardProps }
 export { Badge, StatusBadge, TrustLevelBadge } from './Badge';
 export type { BadgeProps, StatusBadgeProps, TrustLevelBadgeProps } from './Badge';
 
+export { TrustLevelCard } from './TrustLevelCard';
+
 export { Avatar } from './Avatar';
 export type { AvatarProps, AvatarSize } from './Avatar';
+
+export { AvatarUpload } from './AvatarUpload';
+
+export { CropModal } from './CropModal';
 
 export { Modal, ConfirmModal } from './Modal';
 export type { ModalProps, ConfirmModalProps } from './Modal';

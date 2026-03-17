@@ -45,7 +45,7 @@ export default function AdminSettingsPage() {
         toast.error(res.error || 'ทำรายการไม่สำเร็จ');
         return;
       }
-      toast.success('สั่งคำนวณ trust level แล้ว');
+      toast.success('สั่งคำนวณระดับความน่าเชื่อถือแล้ว');
     } finally {
       setSubmitting(null);
     }
@@ -64,7 +64,7 @@ export default function AdminSettingsPage() {
         toast.error(res.error || 'ทำรายการไม่สำเร็จ');
         return;
       }
-      toast.success('สั่งคำนวณ trust level สำหรับผู้ใช้แล้ว');
+      toast.success('สั่งคำนวณระดับความน่าเชื่อถือสำหรับผู้ใช้แล้ว');
     } finally {
       setSubmitting(null);
     }
@@ -163,11 +163,11 @@ export default function AdminSettingsPage() {
               <div className="text-sm font-semibold text-gray-900 mb-4">เครื่องมือ</div>
               <div className="flex flex-col sm:flex-row gap-2">
                 <Button variant="outline" loading={submitting === 'trust_all'} onClick={doTrustAll}>
-                  คำนวณ Trust Level ทั้งหมด
+                  คำนวณระดับความน่าเชื่อถือทั้งหมด
                 </Button>
                 <div className="flex-1 min-w-[240px]">
                   <Input
-                    label="Trust Level: user id"
+                    label="คำนวณรายบุคคล: user id"
                     value={trustUserId}
                     onChange={(e) => setTrustUserId(e.target.value)}
                     placeholder="ใส่ user_id"

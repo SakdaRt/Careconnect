@@ -15,7 +15,9 @@ export const sendEmailOtp = async (req, res) => {
   try {
     const userId = req.userId;
 
-    // Get user email
+    // Accept email from body (pre-verify flow) or fall back to DB
+    const bodyEmail = req.body?.email ? String(req.body.email).trim().toLowerCase() : null;
+
     const userResult = await query(`SELECT email, is_email_verified FROM users WHERE id = $1`, [userId]);
 
     if (!userResult.rows[0]) {
@@ -26,22 +28,37 @@ export const sendEmailOtp = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+    const emailToVerify = bodyEmail || user.email;
 
-    if (!user.email) {
+    if (!emailToVerify) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'No email address associated with this account',
+        message: 'กรุณากรอกอีเมล',
       });
     }
 
-    if (user.is_email_verified) {
+    // Check duplicate email
+    if (bodyEmail && bodyEmail !== user.email) {
+      const existing = await query(
+        `SELECT id FROM users WHERE email = $1 AND id != $2 LIMIT 1`,
+        [emailToVerify, userId]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          error: 'Conflict',
+          message: 'อีเมลนี้ถูกใช้งานแล้ว',
+        });
+      }
+    }
+
+    if (user.email === emailToVerify && user.is_email_verified) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'Email is already verified',
+        message: 'อีเมลนี้ยืนยันแล้ว',
       });
     }
 
-    const result = await otpService.sendEmailOtp(userId, user.email);
+    const result = await otpService.sendEmailOtp(userId, emailToVerify);
 
     res.json({
       success: true,
@@ -65,8 +82,11 @@ export const sendEmailOtp = async (req, res) => {
 export const sendPhoneOtp = async (req, res) => {
   try {
     const userId = req.userId;
+    const { normalizePhone } = await import('../utils/phone.js');
 
-    // Get user phone
+    // Accept phone from body (for pre-verify flow) or fall back to DB
+    const bodyPhone = req.body?.phone_number ? normalizePhone(req.body.phone_number) : null;
+
     const userResult = await query(`SELECT phone_number, is_phone_verified FROM users WHERE id = $1`, [userId]);
 
     if (!userResult.rows[0]) {
@@ -77,22 +97,37 @@ export const sendPhoneOtp = async (req, res) => {
     }
 
     const user = userResult.rows[0];
+    const phoneToVerify = bodyPhone || normalizePhone(user.phone_number);
 
-    if (!user.phone_number) {
+    if (!phoneToVerify) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'No phone number associated with this account',
+        message: 'กรุณากรอกเบอร์โทรศัพท์',
       });
     }
 
-    if (user.is_phone_verified) {
+    // Check if this phone is already verified by another user
+    if (bodyPhone && bodyPhone !== normalizePhone(user.phone_number)) {
+      const existing = await query(
+        `SELECT id FROM users WHERE phone_number = $1 AND id != $2 LIMIT 1`,
+        [phoneToVerify, userId]
+      );
+      if (existing.rows.length > 0) {
+        return res.status(409).json({
+          error: 'Conflict',
+          message: 'เบอร์โทรนี้ถูกใช้งานแล้ว',
+        });
+      }
+    }
+
+    if (normalizePhone(user.phone_number) === phoneToVerify && user.is_phone_verified) {
       return res.status(400).json({
         error: 'Bad request',
-        message: 'Phone number is already verified',
+        message: 'เบอร์โทรนี้ยืนยันแล้ว',
       });
     }
 
-    const result = await otpService.sendPhoneOtp(userId, user.phone_number);
+    const result = await otpService.sendPhoneOtp(userId, phoneToVerify);
 
     res.json({
       success: true,
@@ -133,7 +168,26 @@ export const verifyOtp = async (req, res) => {
       });
     }
 
-    // Get updated user info
+    // Registration flow — return tokens for newly created user
+    if (result.registeredUser) {
+      const { generateAccessToken, generateRefreshToken } = await import('../services/authService.js');
+      const accessToken = generateAccessToken(result.registeredUser);
+      const refreshToken = generateRefreshToken(result.registeredUser);
+
+      return res.json({
+        success: true,
+        message: 'สมัครสมาชิกสำเร็จ',
+        data: {
+          type: result.type,
+          registered: true,
+          user: result.registeredUser,
+          accessToken,
+          refreshToken,
+        },
+      });
+    }
+
+    // Existing user verification flow
     const userResult = await query(
       `SELECT is_email_verified, is_phone_verified, trust_level FROM users WHERE id = $1`,
       [result.userId]

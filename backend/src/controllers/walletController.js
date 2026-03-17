@@ -405,11 +405,14 @@ const walletController = {
 
   async adminGetWithdrawals(req, res, next) {
     try {
-      const { page, limit, status } = req.query;
+      const { page, limit, status, search, date_from, date_to } = req.query;
       const result = await walletService.getAllWithdrawals({
         page: parseInt(page) || 1,
         limit: parseInt(limit) || 20,
         status,
+        search,
+        date_from,
+        date_to,
       });
       res.json({ success: true, ...result });
     } catch (error) {
@@ -467,9 +470,54 @@ const walletController = {
     try {
       const adminId = req.user.id;
       const { withdrawalId } = req.params;
-      const { payout_reference } = req.body || {};
-      const withdrawal = await walletService.markWithdrawalPaid(withdrawalId, adminId, payout_reference || null);
+      const { payout_reference, payout_proof_storage_key } = req.body || {};
+      const withdrawal = await walletService.markWithdrawalPaid(withdrawalId, adminId, payout_reference || null, payout_proof_storage_key || null);
       res.json({ success: true, withdrawal });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ success: false, error: error.message });
+      }
+      next(error);
+    }
+  },
+
+  async adminGetWithdrawalDetail(req, res, next) {
+    try {
+      const { withdrawalId } = req.params;
+      const detail = await walletService.getWithdrawalDetail(withdrawalId);
+      res.json({ success: true, data: detail });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ success: false, error: error.message });
+      }
+      next(error);
+    }
+  },
+
+  async adminGetDashboardStats(req, res, next) {
+    try {
+      const stats = await walletService.getDashboardStats();
+      res.json({ success: true, data: stats });
+    } catch (error) {
+      if (error.status) {
+        return res.status(error.status).json({ success: false, error: error.message });
+      }
+      next(error);
+    }
+  },
+
+  async adminGetTransactions(req, res, next) {
+    try {
+      const { page, limit, type, reference_type, date_from, date_to } = req.query;
+      const result = await walletService.getAdminTransactions({
+        page: parseInt(page) || 1,
+        limit: parseInt(limit) || 30,
+        type,
+        reference_type,
+        date_from,
+        date_to,
+      });
+      res.json({ success: true, ...result });
     } catch (error) {
       if (error.status) {
         return res.status(error.status).json({ success: false, error: error.message });

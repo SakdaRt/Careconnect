@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { AdminLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState, Select } from '../../components/ui';
-import api, { AdminUserListItem } from '../../services/api';
+import api, { AdminUserListItem, CaregiverDocument } from '../../services/api';
+import { FileText, Plus, Trash2 } from 'lucide-react';
 
 type BanType = 'suspend' | 'delete' | 'ban_login' | 'ban_job_create' | 'ban_job_accept' | 'ban_withdraw';
 
@@ -122,33 +123,52 @@ export default function AdminUsersPage() {
   const [total, setTotal] = useState(0);
   const [q, setQ] = useState('');
   const [regType, setRegType] = useState<'all' | 'email' | 'phone'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'hirer' | 'caregiver' | 'admin'>('all');
   const [status, setStatus] = useState<'all' | 'active' | 'suspended' | 'deleted'>('all');
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [walletData, setWalletData] = useState<any>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [banReason, setBanReason] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [docs, setDocs] = useState<CaregiverDocument[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [showAddDoc, setShowAddDoc] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState('');
+  const [newDocType, setNewDocType] = useState('certification');
+  const [newDocIssuer, setNewDocIssuer] = useState('');
+  const [newDocFile, setNewDocFile] = useState<File | null>(null);
+  const [docSaving, setDocSaving] = useState(false);
 
   const statusBadge = (s: string) => s === 'active' ? 'bg-green-100 text-green-800' : s === 'suspended' ? 'bg-yellow-100 text-yellow-800' : s === 'deleted' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
-  const trustBadge = (t: string) => t === 'L3' ? 'bg-purple-100 text-purple-800' : t === 'L2' ? 'bg-blue-100 text-blue-800' : t === 'L1' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600';
+  const trustBadge = (t: string) => t === 'L3' ? 'bg-amber-100 text-amber-800' : t === 'L2' ? 'bg-blue-100 text-blue-800' : t === 'L1' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600';
+  const trustName = (t: string) => ({ L0: 'เริ่มต้น', L1: 'ยืนยันการติดต่อ', L2: 'ยืนยันตัวตน', L3: 'มืออาชีพ' }[t] || t);
   const displayPrimary = (u: any) => u.email || u.phone_number || '-';
   const fmt = (iso?: string | null) => iso ? new Date(iso).toLocaleString('th-TH') : '-';
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.adminGetUsers({ q: q.trim() || undefined, reg_type: regType === 'all' ? undefined : regType, status: status === 'all' ? undefined : status, page, limit: 20 });
+      const res = await api.adminGetUsers({ q: q.trim() || undefined, role: roleFilter === 'all' ? undefined : roleFilter, reg_type: regType === 'all' ? undefined : regType, status: status === 'all' ? undefined : status, page, limit: 20 });
       if (!res.success || !res.data) { setUsers([]); setTotalPages(1); setTotal(0); return; }
       setUsers(res.data.data || []);
       setTotalPages(res.data.totalPages || 1);
       setTotal(res.data.total || 0);
     } finally { setLoading(false); }
-  }, [page, q, regType, status]);
+  }, [page, q, roleFilter, regType, status]);
 
   useEffect(() => { load(); }, [load]);
 
+  const loadDocs = useCallback(async (userId: string) => {
+    setDocsLoading(true);
+    try {
+      const res = await api.getCaregiverDocumentsByCaregiver(userId);
+      setDocs(res.success && Array.isArray(res.data) ? res.data : []);
+    } catch { setDocs([]); }
+    finally { setDocsLoading(false); }
+  }, []);
+
   const openDetail = useCallback(async (userId: string) => {
-    setSelectedUser(null); setWalletData(null); setBanReason('');
+    setSelectedUser(null); setWalletData(null); setBanReason(''); setDocs([]); setShowAddDoc(false);
     setWalletLoading(true);
     const [userRes, walletRes] = await Promise.all([
       api.adminGetUser(userId),
@@ -158,7 +178,33 @@ export default function AdminUsersPage() {
     if (!userRes.success || !userRes.data?.user) { toast.error(userRes.error || 'โหลดข้อมูลไม่สำเร็จ'); return; }
     setSelectedUser(userRes.data.user);
     if (walletRes.success && walletRes.data) setWalletData(walletRes.data);
-  }, []);
+    if (userRes.data.user.role === 'caregiver') loadDocs(userId);
+  }, [loadDocs]);
+
+  const handleDeleteDoc = async (docId: string) => {
+    if (!window.confirm('ลบเอกสารนี้?')) return;
+    const res = await api.deleteCaregiverDocument(docId);
+    if (!res.success) { toast.error('ลบไม่สำเร็จ'); return; }
+    toast.success('ลบเอกสารแล้ว');
+    if (selectedUser) loadDocs(selectedUser.id);
+  };
+
+  const handleAddDoc = async () => {
+    if (!selectedUser || !newDocFile || !newDocTitle.trim()) { toast.error('กรุณากรอกชื่อเอกสารและเลือกไฟล์'); return; }
+    setDocSaving(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', newDocFile);
+      fd.append('document_type', newDocType);
+      fd.append('title', newDocTitle.trim());
+      if (newDocIssuer.trim()) fd.append('issuer', newDocIssuer.trim());
+      const res = await api.uploadCaregiverDocument(fd);
+      if (!res.success) { toast.error((res as any).error || 'อัปโหลดไม่สำเร็จ'); return; }
+      toast.success('เพิ่มเอกสารแล้ว');
+      setShowAddDoc(false); setNewDocTitle(''); setNewDocType('certification'); setNewDocIssuer(''); setNewDocFile(null);
+      loadDocs(selectedUser.id);
+    } finally { setDocSaving(false); }
+  };
 
   const saveField = useCallback(async (field: string, value: any) => {
     if (!selectedUser) return;
@@ -194,7 +240,15 @@ export default function AdminUsersPage() {
                 onKeyDown={(e) => { if (e.key === 'Enter') { setPage(1); load(); } }} />
             </div>
             <div>
-              <Select label="ลงทะเบียนด้วย" value={regType}
+              <Select label="บทบาท" value={roleFilter}
+                onChange={(e) => { setRoleFilter(e.target.value as any); setPage(1); }}>
+                <option value="all">ทั้งหมด</option>
+                <option value="hirer">ผู้ว่าจ้าง</option>
+                <option value="caregiver">ผู้ดูแล</option>
+              </Select>
+            </div>
+            <div>
+              <Select label="มีข้อมูล" value={regType}
                 onChange={(e) => { setRegType(e.target.value as any); setPage(1); }}>
                 <option value="all">ทั้งหมด</option>
                 <option value="email">อีเมล</option>
@@ -212,7 +266,7 @@ export default function AdminUsersPage() {
             </div>
             <div className="flex gap-2 items-end">
               <Button variant="primary" size="sm" onClick={() => { setPage(1); load(); }}>ค้นหา</Button>
-              <Button variant="outline" size="sm" onClick={() => { setQ(''); setRegType('all'); setStatus('all'); setPage(1); }}>ล้าง</Button>
+              <Button variant="outline" size="sm" onClick={() => { setQ(''); setRoleFilter('all'); setRegType('all'); setStatus('all'); setPage(1); }}>ล้าง</Button>
               <Button variant="outline" size="sm" onClick={load}>↺</Button>
               {total > 0 && <span className="text-xs text-gray-500 pb-0.5">พบ {total.toLocaleString()} คน</span>}
             </div>
@@ -250,7 +304,7 @@ export default function AdminUsersPage() {
                         </td>
                         <td className="px-3 py-2.5">
                           <span className={`text-[11px] px-1.5 py-0.5 rounded font-semibold ${trustBadge(u.trust_level)}`}>
-                            {u.trust_level} · {(u as any).trust_score ?? 0}
+                            {trustName(u.trust_level)} · {(u as any).trust_score ?? 0}
                           </span>
                         </td>
                         <td className="px-3 py-2.5">
@@ -295,7 +349,7 @@ export default function AdminUsersPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="text-base font-bold text-gray-900">{selectedUser.display_name || displayPrimary(selectedUser)}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusBadge(selectedUser.status)}`}>{selectedUser.status}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded font-semibold ${trustBadge(selectedUser.trust_level)}`}>{selectedUser.trust_level} · {selectedUser.trust_score ?? 0}pt</span>
+                      <span className={`text-xs px-2 py-0.5 rounded font-semibold ${trustBadge(selectedUser.trust_level)}`}>{trustName(selectedUser.trust_level)} · {selectedUser.trust_score ?? 0}pt</span>
                     </div>
                     <div className="text-xs text-gray-500 mt-1">{selectedUser.role} · {selectedUser.account_type}</div>
                     <div className="text-[10px] text-gray-400 font-mono mt-0.5 break-all">{selectedUser.id}</div>
@@ -312,12 +366,11 @@ export default function AdminUsersPage() {
                   {[
                     { label: 'Email', field: 'email', value: selectedUser.email, type: 'text' as const },
                     { label: 'Phone', field: 'phone_number', value: selectedUser.phone_number, type: 'text' as const },
-                    { label: 'Trust Level', field: 'trust_level', value: selectedUser.trust_level, type: 'select' as const,
-                      options: [{ label: 'L0', value: 'L0' }, { label: 'L1', value: 'L1' }, { label: 'L2', value: 'L2' }, { label: 'L3', value: 'L3' }] },
+                    { label: 'ระดับความน่าเชื่อถือ', field: 'trust_level', value: selectedUser.trust_level, type: 'select' as const,
+                      options: [{ label: 'L0 เริ่มต้น', value: 'L0' }, { label: 'L1 ยืนยันการติดต่อ', value: 'L1' }, { label: 'L2 ยืนยันตัวตน', value: 'L2' }, { label: 'L3 มืออาชีพ', value: 'L3' }] },
                     { label: 'Trust Score', field: 'trust_score', value: selectedUser.trust_score ?? 0, type: 'number' as const },
                     { label: 'Email ยืนยัน', field: 'is_email_verified', value: selectedUser.is_email_verified, type: 'boolean' as const },
                     { label: 'Phone ยืนยัน', field: 'is_phone_verified', value: selectedUser.is_phone_verified, type: 'boolean' as const },
-                    { label: '2FA', field: 'two_factor_enabled', value: selectedUser.two_factor_enabled, type: 'boolean' as const },
                   ].map(({ label, field, value, type, options }: any) => (
                     <div key={field} className="flex items-center justify-between py-2 gap-2">
                       <span className="text-xs text-gray-500 w-28 shrink-0">{label}</span>
@@ -348,6 +401,72 @@ export default function AdminUsersPage() {
                   </div>
                 </div>
               </Card>
+
+              {/* ── Section: ใบรับรอง/เอกสาร (caregiver only) ── */}
+              {selectedUser.role === 'caregiver' && (
+                <Card className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
+                      <FileText className="w-3.5 h-3.5" />ใบรับรอง / เอกสาร
+                    </div>
+                    <button onClick={() => setShowAddDoc(!showAddDoc)}
+                      className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1">
+                      <Plus className="w-3.5 h-3.5" />{showAddDoc ? 'ยกเลิก' : 'เพิ่ม'}
+                    </button>
+                  </div>
+
+                  {showAddDoc && (
+                    <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg space-y-2">
+                      <Input label="ชื่อเอกสาร *" value={newDocTitle} onChange={(e) => setNewDocTitle(e.target.value)} placeholder="เช่น ใบรับรองปฐมพยาบาล" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select label="ประเภท" value={newDocType} onChange={(e) => setNewDocType(e.target.value)}>
+                          <option value="certification">ใบรับรอง</option>
+                          <option value="license">ใบอนุญาต</option>
+                          <option value="training">ใบอบรม</option>
+                          <option value="other">อื่นๆ</option>
+                        </Select>
+                        <Input label="ผู้ออก" value={newDocIssuer} onChange={(e) => setNewDocIssuer(e.target.value)} placeholder="เช่น สภากาชาดไทย" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-600 block mb-1">ไฟล์ (รูปภาพ/PDF) *</label>
+                        <input type="file" accept="image/*,.pdf" onChange={(e) => setNewDocFile(e.target.files?.[0] || null)}
+                          className="text-xs w-full file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:bg-blue-100 file:text-blue-700 hover:file:bg-blue-200" />
+                      </div>
+                      <Button variant="primary" size="sm" loading={docSaving} onClick={handleAddDoc}>อัปโหลดเอกสาร</Button>
+                    </div>
+                  )}
+
+                  {docsLoading ? (
+                    <div className="text-xs text-gray-500 py-2">กำลังโหลด...</div>
+                  ) : docs.length === 0 ? (
+                    <div className="text-xs text-gray-400 py-2">ยังไม่มีเอกสาร</div>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {docs.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-xs bg-white hover:bg-gray-50">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium text-gray-800 truncate">{doc.title}</div>
+                            <div className="text-[11px] text-gray-400 flex flex-wrap gap-x-2">
+                              <span>{doc.document_type}</span>
+                              {doc.issuer && <span>· {doc.issuer}</span>}
+                              <span>· {doc.file_name}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0 ml-2">
+                            {doc.file_path && (
+                              <a href={`/uploads/${doc.file_path}`} target="_blank" rel="noopener noreferrer"
+                                className="text-blue-500 hover:text-blue-700 text-[11px]">ดู</a>
+                            )}
+                            <button onClick={() => handleDeleteDoc(doc.id)} className="text-red-400 hover:text-red-600" title="ลบ">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              )}
 
               {/* ── Section: กระเป๋าเงิน ── */}
               <Card className="p-4">

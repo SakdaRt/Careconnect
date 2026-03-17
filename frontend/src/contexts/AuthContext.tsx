@@ -18,8 +18,8 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   loginWithTokens: (accessToken: string, refreshToken?: string) => Promise<User>;
   loginWithPhone: (phone: string, password: string) => Promise<User>;
-  registerGuest: (email: string, password: string, role: UserRole) => Promise<void>;
-  registerMember: (phone: string, password: string, role: UserRole) => Promise<void>;
+  registerGuest: (email: string, password: string, role: UserRole) => Promise<{ otp_id: string; expires_in: number; _dev_code?: string }>;
+  registerMember: (phone: string, password: string, role: UserRole) => Promise<{ otp_id: string; expires_in: number; _dev_code?: string }>;
   logout: () => void;
   setActiveRole: (role: UserRole | null) => void;
   updateUser: (updates: Partial<User>) => void;
@@ -46,13 +46,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (response.success && response.data) {
             setUser(response.data.user);
             setScopedStorageItem('careconnect_user', JSON.stringify(response.data.user));
+            const freshUser = response.data.user;
             const storedActiveRole = getScopedStorageItem('careconnect_active_role') as UserRole | null;
-            const isStoredRoleValid = storedActiveRole === 'hirer' || storedActiveRole === 'caregiver';
-            const isGuest = response.data.user.account_type === 'guest';
-            if (isStoredRoleValid && (!isGuest || storedActiveRole === 'hirer')) {
-              setActiveRole(storedActiveRole);
+            const serverRole = freshUser.role as UserRole;
+            const isGuest = freshUser.account_type === 'guest';
+
+            // Priority: localStorage role > server role > null
+            // But must validate against server state
+            let resolved: UserRole | null = null;
+
+            if (storedActiveRole === 'hirer' || storedActiveRole === 'caregiver') {
+              // Validate: guest can't use caregiver without phone verification
+              if (isGuest && storedActiveRole === 'caregiver' && !freshUser.is_phone_verified) {
+                resolved = null;
+              } else {
+                resolved = storedActiveRole;
+              }
+            }
+
+            // Fallback to server role if localStorage empty or invalid
+            if (!resolved && (serverRole === 'hirer' || serverRole === 'caregiver')) {
+              if (isGuest && serverRole === 'caregiver' && !freshUser.is_phone_verified) {
+                resolved = null;
+              } else {
+                resolved = serverRole;
+              }
+            }
+
+            if (serverRole === 'admin') {
+              resolved = 'admin';
+            }
+
+            setActiveRole(resolved);
+            if (resolved) {
+              setScopedStorageItem('careconnect_active_role', resolved);
             } else {
-              setActiveRole(null);
               removeScopedStorageItem('careconnect_active_role');
             }
           } else {
@@ -89,6 +117,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [activeRole]);
 
+  const resolveActiveRole = (u: User): UserRole | null => {
+    if (u.role === 'admin') return 'admin';
+    const r = u.role as UserRole;
+    if (r === 'hirer' || r === 'caregiver') return r;
+    return null;
+  };
+
   const login = async (email: string, password: string) => {
     setIsLoading(true);
     try {
@@ -101,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data.user);
       removeScopedStorageItem('pendingRole');
       removeScopedStorageItem('pendingAccountType');
-      setActiveRole(null);
+      setActiveRole(resolveActiveRole(response.data.user));
       return response.data.user;
     } finally {
       setIsLoading(false);
@@ -123,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data.user);
       removeScopedStorageItem('pendingRole');
       removeScopedStorageItem('pendingAccountType');
-      setActiveRole(null);
+      setActiveRole(resolveActiveRole(response.data.user));
       return response.data.user;
     } catch (error) {
       api.clearTokens();
@@ -145,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(response.data.user);
       removeScopedStorageItem('pendingRole');
       removeScopedStorageItem('pendingAccountType');
-      setActiveRole(null);
+      setActiveRole(resolveActiveRole(response.data.user));
       return response.data.user;
     } finally {
       setIsLoading(false);
@@ -153,33 +188,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const registerGuest = async (email: string, password: string, role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const response = await api.registerGuest(email, password, role);
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Registration failed');
-      }
-
-      setUser(response.data.user);
-    } finally {
-      setIsLoading(false);
+    const response = await api.registerGuest(email, password, role);
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Registration failed');
     }
+    return response.data as unknown as { otp_id: string; expires_in: number; _dev_code?: string };
   };
 
   const registerMember = async (phone: string, password: string, role: UserRole) => {
-    setIsLoading(true);
-    try {
-      const response = await api.registerMember(phone, password, role);
-
-      if (!response.success || !response.data) {
-        throw new Error(response.error || 'Registration failed');
-      }
-
-      setUser(response.data.user);
-    } finally {
-      setIsLoading(false);
+    const response = await api.registerMember(phone, password, role);
+    if (!response.success || !response.data) {
+      throw new Error(response.error || 'Registration failed');
     }
+    return response.data as unknown as { otp_id: string; expires_in: number; _dev_code?: string };
   };
 
   const logout = async () => {

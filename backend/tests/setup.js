@@ -14,6 +14,16 @@ if (process.env.NODE_ENV !== 'test') {
   process.env.NODE_ENV = 'test';
 }
 
+// SAFEGUARD: Prevent test cleanup from running against production database
+const dbName = process.env.DATABASE_NAME || 'careconnect';
+const nodeEnv = process.env.NODE_ENV;
+if (nodeEnv === 'production') {
+  throw new Error('FATAL: Test setup must not run in production environment. Aborting.');
+}
+if (dbName.includes('prod')) {
+  throw new Error(`FATAL: Test setup detected production-like database name "${dbName}". Aborting.`);
+}
+
 if (!process.env.JWT_SECRET) {
   process.env.JWT_SECRET = 'test-secret';
 }
@@ -110,7 +120,7 @@ beforeAll(async () => {
     'job_gps_events', 'job_photo_evidence', 'job_patient_sensitive_data',
     'job_patient_requirements', 'job_assignments',
     'notifications',
-    'user_policy_acceptances', 'auth_sessions',
+    'auth_sessions',
     'trust_score_history', 'audit_events',
   ];
 
@@ -122,21 +132,23 @@ beforeAll(async () => {
     } catch { /* table might not exist */ }
   }
 
-  // Tables with seed data — delete only test-generated rows (preserve mock @careconnect.local)
-  const seedUserIds = `(SELECT id FROM users WHERE email LIKE '%@careconnect.local' OR role = 'admin')`;
+  // Tables with seed data — delete ONLY test-generated rows
+  // Test accounts use @example.com emails. Preserve ALL other accounts (real users, seed data, admin).
+  const testUserIds = `(SELECT id FROM users WHERE email LIKE '%@example.com')`;
   const deleteQueries = [
-    `DELETE FROM jobs WHERE hirer_id NOT IN ${seedUserIds}`,
-    `DELETE FROM job_posts WHERE hirer_id NOT IN ${seedUserIds}`,
-    `DELETE FROM wallets WHERE user_id NOT IN ${seedUserIds}`,
-    `DELETE FROM patient_profiles WHERE hirer_id NOT IN ${seedUserIds}`,
-    `DELETE FROM bank_accounts WHERE user_id NOT IN ${seedUserIds}`,
-    `DELETE FROM caregiver_reviews WHERE reviewer_id NOT IN ${seedUserIds}`,
-    `DELETE FROM caregiver_favorites WHERE hirer_id NOT IN ${seedUserIds}`,
-    `DELETE FROM caregiver_documents WHERE user_id NOT IN ${seedUserIds}`,
-    `DELETE FROM caregiver_profiles WHERE user_id NOT IN ${seedUserIds}`,
-    `DELETE FROM hirer_profiles WHERE user_id NOT IN ${seedUserIds}`,
-    `DELETE FROM user_kyc_info WHERE user_id NOT IN ${seedUserIds}`,
-    `DELETE FROM users WHERE email NOT LIKE '%@careconnect.local' AND NOT (role = 'admin' AND email LIKE '%@careconnect.local')`,
+    `DELETE FROM jobs WHERE hirer_id IN ${testUserIds}`,
+    `DELETE FROM job_posts WHERE hirer_id IN ${testUserIds}`,
+    `DELETE FROM wallets WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM patient_profiles WHERE hirer_id IN ${testUserIds}`,
+    `DELETE FROM bank_accounts WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM caregiver_reviews WHERE reviewer_id IN ${testUserIds}`,
+    `DELETE FROM caregiver_favorites WHERE hirer_id IN ${testUserIds}`,
+    `DELETE FROM caregiver_documents WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM caregiver_profiles WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM hirer_profiles WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM user_kyc_info WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM user_policy_acceptances WHERE user_id IN ${testUserIds}`,
+    `DELETE FROM users WHERE email LIKE '%@example.com'`,
   ];
 
   for (const sql of deleteQueries) {

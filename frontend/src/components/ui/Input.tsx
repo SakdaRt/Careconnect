@@ -168,17 +168,22 @@ export interface PhoneInputProps extends Omit<InputProps, 'type'> {}
 export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
   ({ value, onChange, ...props }, ref) => {
     const formatPhoneNumber = (val: string) => {
-      // Remove all non-digits
       const digits = val.replace(/\D/g, '');
 
-      // Format: +66 8X XXX XXXX or 0X XXXX XXXX
-      if (digits.startsWith('66')) {
-        return `+${digits.slice(0, 2)} ${digits.slice(2, 3)} ${digits.slice(3, 7)} ${digits.slice(7, 11)}`.trim();
-      } else if (digits.startsWith('0')) {
-        return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`.trim();
+      // Always format as 0xx-xxxx-xxxx (Thai mobile)
+      if (digits.startsWith('66') && digits.length > 2) {
+        const national = '0' + digits.slice(2);
+        return national.slice(0, 10);
+      }
+      if (digits.startsWith('0')) {
+        return digits.slice(0, 10);
+      }
+      // If user types raw 9 digits without 0, prepend 0
+      if (digits.length <= 9 && /^[2-9]/.test(digits)) {
+        return '0' + digits.slice(0, 9);
       }
 
-      return digits;
+      return digits.slice(0, 10);
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -198,7 +203,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(
         type="tel"
         value={value}
         onChange={handleChange}
-        placeholder="+66 8X XXXX XXXX"
+        placeholder="08x-xxx-xxxx"
         {...props}
       />
     );

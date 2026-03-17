@@ -50,7 +50,8 @@ export default function ConsentPage() {
       removeScopedStorageItem('pendingRole');
       setActiveRole(resolvedRole);
 
-      toast.success('สมัครสมาชิกสำเร็จ! ยินดีต้อนรับสู่ Careconnect');
+      const isFirstTime = state?.mode !== 'login';
+      toast.success(isFirstTime ? 'สมัครสมาชิกสำเร็จ! ยินดีต้อนรับสู่ Careconnect' : 'เข้าสู่ระบบสำเร็จ');
 
       // Navigate based on role
       setTimeout(() => {

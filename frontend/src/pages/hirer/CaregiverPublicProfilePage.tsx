@@ -5,6 +5,7 @@ import { Star, Briefcase, Clock3, Heart, ArrowLeft, ShieldCheck, FileText } from
 import { MainLayout } from '../../layouts';
 import { Button, Card, LoadingState } from '../../components/ui';
 import { appApi } from '../../services/appApi';
+import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 interface CaregiverProfile {
   id: string;
@@ -36,12 +37,10 @@ interface Review {
   created_at: string;
 }
 
-const TRUST_STYLE: Record<string, { bg: string; text: string; label: string }> = {
-  L3: { bg: 'bg-emerald-100', text: 'text-emerald-800', label: 'L3 เชื่อถือสูง' },
-  L2: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'L2 ยืนยันแล้ว' },
-  L1: { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'L1 พื้นฐาน' },
-  L0: { bg: 'bg-gray-100', text: 'text-gray-600', label: 'L0 ยังไม่ยืนยัน' },
-};
+function getTrustStyle(level: string) {
+  const c = getTrustLevelConfig(level);
+  return { bg: c.bgColor, text: c.textColor, label: c.label };
+}
 
 const SKILL_LABELS: Record<string, string> = {
   companionship: 'ดูแลทั่วไป/เพื่อนคุย',
@@ -169,7 +168,7 @@ export default function CaregiverPublicProfilePage() {
     );
   }
 
-  const tl = TRUST_STYLE[profile.trust_level] || TRUST_STYLE.L0;
+  const tl = getTrustStyle(profile.trust_level);
   const tags = Array.from(new Set([...(profile.specializations || []), ...(profile.certifications || [])]));
   const dayNums = (profile.available_days || []).map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
   const fromTime = formatTime(profile.available_from);

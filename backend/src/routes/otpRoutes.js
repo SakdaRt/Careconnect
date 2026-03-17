@@ -27,12 +27,13 @@ router.post('/email/send', requireAuth, requirePolicy('auth:otp'), otpLimiter, s
 router.post('/phone/send', requireAuth, requirePolicy('auth:otp'), otpLimiter, sendPhoneOtp);
 
 /**
- * Verify OTP
+ * Verify OTP (public — supports both registration and authenticated verification)
  * POST /api/otp/verify
- * Headers: Authorization: Bearer <token>
  * Body: { otp_id, code }
+ * Note: No requireAuth — registration OTP verify has no user yet.
+ *       Authenticated users also use this for phone/email verify.
  */
-router.post('/verify', requireAuth, requirePolicy('auth:otp'), otpLimiter, verifyOtp);
+router.post('/verify', otpLimiter, verifyOtp);
 
 /**
  * Resend OTP

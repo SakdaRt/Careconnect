@@ -74,12 +74,12 @@ export const appApi = {
     return api.resetPassword(token, email, newPassword);
   },
 
-  async sendEmailOtp() {
-    return api.sendEmailOtp();
+  async sendEmailOtp(email?: string) {
+    return api.sendEmailOtp(email);
   },
 
-  async sendPhoneOtp() {
-    return api.sendPhoneOtp();
+  async sendPhoneOtp(phone_number?: string) {
+    return api.sendPhoneOtp(phone_number);
   },
 
   async resendOtp(otp_id: string) {
