@@ -120,7 +120,7 @@ const avatarStorage = multer.diskStorage({
 
 const avatarUpload = multer({
   storage: avatarStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5 MB
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
   fileFilter: (_req, file, cb) => {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (allowed.includes(file.mimetype)) {

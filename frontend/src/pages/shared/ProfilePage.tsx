@@ -4,7 +4,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
 } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
@@ -18,7 +17,7 @@ import {
 } from "lucide-react";
 import { MainLayout } from "../../layouts";
 import {
-  Avatar,
+  AvatarUpload,
   Button,
   Card,
   TrustLevelCard,
@@ -115,7 +114,6 @@ export default function ProfilePage() {
     issued_date: "",
     expiry_date: "",
   });
-  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
 
   useEffect(() => {
@@ -153,56 +151,26 @@ export default function ProfilePage() {
     () => user?.email || user?.phone_number || "-",
     [user],
   );
-  const avatarSrc = useMemo(() => {
-    if (!user?.avatar) return undefined;
-    if (
-      user.avatar.startsWith("http://") ||
-      user.avatar.startsWith("https://") ||
-      user.avatar.startsWith("/")
-    ) {
-      return user.avatar;
-    }
-    return `/uploads/${user.avatar}`;
-  }, [user?.avatar]);
-  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} คนอื่นจะเห็นเป็น “ชื่อจริง น.” ก่อนมอบหมายงาน`;
+  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} คนอื่นจะเห็นเป็น "ชื่อจริง น." ก่อนมอบหมายงาน`;
 
-  const handleAvatarFileChange = async (
-    event: ChangeEvent<HTMLInputElement>,
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const supportedMime = ["image/jpeg", "image/png", "image/webp"];
-    if (!supportedMime.includes(file.type)) {
-      toast.error("อนุญาตเฉพาะไฟล์ JPEG, PNG หรือ WebP");
-      event.target.value = "";
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB");
-      event.target.value = "";
-      return;
-    }
-
+  const handleAvatarUpload = async (blob: Blob) => {
     setAvatarUploading(true);
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", blob, "avatar.jpg");
 
       const res = await appApi.uploadProfileAvatar(formData);
-      if (!res.success || !res.data?.avatar) {
+      if (!res.success || !res.data?.avatar_version) {
         toast.error(res.error || "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ");
         return;
       }
 
-      updateUser({ avatar: res.data.avatar });
+      updateUser({ avatar_version: res.data.avatar_version });
       toast.success("อัปเดตรูปโปรไฟล์แล้ว");
     } catch (error: any) {
       toast.error(error.message || "อัปโหลดรูปโปรไฟล์ไม่สำเร็จ");
     } finally {
       setAvatarUploading(false);
-      event.target.value = "";
     }
   };
 
@@ -768,42 +736,26 @@ export default function ProfilePage() {
 
         {user && (
           <Card className="p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <Avatar src={avatarSrc} name={user.name || ""} size="lg" />
-                <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-900 truncate">
-                    {user.name || "-"}
-                  </div>
-                  <div className="text-xs text-gray-600 break-all">
-                    {primaryId}
-                  </div>
-                  <div className="text-xs text-gray-500 font-mono break-all">
-                    {user.id}
-                  </div>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+              <AvatarUpload
+                userId={user.id}
+                avatarVersion={user.avatar_version}
+                name={user.name || ""}
+                size="3xl"
+                onUpload={handleAvatarUpload}
+                loading={avatarUploading}
+              />
+              <div className="min-w-0">
+                <div className="text-base font-semibold text-gray-900 truncate">
+                  {user.name || "-"}
+                </div>
+                <div className="text-sm text-gray-600 break-all">
+                  {primaryId}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  คลิกที่รูปเพื่อเปลี่ยนรูปโปรไฟล์
                 </div>
               </div>
-
-              <div className="flex-shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  loading={avatarUploading}
-                  onClick={() => avatarInputRef.current?.click()}
-                >
-                  เพิ่มรูปโปรไฟล์
-                </Button>
-                <input
-                  ref={avatarInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={handleAvatarFileChange}
-                />
-              </div>
-            </div>
-            <div className="text-xs text-gray-500 mt-2">
-              รองรับไฟล์ JPEG, PNG, WebP ขนาดไม่เกิน 5 MB
             </div>
           </Card>
         )}

@@ -468,6 +468,10 @@ app.use("/api/complaints", complaintRoutes);
 
 // Static file serving for uploads
 const uploadDir = process.env.UPLOAD_DIR || "/app/uploads";
+app.use("/uploads/avatars", express.static(path.resolve(uploadDir, "avatars"), {
+  maxAge: "365d",
+  immutable: true,
+}));
 app.use("/uploads", express.static(path.resolve(uploadDir)));
 
 // Initialize Socket.IO chat handlers

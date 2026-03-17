@@ -17,6 +17,7 @@ import { v4 as uuidv4 } from 'uuid';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { processAvatarUpload } from '../services/imageService.js';
 
 const GENERATED_DISPLAY_NAME_PATTERN = /^ผู้(?:ว่าจ้าง|ดูแล)\s+[A-Z0-9]{4}$/u;
 const DISPLAY_NAME_PATTERN = /^(\S+)\s+(\S)\.?$/u;
@@ -139,68 +140,50 @@ export const updateAvatar = async (req, res) => {
     const file = req.file;
     if (!file) {
       return res.status(400).json({
-        error: 'Validation error',
-        message: 'กรุณาอัปโหลดรูปโปรไฟล์',
+        success: false,
+        error: 'กรุณาอัปโหลดรูปโปรไฟล์',
       });
     }
-
-    const uploadDir = path.resolve(process.env.UPLOAD_DIR || '/app/uploads');
-    const relativePath = path
-      .relative(uploadDir, file.path)
-      .replace(/\\/g, '/');
 
     const existingUser = await User.findById(req.userId);
     if (!existingUser) {
       if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
         fs.unlinkSync(uploadedFilePath);
       }
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
-      });
+      return res.status(404).json({ success: false, error: 'User not found' });
     }
 
-    const previousAvatar = typeof existingUser.avatar === 'string' ? existingUser.avatar : null;
+    await processAvatarUpload(file.path, req.userId);
 
-    const updatedUser = await User.updateById(req.userId, {
-      avatar: relativePath,
-      updated_at: new Date(),
-    });
+    const result = await query(
+      `UPDATE users
+       SET avatar_version = COALESCE(avatar_version, 0) + 1, updated_at = NOW()
+       WHERE id = $1
+       RETURNING avatar_version`,
+      [req.userId]
+    );
 
-    if (!updatedUser) {
-      if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
-        fs.unlinkSync(uploadedFilePath);
-      }
-      return res.status(404).json({
-        error: 'Not Found',
-        message: 'User not found',
-      });
-    }
-
-    if (previousAvatar && previousAvatar !== relativePath) {
-      const previousAvatarPath = path.join(uploadDir, previousAvatar);
-      if (fs.existsSync(previousAvatarPath)) {
-        fs.unlinkSync(previousAvatarPath);
-      }
-    }
+    const avatarVersion = result.rows[0]?.avatar_version || 1;
 
     return res.status(200).json({
       success: true,
       data: {
-        avatar: relativePath,
+        avatar_version: avatarVersion,
       },
     });
   } catch (error) {
     if (uploadedFilePath && fs.existsSync(uploadedFilePath)) {
-      fs.unlinkSync(uploadedFilePath);
+      try { fs.unlinkSync(uploadedFilePath); } catch (_) { /* ignore */ }
+    }
+
+    if (error.status) {
+      return res.status(error.status).json({ success: false, error: error.message });
     }
 
     console.error('[Auth Controller] Update avatar error:', error);
-    const detail = error instanceof Error ? error.message : 'Failed to update avatar';
-
     return res.status(500).json({
-      error: 'Server error',
-      message: process.env.NODE_ENV === 'production' ? 'Failed to update avatar' : detail,
+      success: false,
+      error: 'อัปโหลดรูปโปรไฟล์ไม่สำเร็จ',
     });
   }
 };

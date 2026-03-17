@@ -194,4 +194,24 @@ router.post('/admin/withdrawals/:withdrawalId/mark-paid',
   walletController.adminMarkWithdrawalPaid
 );
 
+router.get('/admin/withdrawals/:withdrawalId/detail', 
+  requireAuth, 
+  requireRole('admin'),
+  validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  walletController.adminGetWithdrawalDetail
+);
+
+router.get('/admin/dashboard', 
+  requireAuth, 
+  requireRole('admin'), 
+  walletController.adminGetDashboardStats
+);
+
+router.get('/admin/transactions', 
+  requireAuth, 
+  requireRole('admin'), 
+  validateQuery(walletSchemas.walletQuery),
+  walletController.adminGetTransactions
+);
+
 export default router;

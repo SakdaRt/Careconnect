@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom
 import toast from 'react-hot-toast';
 import { Car, Heart, Brain, BedDouble, Activity, Stethoscope, User as UserIcon, PlusCircle, Check, Search, Star, ChevronDown, ChevronUp } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
+import { Avatar, Badge, Button, Card, Input, Modal, Select, Textarea, type BadgeProps } from '../../components/ui';
 import { GooglePlacesInput } from '../../components/location/GooglePlacesInput';
 import { CareRecipient, CreateJobData } from '../../services/api';
 import { appApi } from '../../services/appApi';
@@ -993,13 +993,6 @@ export default function CreateJobPage() {
     return { schedule, scheduleLabel, time, timeLabel, confidence, confidenceLabel };
   }, [form.scheduled_start_at]);
 
-  const getInitials = (name?: string) => {
-    if (!name) return '?';
-    const parts = name.trim().split(/\s+/);
-    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
-    return name[0]?.toUpperCase() || '?';
-  };
-
   const computeReliability = (cg: any): string[] => {
     const tags: string[] = [];
     const rating = Number(cg.avg_rating) || 0;
@@ -1988,9 +1981,6 @@ export default function CreateJobPage() {
                         const requiredSkills = new Set(form.required_skills_flags);
                         const matchedSkills = [...specs, ...certs].filter((s: string) => requiredSkills.has(s));
                         const feas = computeFeasibility(cg);
-                        const avatarUrl = cg.avatar ? `/uploads/${cg.avatar}` : null;
-                        const initials = getInitials(cg.display_name);
-
                         return (
                           <div key={cg.id} className={cn('border-2 rounded-xl transition-all', isSelected ? 'border-blue-500 bg-blue-50' : isBestMatch ? 'border-amber-300 bg-amber-50/30' : 'border-gray-200')}>
                             {isBestMatch && !isSelected && (
@@ -1998,13 +1988,13 @@ export default function CreateJobPage() {
                             )}
                             <button type="button" onClick={() => setSelectedCaregiverId(isSelected ? '' : cg.id)} className="w-full p-3 text-left focus:outline-none">
                               <div className="flex items-start gap-3">
-                                {avatarUrl ? (
-                                  <img src={avatarUrl} alt="" className="w-10 h-10 rounded-full object-cover flex-shrink-0 mt-0.5" />
-                                ) : (
-                                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 text-sm font-bold', isSelected ? 'bg-blue-200 text-blue-700' : 'bg-gray-200 text-gray-600')}>
-                                    {initials}
-                                  </div>
-                                )}
+                                <Avatar
+                                  userId={cg.id}
+                                  avatarVersion={cg.avatar_version}
+                                  src={!cg.avatar_version && cg.avatar ? `/uploads/${cg.avatar}` : undefined}
+                                  name={cg.display_name || 'ผู้ดูแล'}
+                                  size="md"
+                                />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-2">
                                     <span className="text-sm font-semibold text-gray-900 line-clamp-1">{cg.display_name || 'ผู้ดูแล'}</span>

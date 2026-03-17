@@ -12,6 +12,7 @@ import { getTrustLevelConfig } from '../../utils/trustLevel';
 interface CaregiverResult {
   id: string;
   avatar?: string | null;
+  avatar_version?: number;
   email?: string;
   phone_number?: string;
   trust_level: string;
@@ -614,9 +615,11 @@ export default function SearchCaregiversPage() {
                 <Card key={cg.id} className="flex flex-col sm:flex-row gap-4 items-start">
                   <button type="button" onClick={() => handleOpenDetails(cg)} className="flex-shrink-0">
                     <Avatar
-                      src={cg.avatar ? `/uploads/${cg.avatar}` : undefined}
+                      userId={cg.id}
+                      avatarVersion={cg.avatar_version}
+                      src={!cg.avatar_version && cg.avatar ? `/uploads/${cg.avatar}` : undefined}
                       name={cg.display_name || 'ผู้ดูแล'}
-                      size="lg"
+                      size="xl"
                     />
                   </button>
                   <div className="flex-1 min-w-0">

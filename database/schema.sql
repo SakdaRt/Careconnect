@@ -111,6 +111,10 @@ CREATE TABLE users (
     completed_jobs_count INT NOT NULL DEFAULT 0 CHECK (completed_jobs_count >= 0),
     first_job_waiver_used BOOLEAN NOT NULL DEFAULT FALSE,
 
+    -- Avatar
+    avatar VARCHAR(500),
+    avatar_version INT NOT NULL DEFAULT 0,
+
     -- Admin ban flags
     ban_login       BOOLEAN NOT NULL DEFAULT FALSE,
     ban_job_create  BOOLEAN NOT NULL DEFAULT FALSE,

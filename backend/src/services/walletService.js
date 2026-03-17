@@ -1,8 +1,10 @@
 import Wallet from '../models/Wallet.js';
 import LedgerTransaction from '../models/LedgerTransaction.js';
+import Notification from '../models/Notification.js';
 import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
+import { emitToUserRoom } from '../sockets/realtimeHub.js';
 import '../config/loadEnv.js';
 import Stripe from 'stripe';
 
@@ -754,7 +756,7 @@ class WalletService {
   }
 
   async getAllWithdrawals(options = {}) {
-    const { page = 1, limit = 20, status } = options;
+    const { page = 1, limit = 20, status, search, date_from, date_to } = options;
     const offset = (page - 1) * limit;
 
     let whereClause = '1=1';
@@ -765,18 +767,48 @@ class WalletService {
       whereClause += ` AND wr.status = $${values.length}`;
     }
 
+    if (search) {
+      values.push(`%${search}%`);
+      whereClause += ` AND (u.email ILIKE $${values.length} OR u.phone_number ILIKE $${values.length} OR cp.full_name ILIKE $${values.length} OR cp.display_name ILIKE $${values.length})`;
+    }
+
+    if (date_from) {
+      values.push(date_from);
+      whereClause += ` AND wr.created_at >= $${values.length}`;
+    }
+
+    if (date_to) {
+      values.push(date_to);
+      whereClause += ` AND wr.created_at <= $${values.length}`;
+    }
+
     const result = await query(
       `SELECT
          wr.*,
          u.email as user_email,
+         u.phone_number as user_phone,
          u.role as user_role,
+         u.trust_level as user_trust_level,
+         u.ban_withdraw as user_ban_withdraw,
+         cp.display_name as user_display_name,
+         cp.full_name as user_full_name,
+         kyc.status as user_kyc_status,
          b.full_name_th as bank_name,
+         b.code as bank_code,
          ba.account_number_last4,
-         ba.account_name
+         ba.account_name,
+         ba.is_verified as bank_account_verified,
+         w.available_balance as wallet_available_balance,
+         w.held_balance as wallet_held_balance,
+         (SELECT COUNT(*) FROM withdrawal_requests wr2 WHERE wr2.user_id = wr.user_id AND wr2.status = 'paid') as total_paid_count,
+         (SELECT COALESCE(SUM(amount), 0) FROM withdrawal_requests wr3 WHERE wr3.user_id = wr.user_id AND wr3.status = 'paid') as total_paid_amount
        FROM withdrawal_requests wr
        JOIN users u ON u.id = wr.user_id
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = wr.user_id
+       LEFT JOIN user_kyc_info kyc ON kyc.user_id = wr.user_id
        LEFT JOIN bank_accounts ba ON ba.id = wr.bank_account_id
        LEFT JOIN banks b ON b.code = ba.bank_code
+       LEFT JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = 'caregiver'
        WHERE ${whereClause}
        ORDER BY wr.created_at DESC
        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
@@ -784,7 +816,11 @@ class WalletService {
     );
 
     const countResult = await query(
-      `SELECT COUNT(*) as total FROM withdrawal_requests wr WHERE ${whereClause}`,
+      `SELECT COUNT(*) as total
+       FROM withdrawal_requests wr
+       JOIN users u ON u.id = wr.user_id
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = wr.user_id
+       WHERE ${whereClause}`,
       values
     );
     const total = parseInt(countResult.rows[0].total, 10);
@@ -796,6 +832,96 @@ class WalletService {
       limit,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  async getWithdrawalDetail(withdrawalId) {
+    const result = await query(
+      `SELECT
+         wr.*,
+         u.email as user_email,
+         u.phone_number as user_phone,
+         u.role as user_role,
+         u.trust_level as user_trust_level,
+         u.ban_withdraw as user_ban_withdraw,
+         u.is_email_verified as user_email_verified,
+         u.is_phone_verified as user_phone_verified,
+         cp.display_name as user_display_name,
+         cp.full_name as user_full_name,
+         kyc.status as user_kyc_status,
+         b.full_name_th as bank_name,
+         b.code as bank_code,
+         ba.account_number_last4,
+         ba.account_name,
+         ba.is_verified as bank_account_verified,
+         w.available_balance as wallet_available_balance,
+         w.held_balance as wallet_held_balance
+       FROM withdrawal_requests wr
+       JOIN users u ON u.id = wr.user_id
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = wr.user_id
+       LEFT JOIN user_kyc_info kyc ON kyc.user_id = wr.user_id
+       LEFT JOIN bank_accounts ba ON ba.id = wr.bank_account_id
+       LEFT JOIN banks b ON b.code = ba.bank_code
+       LEFT JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = 'caregiver'
+       WHERE wr.id = $1`,
+      [withdrawalId]
+    );
+
+    if (result.rows.length === 0) {
+      throw { status: 404, message: 'Withdrawal request not found' };
+    }
+
+    const wd = result.rows[0];
+
+    const historyResult = await query(
+      `SELECT id, amount, status, created_at, paid_at
+       FROM withdrawal_requests
+       WHERE user_id = $1 AND id != $2
+       ORDER BY created_at DESC LIMIT 10`,
+      [wd.user_id, withdrawalId]
+    );
+
+    return {
+      ...wd,
+      withdrawal_history: historyResult.rows,
+    };
+  }
+
+  async _logWithdrawalAudit(eventType, action, adminId, details) {
+    try {
+      await query(
+        `INSERT INTO audit_events (id, user_id, event_type, action, details, created_at)
+         VALUES ($1, $2, $3, $4, $5, NOW())`,
+        [uuidv4(), adminId, eventType, action, JSON.stringify(details)]
+      );
+    } catch (err) {
+      console.error('[WalletService] Failed to log audit event:', err.message);
+    }
+  }
+
+  async _notifyWithdrawalStatus(userId, newStatus, amount, extra = {}) {
+    const statusMessages = {
+      review: { title: 'กำลังตรวจสอบคำขอถอนเงิน', body: `คำขอถอนเงิน ฿${Number(amount).toLocaleString()} กำลังได้รับการตรวจสอบ` },
+      approved: { title: 'คำขอถอนเงินได้รับการอนุมัติ', body: `คำขอถอนเงิน ฿${Number(amount).toLocaleString()} ได้รับการอนุมัติแล้ว รอโอนเงิน` },
+      rejected: { title: 'คำขอถอนเงินถูกปฏิเสธ', body: `คำขอถอนเงิน ฿${Number(amount).toLocaleString()} ถูกปฏิเสธ${extra.reason ? ': ' + extra.reason : ''} เงินได้คืนเข้า wallet แล้ว` },
+      paid: { title: 'โอนเงินเรียบร้อย', body: `เงิน ฿${Number(amount).toLocaleString()} ถูกโอนเข้าบัญชีธนาคารแล้ว${extra.payout_reference ? ' (Ref: ' + extra.payout_reference + ')' : ''}` },
+    };
+    const msg = statusMessages[newStatus];
+    if (!msg) return;
+    try {
+      await Notification.create({
+        userId,
+        channel: 'in_app',
+        templateKey: `withdrawal_${newStatus}`,
+        title: msg.title,
+        body: msg.body,
+        data: { withdrawal_id: extra.withdrawal_id, status: newStatus },
+        referenceType: 'withdrawal',
+        referenceId: extra.withdrawal_id,
+      });
+      emitToUserRoom(userId, 'notification:new', { title: msg.title, body: msg.body });
+    } catch (err) {
+      console.error('[WalletService] Failed to send withdrawal notification:', err.message);
+    }
   }
 
   async reviewWithdrawal(withdrawalId, adminId) {
@@ -825,7 +951,10 @@ class WalletService {
       );
 
       const updated = await client.query(`SELECT * FROM withdrawal_requests WHERE id = $1`, [withdrawalId]);
-      return updated.rows[0];
+      const result = updated.rows[0];
+      this._logWithdrawalAudit('withdrawal_reviewed', 'admin:review', adminId, { withdrawal_id: withdrawalId, amount: wd.amount, user_id: wd.user_id });
+      this._notifyWithdrawalStatus(wd.user_id, 'review', wd.amount, { withdrawal_id: withdrawalId });
+      return result;
     });
   }
 
@@ -856,7 +985,10 @@ class WalletService {
       );
 
       const updated = await client.query(`SELECT * FROM withdrawal_requests WHERE id = $1`, [withdrawalId]);
-      return updated.rows[0];
+      const result = updated.rows[0];
+      this._logWithdrawalAudit('withdrawal_approved', 'admin:approve', adminId, { withdrawal_id: withdrawalId, amount: wd.amount, user_id: wd.user_id });
+      this._notifyWithdrawalStatus(wd.user_id, 'approved', wd.amount, { withdrawal_id: withdrawalId });
+      return result;
     });
   }
 
@@ -906,11 +1038,18 @@ class WalletService {
       );
 
       const updated = await client.query(`SELECT * FROM withdrawal_requests WHERE id = $1`, [withdrawalId]);
-      return updated.rows[0];
+      const result = updated.rows[0];
+      this._logWithdrawalAudit('withdrawal_rejected', 'admin:reject', adminId, { withdrawal_id: withdrawalId, amount: wd.amount, user_id: wd.user_id, reason });
+      this._notifyWithdrawalStatus(wd.user_id, 'rejected', wd.amount, { withdrawal_id: withdrawalId, reason });
+      return result;
     });
   }
 
-  async markWithdrawalPaid(withdrawalId, adminId, payoutReference = null) {
+  async markWithdrawalPaid(withdrawalId, adminId, payoutReference = null, payoutProofKey = null) {
+    if (!payoutReference) {
+      throw { status: 400, message: 'payout_reference is required when marking as paid' };
+    }
+
     return await transaction(async (client) => {
       const wdResult = await client.query(
         `SELECT wr.*, w.id as wallet_id
@@ -943,9 +1082,10 @@ class WalletService {
              paid_by = $2,
              paid_at = NOW(),
              payout_reference = $3,
+             payout_proof_storage_key = $4,
              updated_at = NOW()
          WHERE id = $1`,
-        [withdrawalId, adminId, payoutReference]
+        [withdrawalId, adminId, payoutReference, payoutProofKey]
       );
 
       await client.query(
@@ -955,7 +1095,10 @@ class WalletService {
       );
 
       const updated = await client.query(`SELECT * FROM withdrawal_requests WHERE id = $1`, [withdrawalId]);
-      return updated.rows[0];
+      const result = updated.rows[0];
+      this._logWithdrawalAudit('withdrawal_paid', 'admin:mark_paid', adminId, { withdrawal_id: withdrawalId, amount: wd.amount, user_id: wd.user_id, payout_reference: payoutReference });
+      this._notifyWithdrawalStatus(wd.user_id, 'paid', wd.amount, { withdrawal_id: withdrawalId, payout_reference: payoutReference });
+      return result;
     });
   }
 
@@ -1002,14 +1145,138 @@ class WalletService {
     };
   }
 
-  /**
-   * Add funds directly to wallet (for testing/admin)
-   * @param {string} userId - User ID
-   * @param {string} role - User role
-   * @param {number} amount - Amount to add
-   * @param {string} reason - Reason for adding funds
-   * @returns {object} - Updated wallet
-   */
+  async getDashboardStats() {
+    const walletsByType = await query(`
+      SELECT
+        wallet_type,
+        COUNT(*) as count,
+        COALESCE(SUM(available_balance), 0) as total_available,
+        COALESCE(SUM(held_balance), 0) as total_held
+      FROM wallets
+      GROUP BY wallet_type
+    `);
+
+    const withdrawalsByStatus = await query(`
+      SELECT
+        status,
+        COUNT(*) as count,
+        COALESCE(SUM(amount), 0) as total_amount
+      FROM withdrawal_requests
+      GROUP BY status
+    `);
+
+    const monthlyStats = await query(`
+      SELECT
+        to_char(created_at, 'YYYY-MM') as month,
+        COUNT(*) FILTER (WHERE type = 'credit' AND reference_type = 'topup') as topup_count,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'credit' AND reference_type = 'topup'), 0) as topup_amount,
+        COUNT(*) FILTER (WHERE type = 'debit' AND reference_type = 'fee') as fee_count,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'debit' AND reference_type = 'fee'), 0) as fee_amount,
+        COUNT(*) FILTER (WHERE type = 'debit' AND reference_type = 'withdrawal') as payout_count,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'debit' AND reference_type = 'withdrawal'), 0) as payout_amount,
+        COUNT(*) FILTER (WHERE type = 'reversal') as reversal_count,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'reversal'), 0) as reversal_amount
+      FROM ledger_transactions
+      WHERE created_at >= NOW() - INTERVAL '6 months'
+      GROUP BY to_char(created_at, 'YYYY-MM')
+      ORDER BY month DESC
+    `);
+
+    const integrity = await LedgerTransaction.verifyLedgerIntegrity();
+
+    const walletMap = {};
+    for (const row of walletsByType.rows) {
+      walletMap[row.wallet_type] = {
+        count: parseInt(row.count),
+        total_available: parseInt(row.total_available),
+        total_held: parseInt(row.total_held),
+      };
+    }
+
+    const withdrawalMap = {};
+    for (const row of withdrawalsByStatus.rows) {
+      withdrawalMap[row.status] = {
+        count: parseInt(row.count),
+        total_amount: parseInt(row.total_amount),
+      };
+    }
+
+    return {
+      wallets: walletMap,
+      withdrawals: withdrawalMap,
+      monthly: monthlyStats.rows.map(r => ({
+        month: r.month,
+        topup_count: parseInt(r.topup_count),
+        topup_amount: parseInt(r.topup_amount),
+        fee_count: parseInt(r.fee_count),
+        fee_amount: parseInt(r.fee_amount),
+        payout_count: parseInt(r.payout_count),
+        payout_amount: parseInt(r.payout_amount),
+        reversal_count: parseInt(r.reversal_count),
+        reversal_amount: parseInt(r.reversal_amount),
+      })),
+      ledger_integrity: integrity,
+    };
+  }
+
+  async getAdminTransactions(options = {}) {
+    const { page = 1, limit = 30, type, reference_type, date_from, date_to } = options;
+    const offset = (page - 1) * limit;
+
+    let whereClause = '1=1';
+    const values = [];
+
+    if (type) {
+      values.push(type);
+      whereClause += ` AND lt.type = $${values.length}`;
+    }
+
+    if (reference_type) {
+      values.push(reference_type);
+      whereClause += ` AND lt.reference_type = $${values.length}`;
+    }
+
+    if (date_from) {
+      values.push(date_from);
+      whereClause += ` AND lt.created_at >= $${values.length}`;
+    }
+
+    if (date_to) {
+      values.push(date_to);
+      whereClause += ` AND lt.created_at <= $${values.length}`;
+    }
+
+    const result = await query(
+      `SELECT
+         lt.*,
+         fw.wallet_type as from_wallet_type,
+         fw.user_id as from_user_id,
+         tw.wallet_type as to_wallet_type,
+         tw.user_id as to_user_id
+       FROM ledger_transactions lt
+       LEFT JOIN wallets fw ON fw.id = lt.from_wallet_id
+       LEFT JOIN wallets tw ON tw.id = lt.to_wallet_id
+       WHERE ${whereClause}
+       ORDER BY lt.created_at DESC
+       LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
+      [...values, limit, offset]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*) as total FROM ledger_transactions lt WHERE ${whereClause}`,
+      values
+    );
+    const total = parseInt(countResult.rows[0].total, 10);
+
+    return {
+      data: result.rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
   async addFundsDirectly(userId, role, amount, reason = 'Admin credit') {
     const walletType = role === 'hirer' ? 'hirer' : 'caregiver';
     const wallet = await Wallet.getOrCreateWallet(userId, walletType);

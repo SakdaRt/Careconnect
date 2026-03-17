@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-14
+> อัพเดทล่าสุด: 2026-03-17
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -172,10 +172,37 @@ careconnect/
 | `backend/src/utils/errors.js`             | Custom error classes (7 types) + error handler  |
 | `backend/src/sockets/chatSocket.js`       | Socket.IO chat events (12 events)               |
 | `backend/src/sockets/realtimeHub.js`      | Realtime push to user rooms                     |
+| `backend/src/services/imageService.js`    | Image processing (avatar crop/resize)           |
+| `backend/src/services/walletService.js`   | Wallet business logic (topup/withdraw/admin)    |
+| `frontend/src/components/ui/AvatarUpload.tsx` | Avatar upload + crop component              |
+| `frontend/src/utils/trustLevel.ts`        | Trust level labels, config, checklist utility    |
 
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-17 — Multi-feature: avatar upload/crop, wallet expansion, admin financial, auth kyc_status
+
+- feat(frontend): Avatar upload/crop system
+  - `AvatarUpload.tsx` — component สำหรับเลือก + crop รูปโปรไฟล์
+  - `CropModal.tsx` — modal crop รูปก่อนอัปโหลด
+  - `avatar.ts` — utility functions สำหรับ avatar handling
+  - `Avatar.tsx` — อัพเดทให้รองรับ avatar version (cache busting)
+- feat(backend): `imageService.js` — image processing service สำหรับ avatar
+- feat(database): migration `20260316_01_avatar_version.sql` — เพิ่ม avatar versioning
+- feat(backend): Wallet expansion — walletService/controller/routes
+  - เพิ่ม admin wallet operations, topup/withdraw improvements
+  - เพิ่ม wallet routes (20 lines)
+- feat(frontend): `AdminFinancialPage.tsx` — major update with financial reporting
+- feat(backend): `authController.js` — เพิ่ม `kyc_status` + `bank_account_count` ใน `buildSafeUserResponse`
+  - แก้ปัญหา frontend ต้อง infer KYC/bank status จาก trust_level → ใช้ค่าจริงจาก DB แทน
+- feat(frontend): `api.ts` — เพิ่ม `kyc_status`, `bank_account_count` ใน User interface + API methods ใหม่
+- refactor(frontend): `ProfilePage.tsx` — ปรับปรุง UI
+- fix(frontend): `CreateJobPage.tsx`, `SearchCaregiversPage.tsx` — UI fixes
+- feat(frontend): `AdminUsersPage.tsx` — เพิ่ม role filter (hirer/caregiver/admin) + document management section
+- docs: `ADMIN_FINANCIAL_REQUIREMENTS.md`, `PROFILE_IMAGE_SYSTEM.md`
+- verify:
+  - ✅ TypeScript: PASS | Vite build: PASS
 
 ### 2026-03-15 — Refactor phone system: canonical 0xxxxxxxxx + shared utils + DB backfill
 
