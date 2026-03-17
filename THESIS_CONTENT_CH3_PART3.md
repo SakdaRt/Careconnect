@@ -14,155 +14,199 @@
 ```plantuml
 @startuml
 left to right direction
+skinparam actorStyle awesome
+skinparam usecase {
+  BackgroundColor #FEFCE8
+  BackgroundColor<<sub>> #F1F5F9
+  BorderColor<<sub>> #94A3B8
+  FontColor<<sub>> #475569
+}
 
-actor Guest as G
-actor Hirer as H
-actor Caregiver as CG
-actor Admin as A
+actor "Guest\n(ผู้เยี่ยมชม)" as G
+actor "Hirer\n(ผู้ว่าจ้าง)" as H
+actor "Caregiver\n(ผู้ดูแล)" as CG
+actor "Admin\n(ผู้ดูแลระบบ)" as A
 
-G <|-- H : Select Role
-G <|-- CG : Select Role
+G <|-- H
+G <|-- CG
 
 rectangle "CareConnect System" {
 
-  ' === Authentication ===
-  usecase "UC-01\nRegister" as UC01
-  usecase "UC-02\nLogin" as UC02
-  usecase "UC-03\nGoogle OAuth\nLogin" as UC03
-  usecase "UC-04\nVerify OTP" as UC04
-  usecase "UC-05\nForgot/Reset\nPassword" as UC05
-  usecase "UC-06\nSelect Role &\nAccept Policy" as UC06
-  usecase "UC-40\nLogout" as UC40
+  ' ============================================================
+  ' Authentication — 3 main + 1 sub
+  ' ============================================================
+  usecase "UC-01\nสมัครสมาชิก" as UC01
+  usecase "UC-02\nเข้าสู่ระบบ" as UC02
+  usecase "UC-03\nรีเซ็ตรหัสผ่าน" as UC03
+  usecase "เข้าสู่ระบบด้วย\nGoogle OAuth" as SUB_OAUTH <<sub>>
 
-  ' === Profile ===
-  usecase "UC-07\nManage Profile" as UC07
-  usecase "UC-08\nChange Password" as UC08
-  usecase "UC-09\nSubmit KYC" as UC09
-  usecase "UC-10\nUpload Caregiver\nDocuments" as UC10
+  ' ============================================================
+  ' Profile — 1 main + 3 sub
+  ' ============================================================
+  usecase "UC-04\nจัดการโปรไฟล์\nและยืนยันตัวตน" as UC04
+  usecase "ยืนยัน OTP" as SUB_OTP <<sub>>
+  usecase "ยืนยัน KYC" as SUB_KYC <<sub>>
+  usecase "อัปโหลดเอกสาร\nใบรับรอง" as SUB_DOC <<sub>>
 
-  ' === Hirer Job ===
-  usecase "UC-11\nManage Care\nRecipients" as UC11
-  usecase "UC-12\nCreate Job" as UC12
-  usecase "UC-13\nPublish Job" as UC13
-  usecase "UC-14\nCancel Job" as UC14
-  usecase "UC-15\nSearch Caregivers" as UC15
-  usecase "UC-16\nDirect Assign" as UC16
-  usecase "UC-23\nApprove/Reject\nEarly Checkout" as UC23
-  usecase "UC-24\nToggle Favorite" as UC24
-  usecase "UC-25\nWrite Review" as UC25
+  ' ============================================================
+  ' Hirer Job — 4 main + 4 sub
+  ' ============================================================
+  usecase "UC-05\nจัดการผู้รับการดูแล" as UC05
+  usecase "UC-06\nสร้างและโพสต์งาน" as UC06
+  usecase "UC-07\nค้นหาและเลือกผู้ดูแล" as UC07
+  usecase "UC-08\nยกเลิกงาน" as UC08
+  usecase "เผยแพร่งาน\n(Publish)" as SUB_PUBLISH <<sub>>
+  usecase "มอบหมายงานตรง" as SUB_ASSIGN <<sub>>
+  usecase "บันทึกผู้ดูแล\nที่ชอบ" as SUB_FAV <<sub>>
+  usecase "อนุมัติ/ปฏิเสธ\nEarly Checkout" as SUB_APPROVE_EC <<sub>>
 
-  ' === Caregiver Job ===
-  usecase "UC-17\nView Job Feed" as UC17
-  usecase "UC-18\nAccept Job" as UC18
-  usecase "UC-19\nReject Direct\nAssignment" as UC19
-  usecase "UC-20\nCheck-in" as UC20
-  usecase "UC-21\nCheck-out" as UC21
-  usecase "UC-22\nRequest Early\nCheckout" as UC22
+  ' ============================================================
+  ' Hirer Social — 1 main
+  ' ============================================================
+  usecase "UC-09\nตรวจสอบและ\nประเมินผลงาน" as UC09
+  usecase "เขียนรีวิว" as SUB_REVIEW <<sub>>
 
-  ' === Payment ===
-  usecase "UC-26\nTop-up Wallet" as UC26
-  usecase "UC-27\nView Wallet\n& History" as UC27
-  usecase "UC-28\nWithdraw" as UC28
-  usecase "UC-29\nManage Bank\nAccounts" as UC29
+  ' ============================================================
+  ' Caregiver Job — 2 main + 3 sub
+  ' ============================================================
+  usecase "UC-10\nดูและรับงาน" as UC10
+  usecase "UC-11\nปฏิบัติงาน\n(Check-in / Check-out)" as UC11
+  usecase "เช็คอิน (GPS)" as SUB_CHECKIN <<sub>>
+  usecase "เช็คเอาท์\n(GPS + หลักฐาน)" as SUB_CHECKOUT <<sub>>
+  usecase "ขอ Check-out\nก่อนเวลา" as SUB_EARLY <<sub>>
 
-  ' === Communication ===
-  usecase "UC-30\nReal-time Chat" as UC30
-  usecase "UC-31\nNotifications" as UC31
+  ' ============================================================
+  ' Payment — 1 main + 3 sub
+  ' ============================================================
+  usecase "UC-12\nจัดการกระเป๋าเงิน" as UC12
+  usecase "เติมเงิน\n(QR Code)" as SUB_TOPUP <<sub>>
+  usecase "ถอนเงิน" as SUB_WITHDRAW <<sub>>
+  usecase "จัดการบัญชี\nธนาคาร" as SUB_BANK <<sub>>
 
-  ' === Dispute ===
-  usecase "UC-32\nOpen Dispute" as UC32
-  usecase "UC-33\nSend Dispute\nEvidence" as UC33
+  ' ============================================================
+  ' Communication — 2 main
+  ' ============================================================
+  usecase "UC-13\nแชทเรียลไทม์" as UC13
+  usecase "UC-14\nดูการแจ้งเตือน" as UC14
 
-  ' === Admin ===
-  usecase "UC-34\nManage Users" as UC34
-  usecase "UC-35\nKYC Review" as UC35
-  usecase "UC-36\nManage Jobs" as UC36
-  usecase "UC-37\nView Ledger" as UC37
-  usecase "UC-38\nSettle Dispute" as UC38
-  usecase "UC-39\nView Reports\n& Dashboard" as UC39
+  ' ============================================================
+  ' Dispute — 2 main
+  ' ============================================================
+  usecase "UC-15\nเปิดข้อพิพาท" as UC15
+  usecase "UC-16\nร้องเรียน" as UC16
+
+  ' ============================================================
+  ' General — 1 main
+  ' ============================================================
+  usecase "UC-17\nออกจากระบบ" as UC17
+
+  ' ============================================================
+  ' Admin — 4 main + 1 sub
+  ' ============================================================
+  usecase "UC-18\nจัดการผู้ใช้" as UC18
+  usecase "UC-19\nจัดการงาน (Admin)" as UC19
+  usecase "UC-20\nตัดสินข้อพิพาท" as UC20
+  usecase "UC-21\nจัดการการเงิน\nและรายงาน" as UC21
+  usecase "ตรวจสอบ KYC" as SUB_KYC_REVIEW <<sub>>
 }
 
-' --- Guest Actor ---
+' ==============================================================
+' Guest → 3 main use cases
+' ==============================================================
 G --> UC01
 G --> UC02
-G --> UC05
+G --> UC03
 
-' --- include/extend: Authentication ---
-UC02 ..> UC06 : <<include>>
-UC01 ..> UC06 : <<include>>
-UC02 <.. UC03 : <<extend>>
-UC01 ..> UC04 : <<include>>
+' ==============================================================
+' Authentication — extend
+' ==============================================================
+UC02 <.. SUB_OAUTH : <<extend>>
 
-' --- Hirer Actor ---
+' ==============================================================
+' Hirer → 12 main use cases
+' ==============================================================
+H --> UC04
+H --> UC05
+H --> UC06
 H --> UC07
 H --> UC08
 H --> UC09
-H --> UC11
 H --> UC12
+H --> UC13
+H --> UC14
 H --> UC15
-H --> UC26
-H --> UC27
-H --> UC29
-H --> UC30
-H --> UC31
-H --> UC32
-H --> UC40
+H --> UC16
+H --> UC17
 
-' --- include/extend: Hirer Job flow ---
-UC12 ..> UC13 : <<include>>
-UC13 <.. UC14 : <<extend>>
-UC15 <.. UC16 : <<extend>>
-UC18 ..> UC30 : <<include>>
-UC21 <.. UC22 : <<extend>>
-UC22 ..> UC23 : <<include>>
-UC21 <.. UC25 : <<extend>>
-UC32 ..> UC33 : <<include>>
-UC28 ..> UC29 : <<include>>
-
-' --- Caregiver Actor ---
-CG --> UC07
+' ==============================================================
+' Caregiver → 10 main use cases
+' ==============================================================
+CG --> UC04
 CG --> UC08
-CG --> UC09
 CG --> UC10
+CG --> UC11
+CG --> UC12
+CG --> UC13
+CG --> UC14
+CG --> UC15
+CG --> UC16
 CG --> UC17
-CG --> UC27
-CG --> UC28
-CG --> UC30
-CG --> UC31
-CG --> UC32
-CG --> UC40
 
-' --- include/extend: Caregiver Job flow ---
-UC17 ..> UC18 : <<include>>
-UC18 <.. UC19 : <<extend>>
-UC18 ..> UC20 : <<include>>
-UC20 ..> UC21 : <<include>>
-UC24 <.. UC15 : <<extend>>
+' ==============================================================
+' Admin → 5 main use cases
+' ==============================================================
+A --> UC17
+A --> UC18
+A --> UC19
+A --> UC20
+A --> UC21
 
-' --- Admin Actor ---
-A --> UC34
-A --> UC35
-A --> UC36
-A --> UC37
-A --> UC38
-A --> UC39
-A --> UC40
+' ==============================================================
+' include / extend — Profile & Verification
+' ==============================================================
+UC04 ..> SUB_OTP : <<include>>
+UC04 ..> SUB_KYC : <<include>>
+UC04 <.. SUB_DOC : <<extend>>
 
-' --- include/extend: Admin ---
-UC09 ..> UC35 : <<include>>
-UC38 ..> UC33 : <<include>>
+' ==============================================================
+' include / extend — Hirer Job
+' ==============================================================
+UC06 <.. SUB_PUBLISH : <<extend>>
+UC07 <.. SUB_ASSIGN : <<extend>>
+UC07 <.. SUB_FAV : <<extend>>
+UC09 <.. SUB_APPROVE_EC : <<extend>>
+UC09 <.. SUB_REVIEW : <<extend>>
+
+' ==============================================================
+' include / extend — Caregiver Job
+' ==============================================================
+UC11 ..> SUB_CHECKIN : <<include>>
+UC11 ..> SUB_CHECKOUT : <<include>>
+UC11 <.. SUB_EARLY : <<extend>>
+
+' ==============================================================
+' include / extend — Payment
+' ==============================================================
+UC12 ..> SUB_TOPUP : <<include>>
+UC12 <.. SUB_WITHDRAW : <<extend>>
+UC12 ..> SUB_BANK : <<include>>
+
+' ==============================================================
+' include / extend — Admin
+' ==============================================================
+UC18 ..> SUB_KYC_REVIEW : <<include>>
 
 @enduml
 ```
 
 ### 3.5.2 Use Case Descriptions
 
-> ตาราง Use Case แยกทุกฟังก์ชัน — ทั้งหมด 40 Use Cases
-> แบ่งเป็น 10 กลุ่ม: Authentication, Profile, Care Recipient, Hirer Job, Caregiver Job, Early Checkout, Social, Payment, Communication, Dispute, Admin
+> Use Case Diagram ประกอบด้วย **21 Main Use Cases** (user goals) + **14 Sub-Use Cases** (include/extend) รวม 35 features ที่ครอบคลุมทุกฟังก์ชันของระบบ
+> ตาราง Use Case Description ด้านล่างมีทั้งหมด 36 ตาราง (UC-01 ถึง UC-36 ตาม numbering เดิม) — แต่ละ UC สามารถนำไปเขียน Test Case ได้โดยตรง
 
 ---
 
-#### กลุ่มที่ 1: Authentication (UC-01 ถึง UC-06)
+#### กลุ่มที่ 1: Authentication (UC-01 ถึง UC-05)
 
 **ตาราง 3.16** UC-01: สมัครสมาชิก (Register)
 
@@ -172,7 +216,7 @@ UC38 ..> UC33 : <<include>>
 | **Use Case** | สมัครสมาชิก (Register) |
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้ยังไม่มีบัญชีในระบบ<br>2. ผู้ใช้เข้าถึงหน้าเว็บแอปพลิเคชันได้ |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า /register เลือกประเภทสมัคร (Guest หรือ Member)<br>2. Guest: กรอก email + password + role → POST /api/auth/register/guest<br>   Member: กรอก phone + password + role → POST /api/auth/register/member<br>3. ระบบตรวจสอบ Joi validation (email format, password ≥ 8 ตัว, role valid)<br>4. ระบบสร้าง users, profile (hirer_profiles/caregiver_profiles), wallet ใน DB transaction เดียว<br>5. ระบบสร้าง JWT access token + refresh token<br>6. ระบบส่ง token กลับ → frontend redirect ไป /select-role |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า /register เลือกประเภทสมัคร (Guest หรือ Member)<br>2. Guest: กรอก email + password + role → POST /api/auth/register/guest<br>   Member: กรอก phone + password + role → POST /api/auth/register/member<br>3. ระบบตรวจสอบ Joi validation (email format, password ≥ 8 ตัว, role valid)<br>4. ระบบสร้าง users, profile (hirer_profiles/caregiver_profiles), wallet ใน DB transaction เดียว<br>5. ระบบสร้าง JWT access token + refresh token<br>6. ระบบส่ง token กลับ → frontend redirect ไป /select-role<br>7. ผู้ใช้เลือก role (Hirer/Caregiver) → ยอมรับนโยบาย → POST /api/auth/policy/accept<br>8. redirect ไปหน้าหลักของ role |
 | **Exceptional Flow** | 1. Email/Phone ซ้ำในระบบ → 409 Conflict "อีเมลนี้ถูกใช้แล้ว"<br>2. Password น้อยกว่า 8 ตัวอักษร → 400 Validation Error<br>3. Role ไม่ใช่ hirer/caregiver → 400 Validation Error<br>4. Rate limit exceeded (authLimiter) → 429 Too Many Requests |
 
 **ตาราง 3.17** UC-02: เข้าสู่ระบบ (Login)
@@ -186,463 +230,407 @@ UC38 ..> UC33 : <<include>>
 | **Main Flow** | 1. ผู้ใช้เข้าหน้า /login เลือก Login ด้วย Email หรือ Phone<br>2. Email: กรอก email + password → POST /api/auth/login/email<br>   Phone: กรอก phone + password → POST /api/auth/login/phone<br>3. ระบบตรวจสอบ email/phone ในฐานข้อมูล<br>4. ระบบเปรียบเทียบ password กับ password_hash (bcrypt)<br>5. ระบบสร้าง JWT access token + refresh token<br>6. Frontend บันทึก token ใน sessionStorage → redirect ตาม role |
 | **Exceptional Flow** | 1. Email/Phone ไม่มีในระบบ → 401 Unauthorized<br>2. Password ไม่ตรง → 401 Unauthorized<br>3. User ถูก ban (ban_login=true) → 403 Forbidden<br>4. User status=suspended → 403 Forbidden<br>5. Rate limit exceeded → 429 Too Many Requests |
 
-**ตาราง 3.18** UC-03: เข้าสู่ระบบด้วย Google (Google OAuth)
+**ตาราง 3.18** UC-03: เข้าสู่ระบบด้วย Google OAuth (Google OAuth Login)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-03 |
-| **Use Case** | เข้าสู่ระบบด้วย Google (Google OAuth 2.0) |
+| **Use Case** | เข้าสู่ระบบด้วย Google OAuth (Google OAuth 2.0) |
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้มีบัญชี Google<br>2. ผู้ใช้อยู่ในหน้า Login |
 | **Main Flow** | 1. ผู้ใช้กดปุ่ม "Sign in with Google" → GET /api/auth/google<br>2. ระบบ redirect ไป Google Consent Screen (Authorization Code Flow)<br>3. ผู้ใช้อนุญาต → Google redirect กลับ GET /api/auth/google/callback พร้อม code<br>4. ระบบแลก code เป็น token กับ Google → ได้ email, name, google_id<br>5. ถ้า user มีอยู่แล้ว → login ส่ง JWT กลับ<br>6. ถ้า user ใหม่ → สร้าง user + profile + wallet → redirect /select-role |
 | **Exceptional Flow** | 1. ผู้ใช้ปฏิเสธ consent → redirect กลับหน้า login พร้อม error<br>2. Google callback code ไม่ valid → 400 Bad Request<br>3. Email จาก Google ซ้ำกับบัญชี email ที่มีอยู่ → ผูกบัญชีเดิม |
 
-**ตาราง 3.19** UC-04: ยืนยัน OTP (Verify OTP)
+**ตาราง 3.19** UC-04: รีเซ็ตรหัสผ่าน (Forgot & Reset Password)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-04 |
-| **Use Case** | ยืนยัน OTP (Verify OTP) |
-| **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้ต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้ยังไม่ได้ยืนยันเบอร์โทรศัพท์/อีเมล |
-| **Main Flow** | 1. ผู้ใช้กดขอ OTP → POST /api/otp/phone/send หรือ /api/otp/email/send<br>2. ระบบสร้าง OTP 6 หลัก + บันทึกลง DB (หมดอายุ 5 นาที)<br>3. ระบบส่ง OTP ทาง SMS (SMSOK) หรือ Email (nodemailer)<br>4. ผู้ใช้กรอก OTP → POST /api/otp/verify<br>5. ระบบตรวจสอบ OTP ตรงกันและยังไม่หมดอายุ<br>6. อัปเดต is_phone_verified=true หรือ is_email_verified=true<br>7. ถ้ายืนยันโทรศัพท์สำเร็จ → Trust Level อัปเกรดจาก L0 เป็น L1 |
-| **Exceptional Flow** | 1. OTP ไม่ถูกต้อง → 400 "รหัส OTP ไม่ถูกต้อง"<br>2. OTP หมดอายุ → 400 "รหัส OTP หมดอายุ"<br>3. ส่ง OTP ซ้ำเร็วเกินไป → 429 Rate Limit<br>4. เบอร์โทรศัพท์ format ผิด → 400 Validation Error |
-
-**ตาราง 3.20** UC-05: ลืมรหัสผ่าน/รีเซ็ตรหัสผ่าน (Forgot & Reset Password)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-05 |
-| **Use Case** | ลืมรหัสผ่าน/รีเซ็ตรหัสผ่าน (Forgot & Reset Password) |
+| **Use Case** | รีเซ็ตรหัสผ่าน (Forgot & Reset Password) |
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้มีบัญชี email ในระบบ<br>2. ผู้ใช้ไม่สามารถเข้าสู่ระบบด้วยรหัสผ่านเดิมได้ |
 | **Main Flow** | 1. ผู้ใช้เข้าหน้า /forgot-password กรอก email<br>2. POST /api/auth/forgot-password → ระบบสร้าง reset token (hex 64 chars)<br>3. ระบบส่ง email พร้อมลิงก์ reset (nodemailer)<br>4. ผู้ใช้คลิกลิงก์ → เข้าหน้า /reset-password?token=xxx&email=xxx<br>5. กรอกรหัสผ่านใหม่ (≥ 8 ตัว) → POST /api/auth/reset-password<br>6. ระบบตรวจสอบ token ถูกต้องและยังไม่หมดอายุ<br>7. อัปเดต password_hash ใหม่ (bcrypt) |
 | **Exceptional Flow** | 1. Email ไม่มีในระบบ → ส่ง 200 OK เสมอ (ไม่เปิดเผยว่า email มีหรือไม่)<br>2. Token หมดอายุ → 400 "ลิงก์รีเซ็ตหมดอายุ"<br>3. Token ไม่ถูกต้อง → 400 Bad Request<br>4. Password ใหม่ < 8 ตัว → 400 Validation Error |
 
-**ตาราง 3.21** UC-06: เลือกบทบาทและยอมรับนโยบาย (Select Role & Accept Policy)
+**ตาราง 3.20** UC-05: ออกจากระบบ (Logout)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-05 |
+| **Use Case** | ออกจากระบบ (Logout) |
+| **Actor** | Hirer, Caregiver, Admin |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
+| **Main Flow** | 1. ผู้ใช้กดปุ่ม "ออกจากระบบ" ที่หน้า /profile<br>2. POST /api/auth/logout<br>3. Frontend ลบ token จาก sessionStorage<br>4. Socket.IO disconnect<br>5. redirect ไป /login |
+| **Exceptional Flow** | 1. Token หมดอายุแล้ว → ลบ session แล้ว redirect เหมือนกัน |
+
+---
+
+#### กลุ่มที่ 2: Profile & Verification (UC-06 ถึง UC-09)
+
+**ตาราง 3.21** UC-06: จัดการโปรไฟล์ (Manage Profile)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-06 |
-| **Use Case** | เลือกบทบาทและยอมรับนโยบาย (Select Role & Accept Policy) |
+| **Use Case** | จัดการโปรไฟล์ (Manage Profile) |
 | **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้ต้องทำการลงทะเบียนหรือเข้าสู่ระบบสำเร็จแล้ว<br>2. ผู้ใช้ยังไม่ได้เลือกบทบาทหรือยอมรับนโยบาย |
-| **Main Flow** | 1. หลัง Register/Login ระบบ redirect ไป /select-role<br>2. ผู้ใช้เลือก role (Hirer หรือ Caregiver)<br>3. ระบบแสดงหน้า /register/consent พร้อมเงื่อนไข<br>4. ผู้ใช้อ่านและกดยอมรับ → POST /api/auth/policy/accept<br>5. ระบบบันทึก role + version_policy_accepted ลง DB<br>6. ถ้ายังไม่มี profile ของ role ที่เลือก → สร้าง profile + wallet ใหม่<br>7. redirect ไปหน้าหลักของ role (/hirer/home หรือ /caregiver/jobs/feed) |
-| **Exceptional Flow** | 1. ผู้ใช้ยังไม่ login → redirect ไป /login<br>2. ผู้ใช้เปลี่ยน role ภายหลัง → POST /api/auth/role สร้าง profile ใหม่ถ้ายังไม่มี |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเลือกบทบาทและยอมรับนโยบายแล้ว |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า /profile<br>2. ระบบดึงข้อมูล GET /api/auth/profile → แสดงข้อมูลปัจจุบัน<br>3. ผู้ใช้แก้ไขชื่อ, bio, ประสบการณ์, ความเชี่ยวชาญ, ที่อยู่<br>4. กดบันทึก → PUT /api/auth/profile<br>5. ระบบ validate ด้วย Joi (display_name required)<br>6. อัปเดตข้อมูลใน hirer_profiles/caregiver_profiles<br>7. อัปโหลดรูปโปรไฟล์ → POST /api/auth/avatar (multer + sharp resize)<br>8. เปลี่ยนรหัสผ่าน → POST /api/auth/change-password |
+| **Exceptional Flow** | 1. display_name ว่าง → 400 Validation Error<br>2. รูปโปรไฟล์ > 5 MB → 400 "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB"<br>3. ไฟล์ไม่ใช่ JPEG/PNG/WebP → 400 "อนุญาตเฉพาะไฟล์รูปภาพ"<br>4. รหัสผ่านเดิมไม่ถูกต้อง → 400 "รหัสผ่านปัจจุบันไม่ถูกต้อง" |
 
----
-
-#### กลุ่มที่ 2: Profile & Verification (UC-07 ถึง UC-10)
-
-**ตาราง 3.22** UC-07: จัดการโปรไฟล์ (Manage Profile)
+**ตาราง 3.22** UC-07: ยืนยัน OTP (Verify OTP)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-07 |
-| **Use Case** | จัดการโปรไฟล์ (Manage Profile) |
+| **Use Case** | ยืนยัน OTP (Verify OTP — Email/Phone) |
 | **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเลือกบทบาทและยอมรับนโยบายแล้ว |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า /profile<br>2. ระบบดึงข้อมูล GET /api/auth/profile → แสดงข้อมูลปัจจุบัน<br>3. ผู้ใช้แก้ไขชื่อ, bio, ประสบการณ์, ความเชี่ยวชาญ, ที่อยู่<br>4. กดบันทึก → PUT /api/auth/profile<br>5. ระบบ validate ด้วย Joi (display_name required)<br>6. อัปเดตข้อมูลใน hirer_profiles/caregiver_profiles<br>7. อัปโหลดรูปโปรไฟล์ → POST /api/auth/avatar (multer + sharp resize) |
-| **Exceptional Flow** | 1. display_name ว่าง → 400 Validation Error<br>2. รูปโปรไฟล์ > 5 MB → 400 "รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB"<br>3. ไฟล์ไม่ใช่ JPEG/PNG/WebP → 400 "อนุญาตเฉพาะไฟล์รูปภาพ" |
+| **Pre Conditions** | 1. ผู้ใช้ต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้ยังไม่ได้ยืนยันเบอร์โทรศัพท์/อีเมล |
+| **Main Flow** | 1. ผู้ใช้กดขอ OTP → POST /api/otp/phone/send หรือ /api/otp/email/send<br>2. ระบบสร้าง OTP 6 หลัก + บันทึกลง DB (หมดอายุ 5 นาที)<br>3. ระบบส่ง OTP ทาง SMS (SMSOK) หรือ Email (nodemailer)<br>4. ผู้ใช้กรอก OTP → POST /api/otp/verify<br>5. ระบบตรวจสอบ OTP ตรงกันและยังไม่หมดอายุ<br>6. อัปเดต is_phone_verified=true หรือ is_email_verified=true<br>7. ถ้ายืนยันโทรศัพท์สำเร็จ → Trust Level อัปเกรดจาก L0 เป็น L1 |
+| **Exceptional Flow** | 1. OTP ไม่ถูกต้อง → 400 "รหัส OTP ไม่ถูกต้อง"<br>2. OTP หมดอายุ → 400 "รหัส OTP หมดอายุ"<br>3. ส่ง OTP ซ้ำเร็วเกินไป → 429 Rate Limit<br>4. เบอร์โทรศัพท์ format ผิด → 400 Validation Error |
 
-**ตาราง 3.23** UC-08: เปลี่ยนรหัสผ่าน (Change Password)
+**ตาราง 3.23** UC-08: ยืนยัน KYC (Submit KYC)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-08 |
-| **Use Case** | เปลี่ยนรหัสผ่าน (Change Password) |
+| **Use Case** | ยืนยัน KYC (Submit KYC — บัตรประชาชน) |
 | **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า /settings<br>2. กรอกรหัสผ่านเดิม (ถ้ามี) + รหัสผ่านใหม่<br>3. POST /api/auth/change-password<br>4. ระบบตรวจสอบรหัสผ่านเดิมตรงกับ hash<br>5. บันทึก password_hash ใหม่ (bcrypt) |
-| **Exceptional Flow** | 1. รหัสผ่านเดิมไม่ถูกต้อง → 400 "รหัสผ่านปัจจุบันไม่ถูกต้อง"<br>2. รหัสผ่านใหม่ < 6 ตัว → 400 Validation Error<br>3. บัญชี Google OAuth ไม่มีรหัสผ่านเดิม → ข้ามการตรวจ current_password |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานมี Trust Level L1 ขึ้นไป (ยืนยัน OTP แล้ว)<br>3. ผู้ใช้งานยังไม่ได้ส่ง KYC หรือ KYC ถูก reject |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า /kyc<br>2. อัปโหลดเอกสาร: บัตรประชาชนด้านหน้า, ด้านหลัง, selfie<br>3. POST /api/kyc/submit (multipart form data)<br>4. ระบบบันทึกไฟล์ + สร้าง record ใน user_kyc_info (status=pending)<br>5. รอ Admin ตรวจสอบ (ดู UC-33)<br>6. เมื่อ Admin approve → trust_level อัปเกรดเป็น L2 |
+| **Exceptional Flow** | 1. ขาดไฟล์ selfie → 400 "กรุณาอัปโหลดรูป selfie"<br>2. ไฟล์ไม่ใช่รูปภาพ → 400 Validation Error<br>3. KYC ถูก reject → ผู้ใช้สามารถส่งใหม่ได้ |
 
-**ตาราง 3.24** UC-09: ยืนยัน KYC (Submit KYC)
+**ตาราง 3.24** UC-09: อัปโหลดเอกสาร/ใบรับรอง (Upload Caregiver Documents)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-09 |
-| **Use Case** | ยืนยัน KYC (Submit KYC) |
-| **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานมี Trust Level L1 ขึ้นไป (ยืนยัน OTP แล้ว)<br>3. ผู้ใช้งานยังไม่ได้ส่ง KYC หรือ KYC ถูก reject |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า /kyc<br>2. อัปโหลดเอกสาร: บัตรประชาชนด้านหน้า, ด้านหลัง, selfie<br>3. POST /api/kyc/submit (multipart form data)<br>4. ระบบบันทึกไฟล์ + สร้าง record ใน user_kyc_info (status=pending)<br>5. รอ Admin ตรวจสอบ (ดู UC-35)<br>6. เมื่อ Admin approve → trust_level อัปเกรดเป็น L2 |
-| **Exceptional Flow** | 1. ขาดไฟล์ selfie → 400 "กรุณาอัปโหลดรูป selfie"<br>2. ไฟล์ไม่ใช่รูปภาพ → 400 Validation Error<br>3. KYC ถูก reject → ผู้ใช้สามารถส่งใหม่ได้ |
+| **Use Case** | อัปโหลดเอกสาร/ใบรับรอง (Upload Caregiver Documents) |
+| **Actor** | Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Caregiver |
+| **Main Flow** | 1. ผู้ดูแลเข้าหน้าจัดการเอกสาร<br>2. เลือกประเภทเอกสาร (ใบรับรอง, ใบอนุญาต, อื่น ๆ)<br>3. POST /api/caregiver-documents (multipart form data)<br>4. ระบบบันทึกไฟล์ + สร้าง record ใน caregiver_documents<br>5. เอกสารแสดงในโปรไฟล์สาธารณะ<br>6. ลบเอกสาร → DELETE /api/caregiver-documents/:id |
+| **Exceptional Flow** | 1. ไฟล์ขนาดเกิน 10 MB → 400 Payload Too Large<br>2. ไฟล์ไม่ใช่ JPEG/PNG/WebP/PDF → 400 "อนุญาตเฉพาะไฟล์รูปภาพหรือ PDF"<br>3. ผู้ใช้ไม่ใช่ Caregiver → 403 Forbidden |
 
-**ตาราง 3.25** UC-10: อัปโหลดเอกสาร/ใบรับรอง (Upload Caregiver Documents)
+---
+
+#### กลุ่มที่ 3: Hirer — Job Management (UC-10 ถึง UC-18)
+
+**ตาราง 3.25** UC-10: จัดการผู้รับการดูแล (Manage Care Recipients)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-10 |
-| **Use Case** | อัปโหลดเอกสาร/ใบรับรอง (Upload Caregiver Documents) |
-| **Actor** | Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Caregiver |
-| **Main Flow** | 1. ผู้ดูแลเข้าหน้าจัดการเอกสาร<br>2. เลือกประเภทเอกสาร (ใบรับรอง, ใบอนุญาต, อื่น ๆ)<br>3. POST /api/caregiver-documents (multipart form data)<br>4. ระบบบันทึกไฟล์ + สร้าง record ใน caregiver_documents<br>5. เอกสารแสดงในโปรไฟล์สาธารณะ |
-| **Exceptional Flow** | 1. ไฟล์ขนาดเกินกำหนด → 400 Payload Too Large<br>2. ผู้ใช้ไม่ใช่ Caregiver → 403 Forbidden |
-
----
-
-#### กลุ่มที่ 3: Care Recipient Management (UC-11)
-
-**ตาราง 3.26** UC-11: จัดการผู้รับการดูแล (Manage Care Recipients)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-11 |
 | **Use Case** | จัดการผู้รับการดูแล (Manage Care Recipients — CRUD) |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer |
 | **Main Flow** | 1. ผู้ว่าจ้างเข้าหน้า /hirer/care-recipients<br>2. ระบบดึงรายการ GET /api/care-recipients<br>3. **เพิ่ม**: กด "เพิ่มผู้รับการดูแล" → /hirer/care-recipients/new<br>4. กรอกข้อมูล: ชื่อ, ช่วงอายุ, ระดับการเคลื่อนไหว, โรคประจำตัว, อุปกรณ์การแพทย์, ที่อยู่<br>5. POST /api/care-recipients → ระบบสร้าง patient_profiles record<br>6. **แก้ไข**: กดแก้ไข → /hirer/care-recipients/:id/edit → PUT /api/care-recipients/:id<br>7. **ลบ**: กดลบ → DELETE /api/care-recipients/:id |
 | **Exceptional Flow** | 1. ชื่อว่าง → 400 Validation Error<br>2. ลบผู้รับการดูแลที่มีงานอยู่ → 409 Conflict<br>3. แก้ไข/ลบของ hirer อื่น → 403 Forbidden |
 
----
-
-#### กลุ่มที่ 4: Hirer — Job Management (UC-12 ถึง UC-16)
-
-**ตาราง 3.27** UC-12: สร้างงาน (Create Job)
+**ตาราง 3.26** UC-11: สร้างงาน (Create Job)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
-| **Use Case ID** | UC-12 |
+| **Use Case ID** | UC-11 |
 | **Use Case** | สร้างงาน (Create Job — Draft) |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer<br>3. ผู้ใช้งานต้องมีผู้รับการดูแลอย่างน้อย 1 คน |
 | **Main Flow** | 1. ผู้ว่าจ้างเข้าหน้า /hirer/create-job (wizard form)<br>2. เลือกผู้รับการดูแล (patient_profile_id)<br>3. กรอก: ชื่องาน, ประเภทงาน (6 ค่า), คำอธิบาย<br>4. เลือกวันเวลา (scheduled_start_at, scheduled_end_at) → ระบบคำนวณ total_hours อัตโนมัติ<br>5. กรอกที่อยู่ + ระบบดึง GPS coordinates (lat, lng)<br>6. ตั้งค่า hourly_rate → ระบบคำนวณ total_amount + platform_fee (10%)<br>7. เลือก job_tasks, required_skills, equipment, precautions (flags)<br>8. ระบบเรียก computeRiskLevel() คำนวณ risk_level อัตโนมัติ<br>9. POST /api/jobs → สร้าง job_posts (status=draft) |
-| **Exceptional Flow** | 1. ขาด required fields → 400 Joi Validation Error<br>2. scheduled_end_at ก่อน scheduled_start_at → 400 Validation Error<br>3. ยังไม่มี care recipient → ต้องสร้างก่อน (UC-11)<br>4. ban_job_create=true → 403 Forbidden |
+| **Exceptional Flow** | 1. ขาด required fields → 400 Joi Validation Error<br>2. scheduled_end_at ก่อน scheduled_start_at → 400 Validation Error<br>3. ยังไม่มี care recipient → ต้องสร้างก่อน (UC-10)<br>4. ban_job_create=true → 403 Forbidden |
 
-**ตาราง 3.28** UC-13: เผยแพร่งาน (Publish Job)
+**ตาราง 3.27** UC-12: เผยแพร่งาน (Publish Job)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-12 |
+| **Use Case** | เผยแพร่งาน (Publish Job) |
+| **Actor** | Hirer (L1+) |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมี Trust Level L1+ (low_risk) หรือ L2+ (high_risk)<br>3. มีงาน draft ที่สร้างไว้แล้ว (UC-11)<br>4. มียอดเงินเพียงพอ |
+| **Main Flow** | 1. ผู้ว่าจ้างดูงาน draft ที่สร้างไว้<br>2. กด Publish → POST /api/jobs/:id/publish<br>3. ระบบตรวจ Trust Level: low_risk ต้องการ L1+, high_risk ต้องการ L2+<br>4. ระบบตรวจ available_balance ≥ total_amount + platform_fee<br>5. ระบบ hold เงิน: available_balance -= cost, held_balance += cost<br>6. INSERT ledger_transactions (type=hold)<br>7. UPDATE job_posts status=posted<br>8. งานปรากฏใน Job Feed ของ Caregiver |
+| **Exceptional Flow** | 1. Trust Level ไม่เพียงพอ → 403 "Trust level ไม่เพียงพอ"<br>2. ยอดเงินไม่พอ → 400 "ยอดเงินไม่เพียงพอ"<br>3. งานไม่ใช่ draft → 400 "สถานะไม่ถูกต้อง"<br>4. ไม่ใช่เจ้าของงาน → 403 Forbidden |
+
+**ตาราง 3.28** UC-13: ยกเลิกงาน (Cancel Job)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-13 |
-| **Use Case** | เผยแพร่งาน (Publish Job) |
-| **Actor** | Hirer (L1+) |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมี Trust Level L1+ (low_risk) หรือ L2+ (high_risk)<br>3. มีงาน draft ที่สร้างไว้แล้ว<br>4. มียอดเงินเพียงพอ |
-| **Main Flow** | 1. ผู้ว่าจ้างดูงาน draft ที่สร้างไว้<br>2. กด Publish → POST /api/jobs/:id/publish<br>3. ระบบตรวจ Trust Level: low_risk ต้องการ L1+, high_risk ต้องการ L2+<br>4. ระบบตรวจ available_balance ≥ total_amount<br>5. ระบบ hold เงิน: available_balance -= total_amount, held_balance += total_amount<br>6. INSERT ledger_transactions (type=hold)<br>7. UPDATE job_posts status=posted<br>8. งานปรากฏใน Job Feed |
-| **Exceptional Flow** | 1. Trust Level ไม่เพียงพอ → 403 "Trust level ไม่เพียงพอ"<br>2. ยอดเงินไม่พอ → 400 "ยอดเงินไม่เพียงพอ"<br>3. งานไม่ใช่ draft → 400 "สถานะไม่ถูกต้อง"<br>4. ไม่ใช่เจ้าของงาน → 403 Forbidden |
+| **Use Case** | ยกเลิกงาน (Cancel Job) |
+| **Actor** | Hirer, Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเป็นผู้เกี่ยวข้องกับงาน (hirer หรือ caregiver ที่รับงาน)<br>3. งานต้องยังไม่เสร็จสมบูรณ์ (status ≠ completed) |
+| **Main Flow** | 1. ผู้ใช้เปิดรายละเอียดงาน<br>2. กดยกเลิก → กรอกเหตุผล → POST /api/jobs/:id/cancel<br>3. ระบบตรวจสถานะงาน (ยกเลิกได้ก่อน completed)<br>4. **กรณี posted**: คืนเงิน held → available (release)<br>5. **กรณี assigned/in_progress**: คืนเงิน escrow → hirer available (reversal)<br>6. UPDATE status=cancelled<br>7. ปิด chat thread อัตโนมัติ<br>8. Notify ฝ่ายตรงข้าม |
+| **Exceptional Flow** | 1. งาน completed แล้ว → 400 "ไม่สามารถยกเลิกได้"<br>2. เหตุผลว่าง → 400 Validation Error<br>3. ไม่ใช่ผู้เกี่ยวข้องกับงาน → 403 Forbidden |
 
-**ตาราง 3.29** UC-14: ยกเลิกงาน (Cancel Job)
+**ตาราง 3.29** UC-14: ค้นหาผู้ดูแล (Search Caregivers)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-14 |
-| **Use Case** | ยกเลิกงาน (Cancel Job) |
+| **Use Case** | ค้นหาผู้ดูแล (Search Caregivers) |
 | **Actor** | Hirer |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเป็นเจ้าของงาน<br>3. งานต้องยังไม่เสร็จสมบูรณ์ (status ≠ completed) |
-| **Main Flow** | 1. ผู้ว่าจ้างเปิดรายละเอียดงาน<br>2. กดยกเลิก → กรอกเหตุผล → POST /api/jobs/:id/cancel<br>3. ระบบตรวจสถานะงาน (ยกเลิกได้ก่อน completed)<br>4. **กรณี posted**: คืนเงิน held → available (release)<br>5. **กรณี assigned/in_progress**: คืนเงิน escrow → hirer available (reversal)<br>6. UPDATE status=cancelled<br>7. ปิด chat thread อัตโนมัติ<br>8. Notify ผู้ดูแล (ถ้ามี) |
-| **Exceptional Flow** | 1. งาน completed แล้ว → 400 "ไม่สามารถยกเลิกได้"<br>2. เหตุผลว่าง → 400 Validation Error<br>3. ไม่ใช่เจ้าของ → 403 Forbidden |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer |
+| **Main Flow** | 1. ผู้ว่าจ้างเข้าหน้า /hirer/search-caregivers<br>2. กรอกตัวกรอง: คำค้น (q), ทักษะ (skills), Trust Level, ประสบการณ์ (experience), วันที่ว่าง (day)<br>3. GET /api/caregivers/search?q=xxx&skills=xxx&...<br>4. ระบบค้นหาจาก caregiver_profiles + users<br>5. แสดงรายการ: ชื่อ, rating, Trust Level, ทักษะ, ปุ่ม "ดูรายละเอียด"<br>6. กดดูรายละเอียด → เปิด modal แสดงโปรไฟล์เต็ม + ปุ่ม "มอบหมายงาน" |
+| **Exceptional Flow** | 1. ไม่มีผลลัพธ์ → แสดงข้อความ "ไม่พบผู้ดูแลที่ตรงเงื่อนไข"<br>2. API error → แสดง error toast |
 
-**ตาราง 3.30** UC-15: ค้นหาผู้ดูแล (Search Caregivers)
+**ตาราง 3.30** UC-15: มอบหมายงานตรง (Direct Assign)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-15 |
-| **Use Case** | ค้นหาผู้ดูแล (Search Caregivers) |
+| **Use Case** | มอบหมายงานตรง (Direct Assign) |
 | **Actor** | Hirer |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer<br>3. ผู้ใช้งานต้องอยู่ในหน้าค้นหาผู้ดูแล |
-| **Main Flow** | 1. ผู้ว่าจ้างเข้าหน้า /hirer/search-caregivers<br>2. กรอกตัวกรอง: คำค้น (q), ทักษะ (skills), Trust Level, ประสบการณ์ (experience), วันที่ว่าง (day)<br>3. GET /api/caregivers/search?q=xxx&skills=xxx&...<br>4. ระบบค้นหาจาก caregiver_profiles + users<br>5. แสดงรายการ: ชื่อ, rating, Trust Level, ทักษะ, ปุ่ม "ดูรายละเอียด"<br>6. กดดูรายละเอียด → เปิด modal แสดงโปรไฟล์เต็ม + ปุ่ม "มอบหมายงาน" |
-| **Exceptional Flow** | 1. ไม่มีผลลัพธ์ → แสดงข้อความ "ไม่พบผู้ดูแลที่ตรงเงื่อนไข"<br>2. API error → แสดง error toast |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีงาน draft/posted อย่างน้อย 1 งาน<br>3. ผู้ใช้งานต้องอยู่ในหน้าค้นหาผู้ดูแล |
+| **Main Flow** | 1. ผู้ว่าจ้างค้นหาผู้ดูแล (UC-14) แล้วกด "มอบหมายงาน"<br>2. เลือกงาน draft/posted ที่ต้องการ<br>3. POST /api/caregivers/assign { job_post_id, caregiver_id }<br>4. ระบบตั้ง preferred_caregiver_id ใน job_posts<br>5. ระบบ Notify ผู้ดูแลให้ accept/reject<br>6. ผู้ดูแลตัดสินใจ (ดู UC-20) |
+| **Exceptional Flow** | 1. ผู้ดูแลมีงานทับซ้อนเวลา → 409 Schedule Conflict<br>2. งานไม่ใช่ draft/posted/completed → 400 "สถานะไม่ถูกต้อง"<br>3. ผู้ดูแลมี Trust Level ต่ำกว่า min_trust_level → 400 |
 
-**ตาราง 3.31** UC-16: มอบหมายงานตรง (Direct Assign)
+**ตาราง 3.31** UC-16: บันทึกผู้ดูแลที่ชอบ (Toggle Favorite)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-16 |
-| **Use Case** | มอบหมายงานตรง (Direct Assign) |
+| **Use Case** | บันทึกผู้ดูแลที่ชอบ (Toggle Favorite) |
 | **Actor** | Hirer |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีงาน draft/posted อย่างน้อย 1 งาน<br>3. ผู้ใช้งานต้องอยู่ในหน้าค้นหาผู้ดูแล |
-| **Main Flow** | 1. ผู้ว่าจ้างค้นหาผู้ดูแล (UC-15) แล้วกด "มอบหมายงาน"<br>2. เลือกงาน draft/posted ที่ต้องการ<br>3. POST /api/caregivers/assign { job_post_id, caregiver_id }<br>4. ระบบตั้ง preferred_caregiver_id ใน job_posts<br>5. ระบบ Notify ผู้ดูแลให้ accept/reject<br>6. ผู้ดูแลตัดสินใจ (ดู UC-18 หรือ UC-19) |
-| **Exceptional Flow** | 1. ผู้ดูแลมีงานทับซ้อนเวลา → 409 Schedule Conflict<br>2. งานไม่ใช่ draft/posted → 400 "สถานะไม่ถูกต้อง"<br>3. ผู้ดูแลมี Trust Level ต่ำกว่า min_trust_level → 400 |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer |
+| **Main Flow** | 1. ผู้ว่าจ้างดูรายการผู้ดูแลในหน้าค้นหา<br>2. กดไอคอนหัวใจ → POST /api/favorites/toggle { caregiver_id }<br>3. ระบบ toggle: ถ้ายังไม่มี → INSERT, ถ้ามีแล้ว → DELETE<br>4. ดูรายการ Favorites ที่ /hirer/favorites (GET /api/favorites)<br>5. ตรวจสอบสถานะ Favorite → GET /api/favorites/check/:caregiverId |
+| **Exceptional Flow** | 1. caregiver_id ไม่มีในระบบ → 404 Not Found |
 
----
-
-#### กลุ่มที่ 5: Caregiver — Job Execution (UC-17 ถึง UC-22)
-
-**ตาราง 3.32** UC-17: ดูประกาศงาน (View Job Feed)
+**ตาราง 3.32** UC-17: อนุมัติ/ปฏิเสธ Early Checkout (Approve/Reject Early Checkout)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-17 |
-| **Use Case** | ดูประกาศงาน (View Job Feed) |
-| **Actor** | Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Caregiver |
-| **Main Flow** | 1. ผู้ดูแลเข้าหน้า /caregiver/jobs/feed<br>2. GET /api/jobs/feed → ระบบกรอง 3 เงื่อนไขอัตโนมัติ:<br>   - แสดงเฉพาะ min_trust_level ≤ ระดับผู้ดูแล<br>   - กรองงานที่ทับซ้อนเวลากับงานที่รับแล้ว<br>   - ไม่แสดงงานที่ผู้ดูแลสร้างเอง (hirer_id ≠ user_id)<br>3. กรองเพิ่มเติมด้วย job_type, risk_level, is_urgent<br>4. แสดงรายการงาน: ชื่อ, ประเภท, วันเวลา, ค่าจ้าง, risk level<br>5. กดดูรายละเอียด → /caregiver/jobs/:id/preview |
-| **Exceptional Flow** | 1. ไม่มีงานที่เหมาะสม → แสดง "ไม่มีงานในขณะนี้"<br>2. ban_job_accept=true → ไม่เห็นปุ่ม Accept |
-
-**ตาราง 3.33** UC-18: รับงาน (Accept Job)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-18 |
-| **Use Case** | รับงาน (Accept Job) |
-| **Actor** | Caregiver (≥ min_trust_level) |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมี Trust Level ≥ min_trust_level ของงาน<br>3. งานต้องมีสถานะ posted<br>4. ไม่มีงานทับซ้อนเวลา |
-| **Main Flow** | 1. ผู้ดูแลดูรายละเอียดงาน → กด Accept<br>2. POST /api/jobs/:id/accept<br>3. ระบบ SELECT job_posts FOR UPDATE (lock row)<br>4. ตรวจ Trust Level ≥ min_trust_level<br>5. ตรวจไม่มีงานทับซ้อนเวลา<br>6. หัก held_balance จาก hirer → โอนเข้า escrow wallet<br>7. INSERT jobs (instance จริง) + job_assignments + chat_thread<br>8. INSERT ledger_transactions (type=hold: held→escrow)<br>9. UPDATE job_posts status=assigned<br>10. Notify ผู้ว่าจ้าง + ส่ง system message ใน chat |
-| **Exceptional Flow** | 1. Trust Level ไม่ถึง → 403 "Trust level ไม่เพียงพอ"<br>2. งานถูกรับไปแล้ว → 409 "งานนี้ถูกรับไปแล้ว"<br>3. มีงานทับซ้อนเวลา → 409 Schedule Conflict<br>4. ban_job_accept=true → 403 Forbidden |
-
-**ตาราง 3.34** UC-19: ปฏิเสธงาน Direct Assign (Reject Direct Assignment)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-19 |
-| **Use Case** | ปฏิเสธงาน Direct Assign (Reject Direct Assignment) |
-| **Actor** | Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานถูกมอบหมายงานโดยตรง (preferred_caregiver_id) |
-| **Main Flow** | 1. ผู้ดูแลได้รับ notification ว่าถูก assign งาน<br>2. ดูรายละเอียดงาน → กด Reject<br>3. กรอกเหตุผล (optional) → POST /api/jobs/:id/reject<br>4. ระบบลบ preferred_caregiver_id<br>5. งานกลับเป็น posted (ปรากฏใน Feed ปกติ)<br>6. Notify ผู้ว่าจ้าง |
-| **Exceptional Flow** | 1. งานถูก cancel ไปแล้ว → 400 "งานถูกยกเลิกแล้ว"<br>2. ไม่ใช่ preferred_caregiver → 403 Forbidden |
-
-**ตาราง 3.35** UC-20: เช็คอิน (Check-in)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-20 |
-| **Use Case** | เช็คอิน (Check-in) |
-| **Actor** | Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องรับงานแล้ว (status=assigned)<br>3. ผู้ใช้งานต้องอยู่ในหน้างานที่รับ |
-| **Main Flow** | 1. ผู้ดูแลเข้าหน้างานที่รับ /caregiver/jobs/my-jobs<br>2. กด Check-in → browser ขอ Geolocation<br>3. POST /api/jobs/:jobId/checkin { lat, lng, accuracy_m }<br>4. ระบบ INSERT gps_events (type=check_in)<br>5. ตรวจระยะห่างจาก geofence (default 100 ม.)<br>6. UPDATE jobs + job_posts status=in_progress<br>7. Notify ผู้ว่าจ้าง "ผู้ดูแลเริ่มงานแล้ว" |
-| **Exceptional Flow** | 1. GPS อยู่นอก geofence → log warning แต่ไม่ block check-in<br>2. Browser ปฏิเสธ Geolocation → ใช้ค่าที่ส่งมา (อาจเป็น null)<br>3. ไม่ใช่ caregiver ของงานนี้ → 403 Forbidden<br>4. สถานะไม่ใช่ assigned → 400 "สถานะไม่ถูกต้อง" |
-
-**ตาราง 3.36** UC-21: เช็คเอาท์ (Check-out)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-21 |
-| **Use Case** | เช็คเอาท์ (Check-out) |
-| **Actor** | Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้อง Check-in แล้ว (status=in_progress)<br>3. ถึงเวลาสิ้นสุดงานหรือขอ Early Checkout |
-| **Main Flow** | 1. ผู้ดูแลกด Check-out → ระบบแสดง modal ให้เขียน evidence note<br>2. กรอก evidence_note (สรุปการทำงาน) → ต้องไม่ว่าง<br>3. POST /api/jobs/:jobId/checkout { lat, lng, evidence_note }<br>4. ระบบ INSERT gps_events (type=check_out)<br>5. UPDATE jobs + job_posts status=completed<br>6. **Settlement**: escrow → caregiver wallet (ค่าจ้าง 90%) + platform wallet (fee 10%)<br>7. INSERT ledger_transactions (release + debit)<br>8. Notify ผู้ว่าจ้าง "งานเสร็จสมบูรณ์"<br>9. Background: triggerTrustUpdate() คำนวณ Trust Score ใหม่ |
-| **Exceptional Flow** | 1. evidence_note ว่าง → 400 "กรุณากรอกบันทึกการทำงาน"<br>2. ยัง check-in ไม่ได้ (status≠in_progress) → 400<br>3. ก่อน scheduled_end_at → redirect ไป Early Checkout (UC-22) |
-
-**ตาราง 3.37** UC-22: ขอเช็คเอาท์ก่อนเวลา (Request Early Checkout)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-22 |
-| **Use Case** | ขอเช็คเอาท์ก่อนเวลา (Request Early Checkout) |
-| **Actor** | Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้อง Check-in แล้ว (status=in_progress)<br>3. ยังไม่ถึงเวลาสิ้นสุดงาน |
-| **Main Flow** | 1. ผู้ดูแลต้องการส่งงานก่อน scheduled_end_at<br>2. กรอก evidence_note อธิบายเหตุผล<br>3. POST /api/jobs/:jobId/early-checkout-request { evidence_note }<br>4. ระบบสร้าง early_checkout_requests record (status=pending)<br>5. Notify ผู้ว่าจ้างเพื่ออนุมัติ (UC-23)<br>6. รอผู้ว่าจ้างตอบกลับ |
-| **Exceptional Flow** | 1. มี request ค้างอยู่แล้ว → 409 "มีคำขอรออนุมัติอยู่"<br>2. evidence_note ว่าง → 400 Validation Error<br>3. Auto-complete เมื่อเลย scheduled_end_at + 10 นาที → checkout อัตโนมัติ |
-
----
-
-#### กลุ่มที่ 6: Early Checkout Response & Social (UC-23 ถึง UC-25)
-
-**ตาราง 3.38** UC-23: อนุมัติ/ปฏิเสธ Early Checkout (Approve/Reject Early Checkout)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-23 |
 | **Use Case** | อนุมัติ/ปฏิเสธ Early Checkout (Approve/Reject Early Checkout) |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเป็นเจ้าของงาน<br>3. มีคำขอ Early Checkout จากผู้ดูแล (status=pending) |
 | **Main Flow** | 1. ผู้ว่าจ้างได้รับ notification ว่ามีคำขอ early checkout<br>2. เข้าหน้ารายละเอียดงาน → เห็น Early Checkout Card<br>3. ดู evidence_note จากผู้ดูแล<br>4. **อนุมัติ**: POST /api/jobs/:jobId/early-checkout-respond { action: "approve" }<br>   → ระบบ checkout + settlement ทันที<br>5. **ปฏิเสธ**: POST /api/jobs/:jobId/early-checkout-respond { action: "reject", reason }<br>   → ผู้ดูแลทำงานต่อจนถึงเวลา |
 | **Exceptional Flow** | 1. Request หมดอายุ (auto-complete) → 400 "คำขอหมดอายุแล้ว"<br>2. ไม่ใช่ hirer ของงาน → 403 Forbidden |
 
-**ตาราง 3.39** UC-24: บันทึกผู้ดูแลที่ชอบ (Toggle Favorite)
+**ตาราง 3.33** UC-18: เขียนรีวิว (Write Review)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
-| **Use Case ID** | UC-24 |
-| **Use Case** | บันทึกผู้ดูแลที่ชอบ (Toggle Favorite) |
-| **Actor** | Hirer |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer<br>3. ผู้ใช้งานต้องอยู่ในหน้าค้นหาผู้ดูแล |
-| **Main Flow** | 1. ผู้ว่าจ้างดูรายการผู้ดูแลในหน้าค้นหา<br>2. กดไอคอนหัวใจ → POST /api/favorites/toggle { caregiver_id }<br>3. ระบบ toggle: ถ้ายังไม่มี → INSERT, ถ้ามีแล้ว → DELETE<br>4. ดูรายการ Favorites ที่ /hirer/favorites (GET /api/favorites) |
-| **Exceptional Flow** | 1. caregiver_id ไม่มีในระบบ → 404 Not Found |
-
-**ตาราง 3.40** UC-25: เขียนรีวิว (Write Review)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-25 |
+| **Use Case ID** | UC-18 |
 | **Use Case** | เขียนรีวิว (Write Review) |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเป็นเจ้าของงาน<br>3. งานต้องมีสถานะ completed<br>4. ผู้ใช้งานยังไม่เคยรีวิวงานนี้ |
-| **Main Flow** | 1. หลังงานเสร็จ (completed) ผู้ว่าจ้างเข้าหน้ารายละเอียดงาน<br>2. แสดงฟอร์มรีวิว: rating 1-5 ดาว + comment<br>3. POST /api/reviews { job_id, caregiver_id, rating, comment }<br>4. ระบบ INSERT caregiver_reviews<br>5. อัปเดต average_rating ใน caregiver_profiles<br>6. ส่งผลต่อ Trust Score ของผู้ดูแล |
+| **Main Flow** | 1. หลังงานเสร็จ (completed) ผู้ว่าจ้างเข้าหน้ารายละเอียดงาน<br>2. แสดงฟอร์มรีวิว: rating 1-5 ดาว + comment<br>3. POST /api/reviews { job_id, caregiver_id, rating, comment }<br>4. ระบบ INSERT caregiver_reviews<br>5. อัปเดต average_rating + Trust Score ของผู้ดูแล<br>6. ดูรีวิวของผู้ดูแล → GET /api/reviews/caregiver/:id |
 | **Exceptional Flow** | 1. งานยังไม่เสร็จ → 400 "ยังไม่สามารถรีวิวได้"<br>2. รีวิวซ้ำ (1 งาน = 1 รีวิว) → 409 Conflict<br>3. rating นอกช่วง 1-5 → 400 Validation Error |
 
 ---
 
-#### กลุ่มที่ 7: Payment (UC-26 ถึง UC-29)
+#### กลุ่มที่ 4: Caregiver — Job Execution (UC-19 ถึง UC-23)
 
-**ตาราง 3.41** UC-26: เติมเงิน (Top-up Wallet)
+**ตาราง 3.34** UC-19: ดูประกาศงาน (View Job Feed)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-19 |
+| **Use Case** | ดูประกาศงาน (View Job Feed) |
+| **Actor** | Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Caregiver |
+| **Main Flow** | 1. ผู้ดูแลเข้าหน้า /caregiver/jobs/feed<br>2. GET /api/jobs/feed → ระบบกรอง 3 เงื่อนไขอัตโนมัติ:<br>   - แสดงเฉพาะ min_trust_level ≤ ระดับผู้ดูแล<br>   - กรองงานที่ทับซ้อนเวลากับงานที่รับแล้ว<br>   - ไม่แสดงงานที่ผู้ดูแลสร้างเอง (hirer_id ≠ user_id)<br>3. กรองเพิ่มเติมด้วย job_type, risk_level, is_urgent<br>4. แสดงรายการงาน: ชื่อ, ประเภท, วันเวลา, ค่าจ้าง, risk level<br>5. กดดูรายละเอียด → /caregiver/jobs/:id/preview |
+| **Exceptional Flow** | 1. ไม่มีงานที่เหมาะสม → แสดง "ไม่มีงานในขณะนี้"<br>2. ban_job_accept=true → ไม่เห็นปุ่ม Accept |
+
+**ตาราง 3.35** UC-20: รับงาน / ปฏิเสธงาน (Accept / Reject Job)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-20 |
+| **Use Case** | รับงาน / ปฏิเสธงาน (Accept / Reject Job) |
+| **Actor** | Caregiver (≥ min_trust_level) |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมี Trust Level ≥ min_trust_level ของงาน<br>3. งานต้องมีสถานะ posted<br>4. ไม่มีงานทับซ้อนเวลา |
+| **Main Flow** | 1. ผู้ดูแลดูรายละเอียดงาน → กด Accept<br>2. POST /api/jobs/:id/accept<br>3. ระบบ SELECT job_posts FOR UPDATE (lock row)<br>4. ตรวจ Trust Level ≥ min_trust_level + ไม่มีงานทับซ้อนเวลา<br>5. หัก held_balance จาก hirer → โอนเข้า escrow wallet<br>6. INSERT jobs (instance) + job_assignments + chat_thread<br>7. INSERT ledger_transactions (type=hold: held→escrow)<br>8. UPDATE job_posts status=assigned<br>9. Notify ผู้ว่าจ้าง + ส่ง system message ใน chat<br>**กรณี Direct Assign — ปฏิเสธ:**<br>10. ผู้ดูแลกด Reject → กรอกเหตุผล → POST /api/jobs/:id/reject<br>11. ระบบลบ preferred_caregiver_id → งานกลับเป็น posted<br>12. Notify ผู้ว่าจ้าง |
+| **Exceptional Flow** | 1. Trust Level ไม่ถึง → 403 "Trust level ไม่เพียงพอ"<br>2. งานถูกรับไปแล้ว → 409 "งานนี้ถูกรับไปแล้ว"<br>3. มีงานทับซ้อนเวลา → 409 Schedule Conflict<br>4. ban_job_accept=true → 403 Forbidden<br>5. ไม่ใช่ preferred_caregiver (reject) → 403 Forbidden |
+
+**ตาราง 3.36** UC-21: เช็คอิน (Check-in)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-21 |
+| **Use Case** | เช็คอิน (Check-in — GPS) |
+| **Actor** | Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องรับงานแล้ว (status=assigned) |
+| **Main Flow** | 1. ผู้ดูแลเข้าหน้างานที่รับ /caregiver/jobs/my-jobs<br>2. กด Check-in → browser ขอ Geolocation<br>3. POST /api/jobs/:jobId/checkin { lat, lng, accuracy_m }<br>4. ระบบ INSERT gps_events (type=check_in)<br>5. ตรวจระยะห่างจาก geofence (default 100 ม.)<br>6. UPDATE jobs + job_posts status=in_progress<br>7. Notify ผู้ว่าจ้าง "ผู้ดูแลเริ่มงานแล้ว" |
+| **Exceptional Flow** | 1. GPS อยู่นอก geofence → log warning แต่ไม่ block check-in<br>2. Browser ปฏิเสธ Geolocation → ใช้ค่าที่ส่งมา (อาจเป็น null)<br>3. ไม่ใช่ caregiver ของงานนี้ → 403 Forbidden<br>4. สถานะไม่ใช่ assigned → 400 "สถานะไม่ถูกต้อง" |
+
+**ตาราง 3.37** UC-22: เช็คเอาท์ (Check-out)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-22 |
+| **Use Case** | เช็คเอาท์ (Check-out — GPS + หลักฐาน) |
+| **Actor** | Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้อง Check-in แล้ว (status=in_progress)<br>3. ถึงเวลาสิ้นสุดงานหรือได้รับอนุมัติ Early Checkout |
+| **Main Flow** | 1. ผู้ดูแลกด Check-out → ระบบแสดง modal ให้เขียน evidence note<br>2. กรอก evidence_note (สรุปการทำงาน) → ต้องไม่ว่าง<br>3. POST /api/jobs/:jobId/checkout { lat, lng, evidence_note }<br>4. ระบบ INSERT gps_events (type=check_out)<br>5. UPDATE jobs + job_posts status=completed<br>6. **Settlement**: escrow → caregiver wallet (ค่าจ้าง) + platform wallet (fee 10%)<br>7. INSERT ledger_transactions (release + debit)<br>8. Notify ผู้ว่าจ้าง "งานเสร็จสมบูรณ์"<br>9. Background: triggerTrustUpdate() คำนวณ Trust Score ใหม่ |
+| **Exceptional Flow** | 1. evidence_note ว่าง → 400 "กรุณากรอกบันทึกการทำงาน"<br>2. ยัง check-in ไม่ได้ (status≠in_progress) → 400<br>3. ก่อน scheduled_end_at → redirect ไป Early Checkout (UC-23) |
+
+**ตาราง 3.38** UC-23: ขอเช็คเอาท์ก่อนเวลา (Request Early Checkout)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-23 |
+| **Use Case** | ขอเช็คเอาท์ก่อนเวลา (Request Early Checkout) |
+| **Actor** | Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้อง Check-in แล้ว (status=in_progress)<br>3. ยังไม่ถึงเวลาสิ้นสุดงาน |
+| **Main Flow** | 1. ผู้ดูแลต้องการส่งงานก่อน scheduled_end_at<br>2. กรอก evidence_note อธิบายเหตุผล<br>3. POST /api/jobs/:jobId/early-checkout-request { evidence_note }<br>4. ระบบสร้าง early_checkout_requests record (status=pending)<br>5. Notify ผู้ว่าจ้างเพื่ออนุมัติ (UC-17)<br>6. รอผู้ว่าจ้างตอบกลับ |
+| **Exceptional Flow** | 1. มี request ค้างอยู่แล้ว → 409 "มีคำขอรออนุมัติอยู่"<br>2. evidence_note ว่าง → 400 Validation Error<br>3. Auto-complete เมื่อเลย scheduled_end_at + 10 นาที → checkout อัตโนมัติ |
+
+---
+
+#### กลุ่มที่ 5: Payment & Wallet (UC-24 ถึง UC-27)
+
+**ตาราง 3.39** UC-24: เติมเงิน (Top-up Wallet)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-24 |
+| **Use Case** | เติมเงิน (Top-up Wallet — QR Code) |
+| **Actor** | Hirer, Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า wallet (/hirer/wallet หรือ /caregiver/wallet)<br>2. กดเติมเงิน → ระบุจำนวนเงิน<br>3. POST /api/wallet/topup { amount } → ระบบส่ง request ไป Payment Provider<br>4. Provider สร้าง QR code → ส่งกลับ qr_payload<br>5. แสดง QR popup ให้ scan<br>6. ผู้ใช้ scan QR จ่ายเงิน → Provider ส่ง webhook<br>7. ระบบตรวจ HMAC signature → CREDIT available_balance<br>8. INSERT ledger_transactions (type=credit)<br>9. ผู้ใช้กด Confirm → ตรวจสถานะ → แสดงสำเร็จ |
+| **Exceptional Flow** | 1. จำนวนเงิน ≤ 0 → 400 Validation Error<br>2. Webhook signature ไม่ valid → 400 "Invalid signature"<br>3. Duplicate webhook (idempotency_key ซ้ำ) → ไม่ credit ซ้ำ<br>4. QR หมดอายุ → ผู้ใช้ต้องสร้าง QR ใหม่ |
+
+**ตาราง 3.40** UC-25: ดูยอดเงินและประวัติธุรกรรม (View Wallet & History)
+
+| รายการ | รายละเอียด |
+|--------|-----------|
+| **Use Case ID** | UC-25 |
+| **Use Case** | ดูยอดเงินและประวัติธุรกรรม (View Wallet & Transaction History) |
+| **Actor** | Hirer, Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า wallet (/hirer/wallet หรือ /caregiver/wallet)<br>2. GET /api/wallet/balance → แสดง available_balance + held_balance<br>3. GET /api/wallet/transactions → รายการ transactions<br>4. กดรายการ → ดูรายละเอียด<br>5. Hirer: /hirer/wallet/receipt/:jobId แสดงใบเสร็จ<br>6. Caregiver: /caregiver/wallet/earning/:jobId แสดงรายได้ |
+| **Exceptional Flow** | 1. ยังไม่มี transactions → แสดง "ยังไม่มีรายการ" |
+
+**ตาราง 3.41** UC-26: ถอนเงิน (Withdraw)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-26 |
-| **Use Case** | เติมเงิน (Top-up Wallet) |
-| **Actor** | Hirer |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Hirer |
-| **Main Flow** | 1. ผู้ว่าจ้างเข้าหน้า /hirer/wallet<br>2. กดเติมเงิน → ระบุจำนวนเงิน<br>3. POST /api/wallet/topup { amount } → ระบบส่ง request ไป mock-provider<br>4. Mock-provider สร้าง QR code → ส่งกลับ qr_payload<br>5. แสดง QR popup ให้ scan<br>6. ผู้ใช้ scan QR จ่ายเงิน<br>7. Provider ส่ง webhook → POST /api/webhooks/payment<br>8. ระบบตรวจ HMAC signature → CREDIT available_balance<br>9. INSERT ledger_transactions (type=credit)<br>10. ผู้ใช้กด Confirm → ตรวจสถานะ → แสดงสำเร็จ |
-| **Exceptional Flow** | 1. จำนวนเงิน ≤ 0 → 400 Validation Error<br>2. Webhook signature ไม่ valid → 400 "Invalid signature"<br>3. Duplicate webhook (idempotency_key ซ้ำ) → ไม่ credit ซ้ำ<br>4. QR หมดอายุ → ผู้ใช้ต้องสร้าง QR ใหม่ |
+| **Use Case** | ถอนเงิน (Withdraw to Bank Account) |
+| **Actor** | Caregiver (L2+) |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมี Trust Level L2 ขึ้นไป<br>3. ผู้ใช้งานต้องมีบัญชีธนาคารอย่างน้อย 1 บัญชี<br>4. ผู้ใช้งานต้องมียอดเงินเพียงพอ |
+| **Main Flow** | 1. ผู้ดูแลเข้าหน้า wallet → กดถอนเงิน<br>2. เลือกบัญชีธนาคารปลายทาง + ระบุจำนวน<br>3. POST /api/wallet/withdraw { amount, bank_account_id }<br>4. ระบบตรวจ Trust Level ≥ L2<br>5. ตรวจ available_balance ≥ amount<br>6. สร้าง withdrawal_requests record (status=pending)<br>7. Admin review → approve → mark paid (ดู UC-36) |
+| **Exceptional Flow** | 1. Trust Level < L2 → 403 "ต้อง KYC ก่อนถอนเงิน"<br>2. ยอดไม่พอ → 400 "ยอดเงินไม่เพียงพอ"<br>3. ไม่มีบัญชีธนาคาร → ต้องเพิ่มก่อน (UC-27)<br>4. ban_withdraw=true → 403 Forbidden |
 
-**ตาราง 3.42** UC-27: ดูยอดเงินและประวัติ (View Wallet & History)
+**ตาราง 3.42** UC-27: จัดการบัญชีธนาคาร (Manage Bank Accounts)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-27 |
-| **Use Case** | ดูยอดเงินและประวัติ (View Wallet & Transaction History) |
+| **Use Case** | จัดการบัญชีธนาคาร (Manage Bank Accounts) |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า wallet (/hirer/wallet หรือ /caregiver/wallet)<br>2. GET /api/wallet/balance → แสดง available_balance + held_balance<br>3. ดูประวัติ → GET /api/payments → รายการ transactions<br>4. กดรายการ → ดูรายละเอียด (receipt/earning detail)<br>5. Hirer: /hirer/wallet/receipt/:jobId แสดงใบเสร็จ<br>6. Caregiver: /caregiver/wallet/earning/:jobId แสดงรายได้ |
-| **Exceptional Flow** | 1. ยังไม่มี transactions → แสดง "ยังไม่มีรายการ" |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า /wallet/bank-accounts<br>2. GET /api/wallet/bank-accounts → แสดงรายการบัญชี<br>3. **เพิ่ม**: กรอกธนาคาร + เลขบัญชี + ชื่อ → POST /api/wallet/bank-accounts<br>4. **ลบ**: DELETE /api/wallet/bank-accounts/:id |
+| **Exceptional Flow** | 1. Caregiver L0 เพิ่มบัญชี → 403 "ต้อง L1 ขึ้นไป"<br>2. Hirer L0 เพิ่มบัญชี → อนุญาต (ไม่จำกัด) |
 
-**ตาราง 3.43** UC-28: ถอนเงิน (Withdraw)
+---
+
+#### กลุ่มที่ 6: Communication (UC-28 ถึง UC-29)
+
+**ตาราง 3.43** UC-28: แชทเรียลไทม์ (Real-time Chat)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-28 |
-| **Use Case** | ถอนเงิน (Withdraw) |
-| **Actor** | Caregiver (L2+) |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมี Trust Level L2 ขึ้นไป<br>3. ผู้ใช้งานต้องมีบัญชีธนาคารอย่างน้อย 1 บัญชี<br>4. ผู้ใช้งานต้องมียอดเงินเพียงพอ |
-| **Main Flow** | 1. ผู้ดูแลเข้าหน้า wallet → กดถอนเงิน<br>2. เลือกบัญชีธนาคารปลายทาง + ระบุจำนวน<br>3. POST /api/wallet/withdraw { amount, bank_account_id }<br>4. ระบบตรวจ Trust Level ≥ L2<br>5. ตรวจ available_balance ≥ amount<br>6. สร้าง withdrawal_requests record (status=pending)<br>7. Admin review → approve → mark paid (ดู UC-34) |
-| **Exceptional Flow** | 1. Trust Level < L2 → 403 "ต้อง KYC ก่อนถอนเงิน"<br>2. ยอดไม่พอ → 400 "ยอดเงินไม่เพียงพอ"<br>3. ไม่มีบัญชีธนาคาร → ต้องเพิ่มก่อน (UC-29)<br>4. ban_withdraw=true → 403 Forbidden |
+| **Use Case** | แชทเรียลไทม์ (Real-time Chat) |
+| **Actor** | Hirer, Caregiver |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ต้องมี chat thread ที่สร้างจากการ Accept งาน (UC-20)<br>3. ผู้ใช้งานต้องเป็นสมาชิกของ thread |
+| **Main Flow** | 1. หลัง Accept งาน → ระบบสร้าง chat_thread อัตโนมัติ<br>2. ผู้ใช้เข้าหน้า /chat/:jobId<br>3. GET /api/chat/threads/:threadId/messages → โหลดข้อความเก่า<br>4. Socket.IO: emit thread:join → server join room<br>5. พิมพ์ข้อความ → emit message:send → server broadcast message:new<br>6. Typing indicator: emit typing:start/stop<br>7. อ่านข้อความ → emit message:read → อัปเดต read status |
+| **Exceptional Flow** | 1. ไม่ใช่สมาชิกของ thread → 403 Forbidden<br>2. Thread ถูกปิด (งานยกเลิก) → disable input + แสดง "ห้องแชทปิดแล้ว"<br>3. Socket หลุด → reconnect อัตโนมัติ + sync ข้อความที่พลาด |
 
-**ตาราง 3.44** UC-29: จัดการบัญชีธนาคาร (Manage Bank Accounts)
+**ตาราง 3.44** UC-29: ดูการแจ้งเตือน (View Notifications)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-29 |
-| **Use Case** | จัดการบัญชีธนาคาร (Manage Bank Accounts) |
+| **Use Case** | ดูการแจ้งเตือน (View Notifications) |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า /wallet/bank-accounts<br>2. GET /api/wallet/bank-accounts → แสดงรายการบัญชี<br>3. **เพิ่ม**: กรอกธนาคาร + เลขบัญชี + ชื่อ → POST /api/wallet/bank-accounts<br>4. **ตั้งเป็นหลัก**: PUT /api/wallet/bank-accounts/:id/default<br>5. **ลบ**: DELETE /api/wallet/bank-accounts/:id |
-| **Exceptional Flow** | 1. Caregiver L0 เพิ่มบัญชี → 403 "ต้อง L1 ขึ้นไป"<br>2. Hirer L0 เพิ่มบัญชี → อนุญาต (ไม่จำกัด)<br>3. เลขบัญชีซ้ำ → 409 Conflict |
+| **Main Flow** | 1. ระบบส่ง notification ผ่าน 2 ช่องทาง:<br>   - Real-time: Socket.IO emit ไป room user:{userId}<br>   - Polling: GET /api/notifications/unread-count ทุก 5 วินาที<br>2. TopBar แสดง badge จำนวน unread<br>3. ผู้ใช้กดดู → /notifications → GET /api/notifications<br>4. กดแต่ละรายการ → PATCH /api/notifications/:id/read → badge ลด<br>5. กด "อ่านทั้งหมด" → PATCH /api/notifications/read-all |
+| **Exceptional Flow** | 1. Socket หลุด → polling fallback + fetchUnread เมื่อ reconnect/focus/online<br>2. API error → cache-busting timestamp retry |
 
 ---
 
-#### กลุ่มที่ 8: Communication (UC-30 ถึง UC-31)
+#### กลุ่มที่ 7: Dispute & Complaint (UC-30 ถึง UC-31)
 
-**ตาราง 3.45** UC-30: แชทแบบเรียลไทม์ (Real-time Chat)
+**ตาราง 3.45** UC-30: เปิดข้อพิพาท (Open Dispute)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-30 |
-| **Use Case** | แชทแบบเรียลไทม์ (Real-time Chat) |
+| **Use Case** | เปิดข้อพิพาท (Open Dispute) |
 | **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ต้องมี chat thread ที่สร้างจากการ Accept งาน<br>3. ผู้ใช้งานต้องเป็นสมาชิกของ thread |
-| **Main Flow** | 1. หลัง Accept งาน → ระบบสร้าง chat_thread อัตโนมัติ<br>2. ผู้ใช้เข้าหน้า /chat/:jobId<br>3. GET /api/chat/threads/:threadId/messages → โหลดข้อความเก่า<br>4. Socket.IO: emit thread:join → server join room<br>5. พิมพ์ข้อความ → emit message:send → server broadcast message:new<br>6. Typing indicator: emit typing:start/stop → แสดง "กำลังพิมพ์..."<br>7. อ่านข้อความ → emit message:read → อัปเดต read status |
-| **Exceptional Flow** | 1. ไม่ใช่สมาชิกของ thread → 403 Forbidden<br>2. Thread ถูกปิด (งานยกเลิก) → disable input + แสดง "ห้องแชทปิดแล้ว"<br>3. Socket หลุด → reconnect อัตโนมัติ + sync ข้อความที่พลาด |
+| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเป็นผู้เกี่ยวข้องกับงาน<br>3. ยังไม่มี dispute เปิดอยู่สำหรับงานเดียวกัน |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้ารายละเอียดงาน → กดเปิด Dispute<br>2. กรอกเหตุผล + รายละเอียดปัญหา<br>3. POST /api/disputes { job_id, reason }<br>4. ระบบสร้าง disputes record (status=open)<br>5. ผู้ใช้เข้าหน้า /dispute/:disputeId → ส่งหลักฐานเพิ่ม<br>6. POST /api/disputes/:id/messages { content }<br>7. Notify Admin + ฝ่ายตรงข้าม |
+| **Exceptional Flow** | 1. งานไม่มีอยู่ → 404 Not Found<br>2. มี dispute เปิดอยู่แล้ว → 409 Conflict<br>3. Dispute ถูก resolve แล้ว → 400 "ข้อพิพาทปิดแล้ว" (ส่งหลักฐานไม่ได้) |
 
-**ตาราง 3.46** UC-31: รับ/ดูแจ้งเตือน (Notifications)
+**ตาราง 3.46** UC-31: ร้องเรียน (Submit Complaint)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-31 |
-| **Use Case** | รับ/ดูแจ้งเตือน (Notifications) |
+| **Use Case** | ร้องเรียน (Submit Complaint) |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ระบบส่ง notification ผ่าน 2 ช่องทาง:<br>   - Real-time: Socket.IO emit ไป room user:{userId}<br>   - Polling: GET /api/notifications/unread-count ทุก 15 วินาที<br>2. TopBar แสดง badge จำนวน unread<br>3. ผู้ใช้กดดู → /notifications → GET /api/notifications<br>4. กดแต่ละรายการ → POST /api/notifications/:id/read → badge ลด<br>5. กด "อ่านทั้งหมด" → POST /api/notifications/read-all |
-| **Exceptional Flow** | 1. Socket หลุด → polling 15 วินาที + fetchUnread เมื่อ reconnect/focus/online<br>2. API error → cache-busting timestamp retry |
+| **Main Flow** | 1. ผู้ใช้เข้าหน้า /complaint<br>2. เลือกหมวดหมู่ปัญหา + กรอกรายละเอียด<br>3. แนบไฟล์หลักฐาน (รูปภาพ/PDF สูงสุด 5 ไฟล์)<br>4. POST /api/complaints (multipart form data)<br>5. ระบบสร้าง complaints record (status=pending)<br>6. ดูรายการร้องเรียนของตัวเอง → GET /api/complaints<br>7. Admin ตรวจสอบ + อัปเดตสถานะ |
+| **Exceptional Flow** | 1. ไฟล์เกิน 10 MB ต่อไฟล์ → 400 Payload Too Large<br>2. ไฟล์เกิน 5 ไฟล์ → 400 "จำนวนไฟล์เกินกำหนด"<br>3. ไฟล์ไม่ใช่ JPEG/PNG/GIF/WebP/PDF → 400 "ประเภทไฟล์ไม่ถูกต้อง" |
 
 ---
 
-#### กลุ่มที่ 9: Dispute (UC-32 ถึง UC-33)
+#### กลุ่มที่ 8: Admin (UC-32 ถึง UC-36)
 
-**ตาราง 3.47** UC-32: เปิดข้อพิพาท (Open Dispute)
+**ตาราง 3.47** UC-32: จัดการผู้ใช้และ Ban (Admin — Manage Users)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
 | **Use Case ID** | UC-32 |
-| **Use Case** | เปิดข้อพิพาท (Open Dispute) |
-| **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องเป็นผู้เกี่ยวข้องกับงาน (hirer หรือ caregiver)<br>3. ยังไม่มี dispute เปิดอยู่สำหรับงานเดียวกัน |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้ารายละเอียดงาน → กดเปิด Dispute<br>2. กรอกหัวข้อ + รายละเอียดปัญหา<br>3. POST /api/disputes { job_post_id, subject, description }<br>4. ระบบสร้าง disputes record (status=open)<br>5. Notify Admin + ฝ่ายตรงข้าม<br>6. redirect ไป /dispute/:disputeId |
-| **Exceptional Flow** | 1. งานไม่มีอยู่ → 404 Not Found<br>2. มี dispute เปิดอยู่แล้วสำหรับงานเดียวกัน → 409 Conflict |
-
-**ตาราง 3.48** UC-33: ส่งหลักฐานข้อพิพาท (Send Dispute Evidence)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-33 |
-| **Use Case** | ส่งหลักฐานข้อพิพาท (Send Dispute Evidence) |
-| **Actor** | Hirer, Caregiver |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ต้องมี dispute เปิดอยู่ (status ≠ resolved)<br>3. ผู้ใช้งานต้องเป็นผู้เกี่ยวข้องกับ dispute |
-| **Main Flow** | 1. ผู้ใช้เข้าหน้า /dispute/:disputeId<br>2. พิมพ์ข้อความหรืออัปโหลดหลักฐาน<br>3. POST /api/disputes/:id/messages { content, type }<br>4. ข้อความแสดงทั้ง 2 ฝ่าย + Admin<br>5. รอ Admin settle (ดู UC-38) |
-| **Exceptional Flow** | 1. Dispute ถูก resolve แล้ว → 400 "ข้อพิพาทปิดแล้ว"<br>2. ไม่ใช่ผู้เกี่ยวข้อง → 403 Forbidden |
-
----
-
-#### กลุ่มที่ 10: Admin (UC-34 ถึง UC-39)
-
-**ตาราง 3.49** UC-34: จัดการผู้ใช้ (Admin — Manage Users)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-34 |
-| **Use Case** | จัดการผู้ใช้ (Admin — Manage Users) |
+| **Use Case** | จัดการผู้ใช้และ Ban (Admin — Manage Users & Ban) |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Admin |
 | **Main Flow** | 1. Admin เข้าหน้า /admin/users<br>2. GET /api/admin/users?q=xxx&role=xxx&status=xxx → รายการผู้ใช้<br>3. กดดูรายละเอียด → GET /api/admin/users/:id<br>4. **เปลี่ยนสถานะ**: POST /api/admin/users/:id/status { status, reason }<br>5. **แก้ไขข้อมูล**: PATCH /api/admin/users/:id/edit { trust_level, trust_score, ... }<br>6. **Ban**: POST /api/admin/users/:id/ban { ban_type, value, reason }<br>7. **ดู Wallet**: GET /api/admin/users/:id/wallet |
 | **Exceptional Flow** | 1. ไม่ใช่ Admin → 403 Forbidden<br>2. User ID ไม่มี → 404 Not Found |
 
-**ตาราง 3.50** UC-35: อนุมัติ/ปฏิเสธ KYC (Admin — KYC Review)
+**ตาราง 3.48** UC-33: ตรวจสอบ KYC (Admin — KYC Review)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
-| **Use Case ID** | UC-35 |
-| **Use Case** | อนุมัติ/ปฏิเสธ KYC (Admin — KYC Review) |
+| **Use Case ID** | UC-33 |
+| **Use Case** | ตรวจสอบ KYC (Admin — KYC Review) |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Admin<br>3. มีผู้ใช้ที่ส่ง KYC แล้ว (status=pending) |
-| **Main Flow** | 1. Admin เข้าหน้า /admin/users กรองผู้ใช้ที่มี KYC pending<br>2. ดูเอกสาร: บัตรประชาชน + selfie<br>3. **Approve**: POST /api/admin/users/:id/status { status: "active" } + อัปเดต kyc_status=approved<br>4. ระบบอัปเกรด trust_level เป็น L2<br>5. Notify ผู้ใช้ "KYC อนุมัติแล้ว"<br>6. **Reject**: ตั้ง kyc_status=rejected + reason → Notify ผู้ใช้ |
+| **Main Flow** | 1. Admin เข้าหน้า /admin/users กรองผู้ใช้ที่มี KYC pending<br>2. ดูเอกสาร: บัตรประชาชน + selfie<br>3. **Approve**: อัปเดต kyc_status=approved → trust_level เป็น L2<br>4. Notify ผู้ใช้ "KYC อนุมัติแล้ว"<br>5. **Reject**: ตั้ง kyc_status=rejected + reason → Notify ผู้ใช้ |
 | **Exceptional Flow** | 1. เอกสารไม่ชัด → Reject พร้อมเหตุผล<br>2. User ไม่มี KYC submission → ไม่มีข้อมูลให้ review |
 
-**ตาราง 3.51** UC-36: จัดการงาน (Admin — Manage Jobs)
+**ตาราง 3.49** UC-34: จัดการงาน (Admin — Manage Jobs)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
-| **Use Case ID** | UC-36 |
+| **Use Case ID** | UC-34 |
 | **Use Case** | จัดการงาน (Admin — Manage Jobs) |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Admin |
 | **Main Flow** | 1. Admin เข้าหน้า /admin/jobs<br>2. GET /api/admin/jobs?q=xxx&status=xxx&risk_level=xxx → รายการงาน<br>3. กดดูรายละเอียด → GET /api/admin/jobs/:id<br>4. **ยกเลิกงาน**: POST /api/admin/jobs/:id/cancel { reason }<br>5. ระบบ refund เงินตามสถานะ (hold/escrow → hirer)<br>6. Notify ทั้ง 2 ฝ่าย |
 | **Exceptional Flow** | 1. งาน completed แล้ว → 400 "ไม่สามารถยกเลิกได้"<br>2. เหตุผลว่าง → 400 Validation Error |
 
-**ตาราง 3.52** UC-37: ดูรายการเงิน (Admin — View Ledger Transactions)
+**ตาราง 3.50** UC-35: ตัดสินข้อพิพาท (Admin — Settle Dispute)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
-| **Use Case ID** | UC-37 |
-| **Use Case** | ดูรายการเงิน (Admin — View Ledger Transactions) |
-| **Actor** | Admin |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Admin |
-| **Main Flow** | 1. Admin เข้าหน้า /admin/financial<br>2. GET /api/admin/ledger/transactions?type=xxx&from=xxx&to=xxx<br>3. แสดง: from_wallet → to_wallet, amount, type, reference, timestamp<br>4. กรองตามประเภท, wallet_id, ช่วงวันที่<br>5. Pagination: page + limit |
-| **Exceptional Flow** | 1. ไม่มีรายการในช่วงที่เลือก → แสดง "ไม่มีรายการ" |
-
-**ตาราง 3.53** UC-38: ตัดสินข้อพิพาท (Admin — Settle Dispute)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-38 |
+| **Use Case ID** | UC-35 |
 | **Use Case** | ตัดสินข้อพิพาท (Admin — Settle Dispute) |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Admin<br>3. มี dispute ที่ยังไม่ได้ resolve |
-| **Main Flow** | 1. Admin เข้าหน้า /admin/disputes<br>2. GET /api/admin/disputes → รายการ disputes<br>3. กดรับมอบหมาย → POST /api/admin/disputes/:id { assign_to_me: true }<br>4. อ่านหลักฐานทั้ง 2 ฝ่าย<br>5. ตัดสิน → POST /api/admin/disputes/:id/settle { refund_amount, payout_amount, resolution }<br>6. **Refund**: escrow → hirer wallet<br>7. **Payout**: escrow → caregiver wallet<br>8. **Split**: แบ่งตามจำนวนที่กำหนด<br>9. UPDATE dispute status=resolved<br>10. Notify ทั้ง 2 ฝ่าย |
+| **Main Flow** | 1. Admin เข้าหน้า /admin/disputes<br>2. GET /api/admin/disputes → รายการ disputes<br>3. กดรับมอบหมาย → POST /api/admin/disputes/:id { assign_to_me: true }<br>4. อ่านหลักฐานทั้ง 2 ฝ่าย<br>5. ตัดสิน → POST /api/admin/disputes/:id/settle { refund_amount, payout_amount, resolution }<br>6. **Refund**: escrow → hirer wallet<br>7. **Payout**: escrow → caregiver wallet<br>8. UPDATE dispute status=resolved<br>9. Notify ทั้ง 2 ฝ่าย |
 | **Exceptional Flow** | 1. Dispute ถูก resolve แล้ว → 400 "ข้อพิพาทปิดแล้ว"<br>2. refund + payout > escrow balance → 400 "จำนวนเงินเกิน escrow"<br>3. idempotency_key ซ้ำ → ไม่ดำเนินการซ้ำ |
 
-**ตาราง 3.54** UC-39: ดูรายงานและสถิติ (Admin — View Reports & Dashboard)
+**ตาราง 3.51** UC-36: จัดการการเงินและรายงาน (Admin — Finance & Reports)
 
 | รายการ | รายละเอียด |
 |--------|-----------|
-| **Use Case ID** | UC-39 |
-| **Use Case** | ดูรายงานและสถิติ (Admin — View Reports & Dashboard) |
+| **Use Case ID** | UC-36 |
+| **Use Case** | จัดการการเงินและรายงาน (Admin — Finance, Withdrawal Review, Reports) |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว<br>2. ผู้ใช้งานต้องมีบทบาท Admin |
-| **Main Flow** | 1. Admin เข้าหน้า /admin/dashboard → GET /api/admin/stats<br>2. แสดงสถิติ: จำนวน users (แยก role), jobs (แยก status), wallet totals<br>3. เข้าหน้า /admin/reports → GET /api/admin/reports/summary?from=xxx&to=xxx<br>4. แสดงสรุป: รายได้ platform, จำนวนงาน completed, disputes<br>5. กรองตามช่วงวันที่ |
-| **Exceptional Flow** | 1. ช่วงวันที่ไม่ valid → 400 Validation Error |
-
----
-
-#### General (UC-40)
-
-**ตาราง 3.55** UC-40: ออกจากระบบ (Logout)
-
-| รายการ | รายละเอียด |
-|--------|-----------|
-| **Use Case ID** | UC-40 |
-| **Use Case** | ออกจากระบบ (Logout) |
-| **Actor** | Hirer, Caregiver, Admin |
-| **Pre Conditions** | 1. ผู้ใช้งานต้องทำการเข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ผู้ใช้กดปุ่ม "ออกจากระบบ" ที่หน้า /profile<br>2. POST /api/auth/logout<br>3. Frontend ลบ token จาก sessionStorage<br>4. Socket.IO disconnect<br>5. redirect ไป /login |
-| **Exceptional Flow** | 1. Token หมดอายุแล้ว → ลบ session แล้ว redirect เหมือนกัน |
+| **Main Flow** | 1. Admin เข้าหน้า /admin/financial<br>2. **ดู Ledger**: GET /api/admin/ledger/transactions → ดูธุรกรรมทั้งหมด<br>3. **ดู Dashboard**: GET /api/admin/stats → สถิติ users, jobs, wallets<br>4. **ดู Reports**: GET /api/admin/reports/summary → รายได้ platform<br>5. **อนุมัติถอนเงิน**: GET /api/wallet/admin/withdrawals → รายการรอตรวจ<br>6. Review → POST /api/wallet/admin/withdrawals/:id/review<br>7. Approve → POST /api/wallet/admin/withdrawals/:id/approve<br>8. Mark Paid → POST /api/wallet/admin/withdrawals/:id/mark-paid<br>9. Reject → POST /api/wallet/admin/withdrawals/:id/reject { reason } |
+| **Exceptional Flow** | 1. คำขอถอนถูกยกเลิกแล้ว → 400<br>2. Withdrawal ID ไม่มี → 404 Not Found<br>3. ช่วงวันที่ไม่ valid → 400 Validation Error |
 
 ---
 
