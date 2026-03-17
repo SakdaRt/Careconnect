@@ -37,13 +37,13 @@
 ศึกษา React 18, TypeScript, Vite, TailwindCSS สำหรับ Frontend และ Node.js, Express.js, PostgreSQL, Socket.IO, JWT สำหรับ Backend รวมถึง Docker Compose สำหรับจัดการสภาพแวดล้อมการพัฒนา
 
 **กิจกรรมที่ 3 — วิเคราะห์ความต้องการเชิงฟังก์ชันและกำหนด Use Cases**
-กำหนด Functional Requirements ของระบบครอบคลุม 8 โมดูล (Authentication, Profile, Job Management, Job Execution, Payment, Communication, Dispute, Admin) และออกแบบ Use Case Diagram รวม 40 Use Cases สำหรับ 4 บทบาท (Guest, Hirer, Caregiver, Admin)
+กำหนด Functional Requirements ของระบบครอบคลุม 8 โมดูล (Authentication, Profile, Job Management, Job Execution, Payment, Communication, Dispute, Admin) และออกแบบ Use Case Diagram รวม 36 Use Cases สำหรับ 4 บทบาท (Guest, Hirer, Caregiver, Admin)
 
 **กิจกรรมที่ 4 — ออกแบบสถาปัตยกรรมระบบ**
 ออกแบบระบบตามแนวคิด 3-Tier Architecture แบ่งเป็น Presentation Layer (React SPA), Application Layer (Express.js + Socket.IO) และ Data Layer (PostgreSQL) รวมถึงออกแบบ Trust Level System, Policy Gate, Payment Flow (Double-entry Ledger) และ Job Lifecycle (Two-table Pattern)
 
 **กิจกรรมที่ 5 — ออกแบบฐานข้อมูล**
-ออกแบบ Entity-Relationship Diagram และ Database Schema จำนวน 25+ ตาราง ครอบคลุม Users, Profiles, Jobs, Wallets, Ledger Transactions, Chat, Notifications, Disputes, KYC, Reviews และ Favorites โดยใช้หลักการ Immutable Ledger, Derived State และ Constraint Integrity
+ออกแบบ Entity-Relationship Diagram และ Database Schema จำนวน 40 ตาราง ครอบคลุม Users, Profiles, Jobs, Wallets, Ledger Transactions, Chat, Notifications, Disputes, KYC, Reviews และ Favorites โดยใช้หลักการ Immutable Ledger, Derived State และ Constraint Integrity
 
 **กิจกรรมที่ 6 — ออกแบบ UI/UX**
 ออกแบบ Wireframe และ User Interface แบบ Mobile-first สำหรับหน้าจอขนาด 360×800 พิกเซล ครอบคลุมหน้าจอสำหรับทั้ง 3 บทบาท (Hirer, Caregiver, Admin) โดยใช้ TailwindCSS Utility Classes และ Lucide Icons
