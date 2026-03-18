@@ -87,9 +87,9 @@ function DashboardTab() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
-        <SummaryCard title="เงินรวมในระบบ" value={formatMoney(totalSystem)} sub={`${Object.values(w).reduce((s, v) => s + v.count, 0)} wallets`} />
-        <SummaryCard title="Escrow (กันเงิน)" value={formatMoney((w.escrow?.total_held || 0) + (w.escrow?.total_available || 0))} sub={`${w.escrow?.count || 0} งาน`} />
-        <SummaryCard title="รายได้ Platform" value={formatMoney(w.platform?.total_available || 0)} sub="Platform fee" />
+        <SummaryCard title="เงินรวมในระบบ" value={formatMoney(totalSystem)} sub={`${Object.values(w).reduce((s, v) => s + v.count, 0)} กระเป๋าเงิน`} />
+        <SummaryCard title="เงินค้ำประกัน (Escrow)" value={formatMoney((w.escrow?.total_held || 0) + (w.escrow?.total_available || 0))} sub={`${w.escrow?.count || 0} งาน`} />
+        <SummaryCard title="รายได้แพลตฟอร์ม" value={formatMoney(w.platform?.total_available || 0)} sub="ค่าธรรมเนียม" />
         <SummaryCard title="รอโอน" value={formatMoney(pendingAmount)} sub={`${pendingCount} รายการ`} />
         <SummaryCard title="โอนแล้ว" value={formatMoney(wd.paid?.total_amount || 0)} sub={`${wd.paid?.count || 0} รายการ`} />
       </div>
@@ -104,8 +104,8 @@ function DashboardTab() {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="text-left py-2 pr-3 font-medium text-gray-600">เดือน</th>
-                  <th className="text-right py-2 px-2 font-medium text-gray-600">Top-up</th>
-                  <th className="text-right py-2 px-2 font-medium text-gray-600">Platform Fee</th>
+                  <th className="text-right py-2 px-2 font-medium text-gray-600">เติมเงิน</th>
+                  <th className="text-right py-2 px-2 font-medium text-gray-600">ค่าธรรมเนียม</th>
                   <th className="text-right py-2 px-2 font-medium text-gray-600">ถอนออก</th>
                   <th className="text-right py-2 px-2 font-medium text-gray-600">คืนเงิน</th>
                 </tr>
@@ -127,15 +127,15 @@ function DashboardTab() {
       </Card>
 
       <Card className="p-5">
-        <h3 className="text-sm font-semibold text-gray-900 mb-2">Ledger Integrity</h3>
-        <div className="flex items-center gap-2 text-sm">
+        <h3 className="text-sm font-semibold text-gray-900 mb-2">ความถูกต้องของบัญชี</h3>
+        <div className="flex flex-wrap items-center gap-2 text-sm">
           {stats.ledger_integrity.valid ? (
-            <span className="text-green-700 font-medium">✅ Valid — difference: 0</span>
+            <span className="text-green-700 font-medium">ถูกต้อง — ผลต่าง: 0</span>
           ) : (
-            <span className="text-red-700 font-medium">❌ Mismatch — difference: {formatMoney(stats.ledger_integrity.difference)}</span>
+            <span className="text-red-700 font-medium">ไม่ตรงกัน — ผลต่าง: {formatMoney(stats.ledger_integrity.difference)}</span>
           )}
           <span className="text-gray-500 text-xs ml-2">
-            Credits: {formatMoney(stats.ledger_integrity.credits)} | Debits: {formatMoney(stats.ledger_integrity.debits)} | Wallet Sum: {formatMoney(stats.ledger_integrity.walletSum)}
+            เงินเข้า: {formatMoney(stats.ledger_integrity.credits)} | เงินออก: {formatMoney(stats.ledger_integrity.debits)} | ยอดรวม Wallet: {formatMoney(stats.ledger_integrity.walletSum)}
           </span>
         </div>
       </Card>
@@ -155,6 +155,8 @@ function WithdrawalsTab() {
   const [payoutRef, setPayoutRef] = useState<Record<string, string>>({});
   const [rejectReason, setRejectReason] = useState<Record<string, string>>({});
   const [confirmAction, setConfirmAction] = useState<{ id: string; action: string; label: string } | null>(null);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -164,6 +166,8 @@ function WithdrawalsTab() {
         limit: 20,
         status: status === 'all' ? undefined : status,
         search: search || undefined,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
       });
       if (!res.success) {
         toast.error(res.error || 'โหลดข้อมูลไม่สำเร็จ');
@@ -175,7 +179,7 @@ function WithdrawalsTab() {
     } finally {
       setLoading(false);
     }
-  }, [page, status, search]);
+  }, [page, status, search, dateFrom, dateTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -253,6 +257,16 @@ function WithdrawalsTab() {
                 />
               </div>
               <Button variant="outline" onClick={handleSearch}>ค้นหา</Button>
+            </div>
+            <div className="flex items-end gap-1">
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">ตั้งแต่</label>
+                <input type="date" className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">ถึง</label>
+                <input type="date" className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+              </div>
             </div>
           </div>
           <Button variant="outline" onClick={load}>รีเฟรช</Button>
@@ -382,6 +396,44 @@ function WithdrawalsTab() {
   );
 }
 
+function formatWalletLabel(walletType?: string | null, userName?: string | null, userEmail?: string | null) {
+  if (!walletType) return '-';
+  const name = userName || userEmail || '';
+  const typeLabel = walletType === 'platform' ? 'แพลตฟอร์ม' : walletType === 'escrow' ? 'escrow' : walletType;
+  return name ? `${typeLabel} (${name})` : typeLabel;
+}
+
+const REF_TYPE_LABELS: Record<string, string> = {
+  topup: 'เติมเงิน',
+  job: 'งาน',
+  withdrawal: 'ถอนเงิน',
+  fee: 'ค่าธรรมเนียม',
+  refund: 'คืนเงิน',
+  dispute: 'ข้อพิพาท',
+  penalty: 'ค่าปรับ',
+};
+
+function exportCSV(items: LedgerTransaction[]) {
+  const headers = ['วันที่', 'ประเภท', 'จำนวน', 'จาก', 'ไป', 'อ้างอิง', 'รายละเอียด'];
+  const rows = items.map(t => [
+    t.created_at ? new Date(t.created_at).toISOString() : '',
+    t.type,
+    t.amount,
+    formatWalletLabel(t.from_wallet_type, t.from_user_name, t.from_user_email),
+    formatWalletLabel(t.to_wallet_type, t.to_user_name, t.to_user_email),
+    t.reference_type || '',
+    (t.description || '').replace(/,/g, ' '),
+  ]);
+  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `transactions_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function TransactionsTab() {
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<LedgerTransaction[]>([]);
@@ -389,6 +441,8 @@ function TransactionsTab() {
   const [totalPages, setTotalPages] = useState(1);
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [refFilter, setRefFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -398,6 +452,8 @@ function TransactionsTab() {
         limit: 30,
         type: typeFilter === 'all' ? undefined : typeFilter,
         reference_type: refFilter === 'all' ? undefined : refFilter,
+        date_from: dateFrom || undefined,
+        date_to: dateTo || undefined,
       });
       if (!res.success) {
         toast.error(res.error || 'โหลดข้อมูลไม่สำเร็จ');
@@ -409,7 +465,7 @@ function TransactionsTab() {
     } finally {
       setLoading(false);
     }
-  }, [page, typeFilter, refFilter]);
+  }, [page, typeFilter, refFilter, dateFrom, dateTo]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -421,27 +477,36 @@ function TransactionsTab() {
             <label className="block text-xs font-medium text-gray-600 mb-1">ประเภท</label>
             <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={typeFilter} onChange={(e) => { setTypeFilter(e.target.value); setPage(1); }}>
               <option value="all">ทั้งหมด</option>
-              <option value="credit">credit</option>
-              <option value="debit">debit</option>
-              <option value="hold">hold</option>
-              <option value="release">release</option>
-              <option value="reversal">reversal</option>
+              <option value="credit">เงินเข้า</option>
+              <option value="debit">เงินออก</option>
+              <option value="hold">กันเงิน</option>
+              <option value="release">ปลดล็อค</option>
+              <option value="reversal">กลับรายการ</option>
             </select>
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">อ้างอิง</label>
             <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={refFilter} onChange={(e) => { setRefFilter(e.target.value); setPage(1); }}>
               <option value="all">ทั้งหมด</option>
-              <option value="topup">topup</option>
-              <option value="job">job</option>
-              <option value="withdrawal">withdrawal</option>
-              <option value="fee">fee</option>
-              <option value="refund">refund</option>
-              <option value="dispute">dispute</option>
-              <option value="penalty">penalty</option>
+              <option value="topup">เติมเงิน</option>
+              <option value="job">งาน</option>
+              <option value="withdrawal">ถอนเงิน</option>
+              <option value="fee">ค่าธรรมเนียม</option>
+              <option value="refund">คืนเงิน</option>
+              <option value="dispute">ข้อพิพาท</option>
+              <option value="penalty">ค่าปรับ</option>
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">ตั้งแต่</label>
+            <input type="date" className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">ถึง</label>
+            <input type="date" className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} />
+          </div>
           <Button variant="outline" onClick={load}>รีเฟรช</Button>
+          {items.length > 0 && <Button variant="outline" onClick={() => exportCSV(items)}>ส่งออก CSV</Button>}
         </div>
       </Card>
 
@@ -450,7 +515,7 @@ function TransactionsTab() {
       ) : (
         <Card className="p-4">
           {items.length === 0 ? (
-            <div className="text-sm text-gray-600 py-8 text-center">ไม่พบ transaction</div>
+            <div className="text-sm text-gray-600 py-8 text-center">ไม่พบรายการธุรกรรม</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -459,9 +524,9 @@ function TransactionsTab() {
                     <th className="text-left py-2 pr-2 font-medium text-gray-600">วันที่</th>
                     <th className="text-left py-2 px-2 font-medium text-gray-600">ประเภท</th>
                     <th className="text-right py-2 px-2 font-medium text-gray-600">จำนวน</th>
-                    <th className="text-left py-2 px-2 font-medium text-gray-600">From → To</th>
-                    <th className="text-left py-2 px-2 font-medium text-gray-600">Reference</th>
-                    <th className="text-left py-2 pl-2 font-medium text-gray-600">Description</th>
+                    <th className="text-left py-2 px-2 font-medium text-gray-600">จาก → ไป</th>
+                    <th className="text-left py-2 px-2 font-medium text-gray-600">อ้างอิง</th>
+                    <th className="text-left py-2 pl-2 font-medium text-gray-600">รายละเอียด</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -480,10 +545,10 @@ function TransactionsTab() {
                         </span>
                       </td>
                       <td className="py-2 px-2 text-right tabular-nums font-medium text-gray-900">{formatMoney(t.amount)}</td>
-                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap">
-                        {t.from_wallet_type || '-'} → {t.to_wallet_type || '-'}
+                      <td className="py-2 px-2 text-gray-600 whitespace-nowrap text-xs">
+                        {formatWalletLabel(t.from_wallet_type, t.from_user_name, t.from_user_email)} → {formatWalletLabel(t.to_wallet_type, t.to_user_name, t.to_user_email)}
                       </td>
-                      <td className="py-2 px-2 text-gray-600">{t.reference_type || '-'}</td>
+                      <td className="py-2 px-2 text-gray-600">{REF_TYPE_LABELS[t.reference_type] || t.reference_type || '-'}</td>
                       <td className="py-2 pl-2 text-gray-500 truncate max-w-[200px]">{t.description || '-'}</td>
                     </tr>
                   ))}
@@ -499,16 +564,20 @@ function TransactionsTab() {
 }
 
 export default function AdminFinancialPage() {
-  const [tab, setTab] = useState<TabKey>('withdrawals');
+  const [tab, setTab] = useState<TabKey>('dashboard');
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'dashboard', label: 'ภาพรวม' },
     { key: 'withdrawals', label: 'คำขอถอนเงิน' },
-    { key: 'transactions', label: 'Transactions' },
+    { key: 'transactions', label: 'รายการธุรกรรม' },
   ];
 
   return (
     <div className="space-y-4">
+      <div>
+        <h1 className="text-lg font-bold text-gray-900">การเงิน</h1>
+        <p className="text-xs text-gray-500 mt-0.5">จัดการคำขอถอนเงิน ดูรายการธุรกรรม และภาพรวมการเงินของระบบ</p>
+      </div>
       <div className="flex items-center gap-1 border-b border-gray-200">
         {tabs.map((t) => (
           <button

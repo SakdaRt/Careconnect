@@ -660,10 +660,10 @@ class ApiClient {
     const params = new URLSearchParams();
     if (options?.page) params.append('page', String(options.page));
     if (options?.limit) params.append('limit', String(options.limit));
-    if (options?.type) params.append('transaction_type', options.type);
+    if (options?.type) params.append('type', options.type);
     if (options?.reference_type) params.append('reference_type', options.reference_type);
-    if (options?.date_from) params.append('start_date', options.date_from);
-    if (options?.date_to) params.append('end_date', options.date_to);
+    if (options?.date_from) params.append('date_from', options.date_from);
+    if (options?.date_to) params.append('date_to', options.date_to);
     const query = params.toString() ? `?${params.toString()}` : '';
     const raw: any = await this.request<any>(`/api/wallet/admin/transactions${query}`);
     if (!raw.success) return raw as ApiResponse<Paginated<LedgerTransaction>>;
@@ -1660,8 +1660,12 @@ export interface LedgerTransaction {
   description?: string | null;
   from_wallet_type?: string | null;
   from_user_id?: string | null;
+  from_user_email?: string | null;
+  from_user_name?: string | null;
   to_wallet_type?: string | null;
   to_user_id?: string | null;
+  to_user_email?: string | null;
+  to_user_name?: string | null;
   created_at: string;
 }
 
