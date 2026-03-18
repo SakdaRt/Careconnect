@@ -64,18 +64,22 @@ export default function HirerPaymentHistoryPage() {
               <div>
                 <Select label="ประเภท" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)}>
                   <option value="all">ทั้งหมด</option>
-                  <option value="topup">เติมเงิน</option>
-                  <option value="withdraw">ถอนเงิน</option>
-                  <option value="payment">ชำระค่าจ้าง</option>
-                  <option value="refund">คืนเงิน</option>
+                  <option value="credit">เงินเข้า</option>
+                  <option value="debit">เงินออก</option>
+                  <option value="hold">กันเงิน</option>
+                  <option value="release">ปลดล็อค</option>
+                  <option value="reversal">กลับรายการ</option>
                 </Select>
               </div>
               <div>
                 <Select label="อ้างอิง" value={refFilter} onChange={(e) => setRefFilter(e.target.value as any)}>
                   <option value="all">ทั้งหมด</option>
-                  <option value="job">งาน</option>
-                  <option value="withdraw">ถอนเงิน</option>
                   <option value="topup">เติมเงิน</option>
+                  <option value="job">งาน</option>
+                  <option value="withdrawal">ถอนเงิน</option>
+                  <option value="fee">ค่าธรรมเนียม</option>
+                  <option value="refund">คืนเงิน</option>
+                  <option value="dispute">ข้อพิพาท</option>
                 </Select>
               </div>
             </div>
