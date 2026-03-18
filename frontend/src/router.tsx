@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { AdminLayout } from './layouts';
 import { LoadingState } from './components/ui';
 import { RouteErrorFallback } from './components/ErrorBoundary';
 const JobDetailPage = lazy(() => import('./pages/shared/JobDetailPage'));
@@ -516,7 +515,7 @@ export const router = createBrowserRouter([
   { path: '/admin/dashboard', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminDashboardPage /></Suspense></RequireAdmin> },
   { path: '/admin/jobs', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminJobsPage /></Suspense></RequireAdmin> },
   { path: '/admin/users', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminUsersPage /></Suspense></RequireAdmin> },
-  { path: '/admin/financial', element: <RequireAdmin><AdminLayout><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminFinancialPage /></Suspense></AdminLayout></RequireAdmin> },
+  { path: '/admin/financial', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminFinancialPage /></Suspense></RequireAdmin> },
   { path: '/admin/disputes', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminDisputesPage /></Suspense></RequireAdmin> },
   { path: '/admin/reports', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminReportsPage /></Suspense></RequireAdmin> },
   { path: '/admin/settings', element: <RequireAdmin><Suspense fallback={<LoadingState message="กำลังโหลด..." />}><AdminSettingsPage /></Suspense></RequireAdmin> },
