@@ -848,3 +848,306 @@
 | ข้อพิพาทและร้องเรียน (UC-34~35) | 2 | 3 | 3 | 0 | 100% |
 | Admin (UC-36~40) | 5 | 7 | 7 | 0 | 100% |
 | **รวม** | **40** | **71** | **71** | **0** | **100%** |
+
+---
+
+## 4.2 ทดสอบการใช้งาน API
+
+ระบบ CareConnect มี RESTful API แบ่งตาม Controller ดังนี้
+
+### 4.2.1 Authentication Controller
+
+Base path: `/api/auth`
+
+**ตาราง 4.42** API ของ Authentication Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/auth/register/guest | สมัครสมาชิกด้วย email + password |
+| POST | /api/auth/register/member | สมัครสมาชิกด้วยเบอร์โทร + password |
+| POST | /api/auth/login/email | เข้าสู่ระบบด้วย email |
+| POST | /api/auth/login/phone | เข้าสู่ระบบด้วยเบอร์โทร |
+| POST | /api/auth/refresh | ต่ออายุ access token ด้วย refresh token |
+| POST | /api/auth/forgot-password | ขอลิงก์รีเซ็ตรหัสผ่านทาง email |
+| POST | /api/auth/reset-password | ตั้งรหัสผ่านใหม่ด้วย reset token |
+| GET | /api/auth/google | เริ่ม Google OAuth 2.0 login |
+| GET | /api/auth/google/callback | Google OAuth callback |
+| GET | /api/auth/me | ดูข้อมูลผู้ใช้ปัจจุบัน |
+| GET | /api/auth/profile | ดูโปรไฟล์ผู้ใช้ปัจจุบัน |
+| PUT | /api/auth/profile | อัปเดตโปรไฟล์ |
+| POST | /api/auth/avatar | อัปโหลดรูปโปรไฟล์ |
+| POST | /api/auth/phone | อัปเดตเบอร์โทรศัพท์ |
+| POST | /api/auth/email | อัปเดตอีเมล |
+| POST | /api/auth/policy/accept | ยอมรับนโยบายการใช้งาน |
+| POST | /api/auth/role | เปลี่ยนบทบาท (Hirer/Caregiver) |
+| POST | /api/auth/logout | ออกจากระบบ |
+| DELETE | /api/auth/me | ลบบัญชีที่ยังไม่ยืนยัน |
+| POST | /api/auth/change-password | เปลี่ยนรหัสผ่าน |
+
+### 4.2.2 OTP Controller
+
+Base path: `/api/otp`
+
+**ตาราง 4.43** API ของ OTP Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/otp/email/send | ส่งรหัส OTP ทาง email |
+| POST | /api/otp/phone/send | ส่งรหัส OTP ทาง SMS |
+| POST | /api/otp/verify | ยืนยันรหัส OTP |
+| POST | /api/otp/resend | ส่งรหัส OTP ซ้ำ |
+
+### 4.2.3 Job Controller
+
+Base path: `/api/jobs`
+
+**ตาราง 4.44** API ของ Job Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/jobs/stats | ดูสถิติงานทั้งหมด |
+| GET | /api/jobs/feed | ดูประกาศงานสำหรับผู้ดูแล |
+| GET | /api/jobs/my-jobs | ดูงานของผู้ว่าจ้าง |
+| GET | /api/jobs/assigned | ดูงานที่ได้รับมอบหมาย (ผู้ดูแล) |
+| GET | /api/jobs/:id | ดูรายละเอียดงาน |
+| POST | /api/jobs | สร้างงานใหม่ (Draft) |
+| POST | /api/jobs/:id/publish | เผยแพร่งาน (Draft → Posted) |
+| POST | /api/jobs/:id/accept | รับงาน (Posted → Assigned) |
+| POST | /api/jobs/:id/reject | ปฏิเสธงานที่มอบหมายตรง |
+| POST | /api/jobs/:jobId/checkin | เช็คอิน (Assigned → In Progress) |
+| POST | /api/jobs/:jobId/checkout | เช็คเอาท์ (In Progress → Completed) |
+| POST | /api/jobs/:id/cancel | ยกเลิกงาน |
+| POST | /api/jobs/:jobId/early-checkout-request | ขอเช็คเอาท์ก่อนเวลา |
+| POST | /api/jobs/:jobId/early-checkout-respond | ตอบรับ/ปฏิเสธ Early Checkout |
+| GET | /api/jobs/:jobId/early-checkout-request | ดูคำขอ Early Checkout |
+
+### 4.2.4 Caregiver Search Controller
+
+Base path: `/api/caregivers`
+
+**ตาราง 4.45** API ของ Caregiver Search Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/caregivers/public/featured | ดูผู้ดูแลแนะนำ (ไม่ต้อง login) |
+| GET | /api/caregivers/search | ค้นหาผู้ดูแลตามเงื่อนไข |
+| POST | /api/caregivers/assign | มอบหมายงานให้ผู้ดูแลโดยตรง |
+| GET | /api/caregivers/:id | ดูโปรไฟล์ผู้ดูแล |
+
+### 4.2.5 Care Recipient Controller
+
+Base path: `/api/care-recipients`
+
+**ตาราง 4.46** API ของ Care Recipient Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/care-recipients | ดูรายการผู้รับการดูแลทั้งหมด |
+| POST | /api/care-recipients | เพิ่มผู้รับการดูแล |
+| GET | /api/care-recipients/:id | ดูรายละเอียดผู้รับการดูแล |
+| PUT | /api/care-recipients/:id | แก้ไขข้อมูลผู้รับการดูแล |
+| DELETE | /api/care-recipients/:id | ลบผู้รับการดูแล |
+
+### 4.2.6 Wallet Controller
+
+Base path: `/api/wallet`
+
+**ตาราง 4.47** API ของ Wallet Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/wallet/balance | ดูยอดเงินคงเหลือ |
+| GET | /api/wallet/transactions | ดูประวัติธุรกรรม |
+| GET | /api/wallet/bank-accounts | ดูรายการบัญชีธนาคาร |
+| POST | /api/wallet/bank-accounts | เพิ่มบัญชีธนาคาร |
+| GET | /api/wallet/topup/pending | ดูรายการเติมเงินที่รอดำเนินการ |
+| POST | /api/wallet/topup | เริ่มเติมเงิน (สร้าง QR) |
+| GET | /api/wallet/topup/:topupId | ดูสถานะการเติมเงิน |
+| POST | /api/wallet/topup/:topupId/confirm | ยืนยันการเติมเงิน |
+| GET | /api/wallet/withdrawals | ดูรายการถอนเงิน |
+| POST | /api/wallet/withdraw | ขอถอนเงิน |
+| POST | /api/wallet/withdrawals/:id/cancel | ยกเลิกคำขอถอนเงิน |
+| GET | /api/wallet/admin/withdrawals | ดูรายการถอนเงินทั้งหมด (Admin) |
+| POST | /api/wallet/admin/withdrawals/:id/review | ตรวจสอบคำขอถอนเงิน (Admin) |
+| POST | /api/wallet/admin/withdrawals/:id/approve | อนุมัติคำขอถอนเงิน (Admin) |
+| POST | /api/wallet/admin/withdrawals/:id/reject | ปฏิเสธคำขอถอนเงิน (Admin) |
+| POST | /api/wallet/admin/withdrawals/:id/mark-paid | ทำเครื่องหมายจ่ายเงินแล้ว (Admin) |
+| GET | /api/wallet/admin/dashboard | ดู Dashboard การเงิน (Admin) |
+| GET | /api/wallet/admin/transactions | ดูธุรกรรมทั้งหมด (Admin) |
+
+### 4.2.7 Chat Controller
+
+Base path: `/api/chat`
+
+**ตาราง 4.48** API ของ Chat Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/chat/threads | ดูรายการห้องแชททั้งหมด |
+| GET | /api/chat/threads/:threadId | ดูข้อมูลห้องแชท |
+| GET | /api/chat/threads/:threadId/messages | ดูข้อความในห้องแชท |
+| POST | /api/chat/threads/:threadId/messages | ส่งข้อความ |
+| POST | /api/chat/threads/:threadId/read | ทำเครื่องหมายอ่านแล้ว |
+| GET | /api/chat/threads/:threadId/unread | ดูจำนวนข้อความที่ยังไม่อ่าน |
+| POST | /api/chat/threads/:threadId/close | ปิดห้องแชท |
+| POST | /api/chat/job/:jobId/thread | สร้างหรือดูห้องแชทของงาน |
+| GET | /api/chat/job/:jobId/thread | ดูห้องแชทของงาน |
+
+### 4.2.8 Notification Controller
+
+Base path: `/api/notifications`
+
+**ตาราง 4.49** API ของ Notification Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/notifications | ดูรายการแจ้งเตือนทั้งหมด |
+| GET | /api/notifications/unread-count | ดูจำนวนแจ้งเตือนที่ยังไม่อ่าน |
+| PATCH | /api/notifications/read-all | ทำเครื่องหมายอ่านทั้งหมด |
+| PATCH | /api/notifications/:id/read | ทำเครื่องหมายอ่านรายการเดียว |
+| DELETE | /api/notifications | ล้างแจ้งเตือนทั้งหมด |
+| GET | /api/notifications/preferences | ดูการตั้งค่าแจ้งเตือน |
+| PUT | /api/notifications/preferences | อัปเดตการตั้งค่าแจ้งเตือน |
+| POST | /api/notifications/push-subscriptions | บันทึก Push subscription |
+| DELETE | /api/notifications/push-subscriptions | ลบ Push subscription |
+
+### 4.2.9 KYC Controller
+
+Base path: `/api/kyc`
+
+**ตาราง 4.50** API ของ KYC Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/kyc/status | ดูสถานะ KYC ปัจจุบัน |
+| POST | /api/kyc/submit | ส่งเอกสาร KYC (บัตรประชาชน + selfie) |
+
+### 4.2.10 Dispute Controller
+
+Base path: `/api/disputes`
+
+**ตาราง 4.51** API ของ Dispute Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/disputes | เปิดข้อพิพาท |
+| GET | /api/disputes/by-job/:jobId | ดูข้อพิพาทของงาน |
+| GET | /api/disputes/:id | ดูรายละเอียดข้อพิพาท |
+| POST | /api/disputes/:id/messages | ส่งหลักฐานในข้อพิพาท |
+| POST | /api/disputes/:id/request-close | ขอปิดข้อพิพาท |
+
+### 4.2.11 Complaint Controller
+
+Base path: `/api/complaints`
+
+**ตาราง 4.52** API ของ Complaint Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/complaints | ส่งเรื่องร้องเรียน (พร้อมแนบไฟล์) |
+| GET | /api/complaints | ดูรายการร้องเรียนของตัวเอง |
+| GET | /api/complaints/:id | ดูรายละเอียดเรื่องร้องเรียน |
+| GET | /api/complaints/admin/list | ดูรายการร้องเรียนทั้งหมด (Admin) |
+| POST | /api/complaints/admin/:id | อัปเดตสถานะเรื่องร้องเรียน (Admin) |
+
+### 4.2.12 Review Controller
+
+Base path: `/api/reviews`
+
+**ตาราง 4.53** API ของ Review Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/reviews | เขียนรีวิวผู้ดูแลหลังงานเสร็จ |
+| GET | /api/reviews/caregiver/:caregiverId | ดูรีวิวทั้งหมดของผู้ดูแล |
+| GET | /api/reviews/job/:jobId | ตรวจสอบว่างานนี้ถูกรีวิวแล้วหรือไม่ |
+
+### 4.2.13 Favorites Controller
+
+Base path: `/api/favorites`
+
+**ตาราง 4.54** API ของ Favorites Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/favorites/toggle | บันทึก/ยกเลิกผู้ดูแลที่ชอบ |
+| GET | /api/favorites | ดูรายการผู้ดูแลที่ชอบทั้งหมด |
+| GET | /api/favorites/check/:caregiverId | ตรวจสอบว่าผู้ดูแลอยู่ในรายการโปรดหรือไม่ |
+
+### 4.2.14 Caregiver Document Controller
+
+Base path: `/api/caregiver-documents`
+
+**ตาราง 4.55** API ของ Caregiver Document Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/caregiver-documents | ดูเอกสารของตัวเอง |
+| POST | /api/caregiver-documents | อัปโหลดเอกสารใบรับรอง |
+| DELETE | /api/caregiver-documents/:id | ลบเอกสาร |
+| GET | /api/caregiver-documents/by-caregiver/:caregiverId | ดูเอกสารของผู้ดูแล (Hirer/Admin) |
+
+### 4.2.15 Admin Controller
+
+Base path: `/api/admin`
+
+**ตาราง 4.56** API ของ Admin Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| GET | /api/admin/stats | ดูสถิติภาพรวมระบบ |
+| GET | /api/admin/health | ตรวจสอบสถานะระบบ |
+| GET | /api/admin/users | ดูรายการผู้ใช้ทั้งหมด |
+| GET | /api/admin/users/:id | ดูรายละเอียดผู้ใช้ |
+| POST | /api/admin/users/:id/status | เปลี่ยนสถานะผู้ใช้ |
+| PATCH | /api/admin/users/:id/edit | แก้ไขข้อมูลผู้ใช้ |
+| GET | /api/admin/users/:id/wallet | ดูกระเป๋าเงินของผู้ใช้ |
+| POST | /api/admin/users/:id/ban | Ban ผู้ใช้ |
+| GET | /api/admin/jobs | ดูรายการงานทั้งหมด |
+| GET | /api/admin/jobs/:id | ดูรายละเอียดงาน |
+| POST | /api/admin/jobs/:id/cancel | ยกเลิกงาน (Admin) |
+| GET | /api/admin/disputes | ดูรายการข้อพิพาททั้งหมด |
+| GET | /api/admin/disputes/:id | ดูรายละเอียดข้อพิพาท |
+| POST | /api/admin/disputes/:id | อัปเดตข้อพิพาท (รับมอบหมาย) |
+| POST | /api/admin/disputes/:id/settle | ตัดสินข้อพิพาท |
+| GET | /api/admin/ledger/transactions | ดูรายการธุรกรรมทั้งหมด |
+| GET | /api/admin/reports/summary | ดูรายงานสรุปรายได้ |
+| POST | /api/admin/trust/recalculate | คำนวณ Trust Level ใหม่ทั้งระบบ |
+| POST | /api/admin/trust/recalculate/:userId | คำนวณ Trust Level ใหม่รายคน |
+
+### 4.2.16 Webhook Controller
+
+Base path: `/api/webhooks`
+
+**ตาราง 4.57** API ของ Webhook Controller
+
+| Method | API | คำอธิบาย |
+|--------|-----|---------|
+| POST | /api/webhooks/payment | รับ webhook จาก Payment Provider |
+| POST | /api/webhooks/kyc | รับ webhook จาก KYC Provider |
+| POST | /api/webhooks/sms | รับ webhook จาก SMS Provider |
+| POST | /api/webhooks/stripe | รับ webhook จาก Stripe |
+
+### 4.2.17 สรุปจำนวน API แยกตาม Controller
+
+**ตาราง 4.58** สรุปจำนวน API Endpoints
+
+| Controller | จำนวน Endpoints |
+|-----------|:-:|
+| Authentication | 20 |
+| OTP | 4 |
+| Job | 15 |
+| Caregiver Search | 4 |
+| Care Recipient | 5 |
+| Wallet | 18 |
+| Chat | 9 |
+| Notification | 9 |
+| KYC | 2 |
+| Dispute | 5 |
+| Complaint | 5 |
+| Review | 3 |
+| Favorites | 3 |
+| Caregiver Document | 4 |
+| Admin | 19 |
+| Webhook | 4 |
+| **รวม** | **128** |
