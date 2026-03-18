@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import api, { WithdrawalRequest, DashboardStats, LedgerTransaction } from '../../services/api';
 import { Button, Card, Input, LoadingState } from '../../components/ui';
+import { AdminLayout } from '../../layouts';
 
 type TabKey = 'dashboard' | 'withdrawals' | 'transactions';
 
@@ -573,6 +574,7 @@ export default function AdminFinancialPage() {
   ];
 
   return (
+    <AdminLayout>
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-bold text-gray-900">การเงิน</h1>
@@ -598,5 +600,6 @@ export default function AdminFinancialPage() {
       {tab === 'withdrawals' && <WithdrawalsTab />}
       {tab === 'transactions' && <TransactionsTab />}
     </div>
+    </AdminLayout>
   );
 }

@@ -183,6 +183,15 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-18 — Admin pages: consistent layout + WCAG contrast + null guards
+
+- fix(frontend): `AdminFinancialPage.tsx` — เพิ่ม `AdminLayout` ภายใน component แทนที่จะ wrap จาก router (ให้ consistent กับทุกหน้า admin)
+- fix(frontend): `router.tsx` — ลบ `AdminLayout` wrapper ซ้ำซ้อนออกจาก `/admin/financial` route + ลบ unused import
+- fix(frontend): `AdminReportsPage.tsx` — แก้ `text-gray-400` → `text-gray-500` (WCAG contrast) + เพิ่ม null guards สำหรับ summaryData arrays ป้องกัน crash
+- fix(frontend): `AdminUsersPage.tsx` — แก้ `text-gray-400` → `text-gray-500` ที่ readable text ทุกจุด (email, docs metadata, currency, ban type)
+- verify:
+  - ✅ TypeScript: PASS (error เดิม `react-easy-crop` เท่านั้น)
+
 ### 2026-03-18 — Fix admin financial filters/contracts + UX hardening
 
 - fix(backend): `validation.js`, `walletRoutes.js` — เพิ่ม Joi schemas แยกสำหรับ admin withdrawals/transactions และบังคับ validate `mark-paid` body

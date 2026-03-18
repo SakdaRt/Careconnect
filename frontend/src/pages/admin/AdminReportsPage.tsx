@@ -10,7 +10,7 @@ function StatCard({ label, value, sub, color }: { label: string; value: string |
     <div className="bg-white border border-gray-200 rounded-xl p-4">
       <div className="text-xs text-gray-500 mb-1">{label}</div>
       <div className={`text-2xl font-bold tabular-nums ${color || 'text-gray-900'}`}>{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+      {sub && <div className="text-xs text-gray-500 mt-0.5">{sub}</div>}
     </div>
   );
 }
@@ -92,10 +92,16 @@ export default function AdminReportsPage() {
     return { total, byType };
   }, [items]);
 
-  const totalUsers = summaryData ? (summaryData.users as any[]).reduce((s: number, r: any) => s + Number(r.count), 0) : 0;
-  const totalJobs = summaryData ? (summaryData.jobs as any[]).reduce((s: number, r: any) => s + Number(r.count), 0) : 0;
-  const completedJobs = summaryData ? Number((summaryData.jobs as any[]).find((j: any) => j.status === 'completed')?.count || 0) : 0;
-  const openDisputes = summaryData ? Number((summaryData.disputes as any[]).find((d: any) => d.status === 'open')?.count || 0) : 0;
+  const usersArr = (summaryData?.users as any[] | undefined) || [];
+  const jobsArr = (summaryData?.jobs as any[] | undefined) || [];
+  const disputesArr = (summaryData?.disputes as any[] | undefined) || [];
+  const trustArr = (summaryData?.trust_distribution as any[] | undefined) || [];
+  const newUsers7d = (summaryData?.new_users_7d as any[] | undefined) || [];
+  const newJobs7d = (summaryData?.new_jobs_7d as any[] | undefined) || [];
+  const totalUsers = usersArr.reduce((s: number, r: any) => s + Number(r.count), 0);
+  const totalJobs = jobsArr.reduce((s: number, r: any) => s + Number(r.count), 0);
+  const completedJobs = Number(jobsArr.find((j: any) => j.status === 'completed')?.count || 0);
+  const openDisputes = Number(disputesArr.find((d: any) => d.status === 'open')?.count || 0);
 
   return (
     <AdminLayout>
@@ -143,7 +149,7 @@ export default function AdminReportsPage() {
                   <Card className="p-4">
                     <div className="text-sm font-semibold text-gray-800 mb-3">ผู้ใช้ตาม Role / Status</div>
                     <div className="space-y-1">
-                      {(summaryData.users as any[]).map((r: any) => (
+                      {usersArr.map((r: any) => (
                         <div key={`${r.role}-${r.status}`} className="flex justify-between text-sm">
                           <span className="text-gray-600">{r.role} / {r.status}</span>
                           <span className="font-semibold tabular-nums">{Number(r.count).toLocaleString()}</span>
@@ -156,7 +162,7 @@ export default function AdminReportsPage() {
                   <Card className="p-4">
                     <div className="text-sm font-semibold text-gray-800 mb-3">ระดับความน่าเชื่อถือ</div>
                     <div className="space-y-2">
-                      {(summaryData.trust_distribution as any[]).map((r: any) => {
+                      {trustArr.map((r: any) => {
                         const pct = totalUsers > 0 ? Math.round(Number(r.count) / totalUsers * 100) : 0;
                         const colors: Record<string, string> = { L0: 'bg-gray-300', L1: 'bg-yellow-400', L2: 'bg-blue-400', L3: 'bg-amber-500' };
                         const levelNames: Record<string, string> = { L0: 'เริ่มต้น', L1: 'ยืนยันการติดต่อ', L2: 'ยืนยันตัวตน', L3: 'มืออาชีพ' };
@@ -179,7 +185,7 @@ export default function AdminReportsPage() {
                   <Card className="p-4">
                     <div className="text-sm font-semibold text-gray-800 mb-3">งานตามสถานะ</div>
                     <div className="space-y-1">
-                      {(summaryData.jobs as any[]).map((r: any) => (
+                      {jobsArr.map((r: any) => (
                         <div key={r.status} className="flex justify-between text-sm">
                           <span className="text-gray-600">{r.status}</span>
                           <span className="font-semibold tabular-nums">{Number(r.count).toLocaleString()}</span>
@@ -196,11 +202,11 @@ export default function AdminReportsPage() {
                       <div className="text-sm font-semibold text-gray-800">ผู้ใช้ใหม่ 7 วัน</div>
                       <Button variant="outline" size="sm" onClick={loadSummary}>รีเฟรช</Button>
                     </div>
-                    {summaryData.new_users_7d.length === 0 ? (
+                    {newUsers7d.length === 0 ? (
                       <div className="text-xs text-gray-500">ไม่มีข้อมูล</div>
                     ) : (
                       <div className="space-y-1">
-                        {(summaryData.new_users_7d as any[]).map((r: any) => (
+                        {newUsers7d.map((r: any) => (
                           <div key={r.day} className="flex justify-between text-sm">
                             <span className="text-gray-600">{new Date(r.day).toLocaleDateString('th-TH')}</span>
                             <span className="font-semibold text-blue-700 tabular-nums">+{Number(r.count)}</span>
@@ -211,11 +217,11 @@ export default function AdminReportsPage() {
                   </Card>
                   <Card className="p-4">
                     <div className="text-sm font-semibold text-gray-800 mb-3">งานใหม่ 7 วัน</div>
-                    {summaryData.new_jobs_7d.length === 0 ? (
+                    {newJobs7d.length === 0 ? (
                       <div className="text-xs text-gray-500">ไม่มีข้อมูล</div>
                     ) : (
                       <div className="space-y-1">
-                        {(summaryData.new_jobs_7d as any[]).map((r: any) => (
+                        {newJobs7d.map((r: any) => (
                           <div key={r.day} className="flex justify-between text-sm">
                             <span className="text-gray-600">{new Date(r.day).toLocaleDateString('th-TH')}</span>
                             <span className="font-semibold text-indigo-700 tabular-nums">+{Number(r.count)}</span>
@@ -227,11 +233,11 @@ export default function AdminReportsPage() {
                 </div>
 
                 {/* Disputes */}
-                {summaryData.disputes.length > 0 && (
+                {disputesArr.length > 0 && (
                   <Card className="p-4">
                     <div className="text-sm font-semibold text-gray-800 mb-3">ข้อพิพาทตามสถานะ</div>
                     <div className="flex flex-wrap gap-4">
-                      {(summaryData.disputes as any[]).map((r: any) => (
+                      {disputesArr.map((r: any) => (
                         <div key={r.status} className="text-center">
                           <div className="text-2xl font-bold text-gray-800 tabular-nums">{Number(r.count)}</div>
                           <div className="text-xs text-gray-500">{r.status}</div>

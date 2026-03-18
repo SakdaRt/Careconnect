@@ -300,7 +300,7 @@ export default function AdminUsersPage() {
                         onClick={() => openDetail(u.id)}>
                         <td className="px-3 py-2.5">
                           <div className="font-medium text-gray-900 truncate max-w-[150px]">{(u as any).display_name || displayPrimary(u)}</div>
-                          <div className="text-[11px] text-gray-400 truncate max-w-[150px]">{u.email || u.phone_number || '-'}</div>
+                          <div className="text-[11px] text-gray-500 truncate max-w-[150px]">{u.email || u.phone_number || '-'}</div>
                         </td>
                         <td className="px-3 py-2.5">
                           <span className={`text-[11px] px-1.5 py-0.5 rounded font-semibold ${trustBadge(u.trust_level)}`}>
@@ -446,7 +446,7 @@ export default function AdminUsersPage() {
                         <div key={doc.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-xs bg-white hover:bg-gray-50">
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-gray-800 truncate">{doc.title}</div>
-                            <div className="text-[11px] text-gray-400 flex flex-wrap gap-x-2">
+                            <div className="text-[11px] text-gray-500 flex flex-wrap gap-x-2">
                               <span>{doc.document_type}</span>
                               {doc.issuer && <span>· {doc.issuer}</span>}
                               <span>· {doc.file_name}</span>
@@ -483,7 +483,7 @@ export default function AdminUsersPage() {
                           <div key={w.id} className="rounded-lg border border-gray-200 p-3 bg-gradient-to-r from-gray-50 to-white">
                             <div className="flex justify-between items-center mb-2">
                               <span className="text-xs font-bold text-gray-700 uppercase">{w.wallet_type}</span>
-                              <span className="text-[10px] text-gray-400">{w.currency || 'THB'}</span>
+                              <span className="text-[10px] text-gray-500">{w.currency || 'THB'}</span>
                             </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div className="bg-green-50 rounded p-2 text-center">
@@ -576,7 +576,7 @@ export default function AdminUsersPage() {
                         <div key={bt} className="flex items-center justify-between px-3 py-2 rounded-lg bg-gray-50 border border-gray-100">
                           <div>
                             <div className="text-xs font-medium text-gray-800">{BAN_LABELS[bt]}</div>
-                            <div className="text-[10px] text-gray-400">{bt}</div>
+                            <div className="text-[10px] text-gray-500">{bt}</div>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`text-[11px] px-1.5 py-0.5 rounded ${isActive ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
