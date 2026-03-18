@@ -307,10 +307,6 @@ export const paymentSchemas = {
     status: commonSchemas.paymentStatus,
     ...commonSchemas.paginationKeys,
   }),
-  
-  paymentParams: Joi.object({
-    payment_id: commonSchemas.uuid,
-  }),
 };
 
 /**

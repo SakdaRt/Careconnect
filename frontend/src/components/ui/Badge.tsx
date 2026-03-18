@@ -1,7 +1,9 @@
 import { HTMLAttributes } from 'react';
 import { cn } from '../../utils/cn';
-import { JobStatus, TrustLevel } from '../../mocks';
 import { getTrustLevelConfig } from '../../utils/trustLevel';
+
+type JobStatus = 'draft' | 'posted' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
+type TrustLevel = string;
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
   variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';

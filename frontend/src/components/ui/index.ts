@@ -5,8 +5,8 @@ export type { ButtonVariant, ButtonSize } from './Button';
 export { Input, PasswordInput, OTPInput, PhoneInput } from './Input';
 export type { InputProps, PasswordInputProps, OTPInputProps, PhoneInputProps } from './Input';
 
-export { Card, JobCard, CareRecipientCard, WalletCard } from './Card';
-export type { CardProps, JobCardProps, CareRecipientCardProps, WalletCardProps } from './Card';
+export { Card, WalletCard } from './Card';
+export type { CardProps, WalletCardProps } from './Card';
 
 export { Badge, StatusBadge, TrustLevelBadge } from './Badge';
 export type { BadgeProps, StatusBadgeProps, TrustLevelBadgeProps } from './Badge';
@@ -29,7 +29,7 @@ export type { ReasonModalProps } from './ReasonModal';
 export { Tabs, TabPanel } from './Tabs';
 export type { TabsProps, Tab, TabPanelProps } from './Tabs';
 
-export { Spinner, LoadingOverlay, LoadingState, Skeleton, JobCardSkeleton, CareRecipientCardSkeleton } from './Loading';
+export { Spinner, LoadingOverlay, LoadingState, Skeleton } from './Loading';
 export type { SpinnerProps, LoadingOverlayProps, LoadingStateProps, SkeletonProps } from './Loading';
 
 export { EmptyState } from './EmptyState';
