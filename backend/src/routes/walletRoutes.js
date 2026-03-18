@@ -161,7 +161,7 @@ router.post('/admin/add-funds',
 router.get('/admin/withdrawals', 
   requireAuth, 
   requireRole('admin'), 
-  validateQuery(walletSchemas.walletQuery),
+  validateQuery(walletSchemas.adminWithdrawalQuery),
   walletController.adminGetWithdrawals
 );
 
@@ -191,6 +191,7 @@ router.post('/admin/withdrawals/:withdrawalId/mark-paid',
   requireAuth, 
   requireRole('admin'),
   validateParams(Joi.object({ withdrawalId: commonSchemas.uuid })),
+  validateBody(walletSchemas.markPaidBody),
   walletController.adminMarkWithdrawalPaid
 );
 
@@ -210,7 +211,7 @@ router.get('/admin/dashboard',
 router.get('/admin/transactions', 
   requireAuth, 
   requireRole('admin'), 
-  validateQuery(walletSchemas.walletQuery),
+  validateQuery(walletSchemas.adminTransactionQuery),
   walletController.adminGetTransactions
 );
 

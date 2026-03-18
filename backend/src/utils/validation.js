@@ -271,9 +271,31 @@ export const walletSchemas = {
   
   walletQuery: Joi.object({
     ...commonSchemas.paginationKeys,
+    status: Joi.string(),
     transaction_type: Joi.string(),
     start_date: Joi.date().iso(),
     end_date: Joi.date().iso().min(Joi.ref('start_date')),
+  }),
+  
+  adminWithdrawalQuery: Joi.object({
+    ...commonSchemas.paginationKeys,
+    status: Joi.string().valid('queued', 'review', 'approved', 'paid', 'rejected', 'cancelled'),
+    search: Joi.string().trim().max(200).allow(''),
+    date_from: Joi.date().iso(),
+    date_to: Joi.date().iso(),
+  }),
+  
+  adminTransactionQuery: Joi.object({
+    ...commonSchemas.paginationKeys,
+    type: Joi.string().valid('credit', 'debit', 'hold', 'release', 'reversal'),
+    reference_type: Joi.string().valid('topup', 'job', 'withdrawal', 'fee', 'refund', 'dispute', 'penalty'),
+    date_from: Joi.date().iso(),
+    date_to: Joi.date().iso(),
+  }),
+  
+  markPaidBody: Joi.object({
+    payout_reference: Joi.string().trim().min(1).max(255).required(),
+    payout_proof_storage_key: Joi.string().trim().max(500).allow('', null),
   }),
 };
 

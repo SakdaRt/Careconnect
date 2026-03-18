@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-17
+> อัพเดทล่าสุด: 2026-03-18
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -107,6 +107,7 @@ careconnect/
 - [x] AdminUsersPage — ดู/แก้ไข user, ban, wallet info
 - [x] KYC review
 - [x] Dispute management
+- [x] AdminFinancialPage — dashboard การเงิน, filter ธุรกรรม/withdrawals, export CSV
 
 ### UI/UX & Accessibility
 
@@ -135,6 +136,7 @@ careconnect/
 - [x] Email notification (ส่ง email จริงเมื่อมี notification)
 - [x] Push notification (PWA)
 - [x] Caregiver availability calendar
+- [ ] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (ตอนนี้ `tsc`/`vite build` ใน container fail จาก dependency เดิมที่หาย)
 
 ### Low Priority
 
@@ -180,6 +182,16 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-18 — Fix admin financial filters/contracts + UX hardening
+
+- fix(backend): `validation.js`, `walletRoutes.js` — เพิ่ม Joi schemas แยกสำหรับ admin withdrawals/transactions และบังคับ validate `mark-paid` body
+- fix(backend): `walletService.js` — admin withdrawal flow รองรับทั้ง hirer/caregiver wallet, search ครอบคลุม `hirer_profiles`, เพิ่ม rowCount guard, และใช้ ledger type `release` ตอน reject ให้ตรง semantic
+- fix(frontend): `AdminFinancialPage.tsx` — default tab เป็น dashboard, แปล label เป็นไทย, เพิ่ม date filters, แสดง user info ในธุรกรรม, และส่งออก CSV
+- fix(frontend): `api.ts` — แก้ query param names ให้ตรง backend contract (`type`, `date_from`, `date_to`)
+- verify:
+  - ✅ filter/query params ของ admin financial page ผ่าน end-to-end contract แล้ว
+  - ⚠️ Frontend container `tsc`/`vite build` ยังติด dependency เดิม `react-easy-crop` ที่หาย (ไม่ได้เกิดจาก patch นี้)
 
 ### 2026-03-17 — Multi-feature: avatar upload/crop, wallet expansion, admin financial, auth kyc_status
 

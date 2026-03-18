@@ -769,7 +769,7 @@ class WalletService {
 
     if (search) {
       values.push(`%${search}%`);
-      whereClause += ` AND (u.email ILIKE $${values.length} OR u.phone_number ILIKE $${values.length} OR cp.full_name ILIKE $${values.length} OR cp.display_name ILIKE $${values.length})`;
+      whereClause += ` AND (u.email ILIKE $${values.length} OR u.phone_number ILIKE $${values.length} OR cp.full_name ILIKE $${values.length} OR cp.display_name ILIKE $${values.length} OR hp.full_name ILIKE $${values.length} OR hp.display_name ILIKE $${values.length})`;
     }
 
     if (date_from) {
@@ -790,8 +790,8 @@ class WalletService {
          u.role as user_role,
          u.trust_level as user_trust_level,
          u.ban_withdraw as user_ban_withdraw,
-         cp.display_name as user_display_name,
-         cp.full_name as user_full_name,
+         COALESCE(cp.display_name, hp.display_name) as user_display_name,
+         COALESCE(cp.full_name, hp.full_name) as user_full_name,
          kyc.status as user_kyc_status,
          b.full_name_th as bank_name,
          b.code as bank_code,
@@ -805,10 +805,11 @@ class WalletService {
        FROM withdrawal_requests wr
        JOIN users u ON u.id = wr.user_id
        LEFT JOIN caregiver_profiles cp ON cp.user_id = wr.user_id
+       LEFT JOIN hirer_profiles hp ON hp.user_id = wr.user_id
        LEFT JOIN user_kyc_info kyc ON kyc.user_id = wr.user_id
        LEFT JOIN bank_accounts ba ON ba.id = wr.bank_account_id
        LEFT JOIN banks b ON b.code = ba.bank_code
-       LEFT JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = 'caregiver'
+       LEFT JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = CASE WHEN u.role = 'hirer' THEN 'hirer' ELSE 'caregiver' END
        WHERE ${whereClause}
        ORDER BY wr.created_at DESC
        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
@@ -820,6 +821,7 @@ class WalletService {
        FROM withdrawal_requests wr
        JOIN users u ON u.id = wr.user_id
        LEFT JOIN caregiver_profiles cp ON cp.user_id = wr.user_id
+       LEFT JOIN hirer_profiles hp ON hp.user_id = wr.user_id
        WHERE ${whereClause}`,
       values
     );
@@ -997,7 +999,8 @@ class WalletService {
       const wdResult = await client.query(
         `SELECT wr.*, w.id as wallet_id
          FROM withdrawal_requests wr
-         JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = 'caregiver'
+         JOIN users u ON u.id = wr.user_id
+         JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = CASE WHEN u.role = 'hirer' THEN 'hirer' ELSE 'caregiver' END
          WHERE wr.id = $1 FOR UPDATE`,
         [withdrawalId]
       );
@@ -1011,14 +1014,19 @@ class WalletService {
         throw { status: 400, message: `Cannot reject withdrawal with status: ${wd.status}` };
       }
 
-      await client.query(
+      const walletUpdate = await client.query(
         `UPDATE wallets
          SET held_balance = held_balance - $1,
              available_balance = available_balance + $1,
              updated_at = NOW()
-         WHERE id = $2 AND held_balance >= $1`,
+         WHERE id = $2 AND held_balance >= $1
+         RETURNING id`,
         [wd.amount, wd.wallet_id]
       );
+
+      if (walletUpdate.rowCount === 0) {
+        throw { status: 400, message: 'Insufficient held balance to release funds' };
+      }
 
       await client.query(
         `UPDATE withdrawal_requests
@@ -1033,7 +1041,7 @@ class WalletService {
 
       await client.query(
         `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, currency, type, reference_type, reference_id, description, created_at)
-         VALUES ($1, $2, $2, $3, 'THB', 'reversal', 'withdrawal', $4, 'Withdrawal rejected - funds released', NOW())`,
+         VALUES ($1, $2, $2, $3, 'THB', 'release', 'withdrawal', $4, 'Withdrawal rejected - funds released', NOW())`,
         [uuidv4(), wd.wallet_id, wd.amount, withdrawalId]
       );
 
@@ -1054,7 +1062,8 @@ class WalletService {
       const wdResult = await client.query(
         `SELECT wr.*, w.id as wallet_id
          FROM withdrawal_requests wr
-         JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = 'caregiver'
+         JOIN users u ON u.id = wr.user_id
+         JOIN wallets w ON w.user_id = wr.user_id AND w.wallet_type = CASE WHEN u.role = 'hirer' THEN 'hirer' ELSE 'caregiver' END
          WHERE wr.id = $1 FOR UPDATE`,
         [withdrawalId]
       );
@@ -1068,13 +1077,18 @@ class WalletService {
         throw { status: 400, message: `Cannot mark paid withdrawal with status: ${wd.status}` };
       }
 
-      await client.query(
+      const walletUpdate = await client.query(
         `UPDATE wallets
          SET held_balance = held_balance - $1,
              updated_at = NOW()
-         WHERE id = $2 AND held_balance >= $1`,
+         WHERE id = $2 AND held_balance >= $1
+         RETURNING id`,
         [wd.amount, wd.wallet_id]
       );
+
+      if (walletUpdate.rowCount === 0) {
+        throw { status: 400, message: 'Insufficient held balance to complete payout' };
+      }
 
       await client.query(
         `UPDATE withdrawal_requests
@@ -1251,11 +1265,21 @@ class WalletService {
          lt.*,
          fw.wallet_type as from_wallet_type,
          fw.user_id as from_user_id,
+         fu.email as from_user_email,
+         COALESCE(fcp.display_name, fhp.display_name) as from_user_name,
          tw.wallet_type as to_wallet_type,
-         tw.user_id as to_user_id
+         tw.user_id as to_user_id,
+         tu.email as to_user_email,
+         COALESCE(tcp.display_name, thp.display_name) as to_user_name
        FROM ledger_transactions lt
        LEFT JOIN wallets fw ON fw.id = lt.from_wallet_id
+       LEFT JOIN users fu ON fu.id = fw.user_id
+       LEFT JOIN caregiver_profiles fcp ON fcp.user_id = fw.user_id
+       LEFT JOIN hirer_profiles fhp ON fhp.user_id = fw.user_id
        LEFT JOIN wallets tw ON tw.id = lt.to_wallet_id
+       LEFT JOIN users tu ON tu.id = tw.user_id
+       LEFT JOIN caregiver_profiles tcp ON tcp.user_id = tw.user_id
+       LEFT JOIN hirer_profiles thp ON thp.user_id = tw.user_id
        WHERE ${whereClause}
        ORDER BY lt.created_at DESC
        LIMIT $${values.length + 1} OFFSET $${values.length + 2}`,
