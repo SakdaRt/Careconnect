@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useRef, useEffect } from 'react';
-import { Phone, ArrowLeft, Shield } from 'lucide-react';
+import { Phone, ArrowLeft } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button, PhoneInput, OTPInput, PasswordInput } from '../../components/ui';
 import toast from 'react-hot-toast';
@@ -371,10 +371,10 @@ export default function MemberRegisterPage() {
         {/* Step 3: Password */}
         {step === 'password' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg mb-6">
-              <Shield className="w-5 h-5 text-green-600" />
-              <p className="text-sm text-green-900">
-                <strong>เบอร์โทรยืนยันแล้ว:</strong> {formData.phone}
+            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
+              <Phone className="w-5 h-5 text-blue-600" />
+              <p className="text-sm text-blue-900">
+                <strong>เบอร์โทร:</strong> {formData.phone} — จะยืนยันด้วย OTP ในขั้นตอนถัดไป
               </p>
             </div>
 
