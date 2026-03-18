@@ -1,11 +1,11 @@
 import express from 'express';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import {
   getPayments as getPaymentsService,
   getPaymentById as getPaymentByIdService,
   simulatePaymentProcess as simulatePaymentProcessService
 } from '../services/paymentService.js';
-import { validateQuery, validateParams, paymentSchemas } from '../utils/validation.js';
+import { validateQuery, paymentSchemas } from '../utils/validation.js';
 import { NotFoundError } from '../utils/errors.js';
 
 const router = express.Router();
@@ -64,10 +64,9 @@ router.get('/',
  */
 router.get('/:id', 
   requireAuth, 
-  validateParams(paymentSchemas.paymentParams),
   async (req, res, next) => {
     try {
-      const { payment_id } = req.params;
+      const payment_id = req.params.id;
       const userId = req.userId;
       const userRole = req.userRole;
 
@@ -94,10 +93,10 @@ router.get('/:id',
  */
 router.post('/:id/simulate', 
   requireAuth, 
-  validateParams(paymentSchemas.paymentParams),
+  requireRole('admin'),
   async (req, res, next) => {
     try {
-      const { payment_id } = req.params;
+      const payment_id = req.params.id;
       
       const result = await simulatePaymentProcessService(payment_id);
 
