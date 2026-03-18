@@ -158,12 +158,11 @@ export const publishJob = async (req, res) => {
 export const getJobFeed = async (req, res) => {
   try {
     const caregiverId = req.userId;
-    const { job_type, risk_level, is_urgent, page, limit } = req.query;
+    const { job_type, risk_level, page, limit } = req.query;
 
     const options = {
       job_type,
       risk_level,
-      is_urgent: is_urgent === 'true' ? true : is_urgent === 'false' ? false : undefined,
       page: parseInt(page) || 1,
       limit: parseInt(limit) || 20,
     };

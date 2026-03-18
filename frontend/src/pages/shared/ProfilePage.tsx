@@ -139,7 +139,7 @@ export default function ProfilePage() {
   };
 
   // Bank verification
-  const [bankVerified, setBankVerified] = useState<boolean | null>(null);
+  const [bankHasAccount, setBankHasAccount] = useState<boolean | null>(null);
 
   // Reviews (caregiver only)
   const [reviews, setReviews] = useState<any[]>([]);
@@ -619,12 +619,12 @@ export default function ProfilePage() {
           const accounts: any[] =
             (res.data as any)?.accounts ||
             (Array.isArray(res.data) ? res.data : []);
-          setBankVerified(accounts.some((a: any) => a.is_verified));
+          setBankHasAccount(accounts.length > 0);
         } else {
-          setBankVerified(false);
+          setBankHasAccount(false);
         }
       })
-      .catch(() => setBankVerified(false));
+      .catch(() => setBankHasAccount(false));
     return () => {
       active = false;
     };
@@ -822,24 +822,24 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center gap-2">
               <Landmark
-                className={`w-5 h-5 ${bankVerified ? "text-green-600" : "text-gray-400"}`}
+                className={`w-5 h-5 ${bankHasAccount ? "text-green-600" : "text-gray-500"}`}
               />
               <span
-                className={`text-sm ${bankVerified ? "text-green-700 font-semibold" : "text-gray-500"}`}
+                className={`text-sm ${bankHasAccount ? "text-green-700 font-semibold" : "text-gray-500"}`}
               >
-                {bankVerified === null
+                {bankHasAccount === null
                   ? "กำลังโหลด..."
-                  : bankVerified
-                    ? "ยืนยันบัญชีธนาคารแล้ว"
-                    : "ยังไม่มีบัญชีธนาคารที่ยืนยัน"}
+                  : bankHasAccount
+                    ? "มีบัญชีธนาคารแล้ว"
+                    : "ยังไม่มีบัญชีธนาคาร"}
               </span>
-              {bankVerified && (
+              {bankHasAccount && (
                 <span className="text-green-500 text-sm">✓</span>
               )}
             </div>
-            {!bankVerified && bankVerified !== null && (
+            {!bankHasAccount && bankHasAccount !== null && (
               <p className="text-xs text-gray-500 mt-2">
-                เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรดเป็นระดับ "มืออาชีพ"
+                เพิ่มบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรดเป็นระดับ "มืออาชีพ"
               </p>
             )}
           </Card>

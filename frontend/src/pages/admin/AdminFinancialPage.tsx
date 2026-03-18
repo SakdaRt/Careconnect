@@ -305,7 +305,6 @@ function WithdrawalsTab() {
                       </div>
                       <div className="text-xs text-gray-600">
                         🏦 {w.bank_name || '-'} •••• {w.account_number_last4 || '-'} • {w.account_name || '-'}
-                        {w.bank_account_verified ? ' ✅' : ' ⚠️'}
                       </div>
                       <div className="text-xs text-gray-500">
                         Wallet: คงเหลือ {formatMoney(w.wallet_available_balance)} | Held {formatMoney(w.wallet_held_balance)}

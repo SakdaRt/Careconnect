@@ -1066,14 +1066,12 @@ class ApiClient {
   async getJobFeed(filters?: {
     job_type?: string;
     risk_level?: string;
-    is_urgent?: boolean;
     page?: number;
     limit?: number;
   }) {
     const params = new URLSearchParams();
     if (filters?.job_type) params.append('job_type', filters.job_type);
     if (filters?.risk_level) params.append('risk_level', filters.risk_level);
-    if (filters?.is_urgent !== undefined) params.append('is_urgent', String(filters.is_urgent));
     if (filters?.page) params.append('page', String(filters.page));
     if (filters?.limit) params.append('limit', String(filters.limit));
     const query = params.toString() ? `?${params.toString()}` : '';
@@ -1905,7 +1903,6 @@ export interface CreateJobData {
   total_hours: number;
   min_trust_level?: string;
   required_certifications?: string[];
-  is_urgent?: boolean;
   patient_profile_id?: string;
   job_tasks_flags?: string[];
   required_skills_flags?: string[];

@@ -667,7 +667,6 @@ export default function CreateJobPage() {
     lng: undefined as number | undefined,
     hourly_rate: 150,
     total_hours: 8,
-    is_urgent: false,
     job_tasks_flags: [...initialTemplate.defaultTasks] as string[],
     required_skills_flags: [...initialTemplate.defaultSkills] as string[],
     equipment_available_flags: [...initialTemplate.defaultEquipment] as string[],
@@ -1369,7 +1368,6 @@ export default function CreateJobPage() {
       geofence_radius_m: 1000,
       hourly_rate: Number(form.hourly_rate),
       total_hours: Number(form.total_hours),
-      is_urgent: form.is_urgent,
       patient_profile_id: careRecipientId || undefined,
       preferred_caregiver_id: (selectedCaregiverId || preferredCaregiverIdParam) || undefined,
       job_tasks_flags: Array.from(new Set(form.job_tasks_flags)),
@@ -1920,10 +1918,6 @@ export default function CreateJobPage() {
               <div className="text-xs text-gray-600 mt-1">{computedRisk.reason}</div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={form.is_urgent} onChange={(e) => setForm({ ...form, is_urgent: e.target.checked })} className="w-4 h-4" />
-              <span className="text-sm text-gray-700">งานเร่งด่วน</span>
-            </div>
           </div>
         )}
 

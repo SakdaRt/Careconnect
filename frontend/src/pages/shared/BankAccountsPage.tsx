@@ -169,13 +169,6 @@ export default function BankAccountsPage() {
                         {account.is_primary && (
                           <span className="text-xs px-2 py-0.5 rounded bg-blue-100 text-blue-700">บัญชีหลัก</span>
                         )}
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded ${
-                            account.is_verified ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                          }`}
-                        >
-                          {account.is_verified ? 'ยืนยันแล้ว' : 'รอยืนยัน'}
-                        </span>
                       </div>
                       <div className="text-xs text-gray-600 mt-1">{account.account_name}</div>
                     </div>
