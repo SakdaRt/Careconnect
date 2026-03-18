@@ -1,6 +1,6 @@
 # บทที่ 3 (ส่วนที่ 3: Section 3.5–3.8 Sequence, UI, Database)
 
-> Diagram เป็น Mermaid → https://mermaid.live | PlantUML → https://www.plantuml.com/plantuml/uml | dbdiagram → https://dbdiagram.io
+> Diagram เป็น Mermaid : https://mermaid.live | PlantUML : https://www.plantuml.com/plantuml/uml | dbdiagram : https://dbdiagram.io
 
 ---
 
@@ -9,7 +9,7 @@
 ### 3.5.1 Use Case Diagram
 
 > 📌 **DIAGRAM: Use Case** — PlantUML code (วางที่ plantuml.com):
-> Hirer และ Caregiver สืบทอดจาก Guest (หลัง Register/Login → Select Role)
+> Hirer และ Caregiver สืบทอดจาก Guest (หลัง Register/Login : Select Role)
 
 ```plantuml
 @startuml
@@ -32,64 +32,64 @@ G <|-- CG
 rectangle "CareConnect System" {
 
   ' === Authentication ===
-  usecase "สมัครสมาชิก" as UC01
-  usecase "เข้าสู่ระบบ" as UC02
-  usecase "เข้าสู่ระบบด้วย\nGoogle OAuth" as UC03
-  usecase "รีเซ็ตรหัสผ่าน" as UC04
+  usecase "UC-01\nสมัครสมาชิก" as UC01
+  usecase "UC-02\nเข้าสู่ระบบ" as UC02
+  usecase "UC-03\nเข้าสู่ระบบด้วย\nGoogle OAuth" as UC03
+  usecase "UC-04\nรีเซ็ตรหัสผ่าน" as UC04
 
   ' === Profile ===
-  usecase "ออกจากระบบ" as UC05
-  usecase "จัดการโปรไฟล์" as UC06 <<page>>
-  usecase "ยืนยัน OTP" as UC07
-  usecase "ยืนยัน KYC" as UC08
-  usecase "อัปโหลดเอกสาร\nใบรับรอง" as UC09
+  usecase "UC-05\nออกจากระบบ" as UC05
+  usecase "UC-06\nจัดการโปรไฟล์" as UC06 <<page>>
+  usecase "UC-07\nยืนยัน OTP" as UC07
+  usecase "UC-08\nยืนยัน KYC" as UC08
+  usecase "UC-09\nอัปโหลดเอกสาร\nใบรับรอง" as UC09
 
   ' === ผู้รับการดูแล ===
-  usecase "ดูผู้รับการดูแล" as UC10 <<page>>
-  usecase "เพิ่มผู้รับการดูแล" as UC11
-  usecase "แก้ไขผู้รับการดูแล" as UC12
-  usecase "ลบผู้รับการดูแล" as UC13
+  usecase "UC-10\nดูผู้รับการดูแล" as UC10 <<page>>
+  usecase "UC-11\nเพิ่มผู้รับการดูแล" as UC11
+  usecase "UC-12\nแก้ไขผู้รับการดูแล" as UC12
+  usecase "UC-13\nลบผู้รับการดูแล" as UC13
 
   ' === Hirer — งานของฉัน ===
-  usecase "ดูงานของฉัน\n(Hirer)" as UC14 <<page>>
-  usecase "สร้างงาน" as UC15
-  usecase "เผยแพร่งาน" as UC16
-  usecase "ยกเลิกงาน" as UC17
-  usecase "อนุมัติ/ปฏิเสธ\nEarly Checkout" as UC21
-  usecase "เขียนรีวิว" as UC22
-  usecase "แชท" as UC32
-  usecase "เปิดข้อพิพาท" as UC34
+  usecase "UC-14\nดูงานของฉัน\n(Hirer)" as UC14 <<page>>
+  usecase "UC-15\nสร้างงาน" as UC15
+  usecase "UC-16\nเผยแพร่งาน" as UC16
+  usecase "UC-17\nยกเลิกงาน" as UC17
+  usecase "UC-21\nอนุมัติ/ปฏิเสธ\nEarly Checkout" as UC21
+  usecase "UC-22\nเขียนรีวิว" as UC22
+  usecase "UC-32\nแชท" as UC32
+  usecase "UC-34\nเปิดข้อพิพาท" as UC34
 
   ' === ค้นหาผู้ดูแล ===
-  usecase "ค้นหาผู้ดูแล" as UC18 <<page>>
-  usecase "มอบหมายงานตรง" as UC19
-  usecase "บันทึกผู้ดูแล\nที่ชอบ" as UC20
+  usecase "UC-18\nค้นหาผู้ดูแล" as UC18 <<page>>
+  usecase "UC-19\nมอบหมายงานตรง" as UC19
+  usecase "UC-20\nบันทึกผู้ดูแล\nที่ชอบ" as UC20
 
   ' === กระเป๋าเงิน ===
-  usecase "ดูกระเป๋าเงิน" as UC29 <<page>>
-  usecase "เติมเงิน" as UC28
-  usecase "ถอนเงิน" as UC30
-  usecase "จัดการบัญชี\nธนาคาร" as UC31
+  usecase "UC-29\nดูกระเป๋าเงิน" as UC29 <<page>>
+  usecase "UC-28\nเติมเงิน" as UC28
+  usecase "UC-30\nถอนเงิน" as UC30
+  usecase "UC-31\nจัดการบัญชี\nธนาคาร" as UC31
 
   ' === Shared ===
-  usecase "ดูการแจ้งเตือน" as UC33
-  usecase "ร้องเรียน" as UC35
+  usecase "UC-33\nดูการแจ้งเตือน" as UC33
+  usecase "UC-35\nร้องเรียน" as UC35
 
   ' === Caregiver — ค้นหางาน ===
-  usecase "ดูประกาศงาน" as UC23 <<page>>
-  usecase "รับงาน /\nปฏิเสธงาน" as UC24
+  usecase "UC-23\nดูประกาศงาน" as UC23 <<page>>
+  usecase "UC-24\nรับงาน /\nปฏิเสธงาน" as UC24
 
   ' === Caregiver — ปฏิบัติงาน ===
-  usecase "เช็คอิน" as UC25
-  usecase "เช็คเอาท์" as UC26
-  usecase "ขอ Check-out\nก่อนเวลา" as UC27
+  usecase "UC-25\nเช็คอิน" as UC25
+  usecase "UC-26\nเช็คเอาท์" as UC26
+  usecase "UC-27\nขอ Check-out\nก่อนเวลา" as UC27
 
   ' === Admin ===
-  usecase "จัดการผู้ใช้" as UC36
-  usecase "ตรวจสอบ KYC" as UC37
-  usecase "จัดการงาน" as UC38
-  usecase "ตัดสินข้อพิพาท" as UC39
-  usecase "จัดการการเงิน\nและรายงาน" as UC40
+  usecase "UC-36\nจัดการผู้ใช้" as UC36
+  usecase "UC-37\nตรวจสอบ KYC" as UC37
+  usecase "UC-38\nจัดการงาน" as UC38
+  usecase "UC-39\nตัดสินข้อพิพาท" as UC39
+  usecase "UC-40\nจัดการการเงิน\nและรายงาน" as UC40
 }
 
 ' === Guest ===
@@ -226,7 +226,7 @@ A --> UC40
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้ยังไม่มีบัญชีในระบบ |
 | **Main Flow** | 1. ผู้ใช้เข้าหน้าสมัครสมาชิก เลือกสมัครด้วย Email หรือ เบอร์โทรศัพท์<br>2. กรอกข้อมูล (email/phone, รหัสผ่าน, เลือกบทบาท)<br>3. ระบบสร้างบัญชี + กระเป๋าเงินอัตโนมัติ<br>4. ผู้ใช้เลือกบทบาท (ผู้ว่าจ้าง/ผู้ดูแล) และยอมรับนโยบาย<br>5. ระบบนำไปหน้าหลักของบทบาทที่เลือก |
-| **Exceptional Flow** | 1. Email หรือเบอร์โทรศัพท์ซ้ำ → แสดงข้อความ "อีเมล/เบอร์โทรนี้ถูกใช้แล้ว"<br>2. รหัสผ่านน้อยกว่า 8 ตัวอักษร → แสดงข้อความแจ้งเตือน |
+| **Exceptional Flow** | 1. Email หรือเบอร์โทรศัพท์ซ้ำ : แสดงข้อความ "อีเมล/เบอร์โทรนี้ถูกใช้แล้ว"<br>2. รหัสผ่านน้อยกว่า 8 ตัวอักษร : แสดงข้อความแจ้งเตือน |
 
 **ตาราง 3.17** UC-02: เข้าสู่ระบบ
 
@@ -237,7 +237,7 @@ A --> UC40
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้มีบัญชีในระบบแล้ว |
 | **Main Flow** | 1. ผู้ใช้เข้าหน้าเข้าสู่ระบบ เลือก Login ด้วย Email หรือ เบอร์โทรศัพท์<br>2. กรอกข้อมูล (email/phone + รหัสผ่าน)<br>3. ระบบตรวจสอบข้อมูลถูกต้อง<br>4. ระบบนำไปหน้าหลักตามบทบาท |
-| **Exceptional Flow** | 1. ข้อมูลไม่ถูกต้อง → แสดง "อีเมลหรือรหัสผ่านไม่ถูกต้อง"<br>2. บัญชีถูกระงับ → แสดง "บัญชีถูกระงับการใช้งาน" |
+| **Exceptional Flow** | 1. ข้อมูลไม่ถูกต้อง : แสดง "อีเมลหรือรหัสผ่านไม่ถูกต้อง"<br>2. บัญชีถูกระงับ : แสดง "บัญชีถูกระงับการใช้งาน" |
 
 **ตาราง 3.18** UC-03: เข้าสู่ระบบด้วย Google OAuth
 
@@ -247,8 +247,8 @@ A --> UC40
 | **Use Case** | เข้าสู่ระบบด้วย Google OAuth |
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้มีบัญชี Google<br>2. ผู้ใช้อยู่ในหน้าเข้าสู่ระบบ |
-| **Main Flow** | 1. ผู้ใช้กดปุ่ม "Sign in with Google"<br>2. ระบบพาไปหน้า Google เพื่อขออนุญาต<br>3. ผู้ใช้อนุญาตการเข้าถึง<br>4. หากเคยสมัครแล้ว → เข้าสู่ระบบทันที<br>5. หากยังไม่เคยสมัคร → สร้างบัญชีใหม่ แล้วให้เลือกบทบาท |
-| **Exceptional Flow** | 1. ผู้ใช้ปฏิเสธการอนุญาต → กลับไปหน้าเข้าสู่ระบบ |
+| **Main Flow** | 1. ผู้ใช้กดปุ่ม "Sign in with Google"<br>2. ระบบพาไปหน้า Google เพื่อขออนุญาต<br>3. ผู้ใช้อนุญาตการเข้าถึง<br>4. หากเคยสมัครแล้ว : เข้าสู่ระบบทันที<br>5. หากยังไม่เคยสมัคร : สร้างบัญชีใหม่ แล้วให้เลือกบทบาท |
+| **Exceptional Flow** | 1. ผู้ใช้ปฏิเสธการอนุญาต : กลับไปหน้าเข้าสู่ระบบ |
 
 **ตาราง 3.19** UC-04: รีเซ็ตรหัสผ่าน
 
@@ -259,7 +259,7 @@ A --> UC40
 | **Actor** | Guest |
 | **Pre Conditions** | 1. ผู้ใช้มีบัญชี email ในระบบ |
 | **Main Flow** | 1. ผู้ใช้เข้าหน้า "ลืมรหัสผ่าน" กรอก email<br>2. ระบบส่งลิงก์รีเซ็ตไปทาง email<br>3. ผู้ใช้คลิกลิงก์ แล้วตั้งรหัสผ่านใหม่<br>4. ระบบแสดง "เปลี่ยนรหัสผ่านสำเร็จ" |
-| **Exceptional Flow** | 1. ลิงก์หมดอายุ → แสดง "ลิงก์รีเซ็ตหมดอายุ กรุณาขอใหม่" |
+| **Exceptional Flow** | 1. ลิงก์หมดอายุ : แสดง "ลิงก์รีเซ็ตหมดอายุ กรุณาขอใหม่" |
 
 **ตาราง 3.20** UC-05: ออกจากระบบ
 
@@ -283,8 +283,8 @@ A --> UC40
 | **Use Case** | จัดการโปรไฟล์ |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้อยู่ในหน้าโปรไฟล์ |
-| **Main Flow** | 1. ระบบแสดงข้อมูลโปรไฟล์ปัจจุบัน<br>2. ผู้ใช้แก้ไขชื่อ, bio, ประสบการณ์, ความเชี่ยวชาญ, ที่อยู่<br>3. กดบันทึก → ระบบอัปเดตข้อมูล<br>4. ผู้ใช้สามารถอัปโหลดรูปโปรไฟล์ หรือเปลี่ยนรหัสผ่านได้ |
-| **Exceptional Flow** | 1. ชื่อว่าง → แสดง "กรุณากรอกชื่อ"<br>2. รูปโปรไฟล์เกิน 5 MB → แสดง "ไฟล์ใหญ่เกินไป" |
+| **Main Flow** | 1. ระบบแสดงข้อมูลโปรไฟล์ปัจจุบัน<br>2. ผู้ใช้แก้ไขชื่อ, bio, ประสบการณ์, ความเชี่ยวชาญ, ที่อยู่<br>3. กดบันทึก : ระบบอัปเดตข้อมูล<br>4. ผู้ใช้สามารถอัปโหลดรูปโปรไฟล์ หรือเปลี่ยนรหัสผ่านได้ |
+| **Exceptional Flow** | 1. ชื่อว่าง : แสดง "กรุณากรอกชื่อ"<br>2. รูปโปรไฟล์เกิน 5 MB : แสดง "ไฟล์ใหญ่เกินไป" |
 
 **ตาราง 3.22** UC-07: ยืนยัน OTP
 
@@ -294,8 +294,8 @@ A --> UC40
 | **Use Case** | ยืนยัน OTP (Email / Phone) |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้อยู่ในหน้าจัดการโปรไฟล์<br>3. ยังไม่ได้ยืนยันเบอร์โทร/อีเมล |
-| **Main Flow** | 1. ผู้ใช้กดขอรหัส OTP<br>2. ระบบส่งรหัส 6 หลักทาง SMS หรือ Email<br>3. ผู้ใช้กรอกรหัส OTP<br>4. ระบบตรวจสอบ → ยืนยันสำเร็จ<br>5. Trust Level อัปเกรดจาก L0 เป็น L1 |
-| **Exceptional Flow** | 1. รหัส OTP ไม่ถูกต้อง → แสดง "รหัสไม่ถูกต้อง"<br>2. รหัสหมดอายุ → แสดง "รหัสหมดอายุ กรุณาขอใหม่" |
+| **Main Flow** | 1. ผู้ใช้กดขอรหัส OTP<br>2. ระบบส่งรหัส 6 หลักทาง SMS หรือ Email<br>3. ผู้ใช้กรอกรหัส OTP<br>4. ระบบตรวจสอบ : ยืนยันสำเร็จ<br>5. Trust Level อัปเกรดจาก L0 เป็น L1 |
+| **Exceptional Flow** | 1. รหัส OTP ไม่ถูกต้อง : แสดง "รหัสไม่ถูกต้อง"<br>2. รหัสหมดอายุ : แสดง "รหัสหมดอายุ กรุณาขอใหม่" |
 
 **ตาราง 3.23** UC-08: ยืนยัน KYC
 
@@ -305,8 +305,8 @@ A --> UC40
 | **Use Case** | ยืนยัน KYC (บัตรประชาชน) |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้อยู่ในหน้าจัดการโปรไฟล์<br>3. ผู้ใช้ยืนยัน OTP แล้ว (Trust Level ≥ L1) |
-| **Main Flow** | 1. ผู้ใช้กดไปหน้ายืนยัน KYC<br>2. อัปโหลดรูปบัตรประชาชน (หน้า + หลัง) และรูป selfie<br>3. ระบบบันทึกเอกสาร แสดงสถานะ "รอตรวจสอบ"<br>4. Admin ตรวจสอบแล้วอนุมัติ → Trust Level อัปเกรดเป็น L2 |
-| **Exceptional Flow** | 1. ขาดรูป selfie → แสดง "กรุณาอัปโหลดรูป selfie"<br>2. Admin ปฏิเสธ → ผู้ใช้สามารถส่งใหม่ได้ |
+| **Main Flow** | 1. ผู้ใช้กดไปหน้ายืนยัน KYC<br>2. อัปโหลดรูปบัตรประชาชน (หน้า + หลัง) และรูป selfie<br>3. ระบบบันทึกเอกสาร แสดงสถานะ "รอตรวจสอบ"<br>4. Admin ตรวจสอบแล้วอนุมัติ : Trust Level อัปเกรดเป็น L2 |
+| **Exceptional Flow** | 1. ขาดรูป selfie : แสดง "กรุณาอัปโหลดรูป selfie"<br>2. Admin ปฏิเสธ : ผู้ใช้สามารถส่งใหม่ได้ |
 
 **ตาราง 3.24** UC-09: อัปโหลดเอกสารใบรับรอง
 
@@ -316,8 +316,8 @@ A --> UC40
 | **Use Case** | อัปโหลดเอกสารใบรับรอง |
 | **Actor** | Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ดูแล<br>2. ผู้ใช้อยู่ในหน้าจัดการโปรไฟล์ |
-| **Main Flow** | 1. ผู้ดูแลเลือกเอกสารที่ต้องการอัปโหลด (ใบรับรอง, ใบอนุญาต)<br>2. กดอัปโหลด → ระบบบันทึกเอกสาร<br>3. เอกสารแสดงในโปรไฟล์สาธารณะ<br>4. สามารถลบเอกสารที่อัปโหลดแล้วได้ |
-| **Exceptional Flow** | 1. ไฟล์เกิน 10 MB → แสดง "ไฟล์ใหญ่เกินไป" |
+| **Main Flow** | 1. ผู้ดูแลเลือกเอกสารที่ต้องการอัปโหลด (ใบรับรอง, ใบอนุญาต)<br>2. กดอัปโหลด : ระบบบันทึกเอกสาร<br>3. เอกสารแสดงในโปรไฟล์สาธารณะ<br>4. สามารถลบเอกสารที่อัปโหลดแล้วได้ |
+| **Exceptional Flow** | 1. ไฟล์เกิน 10 MB : แสดง "ไฟล์ใหญ่เกินไป" |
 
 ---
 
@@ -341,8 +341,8 @@ A --> UC40
 | **Use Case** | เพิ่มผู้รับการดูแล |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้าจัดการผู้รับการดูแล (UC-10) |
-| **Main Flow** | 1. ผู้ว่าจ้างกด "เพิ่มผู้รับการดูแล"<br>2. กรอกข้อมูล: ชื่อ, อายุ, ระดับการเคลื่อนไหว, โรคประจำตัว, ที่อยู่<br>3. กดบันทึก → ระบบเพิ่มข้อมูลผู้รับการดูแล |
-| **Exceptional Flow** | 1. ชื่อว่าง → แสดง "กรุณากรอกชื่อ" |
+| **Main Flow** | 1. ผู้ว่าจ้างกด "เพิ่มผู้รับการดูแล"<br>2. กรอกข้อมูล: ชื่อ, อายุ, ระดับการเคลื่อนไหว, โรคประจำตัว, ที่อยู่<br>3. กดบันทึก : ระบบเพิ่มข้อมูลผู้รับการดูแล |
+| **Exceptional Flow** | 1. ชื่อว่าง : แสดง "กรุณากรอกชื่อ" |
 
 **ตาราง 3.27** UC-12: แก้ไขผู้รับการดูแล
 
@@ -352,7 +352,7 @@ A --> UC40
 | **Use Case** | แก้ไขผู้รับการดูแล |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้าจัดการผู้รับการดูแล (UC-10)<br>3. มีผู้รับการดูแลอย่างน้อย 1 คน |
-| **Main Flow** | 1. ผู้ว่าจ้างกดปุ่มแก้ไขที่ผู้รับการดูแลที่ต้องการ<br>2. แก้ไขข้อมูลที่ต้องการ<br>3. กดบันทึก → ระบบอัปเดตข้อมูล |
+| **Main Flow** | 1. ผู้ว่าจ้างกดปุ่มแก้ไขที่ผู้รับการดูแลที่ต้องการ<br>2. แก้ไขข้อมูลที่ต้องการ<br>3. กดบันทึก : ระบบอัปเดตข้อมูล |
 
 **ตาราง 3.28** UC-13: ลบผู้รับการดูแล
 
@@ -362,8 +362,8 @@ A --> UC40
 | **Use Case** | ลบผู้รับการดูแล |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้าจัดการผู้รับการดูแล (UC-10) |
-| **Main Flow** | 1. ผู้ว่าจ้างกดปุ่มลบที่ผู้รับการดูแลที่ต้องการ<br>2. ระบบยืนยันการลบ → ลบข้อมูล |
-| **Exceptional Flow** | 1. ผู้รับการดูแลมีงานที่กำลังดำเนินอยู่ → แสดง "ไม่สามารถลบได้" |
+| **Main Flow** | 1. ผู้ว่าจ้างกดปุ่มลบที่ผู้รับการดูแลที่ต้องการ<br>2. ระบบยืนยันการลบ : ลบข้อมูล |
+| **Exceptional Flow** | 1. ผู้รับการดูแลมีงานที่กำลังดำเนินอยู่ : แสดง "ไม่สามารถลบได้" |
 
 **ตาราง 3.29** UC-14: ดูงานของฉัน (Hirer)
 
@@ -383,8 +383,8 @@ A --> UC40
 | **Use Case** | สร้างงาน |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้างานของฉัน (UC-14)<br>3. มีผู้รับการดูแลอย่างน้อย 1 คน |
-| **Main Flow** | 1. ผู้ว่าจ้างกด "สร้างงาน"<br>2. เลือกผู้รับการดูแล<br>3. กรอกรายละเอียดงาน: ชื่องาน, ประเภท, คำอธิบาย, วันเวลา, ที่อยู่, ค่าจ้างต่อชั่วโมง<br>4. ระบบคำนวณจำนวนชั่วโมง ค่าจ้างรวม และระดับความเสี่ยงอัตโนมัติ<br>5. กดบันทึก → ระบบสร้างงาน (สถานะ Draft) |
-| **Exceptional Flow** | 1. ข้อมูลไม่ครบ → แสดงข้อความแจ้งเตือน<br>2. เวลาสิ้นสุดก่อนเวลาเริ่ม → แสดง "เวลาไม่ถูกต้อง" |
+| **Main Flow** | 1. ผู้ว่าจ้างกด "สร้างงาน"<br>2. เลือกผู้รับการดูแล<br>3. กรอกรายละเอียดงาน: ชื่องาน, ประเภท, คำอธิบาย, วันเวลา, ที่อยู่, ค่าจ้างต่อชั่วโมง<br>4. ระบบคำนวณจำนวนชั่วโมง ค่าจ้างรวม และระดับความเสี่ยงอัตโนมัติ<br>5. กดบันทึก : ระบบสร้างงาน (สถานะ Draft) |
+| **Exceptional Flow** | 1. ข้อมูลไม่ครบ : แสดงข้อความแจ้งเตือน<br>2. เวลาสิ้นสุดก่อนเวลาเริ่ม : แสดง "เวลาไม่ถูกต้อง" |
 
 **ตาราง 3.31** UC-16: เผยแพร่งาน
 
@@ -395,7 +395,7 @@ A --> UC40
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้างานของฉัน (UC-14)<br>3. มีงาน Draft ที่สร้างไว้<br>4. ผู้ใช้มี Trust Level L1 ขึ้นไป<br>5. มียอดเงินในกระเป๋าเพียงพอ |
 | **Main Flow** | 1. ผู้ว่าจ้างเปิดรายละเอียดงาน Draft<br>2. กดปุ่ม "เผยแพร่งาน"<br>3. ระบบล็อคเงินจากกระเป๋าเงินอัตโนมัติ<br>4. งานปรากฏในหน้าค้นหางานของผู้ดูแล |
-| **Exceptional Flow** | 1. Trust Level ไม่เพียงพอ → แสดง "ต้องยืนยันตัวตนก่อน"<br>2. ยอดเงินไม่พอ → แสดง "กรุณาเติมเงินก่อน" |
+| **Exceptional Flow** | 1. Trust Level ไม่เพียงพอ : แสดง "ต้องยืนยันตัวตนก่อน"<br>2. ยอดเงินไม่พอ : แสดง "กรุณาเติมเงินก่อน" |
 
 **ตาราง 3.32** UC-17: ยกเลิกงาน
 
@@ -406,7 +406,7 @@ A --> UC40
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้เป็นเจ้าของงานหรือผู้ดูแลที่รับงาน<br>3. งานยังไม่เสร็จสมบูรณ์ |
 | **Main Flow** | 1. ผู้ใช้เปิดรายละเอียดงาน กดปุ่ม "ยกเลิกงาน"<br>2. กรอกเหตุผลการยกเลิก<br>3. ระบบคืนเงินให้ผู้ว่าจ้างอัตโนมัติ<br>4. แจ้งเตือนอีกฝ่าย |
-| **Exceptional Flow** | 1. งานเสร็จแล้ว → แสดง "ไม่สามารถยกเลิกได้" |
+| **Exceptional Flow** | 1. งานเสร็จแล้ว : แสดง "ไม่สามารถยกเลิกได้" |
 
 **ตาราง 3.33** UC-18: ค้นหาผู้ดูแล
 
@@ -416,8 +416,8 @@ A --> UC40
 | **Use Case** | ค้นหาผู้ดูแล |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง |
-| **Main Flow** | 1. ผู้ว่าจ้างกดแท็บ "ค้นหาผู้ดูแล"<br>2. กรอกตัวกรอง: ทักษะ, ประสบการณ์, Trust Level, วันที่ว่าง<br>3. ระบบแสดงรายการผู้ดูแลที่ตรงเงื่อนไข<br>4. กดดูรายละเอียด → เปิด modal แสดงโปรไฟล์เต็ม |
-| **Exceptional Flow** | 1. ไม่พบผู้ดูแล → แสดง "ไม่พบผู้ดูแลที่ตรงเงื่อนไข" |
+| **Main Flow** | 1. ผู้ว่าจ้างกดแท็บ "ค้นหาผู้ดูแล"<br>2. กรอกตัวกรอง: ทักษะ, ประสบการณ์, Trust Level, วันที่ว่าง<br>3. ระบบแสดงรายการผู้ดูแลที่ตรงเงื่อนไข<br>4. กดดูรายละเอียด : เปิด modal แสดงโปรไฟล์เต็ม |
+| **Exceptional Flow** | 1. ไม่พบผู้ดูแล : แสดง "ไม่พบผู้ดูแลที่ตรงเงื่อนไข" |
 
 **ตาราง 3.34** UC-19: มอบหมายงานตรง
 
@@ -428,7 +428,7 @@ A --> UC40
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้าค้นหาผู้ดูแล (UC-18)<br>3. มีงานที่สร้างไว้อย่างน้อย 1 งาน |
 | **Main Flow** | 1. ผู้ว่าจ้างกด "มอบหมายงาน" ที่ผู้ดูแลที่ต้องการ<br>2. เลือกงานที่ต้องการมอบหมาย<br>3. ระบบส่งแจ้งเตือนให้ผู้ดูแลเพื่อตอบรับ/ปฏิเสธ |
-| **Exceptional Flow** | 1. ผู้ดูแลมีงานทับซ้อนเวลา → แสดง "ผู้ดูแลไม่ว่างในช่วงเวลานี้" |
+| **Exceptional Flow** | 1. ผู้ดูแลมีงานทับซ้อนเวลา : แสดง "ผู้ดูแลไม่ว่างในช่วงเวลานี้" |
 
 **ตาราง 3.35** UC-20: บันทึกผู้ดูแลที่ชอบ
 
@@ -448,7 +448,7 @@ A --> UC40
 | **Use Case** | อนุมัติ/ปฏิเสธ Early Checkout |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้างานของฉัน (UC-14)<br>3. มีคำขอส่งงานก่อนเวลาจากผู้ดูแล |
-| **Main Flow** | 1. ผู้ว่าจ้างได้รับแจ้งเตือนว่ามีคำขอส่งงานก่อนเวลา<br>2. เข้าดูรายละเอียดงาน → เห็นคำขอพร้อมหลักฐาน<br>3. กด "อนุมัติ" → ระบบจ่ายเงินและปิดงานทันที<br>4. หรือกด "ปฏิเสธ" → ผู้ดูแลทำงานต่อจนถึงเวลาสิ้นสุด |
+| **Main Flow** | 1. ผู้ว่าจ้างได้รับแจ้งเตือนว่ามีคำขอส่งงานก่อนเวลา<br>2. เข้าดูรายละเอียดงาน : เห็นคำขอพร้อมหลักฐาน<br>3. กด "อนุมัติ" : ระบบจ่ายเงินและปิดงานทันที<br>4. หรือกด "ปฏิเสธ" : ผู้ดูแลทำงานต่อจนถึงเวลาสิ้นสุด |
 
 **ตาราง 3.37** UC-22: เขียนรีวิว
 
@@ -458,8 +458,8 @@ A --> UC40
 | **Use Case** | เขียนรีวิว |
 | **Actor** | Hirer |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ว่าจ้าง<br>2. ผู้ใช้อยู่ในหน้างานของฉัน (UC-14)<br>3. งานเสร็จสมบูรณ์แล้ว<br>4. ยังไม่เคยรีวิวงานนี้ |
-| **Main Flow** | 1. ผู้ว่าจ้างเปิดรายละเอียดงานที่เสร็จแล้ว<br>2. ให้คะแนน 1-5 ดาว + เขียนความคิดเห็น<br>3. กดส่ง → ระบบบันทึกรีวิว |
-| **Exceptional Flow** | 1. รีวิวซ้ำ → แสดง "คุณรีวิวงานนี้ไปแล้ว" |
+| **Main Flow** | 1. ผู้ว่าจ้างเปิดรายละเอียดงานที่เสร็จแล้ว<br>2. ให้คะแนน 1-5 ดาว + เขียนความคิดเห็น<br>3. กดส่ง : ระบบบันทึกรีวิว |
+| **Exceptional Flow** | 1. รีวิวซ้ำ : แสดง "คุณรีวิวงานนี้ไปแล้ว" |
 
 ---
 
@@ -473,8 +473,8 @@ A --> UC40
 | **Use Case** | ดูประกาศงาน |
 | **Actor** | Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ดูแล |
-| **Main Flow** | 1. ผู้ดูแลกดแท็บ "ค้นหางาน"<br>2. ระบบแสดงรายการงานที่เหมาะสมกับ Trust Level ของผู้ดูแล<br>3. กรองเพิ่มเติมได้ตาม ประเภทงาน, ระดับความเสี่ยง, งานเร่งด่วน<br>4. กดดูรายละเอียดงาน → แสดงข้อมูลงานเต็ม |
-| **Exceptional Flow** | 1. ไม่มีงาน → แสดง "ไม่มีงานในขณะนี้" |
+| **Main Flow** | 1. ผู้ดูแลกดแท็บ "ค้นหางาน"<br>2. ระบบแสดงรายการงานที่เหมาะสมกับ Trust Level ของผู้ดูแล<br>3. กรองเพิ่มเติมได้ตาม ประเภทงาน, ระดับความเสี่ยง, งานเร่งด่วน<br>4. กดดูรายละเอียดงาน : แสดงข้อมูลงานเต็ม |
+| **Exceptional Flow** | 1. ไม่มีงาน : แสดง "ไม่มีงานในขณะนี้" |
 
 **ตาราง 3.39** UC-24: รับงาน / ปฏิเสธงาน
 
@@ -484,8 +484,8 @@ A --> UC40
 | **Use Case** | รับงาน / ปฏิเสธงาน |
 | **Actor** | Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ดูแล<br>2. ผู้ใช้อยู่ในหน้าดูประกาศงาน (UC-23) หรือได้รับแจ้งเตือนจากการมอบหมายงานตรง<br>3. ผู้ใช้มี Trust Level ตามที่งานกำหนด |
-| **Main Flow** | 1. ผู้ดูแลดูรายละเอียดงาน → กด "รับงาน"<br>2. ระบบสร้างห้องแชทอัตโนมัติ + แจ้งเตือนผู้ว่าจ้าง<br>3. **กรณีปฏิเสธ** (Direct Assign): กด "ปฏิเสธ" + กรอกเหตุผล → งานกลับไปเปิดรับสมัคร |
-| **Exceptional Flow** | 1. งานถูกรับไปแล้ว → แสดง "งานนี้ถูกรับไปแล้ว"<br>2. มีงานทับซ้อนเวลา → แสดง "คุณมีงานในช่วงเวลานี้แล้ว" |
+| **Main Flow** | 1. ผู้ดูแลดูรายละเอียดงาน : กด "รับงาน"<br>2. ระบบสร้างห้องแชทอัตโนมัติ + แจ้งเตือนผู้ว่าจ้าง<br>3. **กรณีปฏิเสธ** (Direct Assign): กด "ปฏิเสธ" + กรอกเหตุผล : งานกลับไปเปิดรับสมัคร |
+| **Exceptional Flow** | 1. งานถูกรับไปแล้ว : แสดง "งานนี้ถูกรับไปแล้ว"<br>2. มีงานทับซ้อนเวลา : แสดง "คุณมีงานในช่วงเวลานี้แล้ว" |
 
 **ตาราง 3.40** UC-25: เช็คอิน
 
@@ -506,7 +506,7 @@ A --> UC40
 | **Actor** | Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ดูแล<br>2. ผู้ใช้เช็คอินแล้ว (UC-25)<br>3. ถึงเวลาสิ้นสุดงาน |
 | **Main Flow** | 1. ผู้ดูแลกดปุ่ม "เช็คเอาท์"<br>2. กรอกบันทึกการทำงาน (ต้องไม่ว่าง)<br>3. ระบบบันทึกตำแหน่ง GPS + จ่ายเงินให้ผู้ดูแลอัตโนมัติ<br>4. แจ้งเตือนผู้ว่าจ้าง "งานเสร็จสมบูรณ์" |
-| **Exceptional Flow** | 1. ไม่กรอกบันทึกการทำงาน → แสดง "กรุณากรอกบันทึกการทำงาน" |
+| **Exceptional Flow** | 1. ไม่กรอกบันทึกการทำงาน : แสดง "กรุณากรอกบันทึกการทำงาน" |
 
 **ตาราง 3.42** UC-27: ขอ Check-out ก่อนเวลา
 
@@ -516,8 +516,8 @@ A --> UC40
 | **Use Case** | ขอ Check-out ก่อนเวลา |
 | **Actor** | Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ดูแล<br>2. ผู้ใช้เช็คอินแล้ว (UC-25)<br>3. ยังไม่ถึงเวลาสิ้นสุดงาน |
-| **Main Flow** | 1. ผู้ดูแลกรอกเหตุผลที่ต้องการส่งงานก่อนเวลา<br>2. ส่งคำขอ → ระบบแจ้งเตือนผู้ว่าจ้างเพื่ออนุมัติ (UC-21)<br>3. รอผู้ว่าจ้างตอบกลับ |
-| **Exceptional Flow** | 1. มีคำขอค้างอยู่แล้ว → แสดง "มีคำขอรออนุมัติอยู่" |
+| **Main Flow** | 1. ผู้ดูแลกรอกเหตุผลที่ต้องการส่งงานก่อนเวลา<br>2. ส่งคำขอ : ระบบแจ้งเตือนผู้ว่าจ้างเพื่ออนุมัติ (UC-21)<br>3. รอผู้ว่าจ้างตอบกลับ |
+| **Exceptional Flow** | 1. มีคำขอค้างอยู่แล้ว : แสดง "มีคำขอรออนุมัติอยู่" |
 
 ---
 
@@ -531,8 +531,8 @@ A --> UC40
 | **Use Case** | เติมเงิน (QR Code) |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้อยู่ในหน้ากระเป๋าเงิน (UC-29) |
-| **Main Flow** | 1. ผู้ใช้กดปุ่ม "เติมเงิน" ระบุจำนวนเงิน<br>2. ระบบสร้าง QR Code แสดงใน popup<br>3. ผู้ใช้สแกน QR จ่ายเงินผ่านแอปธนาคาร<br>4. กดยืนยัน → ระบบตรวจสอบสถานะ → แสดง "เติมเงินสำเร็จ" |
-| **Exceptional Flow** | 1. QR หมดอายุ → แสดง "กรุณาสร้าง QR ใหม่" |
+| **Main Flow** | 1. ผู้ใช้กดปุ่ม "เติมเงิน" ระบุจำนวนเงิน<br>2. ระบบสร้าง QR Code แสดงใน popup<br>3. ผู้ใช้สแกน QR จ่ายเงินผ่านแอปธนาคาร<br>4. กดยืนยัน : ระบบตรวจสอบสถานะ : แสดง "เติมเงินสำเร็จ" |
+| **Exceptional Flow** | 1. QR หมดอายุ : แสดง "กรุณาสร้าง QR ใหม่" |
 
 **ตาราง 3.44** UC-29: ดูกระเป๋าเงิน
 
@@ -542,7 +542,7 @@ A --> UC40
 | **Use Case** | ดูกระเป๋าเงิน |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ผู้ใช้กดแท็บ "กระเป๋าเงิน"<br>2. ระบบแสดงยอดเงินคงเหลือ + ยอดที่ถูกล็อค<br>3. ดูประวัติธุรกรรมทั้งหมด<br>4. กดรายการ → ดูรายละเอียด (ใบเสร็จ/รายได้) |
+| **Main Flow** | 1. ผู้ใช้กดแท็บ "กระเป๋าเงิน"<br>2. ระบบแสดงยอดเงินคงเหลือ + ยอดที่ถูกล็อค<br>3. ดูประวัติธุรกรรมทั้งหมด<br>4. กดรายการ : ดูรายละเอียด (ใบเสร็จ/รายได้) |
 
 **ตาราง 3.45** UC-30: ถอนเงิน
 
@@ -552,8 +552,8 @@ A --> UC40
 | **Use Case** | ถอนเงิน |
 | **Actor** | Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็นผู้ดูแล<br>2. ผู้ใช้อยู่ในหน้ากระเป๋าเงิน (UC-29)<br>3. มี Trust Level L2 ขึ้นไป<br>4. มีบัญชีธนาคารอย่างน้อย 1 บัญชี<br>5. มียอดเงินเพียงพอ |
-| **Main Flow** | 1. ผู้ดูแลกดปุ่ม "ถอนเงิน"<br>2. เลือกบัญชีธนาคาร + ระบุจำนวน<br>3. กดยืนยัน → ระบบสร้างคำขอถอนเงิน รอ Admin อนุมัติ |
-| **Exceptional Flow** | 1. Trust Level ไม่ถึง → แสดง "ต้องยืนยัน KYC ก่อนถอนเงิน"<br>2. ยอดไม่พอ → แสดง "ยอดเงินไม่เพียงพอ" |
+| **Main Flow** | 1. ผู้ดูแลกดปุ่ม "ถอนเงิน"<br>2. เลือกบัญชีธนาคาร + ระบุจำนวน<br>3. กดยืนยัน : ระบบสร้างคำขอถอนเงิน รอ Admin อนุมัติ |
+| **Exceptional Flow** | 1. Trust Level ไม่ถึง : แสดง "ต้องยืนยัน KYC ก่อนถอนเงิน"<br>2. ยอดไม่พอ : แสดง "ยอดเงินไม่เพียงพอ" |
 
 **ตาราง 3.46** UC-31: จัดการบัญชีธนาคาร
 
@@ -577,8 +577,8 @@ A --> UC40
 | **Use Case** | แชทเรียลไทม์ |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้อยู่ในหน้ารายละเอียดงาน (UC-14 หรือ UC-24)<br>3. มีห้องแชทที่สร้างจากการรับงาน |
-| **Main Flow** | 1. ผู้ใช้กดปุ่ม "แชท" ที่รายละเอียดงาน<br>2. ระบบแสดงข้อความเก่า<br>3. พิมพ์ข้อความ → ส่งแบบเรียลไทม์<br>4. เห็น "กำลังพิมพ์..." เมื่ออีกฝ่ายพิมพ์ |
-| **Exceptional Flow** | 1. งานถูกยกเลิก → ห้องแชทปิด แสดง "ห้องแชทปิดแล้ว" |
+| **Main Flow** | 1. ผู้ใช้กดปุ่ม "แชท" ที่รายละเอียดงาน<br>2. ระบบแสดงข้อความเก่า<br>3. พิมพ์ข้อความ : ส่งแบบเรียลไทม์<br>4. เห็น "กำลังพิมพ์..." เมื่ออีกฝ่ายพิมพ์ |
+| **Exceptional Flow** | 1. งานถูกยกเลิก : ห้องแชทปิด แสดง "ห้องแชทปิดแล้ว" |
 
 **ตาราง 3.48** UC-33: ดูการแจ้งเตือน
 
@@ -588,7 +588,7 @@ A --> UC40
 | **Use Case** | ดูการแจ้งเตือน |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ระบบแสดง badge จำนวนแจ้งเตือนที่ยังไม่อ่านที่ TopBar<br>2. ผู้ใช้กดไอคอนแจ้งเตือน → เปิดหน้าแจ้งเตือน<br>3. ดูรายการแจ้งเตือนทั้งหมด<br>4. กดแต่ละรายการ → ทำเครื่องหมายอ่านแล้ว<br>5. กด "อ่านทั้งหมด" → ล้าง badge |
+| **Main Flow** | 1. ระบบแสดง badge จำนวนแจ้งเตือนที่ยังไม่อ่านที่ TopBar<br>2. ผู้ใช้กดไอคอนแจ้งเตือน : เปิดหน้าแจ้งเตือน<br>3. ดูรายการแจ้งเตือนทั้งหมด<br>4. กดแต่ละรายการ : ทำเครื่องหมายอ่านแล้ว<br>5. กด "อ่านทั้งหมด" : ล้าง badge |
 
 ---
 
@@ -603,7 +603,7 @@ A --> UC40
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว<br>2. ผู้ใช้อยู่ในหน้ารายละเอียดงาน (UC-14 หรือ UC-24)<br>3. ยังไม่มีข้อพิพาทเปิดอยู่สำหรับงานนี้ |
 | **Main Flow** | 1. ผู้ใช้กดปุ่ม "เปิดข้อพิพาท" ที่รายละเอียดงาน<br>2. กรอกเหตุผลและรายละเอียด<br>3. ระบบสร้างข้อพิพาท แจ้งเตือน Admin และอีกฝ่าย<br>4. ทั้ง 2 ฝ่ายส่งหลักฐานเพิ่มเติมได้<br>5. รอ Admin ตัดสิน (UC-39) |
-| **Exceptional Flow** | 1. มีข้อพิพาทเปิดอยู่แล้ว → แสดง "มีข้อพิพาทเปิดอยู่แล้ว" |
+| **Exceptional Flow** | 1. มีข้อพิพาทเปิดอยู่แล้ว : แสดง "มีข้อพิพาทเปิดอยู่แล้ว" |
 
 **ตาราง 3.50** UC-35: ร้องเรียน
 
@@ -613,8 +613,8 @@ A --> UC40
 | **Use Case** | ร้องเรียน |
 | **Actor** | Hirer, Caregiver |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบแล้ว |
-| **Main Flow** | 1. ผู้ใช้กดเมนู "ร้องเรียน" จาก TopBar<br>2. เลือกหมวดหมู่ปัญหา + กรอกรายละเอียด<br>3. แนบไฟล์หลักฐาน (สูงสุด 5 ไฟล์)<br>4. กดส่ง → ระบบบันทึกเรื่องร้องเรียน รอ Admin ตรวจสอบ |
-| **Exceptional Flow** | 1. ไฟล์เกิน 10 MB → แสดง "ไฟล์ใหญ่เกินไป" |
+| **Main Flow** | 1. ผู้ใช้กดเมนู "ร้องเรียน" จาก TopBar<br>2. เลือกหมวดหมู่ปัญหา + กรอกรายละเอียด<br>3. แนบไฟล์หลักฐาน (สูงสุด 5 ไฟล์)<br>4. กดส่ง : ระบบบันทึกเรื่องร้องเรียน รอ Admin ตรวจสอบ |
+| **Exceptional Flow** | 1. ไฟล์เกิน 10 MB : แสดง "ไฟล์ใหญ่เกินไป" |
 
 ---
 
@@ -628,7 +628,7 @@ A --> UC40
 | **Use Case** | จัดการผู้ใช้ |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็น Admin |
-| **Main Flow** | 1. Admin เข้าหน้าจัดการผู้ใช้<br>2. ค้นหาและดูรายการผู้ใช้ทั้งหมด (กรองตาม role, สถานะ)<br>3. กดดูรายละเอียด → เปลี่ยนสถานะ, แก้ไขข้อมูล, Ban, ดูกระเป๋าเงิน |
+| **Main Flow** | 1. Admin เข้าหน้าจัดการผู้ใช้<br>2. ค้นหาและดูรายการผู้ใช้ทั้งหมด (กรองตาม role, สถานะ)<br>3. กดดูรายละเอียด : เปลี่ยนสถานะ, แก้ไขข้อมูล, Ban, ดูกระเป๋าเงิน |
 
 **ตาราง 3.52** UC-37: ตรวจสอบ KYC
 
@@ -638,7 +638,7 @@ A --> UC40
 | **Use Case** | ตรวจสอบ KYC |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็น Admin<br>2. มีผู้ใช้ที่ส่ง KYC รอตรวจสอบ |
-| **Main Flow** | 1. Admin เข้าหน้าจัดการผู้ใช้ กรอง KYC pending<br>2. ดูเอกสาร: บัตรประชาชน + รูป selfie<br>3. อนุมัติ → Trust Level อัปเกรดเป็น L2<br>4. หรือ ปฏิเสธ พร้อมเหตุผล → แจ้งเตือนผู้ใช้ |
+| **Main Flow** | 1. Admin เข้าหน้าจัดการผู้ใช้ กรอง KYC pending<br>2. ดูเอกสาร: บัตรประชาชน + รูป selfie<br>3. อนุมัติ : Trust Level อัปเกรดเป็น L2<br>4. หรือ ปฏิเสธ พร้อมเหตุผล : แจ้งเตือนผู้ใช้ |
 
 **ตาราง 3.53** UC-38: จัดการงาน (Admin)
 
@@ -648,7 +648,7 @@ A --> UC40
 | **Use Case** | จัดการงาน (Admin) |
 | **Actor** | Admin |
 | **Pre Conditions** | 1. ผู้ใช้เข้าสู่ระบบเป็น Admin |
-| **Main Flow** | 1. Admin เข้าหน้าจัดการงาน<br>2. ดูรายการงานทั้งหมด (กรองตาม สถานะ, ประเภท, ความเสี่ยง)<br>3. กดดูรายละเอียด<br>4. ยกเลิกงานที่มีปัญหา → ระบบคืนเงินอัตโนมัติ + แจ้งเตือนทั้ง 2 ฝ่าย |
+| **Main Flow** | 1. Admin เข้าหน้าจัดการงาน<br>2. ดูรายการงานทั้งหมด (กรองตาม สถานะ, ประเภท, ความเสี่ยง)<br>3. กดดูรายละเอียด<br>4. ยกเลิกงานที่มีปัญหา : ระบบคืนเงินอัตโนมัติ + แจ้งเตือนทั้ง 2 ฝ่าย |
 
 **ตาราง 3.54** UC-39: ตัดสินข้อพิพาท
 
@@ -742,10 +742,10 @@ sequenceDiagram
     participant DB as Database
     User->>FE: กดปุ่ม "Sign in with Google"
     FE->>BE: GET /api/auth/google
-    BE-->>FE: redirect → Google Consent Screen
+    BE-->>FE: redirect : Google Consent Screen
     User->>Google: อนุญาต (grant consent)
     Google-->>BE: GET /api/auth/google/callback?code=xxx
-    BE->>Google: แลก code → access_token
+    BE->>Google: แลก code : access_token
     Google-->>BE: { email, name, google_id }
     BE->>DB: SELECT users WHERE email/google_id
     alt ผู้ใช้มีอยู่แล้ว
@@ -779,9 +779,10 @@ sequenceDiagram
     FE->>BE: POST /api/otp/verify
     BE->>DB: SELECT otp WHERE code + not expired
     alt OTP ถูกต้อง
-        BE->>DB: UPDATE is_phone_verified = true
-        BE->>DB: UPDATE trust_level = L1 (ถ้ายืนยันโทรศัพท์)
-        BE-->>FE: { success: true, trust_level: "L1" }
+        BE->>DB: UPDATE is_phone_verified = true (หรือ is_email_verified)
+        BE->>BE: triggerUserTrustUpdate()
+        Note over BE,DB: L1 ต้องยืนยันทั้ง Email AND Phone
+        BE-->>FE: { success: true }
         FE-->>User: แสดงสำเร็จ + อัปเดต UI
     else OTP ผิด/หมดอายุ
         BE-->>FE: 400 "รหัส OTP ไม่ถูกต้อง"
@@ -828,7 +829,7 @@ sequenceDiagram
     participant BE as Backend
     participant DB as Database
     actor CG as Caregiver
-    Hirer->>FE: ค้นหาผู้ดูแล → กด "มอบหมายงาน"
+    Hirer->>FE: ค้นหาผู้ดูแล : กด "มอบหมายงาน"
     FE->>FE: เลือกงาน draft/posted
     FE->>BE: POST /api/caregivers/assign { job_post_id, caregiver_id }
     BE->>DB: SELECT job_posts (ตรวจเจ้าของ + สถานะ)
@@ -866,11 +867,11 @@ sequenceDiagram
     BE->>DB: SELECT job_posts FOR UPDATE (lock row)
     BE->>BE: ตรวจ trust_level ≥ min_trust_level
     BE->>BE: ตรวจไม่มีงานทับซ้อนเวลา
-    BE->>DB: DEDUCT held_balance → CREATE escrow wallet
+    BE->>DB: DEDUCT held_balance : CREATE escrow wallet
     BE->>DB: INSERT jobs (instance จริง)
     BE->>DB: INSERT job_assignments (status=active)
     BE->>DB: INSERT chat_threads
-    BE->>DB: INSERT ledger_transactions (hold → escrow)
+    BE->>DB: INSERT ledger_transactions (hold : escrow)
     BE->>BE: notify hirer "ผู้ดูแลรับงานแล้ว"
     BE-->>FE: 200 OK
     Note over CG,DB: ─── ถึงเวลาเริ่มงาน ───
@@ -889,8 +890,8 @@ sequenceDiagram
     FE->>BE: POST /api/jobs/:jobId/checkout { lat, lng, evidence_note }
     BE->>DB: INSERT job_gps_events (type=check_out)
     BE->>DB: UPDATE jobs + job_posts status=completed
-    BE->>DB: escrow → caregiver wallet (release 90%)
-    BE->>DB: escrow → platform wallet (debit 10%)
+    BE->>DB: escrow : caregiver wallet (total_amount)
+    BE->>DB: escrow : platform wallet (platform_fee_amount)
     BE->>DB: INSERT ledger_transactions (release + debit)
     BE->>BE: notify hirer "งานเสร็จสมบูรณ์"
     BE-->>FE: 200 OK
@@ -922,7 +923,7 @@ sequenceDiagram
         Hirer->>FE: กด "อนุมัติ"
         FE->>BE: POST /api/jobs/:jobId/early-checkout-respond { action: "approve" }
         BE->>DB: UPDATE status=completed
-        BE->>DB: Settlement (escrow → CG + platform)
+        BE->>DB: Settlement (escrow : CG + platform)
         BE->>BE: notify caregiver "อนุมัติแล้ว"
         BE-->>FE: 200 OK
     else ปฏิเสธ
@@ -932,7 +933,7 @@ sequenceDiagram
         BE->>BE: notify caregiver "ถูกปฏิเสธ"
         BE-->>FE: 200 OK
     end
-    Note over BE: เลย scheduled_end_at + 10 นาที → Auto-complete
+    Note over BE: เลย scheduled_end_at + 10 นาที : Auto-complete
 ```
 
 ### 3.6.9 การยกเลิกงาน (Cancel Job)
@@ -949,10 +950,10 @@ sequenceDiagram
     FE->>BE: POST /api/jobs/:id/cancel { reason }
     BE->>DB: SELECT job_posts + jobs (ตรวจสถานะ)
     alt สถานะ = posted (ยังไม่มีผู้รับ)
-        BE->>DB: UPDATE held_balance → available_balance
+        BE->>DB: UPDATE held_balance : available_balance
         BE->>DB: INSERT ledger_transactions (type=release)
     else สถานะ = assigned / in_progress (มีผู้รับแล้ว)
-        BE->>DB: UPDATE escrow → hirer available_balance
+        BE->>DB: UPDATE escrow : hirer available_balance
         BE->>DB: INSERT ledger_transactions (type=reversal)
         BE->>DB: UPDATE job_assignments status=cancelled
         BE->>DB: UPDATE chat_threads status=closed
@@ -972,7 +973,7 @@ sequenceDiagram
     participant BE as Backend
     participant MP as Mock Provider
     participant DB as Database
-    Hirer->>FE: เข้าหน้า Wallet → กดเติมเงิน
+    Hirer->>FE: เข้าหน้า Wallet : กดเติมเงิน
     Hirer->>FE: ระบุจำนวนเงิน
     FE->>BE: POST /api/wallet/topup { amount }
     BE->>MP: POST /create-qr { amount, ref }
@@ -1002,7 +1003,7 @@ sequenceDiagram
     participant BE as Backend
     participant DB as Database
     actor Admin
-    CG->>FE: เข้าหน้า Wallet → กดถอนเงิน
+    CG->>FE: เข้าหน้า Wallet : กดถอนเงิน
     CG->>FE: เลือกบัญชีธนาคาร + ระบุจำนวน
     FE->>BE: POST /api/wallet/withdraw { amount, bank_account_id }
     BE->>BE: ตรวจ trust_level ≥ L2
@@ -1030,7 +1031,7 @@ sequenceDiagram
     participant CG as Caregiver
     H->>S: connect (JWT auth)
     CG->>S: connect (JWT auth)
-    S->>S: verify JWT → join user room
+    S->>S: verify JWT : join user room
     H->>S: thread:join { threadId }
     CG->>S: thread:join { threadId }
     S-->>H: thread:joined
@@ -1103,13 +1104,14 @@ sequenceDiagram
     BE-->>Admin: รายการผู้ใช้ที่รอ KYC
     Admin->>Admin: ตรวจสอบเอกสาร
     alt อนุมัติ
-        Admin->>BE: POST /api/admin/users/:id/status { status: "active" }
-        BE->>DB: UPDATE kyc_status = approved
-        BE->>DB: UPDATE trust_level = L2
+        Admin->>BE: PATCH /api/admin/users/:id/edit { kyc_status: "approved" }
+        BE->>DB: UPDATE user_kyc_info SET status = 'approved'
+        BE->>BE: triggerUserTrustUpdate()
+        Note over BE,DB: L2 ต้องมี L1 (email+phone verified) + KYC approved
         BE->>BE: notify user "KYC อนุมัติแล้ว"
     else ปฏิเสธ
-        Admin->>BE: POST /api/admin/users/:id/status { kyc: "rejected", reason }
-        BE->>DB: UPDATE kyc_status = rejected
+        Admin->>BE: PATCH /api/admin/users/:id/edit { kyc_status: "rejected" }
+        BE->>DB: UPDATE user_kyc_info SET status = 'rejected'
         BE->>BE: notify user "KYC ถูกปฏิเสธ" + เหตุผล
     end
 ```
@@ -1141,7 +1143,7 @@ sequenceDiagram
     BE->>DB: UPDATE assigned_admin_id, status=in_review
     Note over Admin: Admin อ่านหลักฐาน แล้วตัดสิน
     Admin->>BE: POST /api/admin/disputes/:id/settle
-    BE->>DB: escrow → hirer (refund) และ/หรือ escrow → CG (payout)
+    BE->>DB: escrow : hirer (refund) และ/หรือ escrow : CG (payout)
     BE->>DB: INSERT ledger_transactions
     BE->>DB: UPDATE disputes status=resolved
     BE->>BE: notify ทั้ง 2 ฝ่าย "ข้อพิพาทได้รับการตัดสินแล้ว"
