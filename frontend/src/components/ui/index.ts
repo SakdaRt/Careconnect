@@ -32,9 +32,6 @@ export type { TabsProps, Tab, TabPanelProps } from './Tabs';
 export { Spinner, LoadingOverlay, LoadingState, Skeleton } from './Loading';
 export type { SpinnerProps, LoadingOverlayProps, LoadingStateProps, SkeletonProps } from './Loading';
 
-export { EmptyState } from './EmptyState';
-export type { EmptyStateProps } from './EmptyState';
-
 export { RadioGroup, CheckboxGroup } from './ChoiceGroup';
 export type { ChoiceOption } from './ChoiceGroup';
 
