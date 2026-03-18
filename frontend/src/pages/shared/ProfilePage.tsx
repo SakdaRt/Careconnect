@@ -1223,7 +1223,7 @@ export default function ProfilePage() {
                       <div className="flex flex-col gap-1">
                         <label className="text-sm font-semibold text-gray-700">
                           ไฟล์เอกสาร *{" "}
-                          <span className="text-xs text-gray-400 font-normal">
+                          <span className="text-xs text-gray-500 font-normal">
                             (JPEG, PNG, PDF ไม่เกิน 10 MB)
                           </span>
                         </label>
@@ -1233,7 +1233,7 @@ export default function ProfilePage() {
                             <span className="text-sm text-gray-800 truncate flex-1">
                               {certFile.name}
                             </span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-500">
                               {(certFile.size / 1024).toFixed(0)} KB
                             </span>
                             <button
@@ -1297,7 +1297,7 @@ export default function ProfilePage() {
                     กำลังโหลดเอกสาร...
                   </div>
                 ) : certDocs.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400">
+                  <div className="text-center py-6 text-gray-500">
                     <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <div className="text-sm">ยังไม่มีเอกสารรับรอง</div>
                     <div className="text-xs mt-1">
@@ -1384,7 +1384,7 @@ export default function ProfilePage() {
                     กำลังโหลดรีวิว...
                   </div>
                 ) : reviewsTotal === 0 ? (
-                  <div className="text-center py-4 text-gray-400">
+                  <div className="text-center py-4 text-gray-500">
                     <Star className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <div className="text-sm">ยังไม่มีรีวิว</div>
                     <div className="text-xs mt-1">

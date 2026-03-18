@@ -2004,7 +2004,7 @@ export default function CreateJobPage() {
                                     {rating > 0 && (
                                       <span className="flex items-center gap-0.5 text-amber-600">
                                         <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden="true" />
-                                        {rating.toFixed(1)}{cg.total_reviews > 0 && <span className="text-gray-400">({cg.total_reviews})</span>}
+                                        {rating.toFixed(1)}{cg.total_reviews > 0 && <span className="text-gray-500">({cg.total_reviews})</span>}
                                       </span>
                                     )}
                                     {cg.experience_years > 0 && <span>ประสบการณ์ {cg.experience_years} ปี</span>}
@@ -2038,7 +2038,7 @@ export default function CreateJobPage() {
                                 </div>
                                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
                                   {isSelected ? <Check className="w-5 h-5 text-blue-600" aria-hidden="true" /> : (
-                                    <div className="text-[10px] text-gray-400">{matchScore}%</div>
+                                    <div className="text-[10px] text-gray-500">{matchScore}%</div>
                                   )}
                                 </div>
                               </div>

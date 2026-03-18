@@ -377,7 +377,7 @@ export default function KycPage() {
                     <label className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
                       <Upload className="w-8 h-8 text-gray-400 mb-2" />
                       <span className="text-sm text-gray-500">คลิกเพื่อเลือกรูป</span>
-                      <span className="text-xs text-gray-400 mt-1">JPEG, PNG ไม่เกิน 10 MB</span>
+                      <span className="text-xs text-gray-500 mt-1">JPEG, PNG ไม่เกิน 10 MB</span>
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect(setDocFront, setDocFrontPreview)} />
                     </label>
                   )}
@@ -386,7 +386,7 @@ export default function KycPage() {
                 {/* Back */}
                 <div>
                   <label className="text-sm font-semibold text-gray-700 block mb-2">
-                    ด้านหลัง <span className="text-gray-400 text-xs">(ไม่บังคับ)</span>
+                    ด้านหลัง <span className="text-gray-500 text-xs">(ไม่บังคับ)</span>
                   </label>
                   {docBackPreview ? (
                     <div className="relative">
@@ -400,7 +400,7 @@ export default function KycPage() {
                     <label className="flex flex-col items-center justify-center h-48 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-colors">
                       <Upload className="w-8 h-8 text-gray-400 mb-2" />
                       <span className="text-sm text-gray-500">คลิกเพื่อเลือกรูป</span>
-                      <span className="text-xs text-gray-400 mt-1">ไม่บังคับ</span>
+                      <span className="text-xs text-gray-500 mt-1">ไม่บังคับ</span>
                       <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelect(setDocBack, setDocBackPreview)} />
                     </label>
                   )}
