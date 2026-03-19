@@ -412,7 +412,6 @@ export default function HirerWalletPage() {
                         </div>
                         <div className="text-xs text-gray-600">{b.account_name}</div>
                       </div>
-                      <div className="text-xs text-gray-600">{b.is_verified ? 'verified' : 'pending'}</div>
                     </label>
                   ))}
                 </div>

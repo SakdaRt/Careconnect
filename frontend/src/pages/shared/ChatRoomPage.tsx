@@ -414,7 +414,7 @@ export default function ChatRoomPage() {
                     <div className="font-semibold text-sm text-gray-900 line-clamp-1">{job?.title || 'งาน'}</div>
                     {jobStatus && <StatusBadge status={jobStatus as any} />}
                   </div>
-                  <span className="text-xs text-gray-400 flex-shrink-0">{headerCollapsed ? '▼ แสดง' : '▲ ซ่อน'}</span>
+                  <span className="text-xs text-gray-500 flex-shrink-0">{headerCollapsed ? '▼ แสดง' : '▲ ซ่อน'}</span>
                 </div>
 
                 {!headerCollapsed && (

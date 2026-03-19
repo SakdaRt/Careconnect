@@ -138,7 +138,6 @@ class Job extends BaseModel {
       total_hours,
       min_trust_level = 'L1',
       required_certifications = [],
-      is_urgent = false,
       job_tasks_flags = [],
       required_skills_flags = [],
       equipment_available_flags = [],
@@ -184,7 +183,7 @@ class Job extends BaseModel {
       precautions_flags: precautions_flags.length ? precautions_flags : null,
       preferred_caregiver_id: preferred_caregiver_id || null,
       patient_profile_id: patient_profile_id || null,
-      is_urgent,
+      is_urgent: scheduled_start_at ? (new Date(scheduled_start_at).getTime() - Date.now() < 24 * 60 * 60 * 1000) : false,
       status: 'draft',
       replacement_chain_count: 0,
       created_at: new Date(),
@@ -300,7 +299,6 @@ class Job extends BaseModel {
     const {
       job_type,
       risk_level,
-      is_urgent,
       exclude_hirer_id,
       caregiver_id,
       page = 1,
@@ -319,11 +317,6 @@ class Job extends BaseModel {
     if (risk_level) {
       whereClause += ` AND risk_level = $${paramIndex++}`;
       values.push(risk_level);
-    }
-
-    if (is_urgent !== undefined) {
-      whereClause += ` AND is_urgent = $${paramIndex++}`;
-      values.push(is_urgent);
     }
 
     if (exclude_hirer_id) {

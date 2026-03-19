@@ -139,7 +139,7 @@ export default function ProfilePage() {
   };
 
   // Bank verification
-  const [bankVerified, setBankVerified] = useState<boolean | null>(null);
+  const [bankHasAccount, setBankHasAccount] = useState<boolean | null>(null);
 
   // Reviews (caregiver only)
   const [reviews, setReviews] = useState<any[]>([]);
@@ -619,12 +619,12 @@ export default function ProfilePage() {
           const accounts: any[] =
             (res.data as any)?.accounts ||
             (Array.isArray(res.data) ? res.data : []);
-          setBankVerified(accounts.some((a: any) => a.is_verified));
+          setBankHasAccount(accounts.length > 0);
         } else {
-          setBankVerified(false);
+          setBankHasAccount(false);
         }
       })
-      .catch(() => setBankVerified(false));
+      .catch(() => setBankHasAccount(false));
     return () => {
       active = false;
     };
@@ -822,24 +822,24 @@ export default function ProfilePage() {
             </div>
             <div className="flex items-center gap-2">
               <Landmark
-                className={`w-5 h-5 ${bankVerified ? "text-green-600" : "text-gray-400"}`}
+                className={`w-5 h-5 ${bankHasAccount ? "text-green-600" : "text-gray-500"}`}
               />
               <span
-                className={`text-sm ${bankVerified ? "text-green-700 font-semibold" : "text-gray-500"}`}
+                className={`text-sm ${bankHasAccount ? "text-green-700 font-semibold" : "text-gray-500"}`}
               >
-                {bankVerified === null
+                {bankHasAccount === null
                   ? "กำลังโหลด..."
-                  : bankVerified
-                    ? "ยืนยันบัญชีธนาคารแล้ว"
-                    : "ยังไม่มีบัญชีธนาคารที่ยืนยัน"}
+                  : bankHasAccount
+                    ? "มีบัญชีธนาคารแล้ว"
+                    : "ยังไม่มีบัญชีธนาคาร"}
               </span>
-              {bankVerified && (
+              {bankHasAccount && (
                 <span className="text-green-500 text-sm">✓</span>
               )}
             </div>
-            {!bankVerified && bankVerified !== null && (
+            {!bankHasAccount && bankHasAccount !== null && (
               <p className="text-xs text-gray-500 mt-2">
-                เพิ่มและยืนยันบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรดเป็นระดับ "มืออาชีพ"
+                เพิ่มบัญชีธนาคารเพื่อรับเงินค่าจ้าง และอัปเกรดเป็นระดับ "มืออาชีพ"
               </p>
             )}
           </Card>
@@ -1223,7 +1223,7 @@ export default function ProfilePage() {
                       <div className="flex flex-col gap-1">
                         <label className="text-sm font-semibold text-gray-700">
                           ไฟล์เอกสาร *{" "}
-                          <span className="text-xs text-gray-400 font-normal">
+                          <span className="text-xs text-gray-500 font-normal">
                             (JPEG, PNG, PDF ไม่เกิน 10 MB)
                           </span>
                         </label>
@@ -1233,7 +1233,7 @@ export default function ProfilePage() {
                             <span className="text-sm text-gray-800 truncate flex-1">
                               {certFile.name}
                             </span>
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-gray-500">
                               {(certFile.size / 1024).toFixed(0)} KB
                             </span>
                             <button
@@ -1297,7 +1297,7 @@ export default function ProfilePage() {
                     กำลังโหลดเอกสาร...
                   </div>
                 ) : certDocs.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400">
+                  <div className="text-center py-6 text-gray-500">
                     <FileText className="w-10 h-10 mx-auto mb-2 opacity-50" />
                     <div className="text-sm">ยังไม่มีเอกสารรับรอง</div>
                     <div className="text-xs mt-1">
@@ -1384,7 +1384,7 @@ export default function ProfilePage() {
                     กำลังโหลดรีวิว...
                   </div>
                 ) : reviewsTotal === 0 ? (
-                  <div className="text-center py-4 text-gray-400">
+                  <div className="text-center py-4 text-gray-500">
                     <Star className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     <div className="text-sm">ยังไม่มีรีวิว</div>
                     <div className="text-xs mt-1">

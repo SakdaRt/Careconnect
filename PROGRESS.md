@@ -136,7 +136,7 @@ careconnect/
 - [x] Email notification (ส่ง email จริงเมื่อมี notification)
 - [x] Push notification (PWA)
 - [x] Caregiver availability calendar
-- [ ] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (ตอนนี้ `tsc`/`vite build` ใน container fail จาก dependency เดิมที่หาย)
+- [x] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (rebuild Docker image แก้ได้)
 
 ### Low Priority
 
@@ -189,8 +189,9 @@ careconnect/
 - fix(frontend): `router.tsx` — ลบ `AdminLayout` wrapper ซ้ำซ้อนออกจาก `/admin/financial` route + ลบ unused import
 - fix(frontend): `AdminReportsPage.tsx` — แก้ `text-gray-400` → `text-gray-500` (WCAG contrast) + เพิ่ม null guards สำหรับ summaryData arrays ป้องกัน crash
 - fix(frontend): `AdminUsersPage.tsx` — แก้ `text-gray-400` → `text-gray-500` ที่ readable text ทุกจุด (email, docs metadata, currency, ban type)
+- fix(infra): rebuild frontend Docker image ให้ sync กับ `package.json` — `react-easy-crop` ถูก install ใน container แล้ว
 - verify:
-  - ✅ TypeScript: PASS (error เดิม `react-easy-crop` เท่านั้น)
+  - ✅ TypeScript: 0 errors | Vite build: PASS (5.85s)
 
 ### 2026-03-18 — Fix admin financial filters/contracts + UX hardening
 

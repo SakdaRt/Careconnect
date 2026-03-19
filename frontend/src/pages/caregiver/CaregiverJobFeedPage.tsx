@@ -14,6 +14,21 @@ function formatDate(startIso: string) {
   return d.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function isJobUrgent(scheduledStartAt: string): boolean {
+  const startTime = new Date(scheduledStartAt).getTime();
+  const now = Date.now();
+  return startTime > now && startTime - now < 24 * 60 * 60 * 1000;
+}
+
+function formatTimeLeft(scheduledStartAt: string): string {
+  const diff = new Date(scheduledStartAt).getTime() - Date.now();
+  if (diff <= 0) return 'เลยเวลาแล้ว';
+  const hours = Math.floor(diff / (60 * 60 * 1000));
+  const mins = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+  if (hours > 0) return `อีก ${hours} ชม. ${mins} นาที`;
+  return `อีก ${mins} นาที`;
+}
+
 type SortOption = 'newest' | 'pay_high' | 'pay_low';
 type TypeFilter = '' | 'companionship' | 'personal_care' | 'medical_monitoring' | 'dementia_care' | 'post_surgery' | 'emergency';
 
@@ -105,6 +120,14 @@ export default function CaregiverJobFeedPage() {
     const sorted = [...filtered];
     if (sortBy === 'pay_high') sorted.sort((a, b) => b.total_amount - a.total_amount);
     else if (sortBy === 'pay_low') sorted.sort((a, b) => a.total_amount - b.total_amount);
+    else {
+      sorted.sort((a, b) => {
+        const aUrgent = isJobUrgent(a.scheduled_start_at) ? 0 : 1;
+        const bUrgent = isJobUrgent(b.scheduled_start_at) ? 0 : 1;
+        if (aUrgent !== bUrgent) return aUrgent - bUrgent;
+        return new Date(a.scheduled_start_at).getTime() - new Date(b.scheduled_start_at).getTime();
+      });
+    }
     return sorted;
   }, [jobs, sortBy, typeFilter]);
 
@@ -161,7 +184,7 @@ export default function CaregiverJobFeedPage() {
                       {s.done ? '✓' : i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className={`text-sm ${s.done ? 'text-gray-400 line-through' : 'text-gray-800 font-medium'}`}>{s.label}</div>
+                      <div className={`text-sm ${s.done ? 'text-gray-500 line-through' : 'text-gray-800 font-medium'}`}>{s.label}</div>
                       {!s.done && <div className="text-xs text-gray-500">{s.sub}</div>}
                     </div>
                     {!s.done && s.link && (
@@ -294,9 +317,12 @@ export default function CaregiverJobFeedPage() {
             {items.map((job) => {
               const location = [job.address_line1, job.district, job.province].filter(Boolean).join(', ');
               const isDirectInvite = Boolean(user?.id && job.preferred_caregiver_id === user.id);
+              const urgent = isJobUrgent(job.scheduled_start_at);
               const cardClassName = isDirectInvite
                 ? 'p-4 border-orange-300 bg-gradient-to-br from-orange-50 to-amber-50 shadow-sm shadow-orange-100/60'
-                : 'p-4';
+                : urgent
+                  ? 'p-4 border-red-300 bg-gradient-to-br from-red-50 to-rose-50 shadow-sm shadow-red-100/60'
+                  : 'p-4';
               return (
                 <Card key={job.id} className={cardClassName}>
                   <div className="flex items-start justify-between gap-3">
@@ -304,6 +330,7 @@ export default function CaregiverJobFeedPage() {
                       <div className="flex items-start justify-between gap-2">
                         <h3 className="font-semibold text-gray-900 text-lg line-clamp-1">{job.title}</h3>
                         <div className="flex items-center gap-2">
+                          {urgent && <Badge variant="danger">เร่งด่วน • {formatTimeLeft(job.scheduled_start_at)}</Badge>}
                           {isDirectInvite && <Badge variant="warning">อยากจ้างคุณ</Badge>}
                           <StatusBadge status={job.status as any} />
                         </div>

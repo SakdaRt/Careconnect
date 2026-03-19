@@ -511,9 +511,6 @@ export default function AdminUsersPage() {
                                 <span className="text-gray-400 ml-1">•••• {b.account_number_last4}</span>
                                 <div className="text-gray-400 text-[11px]">{b.account_name}</div>
                               </div>
-                              <span className={`text-[11px] px-1.5 py-0.5 rounded ${b.is_verified ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                {b.is_verified ? 'ยืนยันแล้ว' : 'ยังไม่ยืนยัน'}
-                              </span>
                             </div>
                           ))}
                         </div>

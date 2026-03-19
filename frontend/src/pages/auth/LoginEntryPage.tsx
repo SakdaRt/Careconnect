@@ -28,7 +28,7 @@ export default function LoginEntryPage() {
             fullWidth
             onClick={handleGoogleLogin}
           >
-            Sign in with Google
+            เข้าสู่ระบบด้วย Google
           </Button>
 
           <div className="relative my-2">

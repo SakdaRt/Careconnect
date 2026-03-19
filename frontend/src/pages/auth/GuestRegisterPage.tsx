@@ -88,21 +88,21 @@ export default function GuestRegisterPage() {
     const newErrors: Record<string, string> = {};
 
     if (!formData.email) {
-      newErrors.email = 'Please enter your email';
+      newErrors.email = 'กรุณากรอกอีเมล';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Invalid email format';
+      newErrors.email = 'รูปแบบอีเมลไม่ถูกต้อง';
     }
 
     if (!formData.password) {
-      newErrors.password = 'Please enter a password';
+      newErrors.password = 'กรุณากรอกรหัสผ่าน';
     } else if (formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters';
+      newErrors.password = 'รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร';
     }
 
     if (!formData.confirmPassword) {
-      newErrors.confirmPassword = 'Please confirm your password';
+      newErrors.confirmPassword = 'กรุณายืนยันรหัสผ่าน';
     } else if (formData.password !== formData.confirmPassword) {
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = 'รหัสผ่านไม่ตรงกัน';
     }
 
     setErrors(newErrors);
@@ -129,7 +129,7 @@ export default function GuestRegisterPage() {
   // Step 2: OTP verification
   const handleVerifyOTP = async () => {
     if (formData.otp.length !== 6) {
-      setErrors({ otp: 'Please enter the complete 6-digit code' });
+      setErrors({ otp: 'กรุณากรอกรหัส OTP ให้ครบ 6 หลัก' });
       return;
     }
 
@@ -205,7 +205,7 @@ export default function GuestRegisterPage() {
             className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            <span className="text-sm">Back</span>
+            <span className="text-sm">กลับ</span>
           </button>
         ) : (
           <Link
@@ -213,7 +213,7 @@ export default function GuestRegisterPage() {
             className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
           >
             <ArrowLeft className="w-4 h-4 mr-2" />
-            <span className="text-sm">Back</span>
+            <span className="text-sm">กลับ</span>
           </Link>
         )}
 
@@ -224,9 +224,9 @@ export default function GuestRegisterPage() {
         </div>
 
         <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
-          Create Guest Account
+          สมัครบัญชีแขก
         </h1>
-        <p className="text-gray-600 text-center mb-8">Register with email</p>
+        <p className="text-gray-600 text-center mb-8">ลงทะเบียนด้วยอีเมล</p>
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center mb-8">
@@ -259,7 +259,7 @@ export default function GuestRegisterPage() {
         {step === 'credentials' && (
           <div className="space-y-4">
             <Input
-              label="Email"
+              label="อีเมล"
               type="email"
               placeholder="your@email.com"
               value={formData.email}
@@ -270,8 +270,8 @@ export default function GuestRegisterPage() {
             />
 
             <PasswordInput
-              label="Password"
-              placeholder="Enter password (min 6 characters)"
+              label="รหัสผ่าน"
+              placeholder="กรอกรหัสผ่าน (อย่างน้อย 8 ตัวอักษร)"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               error={errors.password}
@@ -279,8 +279,8 @@ export default function GuestRegisterPage() {
             />
 
             <PasswordInput
-              label="Confirm Password"
-              placeholder="Re-enter password"
+              label="ยืนยันรหัสผ่าน"
+              placeholder="กรอกรหัสผ่านอีกครั้ง"
               value={formData.confirmPassword}
               onChange={(e) =>
                 setFormData({ ...formData, confirmPassword: e.target.value })
@@ -296,13 +296,13 @@ export default function GuestRegisterPage() {
               loading={loading}
               onClick={handleRegister}
             >
-              Create Account
+              สร้างบัญชี
             </Button>
 
             <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <p className="text-sm text-blue-900">
-                <strong>Note:</strong> Guest accounts can create jobs and hire caregivers.
-                To become a caregiver, register as a Member instead.
+                <strong>หมายเหตุ:</strong> บัญชีแขกสามารถสร้างงานและจ้างผู้ดูแลได้
+                หากต้องการเป็นผู้ดูแล กรุณาสมัครเป็นบัญชีสมาชิกแทน
               </p>
             </div>
           </div>
@@ -314,13 +314,13 @@ export default function GuestRegisterPage() {
             <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
               <Shield className="w-5 h-5 text-green-600" />
               <p className="text-sm text-green-900">
-                <strong>Account created!</strong> Verify your email to unlock more features.
+                <strong>สร้างบัญชีแล้ว!</strong> ยืนยันอีเมลเพื่อเปิดใช้งานเพิ่มเติม
               </p>
             </div>
 
             <div className="text-center mb-6">
               <p className="text-gray-600">
-                We sent a verification code to
+                เราได้ส่งรหัสยืนยันไปยัง
                 <br />
                 <span className="font-semibold text-gray-900">{formData.email}</span>
               </p>
@@ -328,7 +328,7 @@ export default function GuestRegisterPage() {
 
             <div>
               <label htmlFor="otp-0" className="block text-sm font-semibold text-gray-700 mb-2 text-center">
-                OTP Code <span className="text-red-500">*</span>
+                รหัส OTP <span className="text-red-500">*</span>
               </label>
               <OTPInput
                 value={formData.otp}
@@ -344,7 +344,7 @@ export default function GuestRegisterPage() {
               loading={loading}
               onClick={handleVerifyOTP}
             >
-              Verify Email
+              ยืนยันอีเมล
             </Button>
 
             <div className="flex items-center justify-between text-sm">
@@ -353,7 +353,7 @@ export default function GuestRegisterPage() {
                 disabled={loading || resendCooldown > 0}
                 className={resendCooldown > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-700'}
               >
-                {resendCooldown > 0 ? `ส่งใหม่ได้ใน ${resendCooldown} วินาที` : "Didn't receive code? Resend"}
+                {resendCooldown > 0 ? `ส่งใหม่ได้ใน ${resendCooldown} วินาที` : 'ไม่ได้รับรหัส? ส่งใหม่อีกครั้ง'}
               </button>
             </div>
 
@@ -368,10 +368,10 @@ export default function GuestRegisterPage() {
 
         {/* Already have account */}
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-          <p className="text-gray-600 mb-4">Already have an account?</p>
+          <p className="text-gray-600 mb-4">มีบัญชีอยู่แล้ว?</p>
           <Link to="/login">
             <Button variant="outline" fullWidth>
-              Sign In
+              เข้าสู่ระบบ
             </Button>
           </Link>
         </div>

@@ -97,7 +97,6 @@ export const appApi = {
   async getJobFeed(filters?: {
     job_type?: string;
     risk_level?: string;
-    is_urgent?: boolean;
     page?: number;
     limit?: number;
   }) {

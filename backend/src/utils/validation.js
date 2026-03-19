@@ -184,7 +184,6 @@ export const jobSchemas = {
     geofence_radius_m: Joi.number().integer().min(0).default(1000),
     hourly_rate: Joi.number().positive().required(),
     total_hours: Joi.number().positive().required(),
-    is_urgent: Joi.boolean().default(false),
     preferred_caregiver_id: Joi.string().uuid().allow('', null).optional(),
     patient_profile_id: Joi.string().uuid().required(),
     job_tasks_flags: Joi.array().items(Joi.string()).default([]),
@@ -209,7 +208,6 @@ export const jobSchemas = {
     geofence_radius_m: Joi.number().integer().min(0),
     hourly_rate: Joi.number().positive(),
     total_hours: Joi.number().positive(),
-    is_urgent: Joi.boolean(),
     preferred_caregiver_id: Joi.string().uuid().allow('', null),
     patient_profile_id: Joi.string().uuid().allow('', null),
     job_tasks_flags: Joi.array().items(Joi.string()),
@@ -222,7 +220,6 @@ export const jobSchemas = {
     status: commonSchemas.jobStatus,
     job_type: Joi.string().valid('companionship', 'personal_care', 'medical_monitoring', 'dementia_care', 'post_surgery', 'emergency'),
     risk_level: Joi.string().valid('low_risk', 'high_risk').allow('', null),
-    is_urgent: Joi.boolean(),
     min_hourly_rate: Joi.number().positive(),
     max_hourly_rate: Joi.number().positive().min(Joi.ref('min_hourly_rate')),
     latitude: Joi.number().min(-90).max(90),
@@ -306,10 +303,6 @@ export const paymentSchemas = {
   paymentQuery: Joi.object({
     status: commonSchemas.paymentStatus,
     ...commonSchemas.paginationKeys,
-  }),
-  
-  paymentParams: Joi.object({
-    payment_id: commonSchemas.uuid,
   }),
 };
 

@@ -40,7 +40,6 @@ const createJobSchema = Joi.object({
   total_hours: Joi.number().positive().required(),
   min_trust_level: Joi.string().valid('L0', 'L1', 'L2', 'L3'),
   required_certifications: Joi.array().items(Joi.string()),
-  is_urgent: Joi.boolean(),
   patient_profile_id: Joi.string().guid({ version: ['uuidv4', 'uuidv5'] }).required(),
   job_tasks_flags: Joi.array().items(Joi.string()),
   required_skills_flags: Joi.array().items(Joi.string()),
