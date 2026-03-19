@@ -98,33 +98,60 @@
 
 ---
 
-## สไลด์ 5: Technology Stack
+## สไลด์ 5: Technology Stack (แยก 2 สไลด์ถ้าจอไม่พอ)
 
 ### เนื้อหาบนสไลด์
 
-| Layer | เทคโนโลยี |
-|-------|----------|
-| Frontend | React 18 + TypeScript + Tailwind CSS + Vite |
-| Backend | Node.js + Express.js + Socket.IO |
-| Database | PostgreSQL 15 (40 tables) |
-| Auth | JWT + Refresh Token + Google OAuth 2.0 |
-| Validation | Joi |
-| Testing | Jest (179 tests) + Playwright (E2E) |
-| DevOps | Docker Compose (dev/test/prod) |
-| Real-time | Socket.IO (Chat + Notifications) |
+| เทคโนโลยี | คืออะไร | ทำไมต้องใช้ตัวนี้ |
+|----------|--------|-----------------|
+| **React 18** | JavaScript library สำหรับสร้าง UI แบบ component-based | รองรับ Hooks, Concurrent rendering, ecosystem ใหญ่ มี library พร้อมใช้เยอะ |
+| **TypeScript** | superset ของ JavaScript ที่เพิ่มระบบ type | ป้องกัน bug ตั้งแต่ตอน compile, IDE แนะนำ code ได้ดี, refactor ปลอดภัย |
+| **Tailwind CSS** | utility-first CSS framework เขียน style ผ่าน class name | พัฒนา UI เร็ว ไม่ต้องเขียน CSS แยก ลด context switching ระหว่างไฟล์ |
+| **Vite** | build tool สำหรับ frontend ใช้ ESBuild + Rollup | Hot Module Replacement เร็วมาก, build เร็วกว่า Webpack 10-100 เท่า |
+| **Node.js** | JavaScript runtime บน server ใช้ V8 engine | ใช้ภาษาเดียวทั้ง frontend + backend, non-blocking I/O เหมาะกับ real-time |
+| **Express.js** | web framework สำหรับ Node.js | เบา ยืดหยุ่น middleware architecture, ecosystem ใหญ่ |
+| **Socket.IO** | library สำหรับ real-time bidirectional communication | auto-reconnect, room management, fallback to polling, auth middleware ในตัว |
+| **PostgreSQL 15** | relational database (SQL) | ACID compliance สำหรับ financial transactions, SELECT FOR UPDATE lock row สำหรับ escrow, foreign keys รับประกัน data integrity |
+| **JWT** | JSON Web Token สำหรับ authentication แบบ stateless | ไม่ต้อง store session บน server, ใช้กับ Socket.IO auth ได้ตรง, scale ง่าย |
+| **Google OAuth 2.0** | protocol สำหรับ login ผ่านบัญชี Google | ผู้ใช้ไม่ต้องจำ password ใหม่, ได้ verified email ทันที |
+| **Joi** | schema validation library สำหรับ JavaScript | validate ทุก API input ก่อนเข้า business logic, ป้องกัน invalid data + injection |
+| **bcrypt** | password hashing algorithm | hash รหัสผ่านแบบ one-way + salt, ปลอดภัยกว่า SHA/MD5 |
+| **Docker Compose** | tool สำหรับ define + run multi-container applications | ทุก environment เหมือนกัน, ลด "works on my machine", seed data auto-load |
+| **Jest** | JavaScript testing framework | รองรับ unit + integration test, mock system, code coverage, 179 tests |
+| **Playwright** | E2E browser testing framework | ทดสอบบน browser จริง (Chromium), จำลอง user interaction ครบ |
 
 ### สิ่งที่ต้องพูด
-> "Stack หลักคือ React + Node.js + PostgreSQL ซึ่งเป็น 3-Tier Architecture ใช้ TypeScript ฝั่ง frontend เพื่อ type safety, Tailwind CSS เพื่อความเร็วในการพัฒนา UI, Socket.IO สำหรับ real-time features, และ Docker Compose สำหรับจัดการ environment"
+> "เทคโนโลยีหลักที่เลือกใช้ แต่ละตัวเลือกมาด้วยเหตุผลเฉพาะ
+>
+> Frontend ใช้ React 18 ซึ่งเป็น component-based UI library ร่วมกับ TypeScript ที่เพิ่มระบบ type ช่วยป้องกัน bug ตั้งแต่ตอน compile Tailwind CSS เป็น utility-first CSS framework ที่ช่วยพัฒนา UI ได้เร็วโดยไม่ต้องเขียน CSS file แยก และ Vite เป็น build tool ที่เร็วกว่า Webpack มาก
+>
+> Backend ใช้ Node.js เพราะใช้ JavaScript ภาษาเดียวกันกับ frontend ลด context switching ร่วมกับ Express.js ซึ่งเป็น web framework ที่เบาและยืดหยุ่น
+>
+> Real-time ใช้ Socket.IO ซึ่งเป็น library สำหรับ bidirectional communication เลือกใช้แทน WebSocket ตรงๆ เพราะมี auto-reconnect, room management, fallback to polling กรณีเครือข่ายไม่รองรับ WebSocket
+>
+> Database ใช้ PostgreSQL เลือกแทน MongoDB เพราะระบบมี financial transactions ที่ต้องการ ACID compliance และ SELECT FOR UPDATE สำหรับ lock row ตอนทำ escrow ซึ่ง relational database ทำได้ดีกว่า
+>
+> Authentication ใช้ JWT ซึ่งเป็น stateless token ไม่ต้อง store session บน server เหมาะกับ Socket.IO authentication ด้วย password hash ด้วย bcrypt ที่เป็น one-way hash + salt
+>
+> ทั้งหมดรันใน Docker Compose เพื่อให้ dev, test, production ใช้ environment เหมือนกันครับ/ค่ะ"
 
 ### ดักคำถาม
 - **"ทำไมเลือก PostgreSQL ไม่ใช่ MongoDB?"**
-  → "เพราะระบบมี financial transactions ที่ต้องการ ACID compliance, foreign keys, และ transaction isolation ที่ relational database ทำได้ดีกว่า เช่น escrow wallet ต้อง lock row ด้วย SELECT FOR UPDATE"
-- **"ทำไมใช้ Socket.IO ไม่ใช่ WebSocket ตรงๆ?"**
-  → "Socket.IO ให้ auto-reconnect, room management, fallback to polling กรณี WebSocket ไม่รองรับ และมี built-in authentication middleware"
+  → "MongoDB เป็น document DB เหมาะกับ schema ที่เปลี่ยนบ่อย แต่ระบบนี้มี financial transactions ที่ต้องการ ACID (Atomicity, Consistency, Isolation, Durability) เช่น escrow ต้อง lock row ด้วย SELECT FOR UPDATE ต้องมี foreign keys รับประกัน data integrity และ ledger_transactions ต้อง immutable PostgreSQL ตอบโจทย์กว่า"
+- **"ทำไมใช้ Socket.IO ไม่ใช้ WebSocket ตรงๆ?"**
+  → "WebSocket เป็น raw protocol ต้องจัดการ reconnect, room, fallback เอง Socket.IO ให้ทั้งหมดนี้พร้อมใช้ มี auto-reconnect ตอน network หลุด, room management สำหรับ chat threads, fallback to HTTP long-polling กรณี browser ไม่รองรับ WebSocket, และ authentication middleware ใช้ JWT verify ก่อน connect"
 - **"ทำไมไม่ใช้ Next.js?"**
-  → "เลือก Vite + React เพราะเป็น SPA ที่ไม่ต้องการ SSR, build เร็วกว่า, และ simple architecture เหมาะกับ project scope นี้"
-- **"ทำไมใช้ JWT ไม่ใช้ session?"**
-  → "JWT เหมาะกับ stateless API + Socket.IO authentication, ใช้ access token หมดอายุเร็ว + refresh token สำหรับ renewal เพื่อ security"
+  → "Next.js เป็น full-stack React framework ที่เด่นเรื่อง SSR (Server-Side Rendering) แต่ระบบนี้เป็น SPA (Single Page Application) ที่ทุกหน้าต้อง login ก่อน ไม่ต้องการ SEO ไม่ต้องการ SSR Vite + React เบากว่า build เร็วกว่า simple architecture เหมาะกับ project scope"
+- **"ทำไมใช้ JWT ไม่ใช้ session-based auth?"**
+  → "Session-based ต้อง store session บน server ถ้ามีหลาย instance ต้องใช้ Redis share session JWT เป็น stateless เก็บ user info ใน token เลย server ไม่ต้อง store อะไร scale ง่าย และใช้กับ Socket.IO auth ได้ตรงโดย verify JWT ตอน handshake"
+- **"ทำไมใช้ Tailwind CSS ไม่ใช่ Bootstrap หรือ MUI?"**
+  → "Bootstrap/MUI เป็น component library มี style สำเร็จรูป แต่ customize ยาก Tailwind เป็น utility-first ให้ control ทุก pixel ไม่ต้อง override styles ออกแบบ UI ตาม design ได้ตรง bundle size เล็กเพราะ purge class ที่ไม่ใช้ออก"
+- **"ทำไมใช้ Joi ไม่ใช้ Zod?"**
+  → "Joi เป็น validation library ที่ mature กว่า มี ecosystem กับ Express.js ดี support complex validation rules เช่น conditional fields, custom validators Zod ดีสำหรับ TypeScript แต่ backend เป็น plain JavaScript Joi เหมาะกว่า"
+- **"bcrypt กับ argon2 ต่างกันยังไง?"**
+  → "ทั้งคู่เป็น password hashing ที่ปลอดภัย argon2 ใหม่กว่าและ memory-hard ดีกว่า แต่ bcrypt เป็น industry standard ที่ proven มานาน library support ดีทุก platform เลือกใช้ bcrypt เพราะ battle-tested และเพียงพอสำหรับ project scope"
+- **"Docker Compose กับ Kubernetes ต่างกันยังไง?"**
+  → "Kubernetes เป็น container orchestration สำหรับ production scale ใหญ่ Docker Compose เป็นเครื่องมือง่ายสำหรับ define multi-container ในเครื่องเดียว เหมาะกับ development + single-server deployment ถ้าต้อง scale ค่อยย้ายไป Kubernetes"
 
 ---
 
@@ -465,3 +492,293 @@
    - `jobService.js` (Escrow + Settlement)
    - `trustLevelWorker.js` (Trust Score)
    - `chatSocket.js` (Socket.IO events)
+
+---
+
+## Full Speaking Script (แนวทางการพูดทุกสไลด์)
+
+> ด้านล่างคือ script เต็มสำหรับฝึกพูด ไม่จำเป็นต้องท่องทุกคำ แต่ให้จับ flow และ key points
+
+---
+
+### สไลด์ 1 — Title (30 วินาที)
+
+> "สวัสดีครับ/ค่ะ ผม/ดิฉัน [ชื่อ] รหัส [รหัส] วันนี้จะนำเสนอโปรเจคจบเรื่อง CareConnect ซึ่งเป็นระบบเว็บแอปพลิเคชันสำหรับเชื่อมต่อผู้ว่าจ้างกับผู้ดูแลผู้สูงอายุ โดยมี [ชื่ออาจารย์] เป็นอาจารย์ที่ปรึกษาครับ/ค่ะ"
+
+---
+
+### สไลด์ 2 — ที่มาและความสำคัญ (1 นาที)
+
+> "ที่มาของโปรเจคนี้คือ ปัจจุบันประเทศไทยก้าวเข้าสู่สังคมสูงอายุ มีผู้สูงอายุมากกว่า 20% ของประชากร
+>
+> ปัญหาที่พบคือ เมื่อครอบครัวต้องการจ้างผู้ดูแล มักต้องหาผ่านคนรู้จักหรือบริษัทจัดหา ซึ่งไม่มีระบบยืนยันตัวตนที่น่าเชื่อถือ ไม่มีระบบรับประกันเงิน คือจ่ายเงินไปแล้วถ้าผู้ดูแลไม่มาก็ไม่ได้คืน และไม่มีหลักฐานการทำงานว่าผู้ดูแลมาทำงานจริงหรือเปล่า
+>
+> CareConnect จึงถูกพัฒนาขึ้นเพื่อแก้ปัญหาเหล่านี้ โดยเป็น Two-sided Marketplace ที่มีระบบ Trust Level ยืนยันตัวตน ระบบ Escrow Payment รับประกันเงิน และระบบ GPS Evidence บันทึกหลักฐานการทำงานครับ/ค่ะ"
+
+---
+
+### สไลด์ 3 — วัตถุประสงค์ (30 วินาที)
+
+> "วัตถุประสงค์ของโปรเจคมี 5 ข้อ
+>
+> ข้อแรก พัฒนาระบบเว็บแอปพลิเคชันสำหรับเชื่อมต่อผู้ว่าจ้างกับผู้ดูแลผู้สูงอายุ
+> ข้อสอง พัฒนาระบบ Trust Level เพื่อยืนยันความน่าเชื่อถือของผู้ใช้
+> ข้อสาม พัฒนาระบบ Escrow Payment เพื่อรับประกันการจ่ายเงิน
+> ข้อสี่ พัฒนาระบบ GPS Evidence เพื่อบันทึกหลักฐานการทำงาน
+> และข้อห้า พัฒนาระบบ Real-time Chat และ Notification ครับ/ค่ะ"
+
+---
+
+### สไลด์ 4 — ขอบเขตโปรเจค (1 นาที)
+
+> "ขอบเขตของโปรเจค ระบบรองรับ 3 บทบาทหลัก คือผู้ว่าจ้าง ผู้ดูแล และผู้ดูแลระบบ
+>
+> ในแง่ขนาด มี Use Case ทั้งหมด 40 ตัว ครอบคลุม 8 กลุ่มฟังก์ชัน ตั้งแต่สมัครสมาชิก สร้างงาน จ่ายเงิน แชท ไปจนถึงระบบข้อพิพาท Backend มี API 128 endpoints จาก 16 Controllers ฐานข้อมูล 40 ตาราง และมี Automated Tests 179 กรณี ทดสอบด้วย Jest และ Playwright ครับ/ค่ะ"
+
+---
+
+### สไลด์ 5 — Technology Stack (1 นาที)
+
+> "เทคโนโลยีที่ใช้ Frontend เป็น React 18 กับ TypeScript ใช้ Tailwind CSS สำหรับ styling และ Vite สำหรับ build
+>
+> Backend เป็น Node.js กับ Express.js ใช้ Socket.IO สำหรับ real-time features
+>
+> Database ใช้ PostgreSQL เวอร์ชัน 15 เลือกใช้เพราะต้องการ ACID compliance สำหรับ financial transactions ระบบมีการ lock row ด้วย SELECT FOR UPDATE ตอนทำ escrow ซึ่ง relational database เหมาะกว่า NoSQL
+>
+> Authentication ใช้ JWT กับ Refresh Token รองรับ Google OAuth ด้วย Validation ใช้ Joi ทุก endpoint และรัน environment ด้วย Docker Compose ทั้ง dev test และ production ครับ/ค่ะ"
+
+---
+
+### สไลด์ 6 — System Architecture (1.5 นาที)
+
+> "สถาปัตยกรรมเป็นแบบ 3-Tier
+>
+> ชั้นแรกคือ Client Layer ผู้ใช้เข้าผ่าน Browser ไปยัง Frontend ที่เป็น React SPA
+>
+> ชั้นที่สองคือ Application Layer Frontend ส่ง HTTP request ผ่าน /api proxy ไปยัง Backend ที่เป็น Express.js ส่วน real-time จะเชื่อมผ่าน WebSocket ของ Socket.IO
+>
+> ชั้นที่สามคือ Data Layer Backend เชื่อมต่อ PostgreSQL ผ่าน connection pool
+>
+> นอกจากนี้มี Mock Provider ที่จำลอง Payment, SMS, KYC สำหรับขั้นตอนพัฒนา ซึ่งในโปรดักชันจะเปลี่ยนเป็น provider จริงโดยไม่ต้องแก้โค้ดหลัก เพราะ interface เหมือนกัน
+>
+> ทั้งหมดรันใน Docker Compose 4 containers ครับ/ค่ะ"
+
+---
+
+### สไลด์ 7 — Database Design (1 นาที)
+
+> "ฐานข้อมูลมี 40 ตาราง มี 2 design pattern สำคัญ
+>
+> ตัวแรกคือ Two-table Job Pattern แยก job_posts ซึ่งเป็นประกาศงาน กับ jobs ซึ่งเป็น instance จริงที่สร้างเมื่อผู้ดูแลรับงาน ประโยชน์คือ ถ้า caregiver คนแรกยกเลิก ประกาศยังอยู่ สามารถเปิดให้คนใหม่รับได้
+>
+> ตัวที่สองคือ Immutable Ledger ตาราง ledger_transactions เป็น append-only ไม่มี UPDATE ไม่มี DELETE ทุก transaction มี idempotency_key เป็น UNIQUE ป้องกันการบันทึกซ้ำ ทำให้ audit trail ครบถ้วนครับ/ค่ะ"
+
+---
+
+### สไลด์ 8 — Trust Level (1 นาที)
+
+> "ระบบ Trust Level มี 4 ระดับ
+>
+> L0 คือเพิ่งสมัคร ยังไม่ยืนยันอะไร สร้าง draft งานได้แต่ publish ไม่ได้
+> L1 คือยืนยัน Email และ Phone ทั้งคู่ผ่าน OTP publish งาน low_risk ได้
+> L2 คือผ่าน KYC ส่งบัตรประชาชนและ selfie ให้ Admin ตรวจ publish งาน high_risk ได้ และถอนเงินได้
+> L3 คือยืนยันบัญชีธนาคาร + Trust Score 80 ขึ้นไป
+>
+> Trust Score คำนวณจาก 9 factors เช่น จำนวนงานเสร็จ average rating อายุบัญชี เอกสารใบรับรอง ใช้ weighted sum
+>
+> การตรวจสิทธิ์ใช้ Policy Gate คือ function can() ที่ตรวจ role กับ trust level ก่อนเข้าทุก route ถ้าไม่ผ่านคืน 403 Forbidden ทันทีครับ/ค่ะ"
+
+---
+
+### สไลด์ 9 — Job Lifecycle & Payment Flow (1.5 นาที)
+
+> "สไลด์นี้เป็นหัวใจของระบบ คือวงจรชีวิตงานและการเงิน
+>
+> เริ่มจาก ผู้ว่าจ้างเติมเงินเข้า wallet ผ่าน QR Code แล้วสร้างงานซึ่งเป็น draft ก่อน
+>
+> เมื่อกด publish ระบบจะ hold เงิน คือย้ายจาก available ไป held balance
+>
+> เมื่อผู้ดูแล accept งาน เงินจะย้ายจาก held เข้า escrow wallet ที่สร้างขึ้นสำหรับงานนี้โดยเฉพาะ ทั้ง 2 ฝ่ายเข้าถึงเงินนี้ไม่ได้
+>
+> ผู้ดูแล check-in ด้วย GPS เปลี่ยนสถานะเป็น in_progress ทำงานจนเสร็จ แล้ว check-out พร้อมเขียน evidence note
+>
+> ตอน check-out ระบบทำ settlement คือจ่าย total_amount ให้ผู้ดูแล และ platform_fee ให้แพลตฟอร์ม ทั้งหมดจาก escrow
+>
+> ถ้ามีปัญหาและยกเลิก เงินจะ refund กลับผู้ว่าจ้างอัตโนมัติ
+>
+> ทุกขั้นตอนบันทึกใน immutable ledger ตรวจสอบย้อนหลังได้ทั้งหมดครับ/ค่ะ"
+
+---
+
+### สไลด์ 10 — Use Case Diagram (1 นาที)
+
+> "Use Case Diagram มี 40 Use Cases แบ่ง 8 กลุ่ม สำหรับ 4 Actors คือ Guest, Hirer, Caregiver, และ Admin
+>
+> ออกแบบเป็น navigation-based คือ bubble สีฟ้าเป็นหน้าหลักที่ผู้ใช้เข้าผ่าน Tab เช่น หน้างานของฉัน หน้าค้นหาผู้ดูแล หน้ากระเป๋าเงิน และ bubble อื่นเป็น extend actions ที่ทำได้จากหน้านั้น
+>
+> ทุก Use Case มี description table ที่ระบุ preconditions, main flow, exceptional flow และมี test case ทดสอบทุกตัวครับ/ค่ะ"
+
+---
+
+### สไลด์ 11 — Demo: Hirer Flow (2 นาที)
+
+> "ทีนี้จะ demo จากมุมผู้ว่าจ้าง
+>
+> *[เปิด browser tab ผู้ว่าจ้าง]*
+>
+> นี่คือหน้าหลัก มี 4 แท็บ คืองานของฉัน ค้นหาผู้ดูแล ผู้รับการดูแล และกระเป๋าเงิน
+>
+> เริ่มจากเพิ่มผู้รับการดูแลก่อน กรอกข้อมูล ชื่อ อายุ โรคประจำตัว อุปกรณ์การแพทย์
+>
+> จากนั้นสร้างงาน เป็น wizard form เลือกผู้รับการดูแล กรอกรายละเอียด เลือกวันเวลา ระบบคำนวณจำนวนชั่วโมงอัตโนมัติ กรอกค่าจ้างต่อชั่วโมง เลือก job tasks ระบบคำนวณ risk level อัตโนมัติจากข้อมูลที่กรอก
+>
+> กดบันทึก ได้ draft กดเผยแพร่ ระบบ hold เงินและงานปรากฏใน feed ของผู้ดูแล
+>
+> หรือจะไปหน้าค้นหาผู้ดูแล กรองตามทักษะ ประสบการณ์ แล้ว Direct Assign ให้ผู้ดูแลที่ต้องการเลยก็ได้ครับ/ค่ะ"
+
+---
+
+### สไลด์ 12 — Demo: Caregiver Flow (2 นาที)
+
+> "ทีนี้เปลี่ยนมาดูฝั่งผู้ดูแล
+>
+> *[เปิด browser tab ผู้ดูแล]*
+>
+> หน้า Job Feed แสดงเฉพาะงานที่ trust level รับได้ งานที่ทับซ้อนเวลากับงานที่รับแล้วจะไม่แสดง และงานที่สร้างเองก็ไม่เห็น
+>
+> กด accept งาน ระบบสร้าง escrow wallet และห้องแชทอัตโนมัติ สามารถแชทกับผู้ว่าจ้างได้ทันที
+>
+> ถึงเวลา กด check-in ระบบขอ GPS จาก browser บันทึกตำแหน่ง สถานะเปลี่ยนเป็นกำลังดำเนินการ ผู้ว่าจ้างได้รับ notification ทันที
+>
+> ทำงานเสร็จ กด check-out ต้องเขียน evidence note สรุปการทำงาน ระบบจ่ายเงินเข้า wallet อัตโนมัติ
+>
+> ถ้าต้องการถอนเงิน ต้องมี trust level L2 ขึ้นไป คือผ่าน KYC แล้ว เลือกบัญชีธนาคาร ระบุจำนวน แล้วรอ Admin อนุมัติครับ/ค่ะ"
+
+---
+
+### สไลด์ 13 — Demo: Admin Flow (1 นาที)
+
+> "สุดท้ายฝั่ง Admin
+>
+> *[เปิด browser tab Admin]*
+>
+> Admin มี dashboard ดูสถิติภาพรวม จัดการผู้ใช้ได้ทั้งหมด ค้นหา กรองตาม role สถานะ
+>
+> Review KYC ดูเอกสารบัตรประชาชนและ selfie แล้ว approve หรือ reject ถ้า approve trust level ขึ้นเป็น L2
+>
+> จัดการ dispute รับมอบหมาย อ่านหลักฐานจากทั้ง 2 ฝ่าย แล้ว settle คือกำหนดว่าจะคืนเงินให้ฝ่ายไหนเท่าไร
+>
+> และดูรายงานการเงิน ledger transactions ทั้งหมด อนุมัติถอนเงินครับ/ค่ะ"
+
+---
+
+### สไลด์ 14 — Real-time Features (1 นาที)
+
+> "ระบบ real-time มี 2 ส่วนหลัก
+>
+> ส่วนแรกคือ Chat ใช้ Socket.IO เป็น room-based ระบบสร้างห้องแชทอัตโนมัติเมื่อ caregiver accept งาน มี typing indicator แสดงว่าอีกฝ่ายกำลังพิมพ์ มี read status แสดงว่าอ่านแล้ว
+>
+> ส่วนที่สองคือ Notification ใช้ hybrid approach คือ Socket.IO เป็น primary ส่ง event ทันที กับ polling ทุก 15 วินาทีเป็น fallback กรณี socket หลุด เมื่อ reconnect หรือ tab กลับมา focus ระบบจะ fetch จำนวน unread ทันที
+>
+> นอกจากนี้ยังรองรับ Push Notification ผ่าน PWA Service Worker และ Email Notification ผ่าน Nodemailer ด้วยครับ/ค่ะ"
+
+---
+
+### สไลด์ 15 — Security & Policy Gate (1 นาที)
+
+> "Security ออกแบบหลายชั้น
+>
+> Authentication ใช้ JWT access token หมดอายุ 15 นาที กับ refresh token 7 วัน เก็บใน sessionStorage ที่แยกต่อ tab ปิด tab เท่ากับ logout
+>
+> Authorization ใช้ Policy Gate function can() ตรวจ role กับ trust level ก่อนทุก request มากกว่า 30 actions
+>
+> Financial Security ใช้ Escrow wallet แยกต่องาน Immutable Ledger บันทึกทุก transaction Idempotency Key ป้องกัน duplicate payment และ HMAC-SHA256 ตรวจ webhook signature
+>
+> Validation ใช้ Joi schema ทุก endpoint ป้องกัน invalid input Password ใช้ bcrypt hash และมี Rate Limiting ป้องกัน brute force ครับ/ค่ะ"
+
+---
+
+### สไลด์ 16 — Testing & Results (1 นาที)
+
+> "การทดสอบแบ่ง 2 ส่วน
+>
+> ส่วนแรก Functional Testing ออกแบบ test cases จาก Use Case ทั้ง 40 ตัว ครอบคลุมทั้ง main flow และ exceptional flow รวม 71 กรณีทดสอบ ผ่านทั้งหมด 100%
+>
+> ส่วนที่สอง Automated Tests ด้วย Jest มี 179 tests ผ่านทั้งหมด ครอบคลุม unit tests สำหรับ trust score calculation, risk level computation และ integration tests สำหรับ API endpoints
+>
+> นอกจากนี้ยังมี Playwright สำหรับ E2E testing บน browser จริงครับ/ค่ะ"
+
+---
+
+### สไลด์ 17 — ข้อจำกัด (30 วินาที)
+
+> "ข้อจำกัดหลักมี 5 ข้อ
+>
+> หนึ่ง GPS accuracy ขึ้นกับ device ในอาคารอาจผิดพลาดได้ สอง Real-time ขึ้นกับ internet connection สาม Payment ยังใช้ Mock Provider สี่ ยังเป็น single-instance ไม่รองรับ horizontal scaling และห้า Chat ยังไม่รองรับ file preview สมบูรณ์ครับ/ค่ะ"
+
+---
+
+### สไลด์ 18 — ข้อเสนอแนะ (30 วินาที)
+
+> "ข้อเสนอแนะเรียงตามลำดับ
+>
+> ความสำคัญสูง คือ integrate Payment Gateway จริง เช่น Omise หรือ 2C2P เพราะ architecture รองรับแล้ว กับ Background Check สำหรับผู้ดูแล
+>
+> ความสำคัญกลาง คือ Advanced Review System และ Horizontal Scaling
+>
+> ระยะยาว คือ Mobile App, AI Matching, GPS Anti-spoofing ครับ/ค่ะ"
+
+---
+
+### สไลด์ 19 — สรุป (1 นาที)
+
+> "สรุป ระบบ CareConnect ได้รับการพัฒนาสำเร็จครบตามวัตถุประสงค์ทั้ง 5 ข้อ
+>
+> จุดเด่น 5 ประการ
+> หนึ่ง สถาปัตยกรรม 3-Tier พร้อม Immutable Financial Ledger
+> สอง Trust Level System 4 ระดับ คำนวณจาก 9 factors
+> สาม Escrow Payment รับประกันเงินทั้ง 2 ฝ่าย
+> สี่ Real-time Chat และ Notification พร้อม fallback
+> ห้า ผ่านมาตรฐาน Accessibility WCAG 2.1 AA
+>
+> ทดสอบ 71 กรณีทดสอบ ผ่าน 100% Automated Tests 179 ผ่านทั้งหมด
+>
+> ขอบคุณครับ/ค่ะ"
+
+---
+
+### สไลด์ 20 — Q&A
+
+> "ขอบคุณครับ/ค่ะ ยินดีตอบคำถามครับ/ค่ะ"
+>
+> *[รอคำถาม — ดูแนวตอบจาก section ดักคำถามด้านบน]*
+
+---
+
+## เทคนิคการพูดที่ดี
+
+### น้ำเสียง & จังหวะ
+- **เปิด**: พูดเสียงดังชัด มั่นใจ สบตาอาจารย์ ไม่ต้องรีบ
+- **เนื้อหาเทคนิค**: พูดช้าลงเล็กน้อย เน้นคำสำคัญ เช่น "Escrow", "Immutable", "Policy Gate"
+- **Demo**: พูดไป ชี้ไป อย่าเงียบขณะ demo
+- **สรุป**: พูดช้า หนักแน่น จบด้วยรอยยิ้ม
+
+### สิ่งที่ควรทำ
+- ✅ สบตาอาจารย์ ไม่ใช่จ้องจอ
+- ✅ ใช้มือชี้สไลด์เมื่ออธิบายแผนภาพ
+- ✅ พูด "ทำไม" ก่อน "อย่างไร" — อาจารย์วิศวะชอบ design decisions
+- ✅ ยอมรับข้อจำกัดตรงๆ — แสดงว่าเข้าใจ scope
+- ✅ ตอบคำถามให้จบ ไม่ต้องยาว 2-3 ประโยคก็พอ
+
+### สิ่งที่ไม่ควรทำ
+- ❌ อ่านสไลด์ทุกตัวอักษร
+- ❌ พูดเร็วเกินจนอาจารย์ตามไม่ทัน
+- ❌ ตอบ "ไม่รู้" โดยไม่อธิบาย — ให้บอก "ส่วนนี้ยังไม่ได้ทำ แต่ออกแบบไว้ให้รองรับได้"
+- ❌ เถียงอาจารย์ — ถ้าอาจารย์แนะนำ ให้รับฟังแล้วบอก "เป็นจุดที่ดีครับ จะนำไปปรับปรุง"
+- ❌ Demo สด แล้ว crash — ถ้าไม่มั่นใจ ใช้ screenshot แทน
+
+### ลำดับความสำคัญเมื่อถูกกดเวลา
+ถ้าเหลือเวลาน้อย ตัดสไลด์ตามนี้:
+1. **ห้ามตัด**: สไลด์ 2, 6, 8, 9, 11-12 (เป็นหัวใจ)
+2. **ตัดได้**: สไลด์ 10 (UC Diagram — พูดสั้นๆ), 17-18 (ข้อจำกัด/เสนอแนะ — รวมเป็น 1)
+3. **ตัดก่อน**: สไลด์ 13 (Admin demo — โชว์สั้นๆ), 14 (Real-time — พูดรวมกับ demo)
