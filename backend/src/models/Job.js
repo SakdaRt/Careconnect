@@ -1,6 +1,7 @@
 import BaseModel from './BaseModel.js';
 import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { getHirerDepositAmount, getCaregiverDepositAmount } from '../utils/depositTier.js';
 
 /**
  * Job State Machine
@@ -149,7 +150,9 @@ class Job extends BaseModel {
     // Calculate total amount and platform fee
     const total_amount = Math.round(hourly_rate * total_hours);
     const platform_fee_percent = 10;
-    const platform_fee_amount = Math.round(total_amount * (platform_fee_percent / 100));
+    const platform_fee_amount = Math.floor(total_amount * (platform_fee_percent / 100));
+    const hirer_deposit_amount = getHirerDepositAmount(total_amount);
+    const caregiver_deposit_amount = getCaregiverDepositAmount(total_amount);
 
     const payload = {
       id: uuidv4(),
@@ -175,6 +178,8 @@ class Job extends BaseModel {
       total_amount,
       platform_fee_percent,
       platform_fee_amount,
+      hirer_deposit_amount,
+      caregiver_deposit_amount,
       min_trust_level,
       required_certifications,
       job_tasks_flags: job_tasks_flags.length ? job_tasks_flags : null,

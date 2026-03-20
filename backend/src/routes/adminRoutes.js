@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { validateParams, validateQuery, validateBody, commonSchemas } from '../utils/validation.js';
 import { runTrustLevelWorker, triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 import { listUsers, getUser, setUserStatus, editUser, getUserWallet, setBan, getReportsSummary } from '../controllers/adminUserController.js';
-import { listJobs, getJob, cancelJob } from '../controllers/adminJobController.js';
+import { listJobs, getJob, cancelJob, settleJob, getJobFinancial } from '../controllers/adminJobController.js';
 import { listLedgerTransactions } from '../controllers/adminLedgerController.js';
 import { getHealth } from '../controllers/adminHealthController.js';
 import { listDisputes, getDispute, updateDispute, settle } from '../controllers/adminDisputeController.js';
@@ -218,6 +218,20 @@ router.get('/reports/summary', validateQuery(reportsSummaryQuery), getReportsSum
 router.get('/jobs', validateQuery(adminJobQuery), listJobs);
 router.get('/jobs/:id', validateParams(uuidParams), getJob);
 router.post('/jobs/:id/cancel', validateParams(uuidParams), validateBody(cancelJobBody), cancelJob);
+router.get('/jobs/:id/financial', validateParams(uuidParams), getJobFinancial);
+router.post('/jobs/:id/settle', validateParams(uuidParams), validateBody(Joi.object({
+  refund_amount: Joi.number().integer().min(0).default(0),
+  payout_amount: Joi.number().integer().min(0).default(0),
+  platform_fee_amount: Joi.number().integer().min(0).default(0),
+  platform_penalty_revenue: Joi.number().integer().min(0).default(0),
+  deposit_release_amount: Joi.number().integer().min(0).default(0),
+  compensation_amount: Joi.number().integer().min(0).default(0),
+  compensation_to: Joi.string().valid('hirer', 'caregiver').allow('', null),
+  fault_party: Joi.string().valid('hirer', 'caregiver', 'shared', 'none').required(),
+  fault_severity: Joi.string().valid('mild', 'severe').allow('', null),
+  settlement_note: Joi.string().trim().max(2000).allow('', null),
+  idempotency_key: Joi.string().trim().max(255).allow('', null),
+})), settleJob);
 
 router.get('/ledger/transactions', validateQuery(adminLedgerQuery), listLedgerTransactions);
 

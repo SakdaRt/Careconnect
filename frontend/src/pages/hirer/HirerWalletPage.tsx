@@ -9,7 +9,7 @@ import { useAuth } from '../../contexts';
 
 export default function HirerWalletPage() {
   const { user } = useAuth();
-  const userId = user?.id || 'demo-hirer';
+  const userId = user?.id || '';
 
   const [loading, setLoading] = useState(true);
   const [wallet, setWallet] = useState<WalletBalance | null>(null);
@@ -597,7 +597,7 @@ export default function HirerWalletPage() {
       <Modal
         isOpen={showTopupModal && !!activeTopupId}
         onClose={() => setShowTopupModal(false)}
-        title="ชำระเงินผ่าน Stripe Sandbox"
+        title="ชำระเงินเติมเงิน"
         size="md"
         footer={
           <div className="flex flex-wrap justify-end gap-2">
@@ -617,7 +617,7 @@ export default function HirerWalletPage() {
           </div>
 
           <div className="text-xs text-gray-600">
-            ระบบจะเปิด Stripe Checkout ในแท็บใหม่เพื่อชำระเงินด้วยบัตรทดสอบ
+            ระบบจะเปิดหน้าชำระเงินในแท็บใหม่
           </div>
 
           <div className="text-left bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">

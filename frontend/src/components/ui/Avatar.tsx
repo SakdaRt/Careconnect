@@ -29,8 +29,8 @@ export function Avatar({ src, userId, avatarVersion, name, size = 'md', alt, cla
 
   const resolvedSrc = useMemo(() => {
     if (src) return src;
-    return getAvatarUrl(userId, avatarVersion, cfg.variant);
-  }, [src, userId, avatarVersion, cfg.variant]);
+    return getAvatarUrl(userId, avatarVersion, cfg.variant, undefined, name);
+  }, [src, userId, avatarVersion, cfg.variant, name]);
 
   const getInitials = (n?: string) => {
     if (!n) return '?';

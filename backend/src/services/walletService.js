@@ -1189,11 +1189,33 @@ class WalletService {
         COUNT(*) FILTER (WHERE type = 'debit' AND reference_type = 'withdrawal') as payout_count,
         COALESCE(SUM(amount) FILTER (WHERE type = 'debit' AND reference_type = 'withdrawal'), 0) as payout_amount,
         COUNT(*) FILTER (WHERE type = 'reversal') as reversal_count,
-        COALESCE(SUM(amount) FILTER (WHERE type = 'reversal'), 0) as reversal_amount
+        COALESCE(SUM(amount) FILTER (WHERE type = 'reversal'), 0) as reversal_amount,
+        COUNT(*) FILTER (WHERE type = 'forfeit') as penalty_count,
+        COALESCE(SUM(amount) FILTER (WHERE type = 'forfeit'), 0) as penalty_amount
       FROM ledger_transactions
       WHERE created_at >= NOW() - INTERVAL '6 months'
       GROUP BY to_char(created_at, 'YYYY-MM')
       ORDER BY month DESC
+    `);
+
+    const depositStats = await query(`
+      SELECT
+        status,
+        COUNT(*) as count,
+        COALESCE(SUM(amount), 0) as total_amount
+      FROM job_deposits
+      GROUP BY status
+    `);
+
+    const unresolvedCount = await query(`
+      SELECT COUNT(*)::int as count FROM jobs WHERE fault_party = 'unresolved'
+    `);
+
+    const platformRevenue = await query(`
+      SELECT
+        COALESCE(SUM(final_platform_fee), 0) as total_fee_revenue,
+        COALESCE(SUM(final_platform_penalty_revenue), 0) as total_penalty_revenue
+      FROM jobs WHERE settlement_completed_at IS NOT NULL
     `);
 
     const integrity = await LedgerTransaction.verifyLedgerIntegrity();
@@ -1215,9 +1237,25 @@ class WalletService {
       };
     }
 
+    const depositMap = {};
+    for (const row of depositStats.rows) {
+      depositMap[row.status] = {
+        count: parseInt(row.count),
+        total_amount: parseInt(row.total_amount),
+      };
+    }
+
+    const revRow = platformRevenue.rows[0] || {};
+
     return {
       wallets: walletMap,
       withdrawals: withdrawalMap,
+      deposits: depositMap,
+      unresolved_jobs: unresolvedCount.rows[0]?.count || 0,
+      platform_revenue: {
+        total_fee_revenue: parseInt(revRow.total_fee_revenue) || 0,
+        total_penalty_revenue: parseInt(revRow.total_penalty_revenue) || 0,
+      },
       monthly: monthlyStats.rows.map(r => ({
         month: r.month,
         topup_count: parseInt(r.topup_count),
@@ -1228,6 +1266,8 @@ class WalletService {
         payout_amount: parseInt(r.payout_amount),
         reversal_count: parseInt(r.reversal_count),
         reversal_amount: parseInt(r.reversal_amount),
+        penalty_count: parseInt(r.penalty_count),
+        penalty_amount: parseInt(r.penalty_amount),
       })),
       ledger_integrity: integrity,
     };

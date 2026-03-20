@@ -142,6 +142,8 @@ async function ensureMockCaregivers() {
     10,
   );
 
+  const mockCaregiverReviewQueue = [];
+
   for (const caregiver of DEV_MOCK_CAREGIVERS) {
     const userResult = await query(
       `INSERT INTO users (
@@ -230,6 +232,94 @@ async function ensureMockCaregivers() {
         caregiver.available_days,
       ],
     );
+
+    // Ensure at least one document per caregiver
+    const docExists = await query(
+      `SELECT 1 FROM caregiver_documents WHERE user_id = $1 LIMIT 1`,
+      [userId],
+    );
+    if (docExists.rows.length === 0) {
+      const certName = (caregiver.certifications && caregiver.certifications[0]) || "basic_first_aid";
+      const docTitles = {
+        basic_first_aid: "ใบรับรองปฐมพยาบาลเบื้องต้น",
+        safe_transfer: "ใบรับรองการเคลื่อนย้ายผู้ป่วยอย่างปลอดภัย",
+        dementia_care: "ใบรับรองการดูแลผู้ป่วยสมองเสื่อม",
+        medication_management: "ใบรับรองการจัดการยา",
+        post_surgery_care: "ใบรับรองการดูแลผู้ป่วยหลังผ่าตัด",
+        vitals_monitoring: "ใบรับรองการติดตามสัญญาณชีพ",
+        catheter_care: "ใบรับรองการดูแลสายสวน",
+        wound_care: "ใบรับรองการดูแลแผล",
+        tube_feeding_care: "ใบรับรองการดูแลการให้อาหารทางสาย",
+      };
+      const docTitle = docTitles[certName] || `ใบรับรอง ${certName}`;
+      const issuers = ["สภากาชาดไทย", "สภาการพยาบาล", "กรมอนามัย กระทรวงสาธารณสุข", "สมาคมผู้ดูแลผู้สูงอายุ", "โรงพยาบาลจุฬาลงกรณ์"];
+      const issuer = issuers[Math.abs(userId.charCodeAt(0)) % issuers.length];
+      await query(
+        `INSERT INTO caregiver_documents (id, user_id, document_type, title, issuer, issued_date, file_path, file_name, file_size, mime_type, created_at, updated_at)
+         VALUES (gen_random_uuid(), $1, 'certification', $2, $3, $4, $5, $6, 102400, 'application/pdf', NOW(), NOW())
+         ON CONFLICT DO NOTHING`,
+        [userId, docTitle, issuer, new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10), `uploads/documents/cert-${certName}.pdf`, `cert-${certName}.pdf`],
+      );
+    }
+
+    // Collect caregivers that need reviews
+    const jobsCount = caregiver.completed_jobs_count || 0;
+    if (jobsCount > 0) {
+      mockCaregiverReviewQueue.push({ userId, jobsCount, email: caregiver.email });
+    }
+  }
+
+  // Generate reviews after all caregivers created (need to disable FK for mock reviews)
+  if (mockCaregiverReviewQueue.length > 0) {
+    await query(`ALTER TABLE caregiver_reviews DISABLE TRIGGER ALL`);
+    try {
+      const reviewComments = [
+        "ดูแลดีมาก เอาใจใส่ คุณยายชอบมาก",
+        "ตรงเวลา ใจเย็น ดูแลอ่อนโยน",
+        "พูดจาสุภาพ ทำงานเรียบร้อย แนะนำเลย",
+        "ดูแลดี แต่มาสายบ้างเล็กน้อย",
+        "เอาใจใส่ผู้ป่วยดีมาก มีความรับผิดชอบสูง",
+        "ทำงานละเอียด ดูแลครบทุกอย่าง",
+        "คุณแม่ชอบมาก บอกว่าอยากให้มาดูแลอีก",
+        "ประทับใจบริการ สุภาพ มีน้ำใจ",
+        "ดูแลดี ช่วยงานบ้านด้วย ขอบคุณค่ะ",
+        "มาตรงเวลา ดูแลเอาใจใส่ตลอด",
+        "พอใช้ได้ ต้องปรับปรุงเรื่องเวลาบ้าง",
+        "ดูแลดีมาก ผู้ป่วยสบายใจ",
+        "ใส่ใจรายละเอียด ดูแลยาได้ถูกต้อง",
+        "ช่วยเหลือได้ดี คุณพ่อพอใจมาก",
+        "ทำงานเก่ง มีประสบการณ์จริง",
+      ];
+      const hirerNames = ["สมศรี ว.", "วิชัย ส.", "นภา ใ.", "สุพรรณ ก.", "อรทัย จ.", "ประวิทย์ ล.", "จันทร์ ม.", "สมบัติ ร."];
+
+      for (const cg of mockCaregiverReviewQueue) {
+        const existingReviews = await query(`SELECT count(*)::int as cnt FROM caregiver_reviews WHERE caregiver_id = $1`, [cg.userId]);
+        if ((existingReviews.rows[0]?.cnt || 0) > 0) continue;
+
+        const reviewCount = Math.max(1, Math.floor(cg.jobsCount * (0.3 + Math.random() * 0.3)));
+        let ratingSum = 0;
+        for (let i = 0; i < reviewCount; i++) {
+          const rating = Math.random() < 0.15 ? 3 : Math.random() < 0.3 ? 4 : 5;
+          ratingSum += rating;
+          const comment = reviewComments[Math.floor(Math.random() * reviewComments.length)];
+          const reviewerName = hirerNames[Math.floor(Math.random() * hirerNames.length)];
+          const daysBack = Math.floor(Math.random() * 180) + 7;
+          const reviewDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+          await query(
+            `INSERT INTO caregiver_reviews (id, job_id, job_post_id, reviewer_id, caregiver_id, rating, comment, created_at, updated_at)
+             VALUES (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), $1, $2, $3, $4, $4)`,
+            [cg.userId, rating, `${comment} — ${reviewerName}`, reviewDate],
+          );
+        }
+        const avgRating = (ratingSum / reviewCount).toFixed(2);
+        await query(
+          `UPDATE caregiver_profiles SET average_rating = $2, total_reviews = $3, total_jobs_completed = $4, updated_at = NOW() WHERE user_id = $1`,
+          [cg.userId, avgRating, reviewCount, cg.jobsCount],
+        );
+      }
+    } finally {
+      await query(`ALTER TABLE caregiver_reviews ENABLE TRIGGER ALL`);
+    }
   }
 }
 

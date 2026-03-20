@@ -51,6 +51,7 @@ describe('jobService money flow', () => {
               min_trust_level: 'L1',
               total_amount: '1000',
               platform_fee_amount: '100',
+              hirer_deposit_amount: '200',
             },
           ],
         };
@@ -74,7 +75,8 @@ describe('jobService money flow', () => {
     );
 
     expect(updateHirerWalletCall).toBeTruthy();
-    expect(String(updateHirerWalletCall[0])).not.toContain('held_balance = held_balance + $1');
+    // New model: hirer deducts total_amount + hirer_deposit (1000 + 200 = 1200)
+    expect(updateHirerWalletCall[1][0]).toBe(1200);
   });
 
   test('checkOut throws if escrow held_balance is insufficient', async () => {
@@ -89,6 +91,7 @@ describe('jobService money flow', () => {
               caregiver_id: 'caregiver-1',
               total_amount: '1000',
               platform_fee_amount: '100',
+              hirer_deposit_amount: '200',
             },
           ],
         };

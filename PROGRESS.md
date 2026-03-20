@@ -101,6 +101,11 @@ careconnect/
 - [x] Top up, withdraw, transfer
 - [x] Bank account management (hirer L0+ / caregiver L1+)
 - [x] Transaction history
+- [x] **Platform Fee 10%** — หักจากค่าจ้าง (`Math.floor`), hirer จ่าย `total_amount`, CG ได้ `total_amount - fee`
+- [x] **Hirer Deposit** — tiered (100-2,000 บาท), hold ตอน publish, release/forfeit ตาม settlement
+- [x] **Cancel with penalty** — late cancel <24h ริบ 50% deposit (70/30 split: CG comp + platform rev)
+- [x] **Admin manual settlement** — settleJob endpoint + financial detail + audit log
+- [x] **Deposit tracking** — `job_deposits` table + status flow (held/released/forfeited)
 
 ### Admin
 
@@ -108,6 +113,7 @@ careconnect/
 - [x] KYC review
 - [x] Dispute management
 - [x] AdminFinancialPage — dashboard การเงิน, filter ธุรกรรม/withdrawals, export CSV
+- [x] AdminFinancialPage — Settlement tab + settle modal + revenue breakdown (fee vs penalty)
 
 ### UI/UX & Accessibility
 
@@ -182,6 +188,32 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-19 — Financial MVP: Platform Fee 10% + Hirer Deposit + Settlement
+
+- feat(database): migration `20260319_01_financial_deposits.sql` — 2 ENUMs + extend 2 ENUMs + ALTER job_posts/jobs + CREATE job_deposits
+- feat(backend): `depositTier.js` — tiered hirer deposit (5 tiers, hardcode MVP)
+- refactor(backend): `Job.js` — fee `Math.round` → `Math.floor` + deposit columns ใน createJobPost
+- refactor(backend): `jobService.js` — **4 functions เขียนใหม่**:
+  - `publishJob`: hold `total_amount + hirer_deposit` (ไม่รวม fee)
+  - `acceptJob`: escrow `total_amount + hirer_deposit` + INSERT `job_deposits`
+  - `checkOut`: CG ได้ `total_amount - fee`, release deposit, UPDATE jobs final_*
+  - `cancelJob`: 4 sub-cases (B/C/D/E) + penalty 50%/70/30 split + unresolved for admin
+- feat(backend): `adminJobController.js` — +`settleJob` (idempotency + audit) + `getJobFinancial`
+- feat(backend): `adminRoutes.js` — +2 routes + Joi validation
+- refactor(backend): `adminJobController.cancelJob` — deposit-aware refund (split ledger)
+- refactor(backend): `disputeService.js` — deposit release + jobs final_* on resolve
+- refactor(backend): `walletService.js` — dashboard stats: +deposits, +penalty_revenue, +unresolved_jobs
+- feat(frontend): `api.ts` — +deposit fields + adminGetJobFinancial + adminSettleJob
+- feat(frontend): `AdminFinancialPage.tsx` — Settlement tab + settle modal + dashboard cards (penalty rev, deposit, unresolved)
+- refactor(frontend): `JobReceiptPage.tsx` — new fee model display (total+deposit, CG net)
+- refactor(frontend): `JobDetailPage.tsx` — fee/deposit info display
+- refactor(frontend): `JobPreviewPage.tsx` — net payout for CG
+- refactor(frontend): `CaregiverJobFeedPage.tsx` — net payout in job cards
+- refactor(seed): `runDemoSeed.js` — fee floor + deposit tier + job_deposits + settlement fields
+- test: `jobService.money.test.js` — updated mock data for new model
+- verify:
+  - ✅ Migration: OK | TypeScript: 0 errors | Backend restart: OK
 
 ### 2026-03-18 — Admin pages: consistent layout + WCAG contrast + null guards
 

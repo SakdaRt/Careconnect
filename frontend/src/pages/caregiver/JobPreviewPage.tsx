@@ -99,6 +99,16 @@ export default function JobPreviewPage() {
                 <div className="text-xs text-gray-500">
                   {job.hourly_rate.toLocaleString()} บาท/ชม. × {job.total_hours} ชม.
                 </div>
+                {job.platform_fee_amount > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    ค่าดำเนินการ −{job.platform_fee_amount.toLocaleString()} บาท
+                  </div>
+                )}
+                {job.platform_fee_amount > 0 && (
+                  <div className="text-xs font-semibold text-green-600 mt-0.5">
+                    คุณจะได้รับ {(job.total_amount - job.platform_fee_amount).toLocaleString()} บาท
+                  </div>
+                )}
               </div>
             </div>
 

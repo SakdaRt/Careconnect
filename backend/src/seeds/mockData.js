@@ -1,7 +1,7 @@
 const DEV_MOCK_CAREGIVERS = [
   {
     email: "caregiver.mock1@careconnect.local",
-    display_name: "mock พิมพ์ชนก ผู้ดูแล",
+    display_name: "พิมพ์ชนก ผู้ดูแล",
     bio: "ดูแลผู้สูงอายุทั่วไป และช่วยกิจวัตรประจำวันอย่างอ่อนโยน",
     experience_years: 3,
     certifications: ["basic_first_aid", "safe_transfer"],
@@ -15,7 +15,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock2@careconnect.local",
-    display_name: "mock กิตติพร ผู้ดูแล",
+    display_name: "กิตติพร ผู้ดูแล",
     bio: "ถนัดดูแลผู้ป่วยสมองเสื่อม และเฝ้าระวังพฤติกรรมเสี่ยง",
     experience_years: 5,
     certifications: ["dementia_care", "medication_management"],
@@ -29,7 +29,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock3@careconnect.local",
-    display_name: "mock วรัญญา ผู้ดูแล",
+    display_name: "วรัญญา ผู้ดูแล",
     bio: "มีประสบการณ์ดูแลหลังผ่าตัดและติดตามสัญญาณชีพเบื้องต้น",
     experience_years: 4,
     certifications: ["post_surgery_care", "vitals_monitoring"],
@@ -43,7 +43,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock4@careconnect.local",
-    display_name: "mock ศิริพร ผู้ดูแล",
+    display_name: "ศิริพร ผู้ดูแล",
     bio: "ช่วยพยุงเดิน ย้ายท่า และดูแลผู้ป่วยติดเตียงอย่างปลอดภัย",
     experience_years: 6,
     certifications: ["safe_transfer", "catheter_care"],
@@ -57,7 +57,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock5@careconnect.local",
-    display_name: "mock ปวีณ์ ผู้ดูแล",
+    display_name: "ปวีณ์ ผู้ดูแล",
     bio: "รับงานดูแลทั่วไปแบบยืดหยุ่น เหมาะกับงานช่วงสั้นและเร่งด่วน",
     experience_years: 2,
     certifications: ["basic_first_aid"],
@@ -72,7 +72,7 @@ const DEV_MOCK_CAREGIVERS = [
   // Additional diverse caregivers
   {
     email: "caregiver.mock6@careconnect.local",
-    display_name: "mock สมชาย พยาบาล",
+    display_name: "สมชาย พยาบาล",
     bio: "พยาบาลวิชาชีพมีประสบการณ์ดูแลผู้ป่วยเฉพาะทาง และช่วยงานฟิสิโอเทอราพี",
     experience_years: 8,
     certifications: [
@@ -95,7 +95,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock7@careconnect.local",
-    display_name: "mock มาลี ผู้ดูแลเด็ก",
+    display_name: "มาลี ผู้ดูแลเด็ก",
     bio: "เชี่ยวชาญการดูแลเด็กพิการและเด็กที่มีความต้องการพิเศษ",
     experience_years: 5,
     certifications: ["child_care", "special_needs_care", "cpr_infant"],
@@ -109,7 +109,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock8@careconnect.local",
-    display_name: "mock บุญรอด นวดแผนไทย",
+    display_name: "บุญรอด นวดแผนไทย",
     bio: "ผู้เชี่ยวชาญนวดแผนไทยและการดูแลสุขภาพแบบองค์รวม",
     experience_years: 12,
     certifications: ["thai_massage", "aromatherapy", "reflexology"],
@@ -123,7 +123,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock9@careconnect.local",
-    display_name: "mock อรุณี โภชนากร",
+    display_name: "อรุณี โภชนากร",
     bio: "โภชนากรผู้เชี่ยวชาญดูแลอาหารและโภชนาการสำหรับผู้สูงอายุ",
     experience_years: 6,
     certifications: [
@@ -141,7 +141,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock10@careconnect.local",
-    display_name: "mock วิทย์ กายภาพ",
+    display_name: "วิทย์ กายภาพ",
     bio: "นักกายภาพบำบัดผู้เชี่ยวชาญดูแลผู้ป่วยฟื้นฟูสมรรถภาพ",
     experience_years: 7,
     certifications: ["physical_therapy_license", "rehabilitation_specialist"],
@@ -155,7 +155,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock11@careconnect.local",
-    display_name: "mock สุนีย์ ผู้ดูแลสมองเสื่อม",
+    display_name: "สุนีย์ ผู้ดูแลสมองเสื่อม",
     bio: "ผู้เชี่ยวชาญดูแลผู้ป่วยโรคอัลไซเมอร์และสมองเสื่อมชนิดอื่นๆ",
     experience_years: 9,
     certifications: [
@@ -173,7 +173,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock12@careconnect.local",
-    display_name: "mock ประเสริฐ พยาบาล",
+    display_name: "ประเสริฐ พยาบาล",
     bio: "พยาบาลผู้เชี่ยวชาญดูแลผู้ป่วยโรคไตและต้องฟอกเลือด",
     experience_years: 10,
     certifications: ["dialysis_certified", "renal_care", "iv_therapy"],
@@ -191,7 +191,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock13@careconnect.local",
-    display_name: "mock รัตนา ผู้ดูแลผู้ป่วยมะเร็ง",
+    display_name: "รัตนา ผู้ดูแลผู้ป่วยมะเร็ง",
     bio: "ผู้เชี่ยวชาญดูแลผู้ป่วยมะเร็งและการดูแลแบบประคับประคอง",
     experience_years: 8,
     certifications: ["oncology_care", "palliative_care", "pain_management"],
@@ -205,7 +205,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock14@careconnect.local",
-    display_name: "mock สมศรี พยาบาล",
+    display_name: "สมศรี พยาบาล",
     bio: "พยาบาลผู้เชี่ยวชาญดูแลผู้ป่วยหัวใจและความดันโลหิตสูง",
     experience_years: 7,
     certifications: [
@@ -223,7 +223,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock15@careconnect.local",
-    display_name: "mock อำนวย ผู้ดูแล",
+    display_name: "อำนวย ผู้ดูแล",
     bio: "ดูแลผู้สูงอายุทั่วไป มีประสบการณ์มาก พร้อมช่วยงานบ้าน",
     experience_years: 15,
     certifications: [
@@ -241,7 +241,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock16@careconnect.local",
-    display_name: "mock กนกวรรณ นวดบำบัด",
+    display_name: "กนกวรรณ นวดบำบัด",
     bio: "ผู้เชี่ยวชาญนวดบำบัดและการดูแลผู้ป่วยติดเตียง",
     experience_years: 6,
     certifications: [
@@ -259,7 +259,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock17@careconnect.local",
-    display_name: "mock ธิติ ผู้ดูแล",
+    display_name: "ธิติ ผู้ดูแล",
     bio: "ดูแลผู้ป่วยติดเตียงและช่วยกิจกรรมบำบัด",
     experience_years: 4,
     certifications: ["basic_first_aid", "rehabilitation_assist"],
@@ -277,7 +277,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock18@careconnect.local",
-    display_name: "mock วิไล ผู้ดูแล",
+    display_name: "วิไล ผู้ดูแล",
     bio: "เชี่ยวชาญดูแลผู้ป่วยทางเดินอาหารและใส่ท่อป้อนอาหาร",
     experience_years: 5,
     certifications: [
@@ -299,7 +299,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock19@careconnect.local",
-    display_name: "mock สมหญิง ผู้ดูแล",
+    display_name: "สมหญิง ผู้ดูแล",
     bio: "ดูแลผู้ป่วยเบาหวานและความดันโลหิตสูง",
     experience_years: 6,
     certifications: [
@@ -317,7 +317,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock20@careconnect.local",
-    display_name: "mock ประสิทธิ์ ผู้ดูแล",
+    display_name: "ประสิทธิ์ ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคทางเดินหายใจและใช้อุปกรณ์ช่วยหายใจ",
     experience_years: 8,
     certifications: ["respiratory_care", "oxygen_therapy", "cpr_certified"],
@@ -336,7 +336,7 @@ const DEV_MOCK_CAREGIVERS = [
   // Additional specialized caregivers
   {
     email: "caregiver.mock21@careconnect.local",
-    display_name: "mock สุภาดา ผู้ดูแล",
+    display_name: "สุภาดา ผู้ดูแล",
     bio: "เชี่ยวชาญดูแลผู้ป่วยติดเชื้อและการป้องกันการติดเชื้อในโรงพยาบาล",
     experience_years: 7,
     certifications: ["infection_control", "wound_care", "sterile_techniques"],
@@ -350,7 +350,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock22@careconnect.local",
-    display_name: "mock วิชัย กายภาพบำบัด",
+    display_name: "วิชัย กายภาพบำบัด",
     bio: "นักกายภาพบำบัดผู้เชี่ยวชาญดูแลผู้ป่วยอัมพฤกษ์และพาร์กินสัน",
     experience_years: 9,
     certifications: ["physical_therapy_license", "neuro_rehabilitation", "stroke_therapy"],
@@ -364,7 +364,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock23@careconnect.local",
-    display_name: "mock จิราวรรณ ผู้ดูแล",
+    display_name: "จิราวรรณ ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคข้ออักเสบและกล้ามเนื้ออักเสบ",
     experience_years: 6,
     certifications: ["arthritis_care", "joint_protection", "pain_management"],
@@ -378,7 +378,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock24@careconnect.local",
-    display_name: "mock สมศักดิ์ ผู้ดูแลผู้สูงอายุ",
+    display_name: "สมศักดิ์ ผู้ดูแลผู้สูงอายุ",
     bio: "ดูแลผู้สูงอายุที่มีโรคประจำตัวหลายโรคพร้อมกัน",
     experience_years: 11,
     certifications: ["geriatric_care", "multiple_chronic_conditions", "medication_management"],
@@ -392,7 +392,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock25@careconnect.local",
-    display_name: "mock นงนุช ผู้ดูแล",
+    display_name: "นงนุช ผู้ดูแล",
     bio: "เชี่ยวชาญการดูแลผู้ป่วยทางจิตเวชและสุขภาพจิต",
     experience_years: 5,
     certifications: ["mental_health_support", "crisis_intervention", "counseling_basics"],
@@ -406,7 +406,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock26@careconnect.local",
-    display_name: "mock อนันต์ ผู้ดูแล",
+    display_name: "อนันต์ ผู้ดูแล",
     bio: "ดูแลผู้ป่วยที่ต้องใช้เครื่องช่วยหายใจและทางเดินหายใจ",
     experience_years: 8,
     certifications: ["respiratory_therapy", "ventilator_care", "tracheostomy_care"],
@@ -420,7 +420,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock27@careconnect.local",
-    display_name: "mock พิไลลา ผู้ดูแล",
+    display_name: "พิไลลา ผู้ดูแล",
     bio: "เชี่ยวชาญการดูแลแม่และเด็กหลังคลอด",
     experience_years: 4,
     certifications: ["postpartum_care", "newborn_care", "lactation_support"],
@@ -434,7 +434,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock28@careconnect.local",
-    display_name: "mock ธีรพงษ์ ผู้ดูแล",
+    display_name: "ธีรพงษ์ ผู้ดูแล",
     bio: "ดูแลผู้ป่วยที่ต้องการฟื้นฟูหลังอุบัติเหตุและบาดเจ็บ",
     experience_years: 6,
     certifications: ["trauma_rehabilitation", "sports_injury_care", "pain_management"],
@@ -448,7 +448,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock29@careconnect.local",
-    display_name: "mock ศิริลักษณ์ ผู้ดูแล",
+    display_name: "ศิริลักษณ์ ผู้ดูแล",
     bio: "เชี่ยวชาญดูแลผู้ป่วยโรคพาร์กินสันและโรคความจำเสื่อม",
     experience_years: 7,
     certifications: ["parkinsons_care", "memory_care", "cognitive_therapy"],
@@ -462,7 +462,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock30@careconnect.local",
-    display_name: "mock ปรีชา ผู้ดูแล",
+    display_name: "ปรีชา ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคตับและต้องการการดูแลพิเศษ",
     experience_years: 5,
     certifications: ["liver_disease_care", "hepatitis_management", "nutrition_therapy"],
@@ -476,7 +476,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock31@careconnect.local",
-    display_name: "mock กัญญา ผู้ดูแล",
+    display_name: "กัญญา ผู้ดูแล",
     bio: "เชี่ยวชาญการดูแลผู้ป่วยติดเตียงและการป้องกันแผลพับซ้อน",
     experience_years: 9,
     certifications: ["wound_care_specialist", "bed_sore_prevention", "positioning_therapy"],
@@ -490,7 +490,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock32@careconnect.local",
-    display_name: "mock สมคิด ผู้ดูแล",
+    display_name: "สมคิด ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคกระดูกและข้อ พร้อมการฟื้นฟู",
     experience_years: 6,
     certifications: ["orthopedic_care", "bone_health", "mobility_training"],
@@ -504,7 +504,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock33@careconnect.local",
-    display_name: "mock รุจิรา ผู้ดูแล",
+    display_name: "รุจิรา ผู้ดูแล",
     bio: "เชี่ยวชาญดูแลผู้ป่วยโรคหัวใจและหลอดเลือด",
     experience_years: 8,
     certifications: ["cardiovascular_care", "heart_failure_management", "lifestyle_counseling"],
@@ -518,7 +518,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock34@careconnect.local",
-    display_name: "mock วิไลวรรณ ผู้ดูแล",
+    display_name: "วิไลวรรณ ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคไตเรื้อรังและการปรับเปลี่ยนพฤติกรรม",
     experience_years: 7,
     certifications: ["chronic_kidney_care", "behavioral_therapy", "diet_counseling"],
@@ -532,7 +532,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock35@careconnect.local",
-    display_name: "mock ชาญชัย ผู้ดูแล",
+    display_name: "ชาญชัย ผู้ดูแล",
     bio: "ดูแลผู้ป่วยที่ต้องการการผ่าตัดและการฟื้นฟูหลังผ่าตัด",
     experience_years: 10,
     certifications: ["surgical_care", "post_op_recovery", "rehabilitation_nursing"],
@@ -546,7 +546,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock36@careconnect.local",
-    display_name: "mock สมใจ ผู้ดูแล",
+    display_name: "สมใจ ผู้ดูแล",
     bio: "เชี่ยวชาญการดูแลผู้ป่วยสูงอายุที่มีภาวะสมองเสื่อม",
     experience_years: 6,
     certifications: ["elderly_care", "cognitive_assessment", "memory_therapy"],
@@ -560,7 +560,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock37@careconnect.local",
-    display_name: "mock บรรจง ผู้ดูแล",
+    display_name: "บรรจง ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคภูมิแพ้และภูมิแพ้ภาวะช็อก",
     experience_years: 5,
     certifications: ["allergy_management", "emergency_response", "epinephrine_administration"],
@@ -574,7 +574,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock38@careconnect.local",
-    display_name: "mock ทัศนีย์ ผู้ดูแล",
+    display_name: "ทัศนีย์ ผู้ดูแล",
     bio: "เชี่ยวชาญการดูแลผู้ป่วยโรคตาและการปรับสายตา",
     experience_years: 4,
     certifications: ["vision_care", "eye_surgery_support", "low_vision_assistance"],
@@ -588,7 +588,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock39@careconnect.local",
-    display_name: "mock สุรชัย ผู้ดูแล",
+    display_name: "สุรชัย ผู้ดูแล",
     bio: "ดูแลผู้ป่วยโรคระบบทางเดินอาหารและตับอ่อน",
     experience_years: 7,
     certifications: ["gi_care", "pancreatitis_management", "nutrition_therapy"],
@@ -602,7 +602,7 @@ const DEV_MOCK_CAREGIVERS = [
   },
   {
     email: "caregiver.mock40@careconnect.local",
-    display_name: "mock อรอนงค์ ผู้ดูแล",
+    display_name: "อรอนงค์ ผู้ดูแล",
     bio: "เชี่ยวชาญการดูแลผู้ป่วยปลายชีวิตและการดูแลแบบประคับประคอง",
     experience_years: 12,
     certifications: ["palliative_care_specialist", "end_of_life_care", "grief_support"],
@@ -637,7 +637,7 @@ const DEV_HOSPITAL_COMPANION_MOCK_CAREGIVERS =
 
     return {
       email: `caregiver.hospital${sequence}@careconnect.local`,
-      display_name: `mock ${name} ผู้ช่วยพาไปโรงพยาบาล`,
+      display_name: `${name} ผู้ช่วยพาไปโรงพยาบาล`,
       bio: "ถนัดพาผู้สูงอายุไปโรงพยาบาล ช่วยลงทะเบียน นัดหมาย และประสานการเดินทางไป-กลับ",
       experience_years: 2 + (index % 4),
       certifications: hasMedicationSupport
@@ -662,19 +662,19 @@ DEV_MOCK_CAREGIVERS.push(...DEV_HOSPITAL_COMPANION_MOCK_CAREGIVERS);
 const DEV_MOCK_HIRERS = [
   {
     email: "hirer.mock.hospital1@careconnect.local",
-    display_name: "mock ญาติคุณพิม",
+    display_name: "ญาติคุณพิม",
   },
   {
     email: "hirer.mock.hospital2@careconnect.local",
-    display_name: "mock ครอบครัวคุณวินัย",
+    display_name: "ครอบครัวคุณวินัย",
   },
   {
     email: "hirer.mock.hospital3@careconnect.local",
-    display_name: "mock ลูกสาวคุณดาวเรือง",
+    display_name: "ลูกสาวคุณดาวเรือง",
   },
   {
     email: "hirer.mock.hospital4@careconnect.local",
-    display_name: "mock ทีมดูแลผู้สูงวัย",
+    display_name: "ทีมดูแลผู้สูงวัย",
   },
 ];
 

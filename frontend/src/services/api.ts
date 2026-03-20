@@ -767,6 +767,29 @@ class ApiClient {
     });
   }
 
+  async adminGetJobFinancial(jobId: string) {
+    return this.request<{ job: Record<string, unknown>; deposits: Record<string, unknown>[]; ledger_transactions: Record<string, unknown>[]; escrow: Record<string, unknown> | null }>(`/api/admin/jobs/${jobId}/financial`);
+  }
+
+  async adminSettleJob(jobId: string, input: {
+    refund_amount?: number;
+    payout_amount?: number;
+    platform_fee_amount?: number;
+    platform_penalty_revenue?: number;
+    deposit_release_amount?: number;
+    compensation_amount?: number;
+    compensation_to?: string;
+    fault_party: string;
+    fault_severity?: string;
+    settlement_note?: string;
+    idempotency_key?: string;
+  }) {
+    return this.request<{ job_id: string; settlement_mode: string; fault_party: string; total_disbursed: number }>(
+      `/api/admin/jobs/${jobId}/settle`,
+      { method: 'POST', body: input }
+    );
+  }
+
   async adminGetLedgerTransactions(options?: {
     reference_type?: string;
     reference_id?: string;
@@ -1630,11 +1653,16 @@ export interface MonthlyStats {
   payout_amount: number;
   reversal_count: number;
   reversal_amount: number;
+  penalty_count: number;
+  penalty_amount: number;
 }
 
 export interface DashboardStats {
   wallets: Record<string, WalletTypeSummary>;
   withdrawals: Record<string, WithdrawalStatusSummary>;
+  deposits: Record<string, { count: number; total_amount: number }>;
+  unresolved_jobs: number;
+  platform_revenue: { total_fee_revenue: number; total_penalty_revenue: number };
   monthly: MonthlyStats[];
   ledger_integrity: {
     valid: boolean;
@@ -1811,6 +1839,8 @@ export interface JobPost {
   total_amount: number;
   platform_fee_percent: number;
   platform_fee_amount: number;
+  hirer_deposit_amount: number;
+  caregiver_deposit_amount: number;
   min_trust_level: string;
   required_certifications: string[];
   job_tasks_flags?: string[] | null;

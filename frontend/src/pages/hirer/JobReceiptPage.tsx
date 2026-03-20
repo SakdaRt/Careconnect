@@ -86,7 +86,9 @@ export default function JobReceiptPage() {
 
   const totalAmount = Number(job?.total_amount || 0);
   const feeAmount = Number(job?.platform_fee_amount || 0);
-  const gross = totalAmount + feeAmount;
+  const depositAmount = Number(job?.hirer_deposit_amount || 0);
+  const hirerTotal = totalAmount + depositAmount;
+  const caregiverNet = totalAmount - feeAmount;
 
   const receiptId = useMemo(() => {
     const ref = job?.job_id || jobId || '';
@@ -154,13 +156,19 @@ export default function JobReceiptPage() {
                   <div className="text-gray-700">ค่าจ้างงาน</div>
                   <div className="font-semibold text-gray-900 tabular-nums">{totalAmount.toLocaleString()} บาท</div>
                 </div>
-                <div className="flex items-center justify-between text-sm">
-                  <div className="text-gray-700">ค่าบริการแพลตฟอร์ม</div>
-                  <div className="font-semibold text-gray-900 tabular-nums">{feeAmount.toLocaleString()} บาท</div>
-                </div>
+                {depositAmount > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="text-gray-700">เงินประกัน <span className="text-xs text-gray-500">(คืนเมื่องานเสร็จ)</span></div>
+                    <div className="font-semibold text-gray-900 tabular-nums">{depositAmount.toLocaleString()} บาท</div>
+                  </div>
+                )}
                 <div className="border-t border-gray-200 pt-2 flex items-center justify-between text-sm">
-                  <div className="text-gray-900 font-semibold">รวม</div>
-                  <div className="text-gray-900 font-bold tabular-nums">{gross.toLocaleString()} บาท</div>
+                  <div className="text-gray-900 font-semibold">รวมที่จ่าย</div>
+                  <div className="text-gray-900 font-bold tabular-nums">{hirerTotal.toLocaleString()} บาท</div>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
+                  <div>ค่าดำเนินการ 10% ({feeAmount.toLocaleString()} บาท) หักจากค่าจ้าง</div>
+                  <div>ผู้ดูแลได้รับสุทธิ {caregiverNet.toLocaleString()} บาท</div>
                 </div>
               </div>
             </Card>

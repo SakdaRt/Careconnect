@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts';
 
 export default function CaregiverWalletPage() {
   const { user } = useAuth();
-  const userId = user?.id || 'demo-caregiver';
+  const userId = user?.id || '';
   const needsPhoneVerification = !user?.is_phone_verified;
   const needsKycVerification = !!user?.is_phone_verified && !['L2', 'L3'].includes(user?.trust_level || 'L0');
 
@@ -386,7 +386,7 @@ export default function CaregiverWalletPage() {
                   </Button>
                 </div>
               </div>
-              <p className="text-xs text-gray-500 mt-2">โหมดทดสอบ (Sandbox): ระบบจะพาไปหน้า Stripe Checkout แล้วค่อยกลับมากดยืนยันสถานะ</p>
+              <p className="text-xs text-gray-500 mt-2">ระบบจะพาไปหน้าชำระเงิน เมื่อชำระสำเร็จจะกลับมายืนยันสถานะอัตโนมัติ</p>
             </Card>
 
             <Card className="p-4 sm:p-6">
@@ -625,7 +625,7 @@ export default function CaregiverWalletPage() {
       <Modal
         isOpen={showTopupModal && !!activeTopupId}
         onClose={() => setShowTopupModal(false)}
-        title="ชำระเงินผ่าน Stripe Sandbox"
+        title="ชำระเงินเติมเงิน"
         size="md"
         footer={
           <div className="flex flex-wrap justify-end gap-2">
@@ -645,7 +645,7 @@ export default function CaregiverWalletPage() {
           </div>
 
           <div className="text-xs text-gray-600">
-            ระบบจะเปิด Stripe Checkout ในแท็บใหม่เพื่อชำระเงินด้วยบัตรทดสอบ
+            ระบบจะเปิดหน้าชำระเงินในแท็บใหม่
           </div>
 
           <div className="text-left bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">

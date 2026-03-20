@@ -341,7 +341,7 @@ export default function CaregiverJobFeedPage() {
                       <div className="mt-3 text-sm text-gray-700 grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>วันที่: {formatDate(job.scheduled_start_at)}</div>
                         <div>สถานที่: {location || '-'}</div>
-                        <div>ค่าจ้างรวม: {job.total_amount.toLocaleString()} บาท</div>
+                        <div>ค่าจ้าง: {job.total_amount.toLocaleString()} บาท <span className="text-xs text-green-600 font-medium">(ได้รับ {(job.total_amount - job.platform_fee_amount).toLocaleString()})</span></div>
                         <div>ประเภท: {job.job_type}</div>
                       </div>
                       {job.eligible === false && (

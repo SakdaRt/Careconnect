@@ -193,6 +193,51 @@ export async function settleDispute(disputeId, adminUserId, input = {}) {
       );
     }
 
+    // Release remaining escrow as hirer deposit return (if any left)
+    const escrowAfter = escrowHeld - total;
+    if (escrowAfter > 0 && jobId) {
+      // Return remaining to hirer as deposit release
+      if (hirerWallet || refundAmount > 0) {
+        const hw = hirerWallet || (await client.query(`SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`, [hirerId])).rows[0];
+        if (hw) {
+          await client.query(`UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`, [escrowAfter, escrowWallet.id]);
+          await client.query(`UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`, [escrowAfter, hw.id]);
+          await client.query(
+            `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+             VALUES ($1, $2, $3, $4, 'release', 'deposit', $5, 'Return hirer deposit (dispute settled)', NOW())`,
+            [uuidv4(), escrowWallet.id, hw.id, escrowAfter, disputeId]
+          );
+        }
+      }
+    }
+
+    // Update job_deposits if exists
+    if (jobId) {
+      await client.query(
+        `UPDATE job_deposits SET status = 'released', released_amount = amount, settlement_reason = 'dispute_settled', settled_by = $2, settled_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND party = 'hirer'`,
+        [jobId, adminUserId]
+      );
+    }
+
+    // Update jobs settlement fields
+    if (jobId) {
+      await client.query(
+        `UPDATE jobs SET
+           fault_party = COALESCE(fault_party, 'none'),
+           settlement_mode = 'admin_override',
+           settlement_completed_at = NOW(),
+           final_hirer_refund = $2,
+           final_caregiver_payout = $3,
+           final_platform_fee = 0,
+           admin_settlement_by = $4,
+           admin_settlement_note = $5,
+           admin_settlement_at = NOW(),
+           updated_at = NOW()
+         WHERE id = $1`,
+        [jobId, refundAmount, payoutAmount, adminUserId, resolution || 'dispute_settlement']
+      );
+    }
+
     await client.query(
       `UPDATE disputes SET status = 'resolved', resolved_at = NOW(), updated_at = NOW() WHERE id = $1`,
       [disputeId]

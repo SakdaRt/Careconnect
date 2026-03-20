@@ -3,12 +3,14 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Star, Briefcase, Clock3, Heart, ArrowLeft, ShieldCheck, FileText } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Button, Card, LoadingState } from '../../components/ui';
+import { Avatar, Button, Card, LoadingState } from '../../components/ui';
 import { appApi } from '../../services/appApi';
 import { getTrustLevelConfig } from '../../utils/trustLevel';
 
 interface CaregiverProfile {
   id: string;
+  avatar?: string | null;
+  avatar_version?: number;
   email?: string;
   phone_number?: string;
   trust_level: string;
@@ -186,6 +188,13 @@ export default function CaregiverPublicProfilePage() {
         {/* Header */}
         <Card className="p-5">
           <div className="flex items-start justify-between gap-3">
+            <Avatar
+              userId={profile.id}
+              avatarVersion={profile.avatar_version}
+              src={!profile.avatar_version && profile.avatar ? `/uploads/${profile.avatar}` : undefined}
+              name={profile.display_name || 'ผู้ดูแล'}
+              size="2xl"
+            />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap mb-2">
                 <h1 className="text-xl font-bold text-gray-900">{profile.display_name || 'ผู้ดูแล'}</h1>

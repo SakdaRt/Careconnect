@@ -128,48 +128,72 @@ max 3 replacement chains per job_post
 ## 4. Payment Flow (Double-entry Ledger)
 
 > Source: `backend/src/services/jobService.js`
+> Updated: 2026-03-19 — Financial MVP (fee deducted from wage + hirer deposit)
 
-### 4 Phases:
+### Fee Model
+
+- Platform fee = `Math.floor(total_amount * 0.10)` — **หักจากค่าจ้าง**
+- Hirer จ่าย `total_amount` ตามราคาที่ตั้ง (ไม่บวก fee เพิ่ม)
+- Caregiver ได้รับ `total_amount - platform_fee_amount`
+- Fee รับรู้เมื่อ job completed เท่านั้น
+
+### Hirer Deposit (Tiered)
+
+| total_amount | Deposit |
+|-------------|---------|
+| ≤ 500 | 100 |
+| 501–2,000 | 200 |
+| 2,001–5,000 | 500 |
+| 5,001–10,000 | 1,000 |
+| > 10,000 | 2,000 |
+
+Hardcoded ใน `backend/src/utils/depositTier.js` — MVP: hirer only, caregiver deposit = 0
+
+### 5 Phases:
 
 ```
 Phase 1: Top-up
   Hirer ── POST /wallet/topup ──► topup_intent (pending)
-  สำหรับ Stripe: เก็บ topup_intents.method = payment_link
-  Stripe Checkout (Sandbox) ──► /api/webhooks/stripe
-  checkout.session.completed / payment_intent.succeeded ──► topup_intent (succeeded)
+  Stripe Checkout ──► /api/webhooks/stripe ──► topup_intent (succeeded)
   → credit hirer wallet.available_balance
-  → INSERT ledger_transaction (type=credit)
+  → INSERT ledger (type=credit, ref=topup)
 
-Phase 2: Publish (Hold on hirer wallet)
+Phase 2: Publish (Hold job payment + deposit)
   Hirer ── POST /jobs/:id/publish ──►
-  → cost = total_amount + platform_fee_amount
-  → hirer wallet: available_balance -= cost, held_balance += cost
-  → INSERT ledger_transaction (type=hold, from=hirer, to=hirer)
+  → cost = total_amount + hirer_deposit_amount
+  → hirer wallet: available -= cost, held += cost
+  → INSERT ledger: hold/job (total_amount) + hold/deposit (hirer_deposit)
   Note: Dev mode auto-tops up if insufficient
 
-Phase 3: Accept (Escrow creation)
+Phase 3: Accept (Escrow creation + deposit record)
   Caregiver ── POST /jobs/:id/accept ──►
-  → hirer wallet: held_balance -= cost (or available_balance if no held)
-  → CREATE escrow wallet (job_id, held_balance=cost)
-  → INSERT ledger_transaction (type=hold, from=hirer, to=escrow)
-  → CREATE jobs record + job_assignments + chat_thread
+  → hirer held -= cost → escrow held += cost
+  → CREATE escrow wallet (held = total_amount + hirer_deposit)
+  → INSERT ledger: hold/job + hold/deposit (hirer→escrow)
+  → INSERT job_deposits (party=hirer, status=held)
+  → CREATE jobs + job_assignments + chat_thread
 
-Phase 4: Checkout (Settlement)
+Phase 4: Checkout (Settlement — fee deducted from wage)
   Caregiver ── POST /jobs/:jobId/checkout ──►
-  → escrow wallet: held_balance -= total_amount
-  → caregiver wallet: available_balance += total_amount
-  → INSERT ledger_transaction (type=release, from=escrow, to=caregiver)
-  → IF platform_fee > 0:
-    escrow wallet: held_balance -= platform_fee
-    platform wallet: available_balance += platform_fee
-    INSERT ledger_transaction (type=debit, from=escrow, to=platform)
-  → Trust score recalculation triggered (fire-and-forget)
+  → escrow → caregiver: total_amount - platform_fee (release/job)
+  → escrow → platform: platform_fee (debit/fee)
+  → escrow → hirer: hirer_deposit (release/deposit)
+  → UPDATE job_deposits → released
+  → UPDATE jobs: final_caregiver_payout, final_platform_fee, settlement_mode='normal'
+  → Trust score recalculation (fire-and-forget)
 
-Cancel (Refund):
-  → escrow wallet: held_balance → 0
-  → hirer wallet: available_balance += escrow amount
-  → INSERT ledger_transaction (type=reversal, reference_type=refund)
-  → IF posted but no job instance: held_balance → available_balance (unhold)
+Cancel (4 sub-cases):
+  B: Before accept → unhold J+DH from hirer wallet
+  C: After accept ≥24h → refund J + release DH from escrow
+  D: After accept <24h (late cancel) →
+     refund J + forfeit 50% DH (70% CG compensation, 30% platform penalty revenue)
+  E: CG cancel → hold in escrow, fault_party='unresolved', admin settle
+
+Admin Settlement:
+  POST /api/admin/jobs/:id/settle
+  → admin specifies refund/payout/fee/penalty/deposit/compensation amounts
+  → validation: total ≤ escrow, prevent double-settle
+  → INSERT ledger entries + UPDATE job_deposits + audit_events
 ```
 
 ### Wallet Types (5 ประเภท)

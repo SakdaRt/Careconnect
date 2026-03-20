@@ -379,6 +379,16 @@ export default function JobDetailPage() {
                 <div className="text-xs text-gray-500 tabular-nums">
                   {job.hourly_rate.toLocaleString()} บาท/ชม. × {job.total_hours} ชม.
                 </div>
+                {job.platform_fee_amount > 0 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    ค่าดำเนินการ {job.platform_fee_amount.toLocaleString()} บาท (10%)
+                  </div>
+                )}
+                {Number(job.hirer_deposit_amount) > 0 && (
+                  <div className="text-xs text-amber-600 mt-0.5">
+                    เงินประกัน {Number(job.hirer_deposit_amount).toLocaleString()} บาท
+                  </div>
+                )}
               </div>
             </div>
 

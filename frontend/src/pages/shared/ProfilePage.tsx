@@ -151,7 +151,7 @@ export default function ProfilePage() {
     () => user?.email || user?.phone_number || "-",
     [user],
   );
-  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} คนอื่นจะเห็นเป็น "ชื่อจริง น." ก่อนมอบหมายงาน`;
+  const displayNameGuideText = `${FULL_NAME_INPUT_GUIDE} ระบบจะย่อแสดงเป็น "ชื่อจริง น." โดยอัตโนมัติ`;
 
   const handleAvatarUpload = async (blob: Blob) => {
     setAvatarUploading(true);
@@ -504,7 +504,7 @@ export default function ProfilePage() {
         );
         if (!fullNameInput) {
           toast.error(
-            `${FULL_NAME_INPUT_GUIDE} แล้วระบบจะแสดงเป็นชื่อจริงและตัวแรกของนามสกุล`,
+            `${FULL_NAME_INPUT_GUIDE}`,
           );
           return;
         }
@@ -539,7 +539,7 @@ export default function ProfilePage() {
       );
       if (!fullNameInput) {
         toast.error(
-          `${FULL_NAME_INPUT_GUIDE} แล้วระบบจะแสดงเป็นชื่อจริงและตัวแรกของนามสกุล`,
+          `${FULL_NAME_INPUT_GUIDE}`,
         );
         return;
       }
@@ -761,13 +761,12 @@ export default function ProfilePage() {
         )}
 
         {profileRequired && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <div className="text-sm font-semibold text-amber-800">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+            <div className="text-sm font-semibold text-orange-800">
               กรุณาตั้งชื่อที่ใช้แสดงก่อนเริ่มใช้งาน
             </div>
-            <div className="text-xs text-amber-700 mt-1">
-              {FULL_NAME_INPUT_GUIDE} ระบบจะย่อให้อัตโนมัติเป็น “ชื่อจริง +
-              ตัวแรกของนามสกุล” เพื่อความปลอดภัย
+            <div className="text-xs text-orange-700 mt-1">
+              {FULL_NAME_INPUT_GUIDE} ระบบจะย่อแสดงเป็น "ชื่อจริง น." โดยอัตโนมัติเพื่อความปลอดภัย
             </div>
           </div>
         )}
@@ -873,7 +872,7 @@ export default function ProfilePage() {
                             display_name: v,
                           }));
                         }}
-                        placeholder="เช่น สมชาย ใจดี"
+                        placeholder="ชื่อ นามสกุล"
                         helperText={displayNameGuideText}
                         required
                       />
@@ -966,7 +965,7 @@ export default function ProfilePage() {
                               display_name: e.target.value,
                             })
                           }
-                          placeholder="เช่น อรทัย ใจงาม"
+                          placeholder="ชื่อ นามสกุล"
                           helperText={displayNameGuideText}
                           required
                         />

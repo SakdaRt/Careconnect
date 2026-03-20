@@ -300,7 +300,7 @@ export const publishJob = async (hirerId, jobPostId) => {
       );
     }
 
-    // Check wallet balance for job cost + platform fee
+    // Check wallet balance for job cost + hirer deposit
     const hirerWalletResult = await client.query(
       `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
       [hirerId]
@@ -310,7 +310,9 @@ export const publishJob = async (hirerId, jobPostId) => {
     }
 
     const hirerWallet = hirerWalletResult.rows[0];
-    const totalCost = parseInt(jobPost.total_amount) + parseInt(jobPost.platform_fee_amount);
+    const jobAmount = parseInt(jobPost.total_amount);
+    const hirerDeposit = parseInt(jobPost.hirer_deposit_amount) || 0;
+    const totalCost = jobAmount + hirerDeposit;
     let availableBalance = parseInt(hirerWallet.available_balance);
     const isDev = process.env.NODE_ENV !== 'production';
 
@@ -350,9 +352,17 @@ export const publishJob = async (hirerId, jobPostId) => {
 
     await client.query(
       `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-       VALUES ($1, $2, $3, $4, 'hold', 'job', $5, 'Hold funds for job publish', NOW())`,
-      [uuidv4(), hirerWallet.id, hirerWallet.id, totalCost, jobPostId]
+       VALUES ($1, $2, $3, $4, 'hold', 'job', $5, 'Hold job payment for publish', NOW())`,
+      [uuidv4(), hirerWallet.id, hirerWallet.id, jobAmount, jobPostId]
     );
+
+    if (hirerDeposit > 0) {
+      await client.query(
+        `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+         VALUES ($1, $2, $3, $4, 'hold', 'deposit', $5, 'Hold hirer deposit for publish', NOW())`,
+        [uuidv4(), hirerWallet.id, hirerWallet.id, hirerDeposit, jobPostId]
+      );
+    }
 
     // Publish job
     const updatedJob = await Job.publishJobPost(jobPostId, hirerId);
@@ -657,7 +667,9 @@ export const acceptJob = async (jobPostId, caregiverId) => {
     }
 
     const hirerWallet = hirerWalletResult.rows[0];
-    const totalAmount = parseInt(jobPost.total_amount) + parseInt(jobPost.platform_fee_amount);
+    const jobAmount = parseInt(jobPost.total_amount);
+    const hirerDeposit = parseInt(jobPost.hirer_deposit_amount) || 0;
+    const totalAmount = jobAmount + hirerDeposit;
 
     const availableBalance = parseInt(hirerWallet.available_balance);
     const heldBalance = parseInt(hirerWallet.held_balance);
@@ -712,7 +724,7 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       [jobId, jobPostId, jobPost.hirer_id, nextJobStatus, assignmentStartConfirmedAt]
     );
 
-    // Create escrow wallet for this job (now with job_id)
+    // Create escrow wallet for this job (holds job payment + hirer deposit)
     const escrowWalletId = uuidv4();
     await client.query(
       `INSERT INTO wallets (id, job_id, wallet_type, available_balance, held_balance, currency, created_at, updated_at)
@@ -720,13 +732,30 @@ export const acceptJob = async (jobPostId, caregiverId) => {
       [escrowWalletId, jobId, totalAmount]
     );
 
-    // Create job hold ledger transaction
-    const holdTxId = uuidv4();
+    // Ledger: hold job payment into escrow
     await client.query(
       `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
        VALUES ($1, $2, $3, $4, 'hold', 'job', $5, 'Job escrow hold', NOW())`,
-      [holdTxId, hirerWallet.id, escrowWalletId, totalAmount, jobId]
+      [uuidv4(), hirerWallet.id, escrowWalletId, jobAmount, jobId]
     );
+
+    // Ledger: hold hirer deposit into escrow
+    if (hirerDeposit > 0) {
+      await client.query(
+        `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+         VALUES ($1, $2, $3, $4, 'hold', 'deposit', $5, 'Hirer deposit escrow hold', NOW())`,
+        [uuidv4(), hirerWallet.id, escrowWalletId, hirerDeposit, jobId]
+      );
+    }
+
+    // Create hirer deposit record (MVP: hirer only)
+    if (hirerDeposit > 0) {
+      await client.query(
+        `INSERT INTO job_deposits (id, job_id, job_post_id, user_id, party, amount, status, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, 'hirer', $5, 'held', NOW(), NOW())`,
+        [uuidv4(), jobId, jobPostId, jobPost.hirer_id, hirerDeposit]
+      );
+    }
 
     // Create assignment
     const assignmentId = uuidv4();
@@ -881,7 +910,7 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
   const checkoutResult = await transaction(async (client) => {
     // Use FOR UPDATE OF j to avoid Postgres lock errors with LEFT JOIN LATERAL
     let jobResult = await client.query(
-      `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_id AS jp_hirer_id
+      `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_deposit_amount, jp.hirer_id AS jp_hirer_id
        FROM jobs j
        JOIN job_posts jp ON jp.id = j.job_post_id
        LEFT JOIN LATERAL (
@@ -898,7 +927,7 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
 
     if (jobResult.rows.length === 0) {
       jobResult = await client.query(
-        `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_id AS jp_hirer_id
+        `SELECT j.*, ja.caregiver_id, ja.status AS assignment_status, jp.total_amount, jp.platform_fee_amount, jp.hirer_deposit_amount, jp.hirer_id AS jp_hirer_id
          FROM jobs j
          JOIN job_posts jp ON jp.id = j.job_post_id
          LEFT JOIN LATERAL (
@@ -927,8 +956,10 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
     const platformFeeRaw = Number(job.platform_fee_amount);
     const totalAmount = Number.isFinite(totalAmountRaw) && totalAmountRaw >= 0 ? totalAmountRaw : 0;
     const platformFee = Number.isFinite(platformFeeRaw) && platformFeeRaw >= 0 ? platformFeeRaw : 0;
-    const caregiverPayment = totalAmount;
-    const settlementAmount = caregiverPayment + platformFee;
+    const hirerDepositRaw = Number(job.hirer_deposit_amount);
+    const hirerDeposit = Number.isFinite(hirerDepositRaw) && hirerDepositRaw >= 0 ? hirerDepositRaw : 0;
+    const caregiverPayment = totalAmount - platformFee;
+    const settlementAmount = totalAmount + hirerDeposit;
 
     if (job.caregiver_id !== caregiverId) {
       throw new Error('Not authorized to check out from this job');
@@ -1173,6 +1204,51 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
       );
     }
 
+    // Release hirer deposit back to hirer
+    if (hirerDeposit > 0) {
+      const hirerWalletForDeposit = await client.query(
+        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
+        [hirerId]
+      );
+      if (hirerWalletForDeposit.rows.length > 0) {
+        await client.query(
+          `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
+          [hirerDeposit, escrowWallet.id]
+        );
+        await client.query(
+          `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
+          [hirerDeposit, hirerWalletForDeposit.rows[0].id]
+        );
+        await client.query(
+          `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+           VALUES ($1, $2, $3, $4, 'release', 'deposit', $5, 'Return hirer deposit (job completed)', NOW())`,
+          [uuidv4(), escrowWallet.id, hirerWalletForDeposit.rows[0].id, hirerDeposit, actualJobId]
+        );
+      }
+
+      // Update job_deposits record
+      await client.query(
+        `UPDATE job_deposits SET status = 'released', released_amount = amount, settled_at = NOW(), updated_at = NOW()
+         WHERE job_id = $1 AND party = 'hirer'`,
+        [actualJobId]
+      );
+    }
+
+    // Update jobs settlement fields
+    await client.query(
+      `UPDATE jobs SET
+         final_caregiver_payout = $2,
+         final_hirer_refund = 0,
+         final_platform_fee = $3,
+         final_platform_penalty_revenue = 0,
+         settlement_mode = 'normal',
+         settlement_completed_at = NOW(),
+         fault_party = 'none',
+         updated_at = NOW()
+       WHERE id = $1`,
+      [actualJobId, caregiverPayment, platformFee]
+    );
+
     // Add system message
     const threadResult = await client.query(
       `SELECT id FROM chat_threads WHERE job_id = $1 LIMIT 1`,
@@ -1215,11 +1291,12 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
 };
 
 /**
- * Cancel job
- * @param {string} jobPostId - Job post ID
- * @param {string} userId - User ID (hirer or caregiver)
- * @param {string} reason - Cancellation reason
- * @returns {object} - Updated job
+ * Cancel job — Financial MVP with deposit & penalty logic
+ * Sub-cases:
+ *   B: Hirer cancel before accept (posted, no job instance) → full unhold
+ *   C: Hirer cancel after accept, ≥24h before start → full refund + release deposit
+ *   D: Hirer cancel after accept, <24h before start → full refund + penalty 50% deposit (70/30 split)
+ *   E: Caregiver cancel / other → hold in escrow, mark unresolved for admin
  */
 export const cancelJob = async (jobPostId, userId, reason) => {
   const job = await Job.getJobWithDetails(jobPostId);
@@ -1243,7 +1320,6 @@ export const cancelJob = async (jobPostId, userId, reason) => {
     throw new Error(`Cannot cancel job in status: ${currentStatus}`);
   }
 
-  // Use transaction for cancellation + refund
   return await transaction(async (client) => {
     // Update job post status
     await client.query(
@@ -1251,113 +1327,248 @@ export const cancelJob = async (jobPostId, userId, reason) => {
       [resolvedJobPostId]
     );
 
-    if (!job.job_id && currentStatus === 'posted') {
-      const totalCost = parseInt(job.total_amount) + parseInt(job.platform_fee_amount);
-      const hirerWalletResult = await client.query(
-        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
-        [job.hirer_id]
-      );
+    const jobAmount = parseInt(job.total_amount) || 0;
+    const hirerDeposit = parseInt(job.hirer_deposit_amount) || 0;
+    const totalHeld = jobAmount + hirerDeposit;
 
-      if (hirerWalletResult.rows.length > 0) {
-        const hirerWallet = hirerWalletResult.rows[0];
-        const heldBalance = parseInt(hirerWallet.held_balance);
-
-        if (heldBalance >= totalCost && totalCost > 0) {
-          await client.query(
-            `UPDATE wallets
-             SET held_balance = held_balance - $1,
-                 available_balance = available_balance + $1,
-                 updated_at = NOW()
-             WHERE id = $2`,
-            [totalCost, hirerWallet.id]
-          );
-
-          await client.query(
-            `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-             VALUES ($1, $2, $3, $4, 'release', 'job', $5, 'Release held funds for cancelled job', NOW())`,
-            [uuidv4(), hirerWallet.id, hirerWallet.id, totalCost, resolvedJobPostId]
-          );
-        }
-      }
-    }
-
-    // If job instance exists
-    if (job.job_id) {
-      await client.query(
-        `UPDATE jobs SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW() WHERE id = $1`,
-        [job.job_id]
-      );
-
-      await client.query(
-        `UPDATE job_assignments SET status = 'cancelled', updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
-        [job.job_id]
-      );
-
-      // Handle refund if escrow exists
-      const escrowWalletResult = await client.query(
-        `SELECT * FROM wallets WHERE job_id = $1 AND wallet_type = 'escrow' FOR UPDATE`,
-        [job.job_id]
-      );
-
-      if (escrowWalletResult.rows.length > 0) {
-        const escrowWallet = escrowWalletResult.rows[0];
-        const escrowAmount = parseInt(escrowWallet.held_balance);
-
-        if (escrowAmount > 0) {
-          // Get hirer wallet
-          const hirerWalletResult = await client.query(
-            `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
-            [job.hirer_id]
-          );
-
-          if (hirerWalletResult.rows.length > 0) {
-            const hirerWallet = hirerWalletResult.rows[0];
-
-            // Refund to hirer
+    // ── SUB-CASE B: Before accept (posted, no job instance) ──
+    if (!job.job_id && (currentStatus === 'posted' || currentStatus === 'draft')) {
+      if (totalHeld > 0) {
+        const hirerWalletResult = await client.query(
+          `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
+          [job.hirer_id]
+        );
+        if (hirerWalletResult.rows.length > 0) {
+          const hirerWallet = hirerWalletResult.rows[0];
+          const heldBalance = parseInt(hirerWallet.held_balance);
+          const unholdAmount = Math.min(heldBalance, totalHeld);
+          if (unholdAmount > 0) {
             await client.query(
-              `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
-              [escrowAmount, escrowWallet.id]
+              `UPDATE wallets SET held_balance = held_balance - $1, available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
+              [unholdAmount, hirerWallet.id]
             );
-
-            await client.query(
-              `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
-              [escrowAmount, hirerWallet.id]
-            );
-
-            // Record refund
             await client.query(
               `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
-               VALUES ($1, $2, $3, $4, 'reversal', 'refund', $5, 'Refund for cancelled job', NOW())`,
-              [uuidv4(), escrowWallet.id, hirerWallet.id, escrowAmount, job.job_id]
+               VALUES ($1, $2, $3, $4, 'release', 'job', $5, 'Release held funds for cancelled job', NOW())`,
+              [uuidv4(), hirerWallet.id, hirerWallet.id, jobAmount, resolvedJobPostId]
             );
+            if (hirerDeposit > 0) {
+              await client.query(
+                `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+                 VALUES ($1, $2, $3, $4, 'release', 'deposit', $5, 'Release hirer deposit for cancelled job', NOW())`,
+                [uuidv4(), hirerWallet.id, hirerWallet.id, hirerDeposit, resolvedJobPostId]
+              );
+            }
           }
         }
       }
+      return {
+        job_post_id: resolvedJobPostId,
+        job_id: null,
+        status: 'cancelled',
+        reason,
+        settlement_mode: 'normal',
+        fault_party: 'none',
+      };
+    }
 
-      // Add system message
-      const threadResult = await client.query(
-        `SELECT id FROM chat_threads WHERE job_id = $1 LIMIT 1`,
-        [job.job_id]
-      );
+    // ── Job instance exists (assigned / in_progress) ──
+    await client.query(
+      `UPDATE jobs SET status = 'cancelled', cancelled_at = NOW(), cancelled_by = $2, updated_at = NOW() WHERE id = $1`,
+      [job.job_id, userId]
+    );
+    await client.query(
+      `UPDATE job_assignments SET status = 'cancelled', updated_at = NOW() WHERE job_id = $1 AND status = 'active'`,
+      [job.job_id]
+    );
 
-      if (threadResult.rows.length > 0) {
-        const threadId = threadResult.rows[0].id;
-        const cancelledBy = isHirer ? 'hirer' : 'caregiver';
-        await client.query(
-          `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
-           VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
-          [uuidv4(), threadId, `Job cancelled by ${cancelledBy}. Reason: ${reason}`]
-        );
+    // Get escrow
+    const escrowRes = await client.query(
+      `SELECT * FROM wallets WHERE job_id = $1 AND wallet_type = 'escrow' FOR UPDATE`,
+      [job.job_id]
+    );
+    const escrowWallet = escrowRes.rows[0];
+    const escrowHeld = escrowWallet ? parseInt(escrowWallet.held_balance) : 0;
 
-        await client.query(
-          `UPDATE chat_threads
-           SET status = 'closed',
-               closed_at = COALESCE(closed_at, NOW()),
-               updated_at = NOW()
-           WHERE id = $1`,
-          [threadId]
-        );
+    // Get hirer wallet
+    const hirerWalletRes = await client.query(
+      `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
+      [job.hirer_id]
+    );
+    const hirerWallet = hirerWalletRes.rows[0];
+
+    // Determine time until start
+    const scheduledStart = new Date(job.scheduled_start_at);
+    const hoursUntilStart = (scheduledStart.getTime() - Date.now()) / (1000 * 60 * 60);
+
+    let settlementMode = 'normal';
+    let faultParty = 'none';
+    let faultSeverity = null;
+    let cancellationReason = null;
+    let finalHirerRefund = 0;
+    let finalPlatformFee = 0;
+    let finalPlatformPenaltyRevenue = 0;
+    let compensationAmount = 0;
+    let compensationRecipient = null;
+
+    if (isHirer) {
+      const isLateCancel = hoursUntilStart < 24;
+      cancellationReason = isLateCancel ? 'hirer_voluntary_late' : 'hirer_voluntary_early';
+
+      // ── SUB-CASE C & D: Hirer cancel after accept ──
+      if (escrowWallet && hirerWallet && escrowHeld > 0) {
+        // Refund job amount to hirer
+        if (jobAmount > 0 && escrowHeld >= jobAmount) {
+          await client.query(`UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`, [jobAmount, escrowWallet.id]);
+          await client.query(`UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`, [jobAmount, hirerWallet.id]);
+          await client.query(
+            `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+             VALUES ($1, $2, $3, $4, 'reversal', 'refund', $5, 'Refund job payment for hirer cancel', NOW())`,
+            [uuidv4(), escrowWallet.id, hirerWallet.id, jobAmount, job.job_id]
+          );
+          finalHirerRefund = jobAmount;
+        }
+
+        if (isLateCancel && hirerDeposit > 0) {
+          // ── SUB-CASE D: Late cancel — penalty 50% deposit ──
+          faultParty = 'hirer';
+          faultSeverity = 'mild';
+          settlementMode = 'penalty';
+
+          const forfeit = Math.floor(hirerDeposit * 0.50);
+          const refundDep = hirerDeposit - forfeit;
+          const compCg = Math.floor(forfeit * 0.70);
+          const platformRev = forfeit - compCg;
+
+          // Return non-forfeited deposit to hirer
+          if (refundDep > 0) {
+            await client.query(`UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`, [refundDep, escrowWallet.id]);
+            await client.query(`UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`, [refundDep, hirerWallet.id]);
+            await client.query(
+              `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+               VALUES ($1, $2, $3, $4, 'release', 'deposit', $5, 'Partial hirer deposit return (late cancel)', NOW())`,
+              [uuidv4(), escrowWallet.id, hirerWallet.id, refundDep, job.job_id]
+            );
+          }
+
+          // Compensation to caregiver
+          if (compCg > 0) {
+            let cgWalletRes = await client.query(`SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'caregiver' FOR UPDATE`, [job.caregiver_id]);
+            if (cgWalletRes.rows.length === 0) {
+              const cgWalletId = uuidv4();
+              await client.query(`INSERT INTO wallets (id, user_id, wallet_type, available_balance, held_balance, currency, created_at, updated_at) VALUES ($1, $2, 'caregiver', 0, 0, 'THB', NOW(), NOW())`, [cgWalletId, job.caregiver_id]);
+              cgWalletRes = await client.query(`SELECT * FROM wallets WHERE id = $1`, [cgWalletId]);
+            }
+            const cgWallet = cgWalletRes.rows[0];
+            await client.query(`UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`, [compCg, escrowWallet.id]);
+            await client.query(`UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`, [compCg, cgWallet.id]);
+            await client.query(
+              `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+               VALUES ($1, $2, $3, $4, 'compensation', 'compensation', $5, 'Compensation to caregiver (hirer late cancel)', NOW())`,
+              [uuidv4(), escrowWallet.id, cgWallet.id, compCg, job.job_id]
+            );
+            compensationAmount = compCg;
+            compensationRecipient = job.caregiver_id;
+          }
+
+          // Platform penalty revenue
+          if (platformRev > 0) {
+            let platRes = await client.query(`SELECT * FROM wallets WHERE wallet_type = 'platform' ORDER BY created_at ASC LIMIT 1 FOR UPDATE`);
+            if (platRes.rows.length === 0) {
+              const pId = uuidv4();
+              await client.query(`INSERT INTO wallets (id, wallet_type, available_balance, held_balance, currency, created_at, updated_at) VALUES ($1, 'platform', 0, 0, 'THB', NOW(), NOW())`, [pId]);
+              platRes = await client.query(`SELECT * FROM wallets WHERE id = $1`, [pId]);
+            }
+            const platWallet = platRes.rows[0];
+            await client.query(`UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`, [platformRev, escrowWallet.id]);
+            await client.query(`UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`, [platformRev, platWallet.id]);
+            await client.query(
+              `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+               VALUES ($1, $2, $3, $4, 'forfeit', 'platform_penalty_revenue', $5, 'Platform penalty revenue (hirer late cancel)', NOW())`,
+              [uuidv4(), escrowWallet.id, platWallet.id, platformRev, job.job_id]
+            );
+            finalPlatformPenaltyRevenue = platformRev;
+          }
+
+          // Update job_deposits
+          await client.query(
+            `UPDATE job_deposits SET status = 'forfeited', forfeited_amount = $2, released_amount = $3,
+             compensation_to_user_id = $4, compensation_amount = $5, platform_revenue_amount = $6,
+             settlement_reason = 'hirer_late_cancel', settled_at = NOW(), updated_at = NOW()
+             WHERE job_id = $1 AND party = 'hirer'`,
+            [job.job_id, forfeit, refundDep, job.caregiver_id, compCg, platformRev]
+          );
+
+        } else if (hirerDeposit > 0) {
+          // ── SUB-CASE C: Normal cancel — return deposit fully ──
+          await client.query(`UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`, [hirerDeposit, escrowWallet.id]);
+          await client.query(`UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`, [hirerDeposit, hirerWallet.id]);
+          await client.query(
+            `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+             VALUES ($1, $2, $3, $4, 'release', 'deposit', $5, 'Return hirer deposit (early cancel)', NOW())`,
+            [uuidv4(), escrowWallet.id, hirerWallet.id, hirerDeposit, job.job_id]
+          );
+          await client.query(
+            `UPDATE job_deposits SET status = 'released', released_amount = amount, settled_at = NOW(), updated_at = NOW() WHERE job_id = $1 AND party = 'hirer'`,
+            [job.job_id]
+          );
+        }
       }
+
+    } else {
+      // ── SUB-CASE E: Caregiver cancel / other — hold for admin settle ──
+      cancellationReason = 'caregiver_cancel';
+      faultParty = 'unresolved';
+      settlementMode = null; // not settled yet — admin will decide
+      // DO NOT auto-settle: escrow stays as-is, admin will manually settle
+    }
+
+    // Update jobs with settlement info
+    await client.query(
+      `UPDATE jobs SET
+         cancellation_reason = $2, fault_party = $3, fault_severity = $4,
+         settlement_mode = $5, settlement_completed_at = $6,
+         final_hirer_refund = $7, final_platform_fee = $8,
+         final_platform_penalty_revenue = $9, compensation_amount = $10,
+         compensation_recipient = $11, updated_at = NOW()
+       WHERE id = $1`,
+      [
+        job.job_id, cancellationReason, faultParty, faultSeverity,
+        settlementMode, settlementMode ? new Date() : null,
+        finalHirerRefund, finalPlatformFee,
+        finalPlatformPenaltyRevenue, compensationAmount,
+        compensationRecipient,
+      ]
+    );
+
+    // System message + close chat thread
+    const threadResult = await client.query(`SELECT id FROM chat_threads WHERE job_id = $1 LIMIT 1`, [job.job_id]);
+    if (threadResult.rows.length > 0) {
+      const threadId = threadResult.rows[0].id;
+      const cancelledBy = isHirer ? 'ผู้ว่าจ้าง' : 'ผู้ดูแล';
+      const penaltyNote = faultParty === 'hirer' ? ' (มีค่าปรับ late cancel)' : faultParty === 'unresolved' ? ' (รอ admin ตรวจสอบ)' : '';
+      await client.query(
+        `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
+         VALUES ($1, $2, NULL, 'system', $3, true, NOW())`,
+        [uuidv4(), threadId, `งานถูกยกเลิกโดย${cancelledBy}${penaltyNote} เหตุผล: ${reason || '-'}`]
+      );
+      await client.query(
+        `UPDATE chat_threads SET status = 'closed', closed_at = COALESCE(closed_at, NOW()), updated_at = NOW() WHERE id = $1`,
+        [threadId]
+      );
+    }
+
+    // Notify both parties
+    try {
+      const title = job.title || 'งาน';
+      if (isHirer && job.caregiver_id) {
+        await notifyJobCancelled(job.caregiver_id, title, 'ผู้ว่าจ้าง', job.job_id);
+      }
+      if (isCaregiver) {
+        await notifyJobCancelled(job.hirer_id, title, 'ผู้ดูแล', job.job_id);
+      }
+    } catch (e) {
+      console.error('Failed to send cancel notification:', e.message);
     }
 
     return {
@@ -1365,7 +1576,9 @@ export const cancelJob = async (jobPostId, userId, reason) => {
       job_id: job.job_id,
       status: 'cancelled',
       reason,
-      refunded: !!job.job_id,
+      settlement_mode: settlementMode,
+      fault_party: faultParty,
+      compensation_amount: compensationAmount,
     };
   });
 };

@@ -41,10 +41,20 @@ CREATE TYPE risk_level AS ENUM ('low_risk', 'high_risk');
 CREATE TYPE assignment_status AS ENUM ('active', 'replaced', 'completed', 'cancelled');
 
 -- Transaction types
-CREATE TYPE transaction_type AS ENUM ('credit', 'debit', 'hold', 'release', 'reversal');
+CREATE TYPE transaction_type AS ENUM ('credit', 'debit', 'hold', 'release', 'reversal', 'forfeit', 'compensation');
 
 -- Transaction reference types
-CREATE TYPE transaction_reference_type AS ENUM ('topup', 'job', 'dispute', 'withdrawal', 'fee', 'refund', 'penalty');
+CREATE TYPE transaction_reference_type AS ENUM ('topup', 'job', 'dispute', 'withdrawal', 'fee', 'refund', 'penalty', 'deposit', 'compensation', 'platform_penalty_revenue');
+
+-- Deposit status
+CREATE TYPE deposit_status AS ENUM ('pending', 'held', 'released', 'forfeited', 'disputed');
+
+-- Cancellation reason
+CREATE TYPE cancellation_reason AS ENUM (
+    'hirer_voluntary_early', 'hirer_voluntary_late',
+    'caregiver_cancel', 'caregiver_no_show', 'caregiver_abandon',
+    'hirer_misrepresentation', 'mutual', 'force_majeure', 'admin_override', 'system'
+);
 
 -- KYC status
 CREATE TYPE kyc_status AS ENUM ('pending', 'approved', 'rejected', 'expired');
@@ -218,6 +228,9 @@ CREATE TABLE caregiver_profiles (
     available_to TIME,
     available_days INT[], -- 0=Sun, 1=Mon, ..., 6=Sat
 
+    -- Visibility
+    is_public_profile BOOLEAN NOT NULL DEFAULT TRUE,
+
     -- Stats
     total_jobs_completed INT NOT NULL DEFAULT 0 CHECK (total_jobs_completed >= 0),
     average_rating NUMERIC(3,2) CHECK (average_rating >= 0 AND average_rating <= 5),
@@ -383,6 +396,8 @@ CREATE TABLE job_posts (
     total_amount INT NOT NULL CHECK (total_amount > 0), -- hourly_rate * total_hours
     platform_fee_percent INT NOT NULL DEFAULT 10 CHECK (platform_fee_percent >= 0),
     platform_fee_amount INT NOT NULL DEFAULT 0 CHECK (platform_fee_amount >= 0),
+    hirer_deposit_amount INT NOT NULL DEFAULT 0 CHECK (hirer_deposit_amount >= 0),
+    caregiver_deposit_amount INT NOT NULL DEFAULT 0 CHECK (caregiver_deposit_amount >= 0),
 
     -- Requirements
     min_trust_level trust_level NOT NULL DEFAULT 'L1',
@@ -445,6 +460,27 @@ CREATE TABLE jobs (
 
     -- Closure
     job_closed_at TIMESTAMPTZ, -- Job fully closed (after dispute window)
+
+    -- Cancellation & Fault
+    cancellation_reason cancellation_reason,
+    cancelled_by UUID REFERENCES users(id),
+    fault_party VARCHAR(20) CHECK (fault_party IN ('hirer','caregiver','shared','none','unresolved')),
+    fault_severity VARCHAR(10) CHECK (fault_severity IN ('mild','severe')),
+    settlement_mode VARCHAR(30) CHECK (settlement_mode IN ('normal','penalty','admin_override')),
+    settlement_completed_at TIMESTAMPTZ,
+
+    -- Financial settlement summary
+    final_caregiver_payout BIGINT DEFAULT 0 CHECK (final_caregiver_payout >= 0),
+    final_hirer_refund BIGINT DEFAULT 0 CHECK (final_hirer_refund >= 0),
+    final_platform_fee BIGINT DEFAULT 0 CHECK (final_platform_fee >= 0),
+    final_platform_penalty_revenue BIGINT DEFAULT 0 CHECK (final_platform_penalty_revenue >= 0),
+    compensation_amount BIGINT DEFAULT 0 CHECK (compensation_amount >= 0),
+    compensation_recipient UUID REFERENCES users(id),
+
+    -- Admin override
+    admin_settlement_by UUID REFERENCES users(id),
+    admin_settlement_note TEXT,
+    admin_settlement_at TIMESTAMPTZ,
 
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -739,6 +775,45 @@ CREATE TABLE dispute_messages (
 CREATE INDEX idx_dispute_messages_dispute_id ON dispute_messages(dispute_id);
 CREATE INDEX idx_dispute_messages_sender_id ON dispute_messages(sender_id);
 CREATE INDEX idx_dispute_messages_created_at ON dispute_messages(created_at);
+
+-- ============================================================================
+-- TABLE: job_deposits (Job security deposits)
+-- ============================================================================
+
+CREATE TABLE job_deposits (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    job_post_id UUID NOT NULL REFERENCES job_posts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    party VARCHAR(20) NOT NULL CHECK (party IN ('hirer', 'caregiver')),
+    amount BIGINT NOT NULL CHECK (amount > 0),
+
+    status deposit_status NOT NULL DEFAULT 'held',
+
+    forfeited_amount BIGINT NOT NULL DEFAULT 0 CHECK (forfeited_amount >= 0),
+    released_amount BIGINT NOT NULL DEFAULT 0 CHECK (released_amount >= 0),
+    compensation_to_user_id UUID REFERENCES users(id),
+    compensation_amount BIGINT NOT NULL DEFAULT 0 CHECK (compensation_amount >= 0),
+    platform_revenue_amount BIGINT NOT NULL DEFAULT 0 CHECK (platform_revenue_amount >= 0),
+
+    settlement_reason TEXT,
+    settled_by UUID REFERENCES users(id),
+    settled_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    CONSTRAINT job_deposits_amounts_check CHECK (forfeited_amount + released_amount <= amount),
+    CONSTRAINT job_deposits_forfeit_split CHECK (compensation_amount + platform_revenue_amount <= forfeited_amount)
+);
+
+CREATE INDEX idx_job_deposits_job_id ON job_deposits(job_id);
+CREATE INDEX idx_job_deposits_user_id ON job_deposits(user_id);
+CREATE INDEX idx_job_deposits_status ON job_deposits(status);
+CREATE UNIQUE INDEX idx_job_deposits_one_per_party ON job_deposits(job_id, party);
+
+COMMENT ON TABLE job_deposits IS 'Job deposit records (hirer/caregiver security deposits)';
 
 -- ============================================================================
 -- TABLE: wallets (User wallets + Escrow + Platform)

@@ -1,6 +1,6 @@
 const GENERATED_DISPLAY_NAME_PATTERN = /^ผู้(?:ว่าจ้าง|ดูแล)\s+[A-Z0-9]{4}$/u;
 
-export const FULL_NAME_INPUT_GUIDE = 'กรอกชื่อและนามสกุลเต็ม เช่น "สมชาย ใจดี"';
+export const FULL_NAME_INPUT_GUIDE = 'กรุณากรอกชื่อและนามสกุลของคุณ';
 
 const normalizeSpaces = (value: string) => value.replace(/\s+/g, ' ').trim();
 

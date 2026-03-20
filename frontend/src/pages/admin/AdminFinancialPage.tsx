@@ -4,7 +4,7 @@ import api, { WithdrawalRequest, DashboardStats, LedgerTransaction } from '../..
 import { Button, Card, Input, LoadingState } from '../../components/ui';
 import { AdminLayout } from '../../layouts';
 
-type TabKey = 'dashboard' | 'withdrawals' | 'transactions';
+type TabKey = 'dashboard' | 'withdrawals' | 'transactions' | 'settlements';
 
 const STATUS_LABELS: Record<string, { label: string; color: string }> = {
   queued: { label: 'รอรับเรื่อง', color: 'bg-yellow-100 text-yellow-800' },
@@ -84,13 +84,22 @@ function DashboardTab() {
   const wd = stats.withdrawals;
   const pendingCount = (wd.queued?.count || 0) + (wd.review?.count || 0) + (wd.approved?.count || 0);
   const pendingAmount = (wd.queued?.total_amount || 0) + (wd.review?.total_amount || 0) + (wd.approved?.total_amount || 0);
+  const dep = stats.deposits || {};
+  const depHeld = dep.held?.total_amount || 0;
+  const depHeldCount = dep.held?.count || 0;
+  const rev = stats.platform_revenue || { total_fee_revenue: 0, total_penalty_revenue: 0 };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <SummaryCard title="เงินรวมในระบบ" value={formatMoney(totalSystem)} sub={`${Object.values(w).reduce((s, v) => s + v.count, 0)} กระเป๋าเงิน`} />
         <SummaryCard title="เงินค้ำประกัน (Escrow)" value={formatMoney((w.escrow?.total_held || 0) + (w.escrow?.total_available || 0))} sub={`${w.escrow?.count || 0} งาน`} />
-        <SummaryCard title="รายได้แพลตฟอร์ม" value={formatMoney(w.platform?.total_available || 0)} sub="ค่าธรรมเนียม" />
+        <SummaryCard title="รายได้ค่าดำเนินการ" value={formatMoney(rev.total_fee_revenue)} sub="จากงาน completed" />
+        <SummaryCard title="รายได้จาก Penalty" value={formatMoney(rev.total_penalty_revenue)} sub="เงินประกันที่ริบ" />
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <SummaryCard title="Deposit ค้างอยู่" value={formatMoney(depHeld)} sub={`${depHeldCount} รายการ`} />
+        <SummaryCard title="รอ Admin Settle" value={String(stats.unresolved_jobs || 0)} sub="งาน unresolved" />
         <SummaryCard title="รอโอน" value={formatMoney(pendingAmount)} sub={`${pendingCount} รายการ`} />
         <SummaryCard title="โอนแล้ว" value={formatMoney(wd.paid?.total_amount || 0)} sub={`${wd.paid?.count || 0} รายการ`} />
       </div>
@@ -109,6 +118,7 @@ function DashboardTab() {
                   <th className="text-right py-2 px-2 font-medium text-gray-600">ค่าธรรมเนียม</th>
                   <th className="text-right py-2 px-2 font-medium text-gray-600">ถอนออก</th>
                   <th className="text-right py-2 px-2 font-medium text-gray-600">คืนเงิน</th>
+                  <th className="text-right py-2 px-2 font-medium text-gray-600">Penalty</th>
                 </tr>
               </thead>
               <tbody>
@@ -119,6 +129,7 @@ function DashboardTab() {
                     <td className="py-2 px-2 text-right tabular-nums text-blue-700">{formatMoney(m.fee_amount)} <span className="text-gray-500">({m.fee_count})</span></td>
                     <td className="py-2 px-2 text-right tabular-nums text-orange-700">{formatMoney(m.payout_amount)} <span className="text-gray-500">({m.payout_count})</span></td>
                     <td className="py-2 px-2 text-right tabular-nums text-red-600">{formatMoney(m.reversal_amount)} <span className="text-gray-500">({m.reversal_count})</span></td>
+                    <td className="py-2 px-2 text-right tabular-nums text-purple-700">{formatMoney(m.penalty_amount)} <span className="text-gray-500">({m.penalty_count})</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -563,11 +574,263 @@ function TransactionsTab() {
   );
 }
 
+const FAULT_LABELS: Record<string, string> = {
+  hirer: 'ผู้ว่าจ้าง',
+  caregiver: 'ผู้ดูแล',
+  shared: 'ทั้งสองฝ่าย',
+  none: 'ไม่มี',
+  unresolved: 'รอตรวจสอบ',
+};
+
+const SETTLEMENT_MODE_LABELS: Record<string, { label: string; color: string }> = {
+  normal: { label: 'ปกติ', color: 'bg-green-100 text-green-800' },
+  penalty: { label: 'ค่าปรับ', color: 'bg-orange-100 text-orange-800' },
+  admin_override: { label: 'Admin ตัดสิน', color: 'bg-purple-100 text-purple-800' },
+};
+
+interface SettleFormState {
+  refund_amount: string;
+  payout_amount: string;
+  platform_fee_amount: string;
+  platform_penalty_revenue: string;
+  deposit_release_amount: string;
+  compensation_amount: string;
+  compensation_to: string;
+  fault_party: string;
+  fault_severity: string;
+  settlement_note: string;
+}
+
+const INITIAL_SETTLE_FORM: SettleFormState = {
+  refund_amount: '0',
+  payout_amount: '0',
+  platform_fee_amount: '0',
+  platform_penalty_revenue: '0',
+  deposit_release_amount: '0',
+  compensation_amount: '0',
+  compensation_to: '',
+  fault_party: 'none',
+  fault_severity: '',
+  settlement_note: '',
+};
+
+function SettlementTab() {
+  const [loading, setLoading] = useState(true);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [settleJobId, setSettleJobId] = useState<string | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [settleData, setSettleData] = useState<any | null>(null);
+  const [form, setForm] = useState<SettleFormState>(INITIAL_SETTLE_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [filter, setFilter] = useState<'unresolved' | 'settled' | 'all'>('unresolved');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.adminGetJobs({ status: 'cancelled', limit: 100 });
+      if (res.success && res.data?.data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const allJobs = res.data.data as any[];
+        setJobs(allJobs.filter((j) => {
+          const fp = String(j.fault_party || '');
+          const sm = String(j.settlement_mode || '');
+          if (filter === 'unresolved') return fp === 'unresolved' || (!sm && j.job_id);
+          if (filter === 'settled') return !!sm;
+          return true;
+        }));
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const openSettle = async (jobId: string) => {
+    setSettleJobId(jobId);
+    setForm(INITIAL_SETTLE_FORM);
+    setSettleData(null);
+    const res = await api.adminGetJobFinancial(jobId);
+    if (res.success && res.data) {
+      setSettleData(res.data);
+      const job = res.data.job as any;
+      setForm((f) => ({
+        ...f,
+        refund_amount: String(job.total_amount || 0),
+        deposit_release_amount: String(job.hirer_deposit_amount || 0),
+      }));
+    } else {
+      toast.error('โหลดข้อมูลการเงินไม่สำเร็จ');
+    }
+  };
+
+  const doSettle = async () => {
+    if (!settleJobId) return;
+    const total = ['refund_amount', 'payout_amount', 'platform_fee_amount', 'platform_penalty_revenue', 'deposit_release_amount', 'compensation_amount']
+      .reduce((s, k) => s + Math.max(0, parseInt(form[k as keyof SettleFormState] as string) || 0), 0);
+    const escrowBal = settleData ? Number(settleData.escrow?.held_balance || 0) : 0;
+    if (total > escrowBal) {
+      toast.error(`ยอดรวม (${total}) เกินยอด escrow (${escrowBal})`);
+      return;
+    }
+    if (!form.fault_party) {
+      toast.error('กรุณาเลือกฝ่ายที่ผิด');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await api.adminSettleJob(settleJobId, {
+        refund_amount: parseInt(form.refund_amount) || 0,
+        payout_amount: parseInt(form.payout_amount) || 0,
+        platform_fee_amount: parseInt(form.platform_fee_amount) || 0,
+        platform_penalty_revenue: parseInt(form.platform_penalty_revenue) || 0,
+        deposit_release_amount: parseInt(form.deposit_release_amount) || 0,
+        compensation_amount: parseInt(form.compensation_amount) || 0,
+        compensation_to: form.compensation_to || undefined,
+        fault_party: form.fault_party,
+        fault_severity: form.fault_severity || undefined,
+        settlement_note: form.settlement_note || undefined,
+        idempotency_key: `settle-${settleJobId}-${Date.now()}`,
+      });
+      if (res.success) {
+        toast.success('Settlement สำเร็จ');
+        setSettleJobId(null);
+        await load();
+      } else {
+        toast.error(res.error || 'Settlement ไม่สำเร็จ');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card className="p-4">
+        <div className="flex items-center gap-2">
+          <label className="text-xs font-medium text-gray-600">แสดง</label>
+          <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={filter} onChange={(e) => setFilter(e.target.value as 'unresolved' | 'settled' | 'all')}>
+            <option value="unresolved">รอ Admin ตัดสิน</option>
+            <option value="settled">Settle แล้ว</option>
+            <option value="all">ทั้งหมด</option>
+          </select>
+          <Button variant="outline" size="sm" onClick={load}>รีเฟรช</Button>
+        </div>
+      </Card>
+
+      {loading ? (
+        <LoadingState message="กำลังโหลด..." />
+      ) : jobs.length === 0 ? (
+        <Card className="p-8 text-center text-sm text-gray-600">ไม่พบงานที่ต้อง settle</Card>
+      ) : (
+        <Card className="p-4">
+          <div className="divide-y divide-gray-200">
+            {jobs.map((j) => {
+              const sm = String(j.settlement_mode || '');
+              const fp = String(j.fault_party || '');
+              const smCfg = SETTLEMENT_MODE_LABELS[sm];
+              return (
+                <div key={String(j.job_id || j.id)} className="py-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0 space-y-1">
+                    <div className="text-sm font-semibold text-gray-900 truncate">{String(j.title || '-')}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {smCfg ? (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${smCfg.color}`}>{smCfg.label}</span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">ยังไม่ settle</span>
+                      )}
+                      <span className="text-xs text-gray-500">ฝ่ายผิด: {FAULT_LABELS[fp] || fp || '-'}</span>
+                    </div>
+                    <div className="text-xs text-gray-500 space-x-3">
+                      <span>ค่าจ้าง {formatMoney(j.total_amount)}</span>
+                      {Number(j.final_platform_fee) > 0 && <span>Fee {formatMoney(j.final_platform_fee)}</span>}
+                      {Number(j.final_platform_penalty_revenue) > 0 && <span>Penalty Rev {formatMoney(j.final_platform_penalty_revenue)}</span>}
+                      {Number(j.final_hirer_refund) > 0 && <span>Refund {formatMoney(j.final_hirer_refund)}</span>}
+                      {Number(j.compensation_amount) > 0 && <span>ชดเชย {formatMoney(j.compensation_amount)}</span>}
+                    </div>
+                    {j.admin_settlement_note && <div className="text-xs text-gray-500 italic">Note: {String(j.admin_settlement_note)}</div>}
+                  </div>
+                  <div className="flex-shrink-0">
+                    {!sm && String(j.job_id || '') ? (
+                      <Button size="sm" variant="primary" onClick={() => openSettle(String(j.job_id))}>
+                        Settle
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => openSettle(String(j.job_id || ''))}>
+                        ดูรายละเอียด
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
+
+      {settleJobId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setSettleJobId(null)}>
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-gray-900 mb-4">Admin Settlement</h3>
+            {settleData && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg text-xs space-y-1">
+                <div>Escrow balance: <span className="font-semibold">{formatMoney(settleData.escrow?.held_balance)}</span></div>
+                <div>ค่าจ้าง: {formatMoney(settleData.job?.total_amount)} | Fee: {formatMoney(settleData.job?.platform_fee_amount)} | Deposit: {formatMoney(settleData.job?.hirer_deposit_amount)}</div>
+              </div>
+            )}
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Refund (hirer)" type="number" value={form.refund_amount} onChange={(e) => setForm((f) => ({ ...f, refund_amount: e.target.value }))} />
+                <Input label="Payout (CG)" type="number" value={form.payout_amount} onChange={(e) => setForm((f) => ({ ...f, payout_amount: e.target.value }))} />
+                <Input label="Platform Fee" type="number" value={form.platform_fee_amount} onChange={(e) => setForm((f) => ({ ...f, platform_fee_amount: e.target.value }))} />
+                <Input label="Penalty Revenue" type="number" value={form.platform_penalty_revenue} onChange={(e) => setForm((f) => ({ ...f, platform_penalty_revenue: e.target.value }))} />
+                <Input label="Deposit Release" type="number" value={form.deposit_release_amount} onChange={(e) => setForm((f) => ({ ...f, deposit_release_amount: e.target.value }))} />
+                <Input label="Compensation" type="number" value={form.compensation_amount} onChange={(e) => setForm((f) => ({ ...f, compensation_amount: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">ฝ่ายที่ผิด</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={form.fault_party} onChange={(e) => setForm((f) => ({ ...f, fault_party: e.target.value }))}>
+                    <option value="none">ไม่มี</option>
+                    <option value="hirer">ผู้ว่าจ้าง</option>
+                    <option value="caregiver">ผู้ดูแล</option>
+                    <option value="shared">ทั้งสองฝ่าย</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Compensation ให้</label>
+                  <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={form.compensation_to} onChange={(e) => setForm((f) => ({ ...f, compensation_to: e.target.value }))}>
+                    <option value="">-</option>
+                    <option value="hirer">ผู้ว่าจ้าง</option>
+                    <option value="caregiver">ผู้ดูแล</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-600 mb-1">หมายเหตุ</label>
+                <textarea className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" rows={2} value={form.settlement_note} onChange={(e) => setForm((f) => ({ ...f, settlement_note: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <Button variant="outline" onClick={() => setSettleJobId(null)}>ยกเลิก</Button>
+              <Button variant="primary" disabled={submitting} onClick={doSettle}>
+                {submitting ? 'กำลังบันทึก...' : 'ยืนยัน Settlement'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminFinancialPage() {
   const [tab, setTab] = useState<TabKey>('dashboard');
 
   const tabs: { key: TabKey; label: string }[] = [
     { key: 'dashboard', label: 'ภาพรวม' },
+    { key: 'settlements', label: 'Settlement' },
     { key: 'withdrawals', label: 'คำขอถอนเงิน' },
     { key: 'transactions', label: 'รายการธุรกรรม' },
   ];
@@ -577,7 +840,7 @@ export default function AdminFinancialPage() {
     <div className="space-y-4">
       <div>
         <h1 className="text-lg font-bold text-gray-900">การเงิน</h1>
-        <p className="text-xs text-gray-500 mt-0.5">จัดการคำขอถอนเงิน ดูรายการธุรกรรม และภาพรวมการเงินของระบบ</p>
+        <p className="text-xs text-gray-500 mt-0.5">จัดการคำขอถอนเงิน ดูรายการธุรกรรม Settlement และภาพรวมการเงินของระบบ</p>
       </div>
       <div className="flex items-center gap-1 border-b border-gray-200">
         {tabs.map((t) => (
@@ -596,6 +859,7 @@ export default function AdminFinancialPage() {
       </div>
 
       {tab === 'dashboard' && <DashboardTab />}
+      {tab === 'settlements' && <SettlementTab />}
       {tab === 'withdrawals' && <WithdrawalsTab />}
       {tab === 'transactions' && <TransactionsTab />}
     </div>

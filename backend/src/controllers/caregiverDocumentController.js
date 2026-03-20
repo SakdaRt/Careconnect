@@ -95,19 +95,7 @@ const caregiverDocumentController = {
    */
   async listByCaregiver(req, res, next) {
     try {
-      const hirerId = req.user.id;
       const caregiverId = req.params.caregiverId;
-
-      // Admin can always view
-      if (req.user.role !== 'admin') {
-        const hasAssignment = await hirerHasAssignmentWithCaregiver(hirerId, caregiverId);
-        if (!hasAssignment) {
-          return res.status(403).json({
-            success: false,
-            error: 'คุณสามารถดูเอกสารของผู้ดูแลได้เฉพาะเมื่อมีงานร่วมกัน',
-          });
-        }
-      }
 
       const docs = await listDocumentsByUserId(caregiverId);
       res.json({ success: true, data: docs });
