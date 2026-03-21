@@ -347,7 +347,7 @@ export default function KycPage() {
         </div>
 
         {/* Step content */}
-        <Card className="p-4 sm:p-6">
+        <Card padding="responsive">
           {/* ─── Step 1: Document Upload ─── */}
           {step === 'document' && (
             <div>

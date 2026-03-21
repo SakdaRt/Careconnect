@@ -776,7 +776,7 @@ export default function ProfilePage() {
         )}
 
         {user && user.role !== "admin" && (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="text-sm font-semibold text-gray-900 mb-3">
               Trust Score
             </div>
@@ -802,7 +802,7 @@ export default function ProfilePage() {
         )}
 
         {user && user.role !== "admin" && (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-semibold text-gray-900">
                 บัญชีธนาคาร
@@ -845,12 +845,12 @@ export default function ProfilePage() {
         )}
 
         {!user ? (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="text-sm text-gray-700">กรุณาเข้าสู่ระบบก่อน</div>
           </Card>
         ) : (
           <>
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900 mb-3">
                 ข้อมูลโปรไฟล์
               </div>
@@ -1109,7 +1109,7 @@ export default function ProfilePage() {
 
             {/* ─── Caregiver Certification Documents ─── */}
             {profileRole === "caregiver" && (
-              <Card className="p-4 sm:p-6">
+              <Card padding="responsive">
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <div className="text-sm font-semibold text-gray-900">
@@ -1374,7 +1374,7 @@ export default function ProfilePage() {
             )}
 
             {profileRole === "caregiver" && (
-              <Card className="p-4 sm:p-6">
+              <Card padding="responsive">
                 <div className="text-sm font-semibold text-gray-900 mb-3">
                   รีวิวจากผู้ว่าจ้าง
                 </div>
@@ -1446,7 +1446,7 @@ export default function ProfilePage() {
               </Card>
             )}
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">บทบาท</div>
@@ -1469,7 +1469,7 @@ export default function ProfilePage() {
               </div>
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900 mb-3">
                 การยืนยัน
               </div>
