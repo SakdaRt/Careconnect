@@ -107,7 +107,7 @@ export default function AvailabilityCalendarPage() {
           <p className="text-sm text-gray-600">ตั้งค่าวันและช่วงเวลาที่พร้อมรับงาน</p>
         </div>
 
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-2 mb-4">
             <Clock3 className="w-5 h-5 text-blue-600" />
             <h2 className="text-base font-semibold text-gray-900">ช่วงเวลาที่พร้อมรับงาน</h2>
@@ -136,7 +136,7 @@ export default function AvailabilityCalendarPage() {
           </div>
         </Card>
 
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-2 mb-4">
             <CalendarDays className="w-5 h-5 text-blue-600" />
             <h2 className="text-base font-semibold text-gray-900">วันประจำสัปดาห์</h2>

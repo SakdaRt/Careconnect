@@ -169,7 +169,7 @@ export default function CaregiverJobFeedPage() {
           const doneCount = steps.filter((s) => s.done).length;
           if (doneCount >= steps.length) return null;
           return (
-            <Card className="mb-4 p-4">
+            <Card className="mb-4" padding="responsive">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm font-bold text-gray-900">เริ่มต้นใช้งาน</div>
                 <span className="text-xs text-gray-500">{doneCount}/{steps.length}</span>
@@ -201,7 +201,7 @@ export default function CaregiverJobFeedPage() {
 
         {/* Profile Visibility Toggle */}
         {user?.role === 'caregiver' && profile && (
-          <Card className="mb-4 p-4">
+          <Card className="mb-4" padding="responsive">
             <div className="flex items-center justify-between">
               <div className="flex items-start gap-3">
                 {(profile.is_public_profile ?? true) ? (
@@ -291,7 +291,7 @@ export default function CaregiverJobFeedPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
-          <Card className="p-6 sm:p-8 text-center">
+          <Card padding="lg" className="text-center">
             <div className="text-4xl mb-3">{typeFilter ? '�' : '☕'}</div>
             <h3 className="text-lg font-bold text-gray-900 mb-1">{typeFilter ? 'ไม่พบงานประเภทนี้' : 'ยังไม่มีงานเปิดรับในขณะนี้'}</h3>
             <p className="text-sm text-gray-600 mb-4">{typeFilter ? 'ลองเปลี่ยนตัวกรองหรือรอสักครู่' : 'ระหว่างรอ ลองปรับปรุงโปรไฟล์ให้ครบ เพื่อเพิ่มโอกาสได้รับงาน'}</p>
