@@ -144,7 +144,7 @@ export default function CareRecipientsPage() {
         {loading ? (
           <LoadingState message="กำลังโหลด..." />
         ) : active.length === 0 ? (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="text-sm text-gray-700">ยังไม่มีผู้รับการดูแล</div>
             <div className="mt-4 flex gap-2">
               <Link to="/hirer/care-recipients/new">
@@ -158,7 +158,7 @@ export default function CareRecipientsPage() {
         ) : (
           <div className="space-y-3">
             {active.map((p) => (
-              <Card key={p.id} className="p-4">
+              <Card key={p.id} padding="responsive">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">

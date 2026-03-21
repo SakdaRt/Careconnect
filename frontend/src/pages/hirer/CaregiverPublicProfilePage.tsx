@@ -186,7 +186,7 @@ export default function CaregiverPublicProfilePage() {
         </button>
 
         {/* Header */}
-        <Card className="p-5">
+        <Card padding="responsive">
           <div className="flex items-start justify-between gap-3">
             <Avatar
               userId={profile.id}
@@ -251,7 +251,7 @@ export default function CaregiverPublicProfilePage() {
 
         {/* Skills */}
         {tags.length > 0 && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="text-sm font-semibold text-gray-900 mb-3">ทักษะและความเชี่ยวชาญ</div>
             <div className="flex flex-wrap gap-1.5">
               {tags.map((tag) => (
@@ -265,7 +265,7 @@ export default function CaregiverPublicProfilePage() {
 
         {/* Availability */}
         {(dayNums.length > 0 || fromTime) && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Clock3 className="w-4 h-4" />
               ช่วงเวลาที่พร้อมรับงาน
@@ -287,7 +287,7 @@ export default function CaregiverPublicProfilePage() {
 
         {/* Certificates / Documents */}
         {documents.length > 0 && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <FileText className="w-4 h-4 text-blue-600" aria-hidden="true" />
               ใบรับรอง/เอกสาร ({documents.length})
@@ -318,7 +318,7 @@ export default function CaregiverPublicProfilePage() {
         )}
 
         {/* Reviews */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
             <Star className="w-4 h-4 text-yellow-500" />
             รีวิวจากผู้ว่าจ้าง

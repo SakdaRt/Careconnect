@@ -595,7 +595,7 @@ export default function SearchCaregiversPage() {
             const days = (cg.available_days || []).map(Number);
             return availableDayFilters.every((d) => days.includes(d));
           }).length === 0 ? (
-          <Card className="text-center py-12">
+          <Card padding="lg" className="text-center">
             <Search className="w-12 h-12 text-gray-300 mx-auto mb-3" />
             <p className="text-gray-500">ไม่พบผู้ดูแลที่ตรงกับเงื่อนไข</p>
           </Card>

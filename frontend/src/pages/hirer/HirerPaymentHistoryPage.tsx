@@ -59,7 +59,7 @@ export default function HirerPaymentHistoryPage() {
         {loading ? (
           <LoadingState message="กำลังโหลด..." />
         ) : (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div>
                 <Select label="ประเภท" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)}>
@@ -96,7 +96,7 @@ export default function HirerPaymentHistoryPage() {
                       </div>
                       <div className="text-xs text-gray-500">{new Date(t.created_at).toLocaleString('th-TH')}</div>
                       {t.description && <div className="text-xs text-gray-600 mt-1">{t.description}</div>}
-                      <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">ref:{t.reference_id}</div>
+                      <div className="text-[11px] text-gray-500 mt-1 font-mono truncate max-w-[200px]">ref:{t.reference_id}</div>
                       {(t.reference_type === 'job' || t.reference_type === 'fee' || t.reference_type === 'refund') && (
                         <div className="mt-2">
                           <Link to={`/hirer/wallet/receipt/${t.reference_id}`}>
@@ -107,7 +107,7 @@ export default function HirerPaymentHistoryPage() {
                         </div>
                       )}
                     </div>
-                    <div className="text-sm font-semibold text-gray-900 tabular-nums">{t.amount.toLocaleString()} บาท</div>
+                    <div className="text-sm font-semibold text-gray-900 tabular-nums whitespace-nowrap">{t.amount.toLocaleString()} บาท</div>
                   </div>
                 ))}
               </div>
