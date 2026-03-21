@@ -82,11 +82,11 @@ export default function JobPreviewPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดรายละเอียดงาน..." />
         ) : !job ? (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <p className="text-gray-700">ไม่พบงานนี้</p>
           </Card>
         ) : (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>

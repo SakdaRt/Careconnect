@@ -125,7 +125,7 @@ export default function NotificationsPage() {
         </div>
 
         {!user ? (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="text-sm text-gray-700">กรุณาเข้าสู่ระบบเพื่อดูการแจ้งเตือน</div>
           </Card>
         ) : (
@@ -180,11 +180,11 @@ export default function NotificationsPage() {
             </Card>
 
             {loading ? (
-              <Card className="p-8">
+              <Card padding="lg">
                 <div className="text-center text-sm text-gray-500">กำลังโหลด...</div>
               </Card>
             ) : items.length === 0 ? (
-              <Card className="p-8">
+              <Card padding="lg">
                 <div className="flex flex-col items-center text-center gap-3">
                   <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
                     <Bell className="w-7 h-7 text-blue-600" />

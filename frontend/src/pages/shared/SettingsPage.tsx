@@ -180,7 +180,7 @@ export default function SettingsPage() {
 
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-5">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">ตั้งค่า</h1>
           <p className="text-sm text-gray-600">จัดการบัญชีและการตั้งค่าต่างๆ</p>

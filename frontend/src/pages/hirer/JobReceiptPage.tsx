@@ -110,7 +110,7 @@ export default function JobReceiptPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดใบเสร็จ..." />
         ) : !job ? (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="text-sm text-gray-700">ไม่พบข้อมูลงานสำหรับใบเสร็จ</div>
             <div className="mt-4">
               <Link to="/hirer/wallet/history">
@@ -120,7 +120,7 @@ export default function JobReceiptPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="text-sm text-gray-500">ใบเสร็จ</div>
@@ -149,7 +149,7 @@ export default function JobReceiptPage() {
               </div>
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">สรุปค่าใช้จ่าย</h2>
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-sm">
@@ -173,7 +173,7 @@ export default function JobReceiptPage() {
               </div>
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ธุรกรรมที่เกี่ยวข้อง</h2>
               {txs.length === 0 ? (
                 <div className="text-sm text-gray-600">ยังไม่พบธุรกรรมที่เกี่ยวข้อง (อาจอยู่นอกช่วงรายการล่าสุด)</div>

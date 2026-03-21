@@ -12,7 +12,7 @@ export function MainLayout({ children, showBottomBar = true }: MainLayoutProps) 
     <div className="min-h-screen bg-gray-50">
       <TopBar />
 
-      <main id="main-content" className={showBottomBar ? 'pb-20' : ''}>
+      <main id="main-content" className={showBottomBar ? 'pb-16 safe-area-bottom' : ''}>
         {children}
       </main>
 

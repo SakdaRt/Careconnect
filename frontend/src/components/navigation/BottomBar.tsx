@@ -19,12 +19,15 @@ export function BottomBar() {
       <Link
         to={to}
         className={cn(
-          'flex flex-col items-center justify-center flex-1 h-full transition-colors',
-          active ? 'text-blue-600 bg-blue-50' : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50'
+          'relative flex flex-col items-center justify-center flex-1 h-full transition-colors',
+          active ? 'text-blue-600' : 'text-gray-500 hover:text-blue-600'
         )}
       >
-        <Icon className="w-6 h-6" aria-hidden="true" />
-        <span className="text-xs mt-1">{label}</span>
+        {active && (
+          <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-blue-600 rounded-full" />
+        )}
+        <Icon className="w-5 h-5" aria-hidden="true" />
+        <span className="text-[11px] mt-0.5 leading-tight">{label}</span>
       </Link>
     );
   };

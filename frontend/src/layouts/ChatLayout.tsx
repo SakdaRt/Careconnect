@@ -11,7 +11,7 @@ export function ChatLayout({ children }: ChatLayoutProps) {
     <div className="h-dvh bg-white flex flex-col overflow-hidden">
       <TopBar />
 
-      <main className="flex-1 flex flex-col overflow-hidden pb-16 min-h-0">
+      <main className="flex-1 flex flex-col overflow-hidden pb-16 safe-area-bottom min-h-0">
         {children}
       </main>
 

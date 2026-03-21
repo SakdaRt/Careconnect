@@ -44,22 +44,25 @@ export default function EarningsHistoryPage() {
   return (
     <MainLayout showBottomBar={false}>
       <div className="max-w-3xl mx-auto px-4 py-6">
-        <div className="flex items-center justify-between gap-3 mb-6">
-          <Button variant="outline" onClick={() => navigate('/caregiver/wallet')}>
-            ย้อนกลับ
-          </Button>
-          <Button variant="outline" onClick={load}>
-            รีเฟรช
-          </Button>
+        <div className="flex items-start justify-between gap-3 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">ประวัติรายได้</h1>
+            <p className="text-sm text-gray-600">ดูรายการรายรับ/รายจ่ายในกระเป๋าเงินผู้ดูแล</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/caregiver/wallet')}>
+              ย้อนกลับ
+            </Button>
+            <Button variant="outline" onClick={load}>
+              รีเฟรช
+            </Button>
+          </div>
         </div>
-
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">ประวัติรายได้</h1>
-        <p className="text-sm text-gray-600 mb-6">ดูรายการรายรับ/รายจ่ายในกระเป๋าเงินผู้ดูแล</p>
 
         {loading ? (
           <LoadingState message="กำลังโหลด..." />
         ) : (
-          <Card className="p-4 sm:p-6">
+          <Card padding="responsive">
             <div className="flex flex-col sm:flex-row gap-3 mb-4">
               <div>
                 <Select label="ประเภท" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value as any)}>
@@ -94,7 +97,7 @@ export default function EarningsHistoryPage() {
                       </div>
                       <div className="text-xs text-gray-500">{new Date(t.created_at).toLocaleString('th-TH')}</div>
                       {t.description && <div className="text-xs text-gray-600 mt-1">{t.description}</div>}
-                      <div className="text-[11px] text-gray-500 mt-1 font-mono break-all">ref:{t.reference_id}</div>
+                      <div className="text-[11px] text-gray-500 mt-1 font-mono truncate">ref:{t.reference_id}</div>
                       {t.reference_type === 'job' && (
                         <div className="mt-2">
                           <Link to={`/caregiver/wallet/earning/${t.reference_id}`}>
@@ -105,13 +108,13 @@ export default function EarningsHistoryPage() {
                         </div>
                       )}
                     </div>
-                    <div className="text-sm font-semibold text-gray-900">{t.amount.toLocaleString()} บาท</div>
+                    <div className="text-sm font-semibold text-gray-900 tabular-nums whitespace-nowrap">{t.amount.toLocaleString()} บาท</div>
                   </div>
                 ))}
               </div>
             )}
 
-            <div className="flex items-center justify-between gap-3 mt-4">
+            <div className="flex items-center justify-between gap-3 mt-4 pt-4 border-t border-gray-100">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))}>
                 ก่อนหน้า
               </Button>

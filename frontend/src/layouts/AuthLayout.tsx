@@ -11,7 +11,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       {/* Simple header with logo */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-12 sm:h-16">
+          <div className="flex justify-between items-center h-14 sm:h-16">
             <Link to="/" className="flex items-center">
               <span className="text-2xl font-bold text-blue-600">Careconnect</span>
             </Link>
@@ -27,7 +27,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
       </div>
 
       {/* Footer */}
-      <div className="bg-white border-t border-gray-200 py-4">
+      <div className="bg-white border-t border-gray-200 py-4 safe-area-bottom">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-sm text-gray-500">
           <p>© 2026 Careconnect. All rights reserved.</p>
         </div>

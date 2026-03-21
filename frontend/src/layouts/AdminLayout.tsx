@@ -23,7 +23,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches
+  );
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -108,10 +110,19 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Top Bar */}
-        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-6">
-          <h1 className="text-xl font-semibold text-gray-900">
-            {menuItems.find(item => isActive(item.path))?.label || 'Admin Portal'}
-          </h1>
+        <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              aria-label={sidebarOpen ? 'ซ่อนเมนู' : 'แสดงเมนู'}
+              className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <Menu className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-900">
+              {menuItems.find(item => isActive(item.path))?.label || 'Admin Portal'}
+            </h1>
+          </div>
 
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600">
@@ -121,7 +132,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         </header>
 
         {/* Page Content */}
-        <main id="main-content" className="flex-1 overflow-auto p-6">
+        <main id="main-content" className="flex-1 overflow-auto p-4 sm:p-6">
           {children}
         </main>
       </div>

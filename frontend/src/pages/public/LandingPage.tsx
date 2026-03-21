@@ -137,15 +137,15 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold leading-tight md:leading-tight text-gray-900 mb-6">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-bold leading-tight text-gray-900 mb-6">
             แพลตฟอร์มจับคู่ผู้ดูแล
             <br />
             <span className="text-blue-600">ที่คุณเชื่อถือได้</span>
           </h1>
 
-          <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
+          <p className="text-lg sm:text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
             เชื่อมต่อผู้ว่าจ้างกับผู้ดูแลมืออาชีพ
             <br />
             ด้วยระบบความปลอดภัยระดับสูง การเงินโปร่งใส และการันตีคุณภาพ
@@ -176,7 +176,7 @@ export default function LandingPage() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-8 mt-16 max-w-3xl mx-auto">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8 mt-12 sm:mt-16 max-w-3xl mx-auto">
             <div>
               <p className="text-4xl font-bold text-blue-600">500+</p>
               <p className="text-gray-600 mt-2">ผู้ดูแลมืออาชีพ</p>
@@ -194,18 +194,18 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
               ทำไมต้องเลือก Careconnect
             </h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-lg sm:text-xl text-gray-600">
               เราให้ความสำคัญกับความปลอดภัยและคุณภาพในทุกขั้นตอน
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {features.map((feature, index) => (
               <div
                 key={index}
@@ -223,14 +223,14 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">วิธีการใช้งาน</h2>
-            <p className="text-xl text-gray-600">เริ่มต้นใช้งานได้ง่ายๆ ใน 4 ขั้นตอน</p>
+          <div className="text-center mb-10 sm:mb-16">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">วิธีการใช้งาน</h2>
+            <p className="text-lg sm:text-xl text-gray-600">เริ่มต้นใช้งานได้ง่ายๆ ใน 4 ขั้นตอน</p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
             {howItWorks.map((item, index) => (
               <div key={index} className="relative">
                 <div className="bg-white rounded-lg p-6 shadow-md h-full">
@@ -269,11 +269,11 @@ export default function LandingPage() {
 
       {/* Featured Caregivers */}
       {caregivers.length > 0 && (
-        <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white">
+        <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-white">
           <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-12">
-              <h2 className="text-4xl font-bold text-gray-900 mb-4">ผู้ดูแลมืออาชีพของเรา</h2>
-              <p className="text-xl text-gray-600">พบกับผู้ดูแลที่ผ่านการตรวจสอบ พร้อมให้บริการ</p>
+            <div className="text-center mb-8 sm:mb-12">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">ผู้ดูแลมืออาชีพของเรา</h2>
+              <p className="text-lg sm:text-xl text-gray-600">พบกับผู้ดูแลที่ผ่านการตรวจสอบ พร้อมให้บริการ</p>
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -338,10 +338,10 @@ export default function LandingPage() {
       )}
 
       {/* CTA Section */}
-      <section className="py-20 px-4 sm:px-6 lg:px-8 bg-blue-600 text-white">
+      <section className="py-12 sm:py-20 px-4 sm:px-6 lg:px-8 bg-blue-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-4">พร้อมเริ่มต้นแล้วหรือยัง?</h2>
-          <p className="text-xl mb-8 opacity-90">
+          <h2 className="text-3xl sm:text-4xl font-bold mb-4">พร้อมเริ่มต้นแล้วหรือยัง?</h2>
+          <p className="text-lg sm:text-xl mb-8 opacity-90">
             สมัครวันนี้และเริ่มใช้งานได้ทันที ไม่มีค่าใช้จ่ายในการสมัคร
           </p>
 
@@ -373,7 +373,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-4 gap-8 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8 mb-8">
             <div>
               <div className="flex items-center mb-4">
                 <Heart className="w-6 h-6 text-blue-500 mr-2" />

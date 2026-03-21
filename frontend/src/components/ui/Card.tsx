@@ -5,7 +5,7 @@ import { cn } from '../../utils/cn';
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   clickable?: boolean;
-  padding?: 'sm' | 'md' | 'lg';
+  padding?: 'sm' | 'md' | 'lg' | 'responsive';
 }
 
 export function Card({ children, clickable, padding = 'md', className, ...props }: CardProps) {
@@ -13,6 +13,7 @@ export function Card({ children, clickable, padding = 'md', className, ...props 
     sm: 'p-3',
     md: 'p-4',
     lg: 'p-6',
+    responsive: 'p-4 sm:p-6',
   };
 
   return (
