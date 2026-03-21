@@ -145,10 +145,10 @@ export default function FAQPage() {
       </header>
 
       {/* Hero */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-16 px-4">
+      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-10 sm:py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-4">คำถามที่พบบ่อย</h1>
-          <p className="text-xl opacity-90">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-4">คำถามที่พบบ่อย</h1>
+          <p className="text-lg sm:text-xl opacity-90">
             ค้นหาคำตอบสำหรับคำถามที่พบบ่อยเกี่ยวกับ Careconnect
           </p>
         </div>
@@ -205,12 +205,12 @@ export default function FAQPage() {
       </section>
 
       {/* Contact CTA */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-blue-50">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8 bg-blue-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
             ยังหาคำตอบที่ต้องการไม่เจอ?
           </h2>
-          <p className="text-xl text-gray-600 mb-8">ติดต่อทีมงานของเราได้ตลอด 24 ชั่วโมง</p>
+          <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8">ติดต่อทีมงานของเราได้ตลอด 24 ชั่วโมง</p>
           <Link to="/contact">
             <Button variant="primary" size="lg">
               ติดต่อเรา

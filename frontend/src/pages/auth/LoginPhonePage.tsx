@@ -78,17 +78,17 @@ export default function LoginPhonePage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
         <div className="flex items-center justify-center mb-6">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
             <Phone className="w-8 h-8 text-green-600" />
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2">
           เข้าสู่ระบบด้วยเบอร์โทร
         </h1>
-        <p className="text-gray-600 text-center mb-8">กรอกเบอร์โทรศัพท์และรหัสผ่านของคุณ</p>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">กรอกเบอร์โทรศัพท์และรหัสผ่านของคุณ</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <PhoneInput

@@ -20,9 +20,9 @@ export default function RegisterTypePage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">สมัครสมาชิก</h1>
-        <p className="text-gray-600 text-center mb-8">เลือกประเภทบัญชีที่คุณต้องการ</p>
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2">สมัครสมาชิก</h1>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">เลือกประเภทบัญชีที่คุณต้องการ</p>
 
         <div className="space-y-4">
           {/* Google Account */}

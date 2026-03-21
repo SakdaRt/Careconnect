@@ -68,17 +68,17 @@ export default function LoginEmailPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
         <div className="flex items-center justify-center mb-6">
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
             <Mail className="w-8 h-8 text-blue-600" />
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2">
           เข้าสู่ระบบด้วยอีเมล
         </h1>
-        <p className="text-gray-600 text-center mb-8">กรอกอีเมลและรหัสผ่านของคุณ</p>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">กรอกอีเมลและรหัสผ่านของคุณ</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input

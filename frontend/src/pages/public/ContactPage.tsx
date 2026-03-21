@@ -37,22 +37,22 @@ export default function ContactPage() {
       </header>
 
       {/* Hero */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-16 px-4">
+      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-10 sm:py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-4">ติดต่อเรา</h1>
-          <p className="text-xl opacity-90">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-4">ติดต่อเรา</h1>
+          <p className="text-lg sm:text-xl opacity-90">
             มีคำถามหรือข้อสงสัย? เราพร้อมให้บริการคุณตลอด 24 ชั่วโมง
           </p>
         </div>
       </section>
 
       {/* Contact Info & Form */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid lg:grid-cols-2 gap-12">
+          <div className="grid lg:grid-cols-2 gap-8 sm:gap-12">
             {/* Contact Information */}
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-8">ช่องทางติดต่อ</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 sm:mb-8">ช่องทางติดต่อ</h2>
 
               <div className="space-y-6">
                 <div className="flex items-start gap-4">
@@ -144,7 +144,7 @@ export default function ContactPage() {
 
             {/* Contact Form */}
             <div>
-              <div className="bg-white rounded-lg shadow-md p-8">
+              <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">ส่งข้อความถึงเรา</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -195,12 +195,12 @@ export default function ContactPage() {
       </section>
 
       {/* FAQ CTA */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-blue-50">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8 bg-blue-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">
             ลองเช็คคำถามที่พบบ่อยดูก่อนไหม?
           </h2>
-          <p className="text-xl text-gray-600 mb-8">
+          <p className="text-lg sm:text-xl text-gray-600 mb-6 sm:mb-8">
             คำตอบสำหรับคำถามส่วนใหญ่อาจอยู่ในหน้า FAQ แล้ว
           </p>
           <Link to="/faq">

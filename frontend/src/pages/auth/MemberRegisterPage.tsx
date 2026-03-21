@@ -212,7 +212,7 @@ export default function MemberRegisterPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
         {step === 'otp' ? (
           <button
             onClick={handleCancelRegistration}
@@ -237,10 +237,10 @@ export default function MemberRegisterPage() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2">
           สมัครบัญชีสมาชิก
         </h1>
-        <p className="text-gray-600 text-center mb-8">ลงทะเบียนด้วยเบอร์โทรศัพท์</p>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">ลงทะเบียนด้วยเบอร์โทรศัพท์</p>
 
         {/* Progress Steps */}
         <div className="flex items-center justify-center mb-8">

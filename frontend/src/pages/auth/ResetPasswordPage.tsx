@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
   if (!token || !email) {
     return (
       <AuthLayout>
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">ลิงก์ไม่ถูกต้อง</h1>
           <p className="text-gray-600 mb-6">
             ลิงก์รีเซ็ตรหัสผ่านไม่ถูกต้องหรือหมดอายุแล้ว กรุณาขอลิงก์ใหม่
@@ -75,11 +75,11 @@ export default function ResetPasswordPage() {
   if (success) {
     return (
       <AuthLayout>
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" aria-hidden="true" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">เปลี่ยนรหัสผ่านสำเร็จ!</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">เปลี่ยนรหัสผ่านสำเร็จ!</h1>
           <p className="text-gray-600 mb-8">
             คุณสามารถเข้าสู่ระบบด้วยรหัสผ่านใหม่ได้แล้ว
           </p>
@@ -98,7 +98,7 @@ export default function ResetPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
         <Link
           to="/login"
           className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
@@ -113,8 +113,8 @@ export default function ResetPasswordPage() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">ตั้งรหัสผ่านใหม่</h1>
-        <p className="text-gray-600 text-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2">ตั้งรหัสผ่านใหม่</h1>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">
           กรอกรหัสผ่านใหม่สำหรับบัญชี <span className="font-semibold">{decodeURIComponent(email)}</span>
         </p>
 

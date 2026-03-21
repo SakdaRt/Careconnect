@@ -49,12 +49,12 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <AuthLayout>
-        <div className="bg-white rounded-lg shadow-md p-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8 text-center">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Mail className="w-8 h-8 text-green-600" />
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">ตรวจสอบอีเมลของคุณ</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">ตรวจสอบอีเมลของคุณ</h1>
 
           <p className="text-gray-600 mb-6">
             เราได้ส่งลิงก์สำหรับรีเซ็ตรหัสผ่านไปยัง
@@ -92,7 +92,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthLayout>
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
         <Link
           to="/login"
           className="inline-flex items-center text-gray-600 hover:text-gray-900 mb-6"
@@ -107,8 +107,8 @@ export default function ForgotPasswordPage() {
           </div>
         </div>
 
-        <h1 className="text-3xl font-bold text-gray-900 text-center mb-2">ลืมรหัสผ่าน?</h1>
-        <p className="text-gray-600 text-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 text-center mb-2">ลืมรหัสผ่าน?</h1>
+        <p className="text-gray-600 text-center mb-6 sm:mb-8">
           กรอกอีเมลของคุณ เราจะส่งลิงก์สำหรับรีเซ็ตรหัสผ่านให้
         </p>
 

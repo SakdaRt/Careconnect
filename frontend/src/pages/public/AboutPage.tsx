@@ -21,10 +21,10 @@ export default function AboutPage() {
       </header>
 
       {/* Hero */}
-      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-20 px-4">
+      <section className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-12 sm:py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl font-bold mb-6">เกี่ยวกับ Careconnect</h1>
-          <p className="text-xl opacity-90">
+          <h1 className="text-3xl sm:text-5xl font-bold mb-4 sm:mb-6">เกี่ยวกับ Careconnect</h1>
+          <p className="text-lg sm:text-xl opacity-90">
             แพลตฟอร์มที่เชื่อมต่อผู้ว่าจ้างกับผู้ดูแลมืออาชีพ
             <br />
             ด้วยความปลอดภัย โปร่งใส และเชื่อถือได้
@@ -33,14 +33,14 @@ export default function AboutPage() {
       </section>
 
       {/* Mission & Vision */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12">
-            <div className="bg-white rounded-lg p-8 shadow-md">
+          <div className="grid md:grid-cols-2 gap-6 sm:gap-12">
+            <div className="bg-white rounded-lg p-6 sm:p-8 shadow-md">
               <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-6">
                 <Target className="w-8 h-8 text-blue-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">พันธกิจ</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">พันธกิจ</h2>
               <p className="text-gray-600 text-lg leading-relaxed">
                 สร้างแพลตฟอร์มที่เชื่อมโยงผู้ต้องการความช่วยเหลือในการดูแลผู้สูงอายุ
                 กับผู้ดูแลมืออาชีพที่ผ่านการตรวจสอบ ด้วยระบบที่โปร่งใส ปลอดภัย
@@ -48,11 +48,11 @@ export default function AboutPage() {
               </p>
             </div>
 
-            <div className="bg-white rounded-lg p-8 shadow-md">
+            <div className="bg-white rounded-lg p-6 sm:p-8 shadow-md">
               <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
                 <Heart className="w-8 h-8 text-green-600" />
               </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">วิสัยทัศน์</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-4">วิสัยทัศน์</h2>
               <p className="text-gray-600 text-lg leading-relaxed">
                 เป็นแพลตฟอร์มอันดับหนึ่งในการจับคู่ผู้ดูแลผู้สูงอายุในประเทศไทย
                 ที่ทุกครอบครัวเชื่อใจและเลือกใช้ เพื่อมอบการดูแลที่มีคุณภาพ
@@ -64,14 +64,14 @@ export default function AboutPage() {
       </section>
 
       {/* Core Values */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8 bg-white">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">ค่านิยมหลัก</h2>
-            <p className="text-xl text-gray-600">หลักการที่เรายึดถือในการให้บริการ</p>
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">ค่านิยมหลัก</h2>
+            <p className="text-lg sm:text-xl text-gray-600">หลักการที่เรายึดถือในการให้บริการ</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Shield className="w-10 h-10 text-blue-600" />
@@ -109,17 +109,17 @@ export default function AboutPage() {
       </section>
 
       {/* How We Work */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">วิธีการทำงาน</h2>
-            <p className="text-xl text-gray-600">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">วิธีการทำงาน</h2>
+            <p className="text-lg sm:text-xl text-gray-600">
               เราใช้เทคโนโลยีและกระบวนการตรวจสอบที่เข้มงวดเพื่อความปลอดภัย
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-lg p-6 shadow-md">
+          <div className="grid md:grid-cols-2 gap-4 sm:gap-8">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md">
               <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <CheckCircle className="w-6 h-6 text-blue-600" />
                 การตรวจสอบผู้ดูแล
@@ -132,7 +132,7 @@ export default function AboutPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-lg p-6 shadow-md">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md">
               <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <CheckCircle className="w-6 h-6 text-blue-600" />
                 การติดตามคุณภาพ
@@ -145,7 +145,7 @@ export default function AboutPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-lg p-6 shadow-md">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md">
               <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <CheckCircle className="w-6 h-6 text-blue-600" />
                 ระบบการเงิน
@@ -158,7 +158,7 @@ export default function AboutPage() {
               </ul>
             </div>
 
-            <div className="bg-white rounded-lg p-6 shadow-md">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-md">
               <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <CheckCircle className="w-6 h-6 text-blue-600" />
                 การสื่อสาร
@@ -175,10 +175,10 @@ export default function AboutPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-blue-600 text-white">
+      <section className="py-10 sm:py-16 px-4 sm:px-6 lg:px-8 bg-blue-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-bold mb-6">พร้อมเริ่มต้นใช้งานแล้วหรือยัง?</h2>
-          <p className="text-xl mb-8 opacity-90">
+          <h2 className="text-2xl sm:text-4xl font-bold mb-4 sm:mb-6">พร้อมเริ่มต้นใช้งานแล้วหรือยัง?</h2>
+          <p className="text-lg sm:text-xl mb-6 sm:mb-8 opacity-90">
             เข้าร่วมกับเราวันนี้ เพื่อประสบการณ์การดูแลที่ดีกว่า
           </p>
           <Link to="/register">
