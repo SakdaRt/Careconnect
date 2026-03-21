@@ -187,7 +187,7 @@ export default function SettingsPage() {
         </div>
 
         {/* Account Info */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-3 mb-3">
             <User className="w-5 h-5 text-gray-500" />
             <div className="text-sm font-semibold text-gray-900">ข้อมูลบัญชี</div>
@@ -232,7 +232,7 @@ export default function SettingsPage() {
 
         {/* Role Switching */}
         {canSwitchRole && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="flex items-center gap-3 mb-3">
               <ArrowLeftRight className="w-5 h-5 text-blue-500" />
               <div className="text-sm font-semibold text-gray-900">เปลี่ยนบทบาท</div>
@@ -247,7 +247,7 @@ export default function SettingsPage() {
         )}
 
         {/* Security */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-3 mb-3">
             <KeyRound className="w-5 h-5 text-gray-500" />
             <div className="text-sm font-semibold text-gray-900">ความปลอดภัย</div>
@@ -271,7 +271,7 @@ export default function SettingsPage() {
 
         {/* KYC */}
         {resolvedRole !== 'admin' && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="flex items-center gap-3 mb-3">
               <ShieldCheck className="w-5 h-5 text-gray-500" />
               <div className="text-sm font-semibold text-gray-900">ยืนยันตัวตน (KYC)</div>
@@ -282,7 +282,7 @@ export default function SettingsPage() {
         )}
 
         {resolvedRole === 'caregiver' && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="flex items-center gap-3 mb-3">
               <CalendarDays className="w-5 h-5 text-gray-500" />
               <div className="text-sm font-semibold text-gray-900">ปฏิทินเวลาว่าง</div>
@@ -293,7 +293,7 @@ export default function SettingsPage() {
         )}
 
         {/* Notifications */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-3 mb-3">
             <Bell className="w-5 h-5 text-gray-500" />
             <div className="text-sm font-semibold text-gray-900">การแจ้งเตือน</div>
@@ -339,7 +339,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Help */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-3 mb-3">
             <HelpCircle className="w-5 h-5 text-gray-500" />
             <div className="text-sm font-semibold text-gray-900">ช่วยเหลือ</div>
@@ -353,7 +353,7 @@ export default function SettingsPage() {
         </Card>
 
         {/* Logout */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-3 mb-3">
             <LogOut className="w-5 h-5 text-red-500" />
             <div className="text-sm font-semibold text-gray-900">ออกจากระบบ</div>

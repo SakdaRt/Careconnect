@@ -254,7 +254,7 @@ export default function AdminReportsPage() {
         {/* Ledger Tab */}
         {activeTab === 'ledger' && (
           <>
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 <Input label="reference_type" value={referenceType} onChange={(e) => setReferenceType(e.target.value)} placeholder="job/fee/topup/withdrawal/refund" />
                 <Input label="reference_id" value={referenceId} onChange={(e) => setReferenceId(e.target.value)} placeholder="เช่น job_id หรือ withdrawal_id" />

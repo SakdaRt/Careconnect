@@ -1715,7 +1715,7 @@ export default function CreateJobPage() {
                   })}
                 </div>
               ) : (
-                <Card className="p-5 text-center">
+                <Card padding="responsive" className="text-center">
                   <UserIcon className="w-10 h-10 text-gray-300 mx-auto mb-2" aria-hidden="true" />
                   <p className="text-sm text-gray-700 font-medium">ยังไม่มีผู้รับการดูแล</p>
                   <p className="text-xs text-gray-500 mt-1">เพิ่มข้อมูลผู้ที่จะได้รับบริการก่อน</p>
@@ -1731,7 +1731,7 @@ export default function CreateJobPage() {
             </div>
 
             {showQuickAddRecipient && (
-              <Card className="p-4 border-blue-200 bg-blue-50/50">
+              <Card padding="responsive" className="border-blue-200 bg-blue-50/50">
                 <div className="text-sm font-semibold text-blue-800 mb-2">เพิ่มผู้รับการดูแลแบบเร็ว</div>
                 <input type="text" value={quickRecipientName} onChange={(e) => setQuickRecipientName(e.target.value)} placeholder="ชื่อ เช่น คุณแม่สมศรี" className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm mb-2" />
                 <div className="grid grid-cols-3 gap-2 mb-2">
@@ -1753,7 +1753,7 @@ export default function CreateJobPage() {
             )}
 
             {selectedCareRecipient && patientSummary && (
-              <Card className="p-4">
+              <Card padding="responsive">
                 <div className="text-sm font-semibold text-gray-900">ข้อมูลผู้รับการดูแล</div>
                 <div className="text-xs text-gray-600 mt-1">{selectedCareRecipient.patient_display_name}</div>
                 {selectedCareRecipient.general_health_summary && <div className="text-sm text-gray-800 mt-2 whitespace-pre-wrap line-clamp-3">{selectedCareRecipient.general_health_summary}</div>}
@@ -1851,7 +1851,7 @@ export default function CreateJobPage() {
             {showAdvancedStep3 && (
               <div className="space-y-4">
                 {suggestions && (
-                  <Card className="p-3">
+                  <Card padding="sm">
                     <div className="flex items-center justify-between">
                       <div className="text-xs font-semibold text-gray-900">คำแนะนำจากข้อมูลผู้ป่วย</div>
                       <Button variant="outline" size="sm" onClick={applySuggestions}>ใช้คำแนะนำ</Button>
@@ -1925,7 +1925,7 @@ export default function CreateJobPage() {
         {currentStep === 4 && (
           <div className="space-y-4">
             {preferredCaregiverIdParam ? (
-              <Card className="p-4 border-blue-200 bg-blue-50/50">
+              <Card padding="responsive" className="border-blue-200 bg-blue-50/50">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center flex-shrink-0">
                     <UserIcon className="w-5 h-5 text-blue-700" aria-hidden="true" />
@@ -1958,7 +1958,7 @@ export default function CreateJobPage() {
                   {suggestedLoading ? (
                     <div className="text-center py-8 text-sm text-gray-500">กำลังค้นหาผู้ดูแลที่เหมาะสม...</div>
                   ) : suggestedCaregivers.length === 0 ? (
-                    <Card className="p-4 text-center">
+                    <Card padding="responsive" className="text-center">
                       <div className="text-sm text-gray-500">ยังไม่พบผู้ดูแลที่ตรงเงื่อนไขขณะนี้</div>
                       <div className="mt-2"><Link to="/hirer/search-caregivers"><Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>ค้นหาเพิ่มเติม</Button></Link></div>
                     </Card>
@@ -2154,7 +2154,7 @@ export default function CreateJobPage() {
         {/* ═══════════ Step 5: สรุปก่อนยืนยัน ═══════════ */}
         {currentStep === 5 && !successJobId && (
           <div className="space-y-4">
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">บริการ</div>
                 <button type="button" onClick={() => setCurrentStep(1)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
@@ -2168,7 +2168,7 @@ export default function CreateJobPage() {
               })}
             </Card>
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">ผู้รับการดูแล</div>
                 <button type="button" onClick={() => setCurrentStep(2)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
@@ -2176,7 +2176,7 @@ export default function CreateJobPage() {
               <div className="text-sm text-gray-800 mt-1">{selectedCareRecipient?.patient_display_name || 'ยังไม่ได้เลือก'}</div>
             </Card>
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">รายละเอียดงาน</div>
                 <button type="button" onClick={() => setCurrentStep(3)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
@@ -2188,7 +2188,7 @@ export default function CreateJobPage() {
               <div className="flex flex-wrap gap-1 mt-1">{labelByValue(JOB_TASK_OPTIONS, form.job_tasks_flags).map((l) => <Badge key={l} variant="info">{l}</Badge>)}</div>
             </Card>
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">ค่าจ้าง</div>
                 <button type="button" onClick={() => setCurrentStep(3)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
@@ -2198,7 +2198,7 @@ export default function CreateJobPage() {
             </Card>
 
             {/* Caregiver selection summary + outcome messaging */}
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="flex items-center justify-between">
                 <div className="text-sm font-semibold text-gray-900">ผู้ดูแล</div>
                 <button type="button" onClick={() => setCurrentStep(4)} className="text-xs text-blue-600 hover:underline">แก้ไข</button>
@@ -2251,7 +2251,7 @@ export default function CreateJobPage() {
                 : 'งานถูกบันทึกเป็นแบบร่างแล้ว เผยแพร่จากหน้า "งานของฉัน" เพื่อเปิดรับสมัครผู้ดูแล'}
             </p>
 
-            <Card className="p-4 text-left">
+            <Card padding="responsive" className="text-left">
               <div className="text-sm font-semibold text-gray-900 mb-2">สิ่งที่ควรทำต่อ</div>
               <div className="space-y-2">
                 <div className="flex items-start gap-2">
@@ -2370,7 +2370,7 @@ export default function CreateJobPage() {
       >
         {pendingPayload ? (
           <div className="space-y-4">
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900">สรุปงาน</div>
               <div className="text-sm text-gray-800 mt-2">ชื่องาน: {pendingPayload.title}</div>
               <div className="text-sm text-gray-800 mt-1">ประเภทงานหลัก: {currentDetailedTemplate.label}</div>
@@ -2396,7 +2396,7 @@ export default function CreateJobPage() {
               ) : null}
             </Card>
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900">ผู้รับการดูแล</div>
               <div className="text-sm text-gray-800 mt-2">
                 {selectedCareRecipient ? selectedCareRecipient.patient_display_name : 'ยังไม่ได้เลือก'}
@@ -2406,7 +2406,7 @@ export default function CreateJobPage() {
               )}
             </Card>
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900">รายละเอียดที่เลือก</div>
               <div className="text-xs text-gray-600 mt-2">งานที่ต้องทำ</div>
               <div className="flex flex-wrap gap-2 mt-2">

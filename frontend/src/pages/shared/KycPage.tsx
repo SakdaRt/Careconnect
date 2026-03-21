@@ -308,7 +308,7 @@ export default function KycPage() {
         </div>
 
         {/* Status bar */}
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-5 h-5 text-amber-600" />
             <div className="text-sm">

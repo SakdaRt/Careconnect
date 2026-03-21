@@ -454,7 +454,7 @@ export default function CaregiverMyJobsPage() {
         {loading ? (
           <LoadingState message="กำลังโหลดงาน..." />
         ) : items.length === 0 ? (
-          <Card className="p-6 sm:p-8 text-center">
+          <Card padding="lg" className="text-center">
             <div className="text-4xl mb-3">{filter === 'all' ? '🔍' : filter === 'completed' ? '🎉' : '📭'}</div>
             <h3 className="text-lg font-bold text-gray-900 mb-1">{emptyMessageByFilter[filter]}</h3>
             <p className="text-sm text-gray-600 mb-4">

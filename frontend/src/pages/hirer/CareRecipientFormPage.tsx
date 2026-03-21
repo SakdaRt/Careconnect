@@ -481,7 +481,7 @@ export default function CareRecipientFormPage() {
               required
             />
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900 mb-3">ที่อยู่ผู้รับการดูแล</div>
               <div className="space-y-3">
                 <GooglePlacesInput
@@ -535,7 +535,7 @@ export default function CareRecipientFormPage() {
               </div>
             </Card>
 
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="text-sm font-semibold text-gray-900 mb-3">ข้อมูลพื้นฐาน</div>
               <div className="grid grid-cols-1 gap-3">
                 <div className="flex flex-col gap-2">

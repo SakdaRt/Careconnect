@@ -735,7 +735,7 @@ export default function ProfilePage() {
         </div>
 
         {user && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <AvatarUpload
                 userId={user.id}

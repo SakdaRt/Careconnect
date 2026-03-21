@@ -156,7 +156,7 @@ function JobPostCard({
   const canPublish = lifecycleStatus === 'draft';
 
   return (
-    <Card className="p-4">
+    <Card padding="responsive">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
