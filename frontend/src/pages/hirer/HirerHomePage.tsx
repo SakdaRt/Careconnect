@@ -683,7 +683,7 @@ export default function HirerHomePage() {
           const doneCount = steps.filter((s) => s.done).length;
           if (doneCount >= steps.length) return null;
           return (
-            <Card className="mb-6 p-4">
+            <Card className="mb-6" padding="responsive">
               <div className="flex items-center justify-between mb-3">
                 <div className="text-sm font-bold text-gray-900">เริ่มต้นใช้งาน</div>
                 <span className="text-xs text-gray-500">{doneCount}/{steps.length}</span>
@@ -753,7 +753,7 @@ export default function HirerHomePage() {
             </Link>
           </div>
           {careRecipients.length === 0 ? (
-            <Card className="p-5 text-center">
+            <Card padding="responsive" className="text-center">
               <UserPlus className="w-10 h-10 text-gray-300 mx-auto mb-2" aria-hidden="true" />
               <p className="text-sm text-gray-700 font-medium">ยังไม่มีผู้รับการดูแล</p>
               <p className="text-xs text-gray-500 mt-1">เพิ่มข้อมูลผู้ที่จะได้รับบริการเพื่อใช้ในการจองผู้ดูแล</p>
@@ -851,7 +851,7 @@ export default function HirerHomePage() {
           {loading ? (
             <LoadingState message="กำลังโหลดรายการงาน..." />
           ) : jobs.length === 0 ? (
-            <Card className="p-6 text-center">
+            <Card padding="lg" className="text-center">
               <div className="text-3xl mb-2">{status === 'completed' ? '🎉' : status === 'cancelled' ? '📭' : '🔍'}</div>
               <p className="text-sm font-medium text-gray-900">
                 {status === 'all' ? 'ยังไม่มีงาน' : `ไม่มีงานสถานะ "${filters.find((f) => f.key === status)?.label || status}"`}

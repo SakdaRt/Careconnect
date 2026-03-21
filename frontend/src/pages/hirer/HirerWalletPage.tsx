@@ -306,7 +306,7 @@ export default function HirerWalletPage() {
           <LoadingState message="กำลังโหลดกระเป๋าเงิน..." />
         ) : (
           <div className="space-y-4">
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <div className="text-xs text-gray-500">คงเหลือ</div>
@@ -330,7 +330,7 @@ export default function HirerWalletPage() {
             </Card>
 
             {active && (
-              <Card className="p-4 sm:p-6">
+              <Card padding="responsive">
                 <h2 className="text-lg font-semibold text-gray-900 mb-2">มีรายการรอชำระเงิน</h2>
                 <div className="text-sm text-gray-700 space-y-1">
                   <div>
@@ -370,7 +370,7 @@ export default function HirerWalletPage() {
               </Card>
             )}
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">เติมเงิน</h2>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input
@@ -387,7 +387,7 @@ export default function HirerWalletPage() {
               </div>
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">บัญชีธนาคารสำหรับถอนเงิน</h2>
                 <Link to="/wallet/bank-accounts">
@@ -418,7 +418,7 @@ export default function HirerWalletPage() {
               )}
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ถอนเงิน</h2>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Input
@@ -438,7 +438,7 @@ export default function HirerWalletPage() {
               </p>
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <h2 className="text-lg font-semibold text-gray-900">รายการถอนเงิน</h2>
                 <div className="flex items-center gap-2">
@@ -507,7 +507,7 @@ export default function HirerWalletPage() {
               </div>
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">ธุรกรรมล่าสุด</h2>
               <div className="flex flex-col sm:flex-row gap-3 mb-4">
                 <div className="flex flex-col gap-1">
