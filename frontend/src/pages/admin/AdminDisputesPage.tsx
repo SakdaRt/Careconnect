@@ -279,7 +279,7 @@ export default function AdminDisputesPage() {
 
         {activeTab === 'complaints' && (
           <div className="space-y-4">
-            <Card className="p-4">
+            <Card padding="responsive">
               <div className="flex gap-3 items-end">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs text-gray-500">สถานะ</label>
@@ -296,7 +296,7 @@ export default function AdminDisputesPage() {
             </Card>
 
             {complaintsLoading ? <LoadingState message="กำลังโหลด..." /> : complaints.length === 0 ? (
-              <Card className="p-6 text-center text-sm text-gray-600">ยังไม่มีเรื่องร้องเรียน</Card>
+              <Card padding="lg" className="text-center text-sm text-gray-600">ยังไม่มีเรื่องร้องเรียน</Card>
             ) : (
               <div className="space-y-3">
                 {complaints.map((c: any) => (
@@ -322,7 +322,7 @@ export default function AdminDisputesPage() {
             )}
 
             {selectedComplaint && (
-              <Card className="p-4 sm:p-6 space-y-4">
+              <Card padding="responsive" className="space-y-4">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="font-bold text-gray-900">{selectedComplaint.subject}</h3>
@@ -359,7 +359,7 @@ export default function AdminDisputesPage() {
           </div>
         )}
 
-        {activeTab === 'disputes' && <><Card className="p-4">
+        {activeTab === 'disputes' && <><Card padding="responsive">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3">
             <div className="flex-1">
               <Input
@@ -436,7 +436,7 @@ export default function AdminDisputesPage() {
         </Card>
 
         {selectedHeader && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm text-gray-500">ข้อพิพาท</div>
@@ -505,7 +505,7 @@ export default function AdminDisputesPage() {
             </div>
 
             <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
-              <Card className="p-4">
+              <Card padding="responsive">
                 <div className="text-sm font-semibold text-gray-900 mb-2">เพิ่มโน้ต</div>
                 <Input label="โน้ต" value={note} onChange={(e) => setNote(e.target.value)} placeholder="พิมพ์โน้ตของแอดมิน" />
                 <div className="flex gap-2 mt-3">
@@ -528,7 +528,7 @@ export default function AdminDisputesPage() {
                 </div>
               </Card>
 
-              <Card className="p-4">
+              <Card padding="responsive">
                 <div className="text-sm font-semibold text-gray-900 mb-2">Timeline</div>
                 {events.length === 0 ? (
                   <div className="text-sm text-gray-600">ยังไม่มีเหตุการณ์</div>
@@ -547,7 +547,7 @@ export default function AdminDisputesPage() {
               </Card>
             </div>
 
-            <Card className="p-4 mt-3">
+            <Card padding="responsive" className="mt-3">
               <div className="text-sm font-semibold text-gray-900 mb-2">ข้อความ</div>
               {messages.length === 0 ? (
                 <div className="text-sm text-gray-600">ยังไม่มีข้อความ</div>
@@ -585,7 +585,7 @@ export default function AdminDisputesPage() {
               </div>
             </Card>
 
-            <Card className="p-4 mt-3">
+            <Card padding="responsive" className="mt-3">
               <div className="text-sm font-semibold text-gray-900 mb-2">ปิดเรื่อง/ชำระเงิน (Settlement)</div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Input

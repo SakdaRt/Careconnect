@@ -125,7 +125,7 @@ export default function AdminJobsPage() {
   return (
     <AdminLayout>
       <div className="max-w-6xl mx-auto space-y-4">
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="flex flex-col lg:flex-row lg:items-end gap-3">
             <div className="flex-1">
               <Input
@@ -211,7 +211,7 @@ export default function AdminJobsPage() {
         </Card>
 
         {selectedHeader && (
-          <Card className="p-4">
+          <Card padding="responsive">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sm text-gray-500">งาน</div>

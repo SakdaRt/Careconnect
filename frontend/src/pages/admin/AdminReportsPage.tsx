@@ -133,7 +133,7 @@ export default function AdminReportsPage() {
 
                 {/* Revenue */}
                 {summaryData.revenue && (
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="text-sm font-semibold text-gray-800 mb-3">รายได้ระบบ</div>
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                       <div><div className="text-xs text-gray-500">รายได้จากงาน</div><div className="text-lg font-bold text-green-700 tabular-nums">{Number(summaryData.revenue.total_job_revenue || 0).toLocaleString()} ฿</div></div>
@@ -146,7 +146,7 @@ export default function AdminReportsPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   {/* Users by role/status */}
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="text-sm font-semibold text-gray-800 mb-3">ผู้ใช้ตาม Role / Status</div>
                     <div className="space-y-1">
                       {usersArr.map((r: any) => (
@@ -159,7 +159,7 @@ export default function AdminReportsPage() {
                   </Card>
 
                   {/* Trust distribution */}
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="text-sm font-semibold text-gray-800 mb-3">ระดับความน่าเชื่อถือ</div>
                     <div className="space-y-2">
                       {trustArr.map((r: any) => {
@@ -182,7 +182,7 @@ export default function AdminReportsPage() {
                   </Card>
 
                   {/* Jobs by status */}
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="text-sm font-semibold text-gray-800 mb-3">งานตามสถานะ</div>
                     <div className="space-y-1">
                       {jobsArr.map((r: any) => (
@@ -197,7 +197,7 @@ export default function AdminReportsPage() {
 
                 {/* 7-day activity */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="flex items-center justify-between mb-3">
                       <div className="text-sm font-semibold text-gray-800">ผู้ใช้ใหม่ 7 วัน</div>
                       <Button variant="outline" size="sm" onClick={loadSummary}>รีเฟรช</Button>
@@ -215,7 +215,7 @@ export default function AdminReportsPage() {
                       </div>
                     )}
                   </Card>
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="text-sm font-semibold text-gray-800 mb-3">งานใหม่ 7 วัน</div>
                     {newJobs7d.length === 0 ? (
                       <div className="text-xs text-gray-500">ไม่มีข้อมูล</div>
@@ -234,7 +234,7 @@ export default function AdminReportsPage() {
 
                 {/* Disputes */}
                 {disputesArr.length > 0 && (
-                  <Card className="p-4">
+                  <Card padding="responsive">
                     <div className="text-sm font-semibold text-gray-800 mb-3">ข้อพิพาทตามสถานะ</div>
                     <div className="flex flex-wrap gap-4">
                       {disputesArr.map((r: any) => (

@@ -104,7 +104,7 @@ function DashboardTab() {
         <SummaryCard title="โอนแล้ว" value={formatMoney(wd.paid?.total_amount || 0)} sub={`${wd.paid?.count || 0} รายการ`} />
       </div>
 
-      <Card className="p-5">
+      <Card padding="responsive">
         <h3 className="text-sm font-semibold text-gray-900 mb-3">สรุปรายเดือน (6 เดือนล่าสุด)</h3>
         {stats.monthly.length === 0 ? (
           <div className="text-sm text-gray-500">ยังไม่มีข้อมูล</div>
@@ -138,7 +138,7 @@ function DashboardTab() {
         )}
       </Card>
 
-      <Card className="p-5">
+      <Card padding="responsive">
         <h3 className="text-sm font-semibold text-gray-900 mb-2">ความถูกต้องของบัญชี</h3>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           {stats.ledger_integrity.valid ? (
@@ -239,7 +239,7 @@ function WithdrawalsTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card padding="responsive">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
           <div className="flex flex-wrap items-end gap-2">
             <div>
@@ -288,7 +288,7 @@ function WithdrawalsTab() {
       {loading ? (
         <LoadingState message="กำลังโหลด..." />
       ) : (
-        <Card className="p-4">
+        <Card padding="responsive">
           {items.length === 0 ? (
             <div className="text-sm text-gray-600 py-8 text-center">ไม่พบคำขอถอนเงิน</div>
           ) : (
@@ -482,7 +482,7 @@ function TransactionsTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card padding="responsive">
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">ประเภท</label>
@@ -524,7 +524,7 @@ function TransactionsTab() {
       {loading ? (
         <LoadingState message="กำลังโหลด..." />
       ) : (
-        <Card className="p-4">
+        <Card padding="responsive">
           {items.length === 0 ? (
             <div className="text-sm text-gray-600 py-8 text-center">ไม่พบรายการธุรกรรม</div>
           ) : (
@@ -707,7 +707,7 @@ function SettlementTab() {
 
   return (
     <div className="space-y-4">
-      <Card className="p-4">
+      <Card padding="responsive">
         <div className="flex items-center gap-2">
           <label className="text-xs font-medium text-gray-600">แสดง</label>
           <select className="px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm" value={filter} onChange={(e) => setFilter(e.target.value as 'unresolved' | 'settled' | 'all')}>
@@ -724,7 +724,7 @@ function SettlementTab() {
       ) : jobs.length === 0 ? (
         <Card className="p-8 text-center text-sm text-gray-600">ไม่พบงานที่ต้อง settle</Card>
       ) : (
-        <Card className="p-4">
+        <Card padding="responsive">
           <div className="divide-y divide-gray-200">
             {jobs.map((j) => {
               const sm = String(j.settlement_mode || '');

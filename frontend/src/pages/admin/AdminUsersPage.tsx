@@ -232,7 +232,7 @@ export default function AdminUsersPage() {
     <AdminLayout>
       <div className="space-y-3">
         {/* Search bar */}
-        <Card className="p-3">
+        <Card padding="sm">
           <div className="flex flex-wrap items-end gap-2">
             <div className="flex-1 min-w-[180px]">
               <Input label="ค้นหา" value={q} onChange={(e) => setQ(e.target.value)}
@@ -343,7 +343,7 @@ export default function AdminUsersPage() {
             <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-160px)]">
 
               {/* Header */}
-              <Card className="p-4">
+              <Card padding="responsive">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -360,7 +360,7 @@ export default function AdminUsersPage() {
               </Card>
 
               {/* ── Section: ข้อมูลพื้นฐาน (Editable) ── */}
-              <Card className="p-4">
+              <Card padding="responsive">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">ข้อมูลพื้นฐาน</div>
                 <div className="space-y-0 divide-y divide-gray-100">
                   {[
@@ -404,7 +404,7 @@ export default function AdminUsersPage() {
 
               {/* ── Section: ใบรับรอง/เอกสาร (caregiver only) ── */}
               {selectedUser.role === 'caregiver' && (
-                <Card className="p-4">
+                <Card padding="responsive">
                   <div className="flex items-center justify-between mb-3">
                     <div className="text-xs font-bold text-gray-500 uppercase tracking-wide flex items-center gap-1.5">
                       <FileText className="w-3.5 h-3.5" />ใบรับรอง / เอกสาร
@@ -469,7 +469,7 @@ export default function AdminUsersPage() {
               )}
 
               {/* ── Section: กระเป๋าเงิน ── */}
-              <Card className="p-4">
+              <Card padding="responsive">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">กระเป๋าเงิน</div>
                 {walletLoading ? <LoadingState message="กำลังโหลด..." /> : !walletData ? (
                   <div className="text-xs text-gray-500">ไม่พบข้อมูล</div>
@@ -542,7 +542,7 @@ export default function AdminUsersPage() {
 
               {/* ── Section: จัดการแบน ── */}
               {selectedUser.role !== 'admin' ? (
-                <Card className="p-4">
+                <Card padding="responsive">
                   <div className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">จัดการแบน / สถานะ</div>
                   <div className="mb-3">
                     <label className="text-xs text-gray-500">เหตุผล (ไม่บังคับ)</label>
@@ -588,7 +588,7 @@ export default function AdminUsersPage() {
                   </div>
                 </Card>
               ) : (
-                <Card className="p-4">
+                <Card padding="responsive">
                   <div className="text-xs text-gray-500 text-center py-2">ไม่สามารถแบนบัญชี admin ได้</div>
                 </Card>
               )}
