@@ -467,7 +467,7 @@ export default function AdminDisputesPage() {
                 loading={actionLoading === selectedHeader.dispute_id}
                 onClick={() => doUpdate(selectedHeader.dispute_id, { assign_to_me: true })}
               >
-                Assign to me
+                รับผิดชอบเรื่องนี้
               </Button>
               <Button
                 variant="outline"
@@ -475,15 +475,7 @@ export default function AdminDisputesPage() {
                 loading={actionLoading === selectedHeader.dispute_id}
                 onClick={() => doUpdate(selectedHeader.dispute_id, { status: 'in_review' })}
               >
-                รับเรื่อง
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                loading={actionLoading === selectedHeader.dispute_id}
-                onClick={() => doUpdate(selectedHeader.dispute_id, { status: 'resolved' })}
-              >
-                ปิดเรื่อง (resolved)
+                เปลี่ยนสถานะเป็น "กำลังตรวจสอบ"
               </Button>
               <Button
                 variant="outline"
@@ -491,17 +483,14 @@ export default function AdminDisputesPage() {
                 loading={actionLoading === selectedHeader.dispute_id}
                 onClick={() => doUpdate(selectedHeader.dispute_id, { status: 'rejected' })}
               >
-                ปฏิเสธ (rejected)
+                ปฏิเสธข้อพิพาท
               </Button>
-              <Link to={`/jobs/${selectedHeader.job_post_id}`} target="_blank">
-                <Button variant="outline" size="sm">เปิดงาน</Button>
+              <Link to={`/admin/jobs?q=${selectedHeader.job_post_id}`}>
+                <Button variant="outline" size="sm">ดูงานในระบบ</Button>
               </Link>
-              <Link to={`/chat/${selectedHeader.job_id || selectedHeader.job_post_id}`} target="_blank">
-                <Button variant="outline" size="sm">เปิดแชทงาน</Button>
-              </Link>
-              <Link to={`/dispute/${selectedHeader.dispute_id}`} target="_blank">
-                <Button variant="outline" size="sm">เปิดหน้า dispute</Button>
-              </Link>
+            </div>
+            <div className="text-xs text-gray-500 mt-2">
+              หากต้องการปิดเรื่องพร้อมคืนเงิน/จ่ายเงิน ให้ใช้ส่วน "ปิดเรื่องและชำระเงิน" ด้านล่าง
             </div>
 
             <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -586,7 +575,8 @@ export default function AdminDisputesPage() {
             </Card>
 
             <Card padding="responsive" className="mt-3">
-              <div className="text-sm font-semibold text-gray-900 mb-2">ปิดเรื่อง/ชำระเงิน (Settlement)</div>
+              <div className="text-sm font-semibold text-gray-900 mb-1">ปิดเรื่องและชำระเงิน</div>
+              <div className="text-xs text-gray-500 mb-3">กรอกจำนวนเงินที่จะคืน/จ่าย แล้วกด "ปิดเรื่องและทำรายการ" — ระบบจะสร้าง ledger อัตโนมัติและเปลี่ยนสถานะเป็น resolved</div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Input
                   label="คืนเงินให้ผู้ว่าจ้าง (บาท)"
@@ -605,10 +595,10 @@ export default function AdminDisputesPage() {
                   helperText={!hasCaregiver ? 'ยังไม่มี caregiver ที่ active ในงานนี้' : undefined}
                 />
                 <Input
-                  label="Resolution note"
+                  label="สรุปการตัดสิน"
                   value={resolution}
                   onChange={(e) => setResolution(e.target.value)}
-                  placeholder="สรุปการตัดสิน"
+                  placeholder="เช่น คืนเงินเต็มจำนวนเพราะผู้ดูแลไม่มาตามนัด"
                 />
               </div>
               <div className="flex flex-wrap gap-2 mt-3">
@@ -621,14 +611,11 @@ export default function AdminDisputesPage() {
                 >
                   ปิดเรื่องและทำรายการ
                 </Button>
-                <Link to={`/admin/reports?reference_type=dispute&reference_id=${selectedHeader.dispute_id}`} target="_blank">
+                <Link to={`/admin/reports?reference_type=dispute&reference_id=${selectedHeader.dispute_id}`}>
                   <Button variant="outline" size="sm">
-                    ดู Ledger ของ Dispute นี้
+                    ดูรายการเงินของเรื่องนี้
                   </Button>
                 </Link>
-                <div className="text-xs text-gray-500 self-center">
-                  จะสร้าง ledger reference_type=dispute และตั้งสถานะเป็น resolved
-                </div>
               </div>
             </Card>
           </Card>
