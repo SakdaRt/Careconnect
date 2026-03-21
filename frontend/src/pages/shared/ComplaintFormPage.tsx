@@ -78,7 +78,7 @@ export default function ComplaintFormPage() {
           <p className="text-sm text-gray-600">แจ้งปัญหาหรือร้องเรียนให้แอดมินตรวจสอบ</p>
         </div>
 
-        <Card className="p-4 sm:p-6 space-y-4">
+        <Card padding="responsive" className="space-y-4">
           <div className="flex items-start gap-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
             <AlertTriangle className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" aria-hidden="true" />
             <p className="text-sm text-blue-900">

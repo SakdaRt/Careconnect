@@ -154,7 +154,7 @@ export default function BankAccountsPage() {
           <LoadingState message="กำลังโหลดบัญชีธนาคาร..." />
         ) : (
           <>
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">บัญชีที่บันทึกไว้</h2>
               {accounts.length === 0 ? (
                 <div className="text-sm text-gray-600">ยังไม่มีบัญชีธนาคาร</div>
@@ -177,7 +177,7 @@ export default function BankAccountsPage() {
               )}
             </Card>
 
-            <Card className="p-4 sm:p-6">
+            <Card padding="responsive">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">เพิ่มบัญชีธนาคาร</h2>
               <div className="space-y-3">
                 {/* Bank Selector */}
