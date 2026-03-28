@@ -51,7 +51,7 @@ Dev mock seed data ถูกแยกออกจาก `server.js` ไปที
 ```
 L0 (เริ่มต้น)  ← สมัครสมาชิก ยังไม่ยืนยันอะไร
     │
-    ▼  ยืนยัน Email AND Phone ทั้งคู่
+    ▼  ยืนยัน Email OTP หรือ Phone OTP (อย่างน้อย 1 ช่องทาง)
 L1 (ยืนยันการติดต่อ)
     │
     ▼  ยืนยัน KYC (บัตรประชาชน/passport + selfie)

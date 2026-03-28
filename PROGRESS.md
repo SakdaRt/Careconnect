@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-18
+> อัพเดทล่าสุด: 2026-03-28
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -188,6 +188,24 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-28 — Thesis–Code Sync: Trust Level L1 fix + SYSTEM.md update
+
+- fix(backend): `trustLevelWorker.js` — เปลี่ยน L1 prereq จาก `emailVerified && phoneVerified` → `emailVerified || phoneVerified`
+  - Guest users (email-only) ที่ verify email แล้วจะขึ้น L1 ได้ทันที (ไม่ต้องรอ phone)
+  - Member users (phone-only) ที่ verify phone แล้วขึ้น L1 ได้ตามเดิม
+  - ตรงกับ thesis §3.3.2 "OTP verification อย่างน้อย 1 ช่องทาง"
+- docs: `SYSTEM.md` §2 Trust Level — อัปเดต "Email AND Phone ทั้งคู่" → "Email OTP หรือ Phone OTP (อย่างน้อย 1 ช่องทาง)"
+- verify:
+  - ✅ Unit tests: 56 passed, 1 failed (pre-existing disputeService.settle mock mismatch)
+  - ✅ Integration tests: 170 passed, 9 failed (pre-existing auth/dispute DB issues)
+
+#### สิ่งที่ user ต้องแก้ใน Word document เอง (5 จุด):
+1. §3.3.2 + รูปที่ 3.2: "L1 หลังยืนยัน Phone OTP" → "Phone OTP **หรือ** Email OTP (อย่างน้อย 1 ช่องทาง)"
+2. §3.1.1 + §3.2.1: "REST API (Axios)" → "REST API (Native Fetch API)"
+3. ตารางที่ 3.2: "16 ไฟล์" → "17 ไฟล์" + เพิ่มแถว `complaintRoutes.js | /api/complaints | 5`
+4. ตารางที่ 3.3 + §3.2.4: "31 ตาราง" → "41 ตาราง" + เพิ่มกลุ่ม Financial: `job_deposits`, `payments`; Notification: `notification_preferences`, `push_subscriptions`; Complaint: `complaints`, `complaint_attachments`; Auth: `password_reset_tokens`, `otp_codes`; Job: `early_checkout_requests`; Audit: `audit_events`
+5. ตารางที่ 3.12 JWT: เพิ่ม note ว่า "default คือ 7 วัน (dev), production ควร set `JWT_EXPIRES_IN=15m` ผ่าน env var"
 
 ### 2026-03-19 — Financial MVP: Platform Fee 10% + Hirer Deposit + Settlement
 

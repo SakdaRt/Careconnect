@@ -6,7 +6,7 @@
  *
  * Trust Levels (role-neutral — applies to both hirer and caregiver):
  * - L0 (เริ่มต้น): Just registered, nothing verified
- * - L1 (ยืนยันการติดต่อ): Email AND Phone verified
+ * - L1 (ยืนยันการติดต่อ): Email OR Phone verified (อย่างน้อย 1 ช่องทาง)
  * - L2 (ยืนยันตัวตน): L1 + KYC approved
  * - L3 (มืออาชีพ): L2 + Bank verified + Trust score >= 80
  *
@@ -180,8 +180,8 @@ async function determineTrustLevel(userId, trustScore) {
 
   const currentLevel = user.trust_level || 'L0';
 
-  // L1 "ยืนยันการติดต่อ": email AND phone verified
-  const hasL1Prereqs = emailVerified && phoneVerified;
+  // L1 "ยืนยันการติดต่อ": email OR phone verified (อย่างน้อย 1 ช่องทาง)
+  const hasL1Prereqs = emailVerified || phoneVerified;
   // L2 "ยืนยันตัวตน": L1 + KYC approved (role-neutral — works for both hirer and caregiver)
   const hasL2Prereqs = hasL1Prereqs && kycApproved;
   // L3 "มืออาชีพ": L2 + bank verified + trust score >= 80
