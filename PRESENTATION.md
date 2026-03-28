@@ -782,3 +782,315 @@
 1. **ห้ามตัด**: สไลด์ 2, 6, 8, 9, 11-12 (เป็นหัวใจ)
 2. **ตัดได้**: สไลด์ 10 (UC Diagram — พูดสั้นๆ), 17-18 (ข้อจำกัด/เสนอแนะ — รวมเป็น 1)
 3. **ตัดก่อน**: สไลด์ 13 (Admin demo — โชว์สั้นๆ), 14 (Real-time — พูดรวมกับ demo)
+
+---
+---
+
+# รายละเอียดเพิ่มเติม 13 หัวข้อ สำหรับใส่สไลด์
+
+> ข้อมูลทั้งหมดอิงจาก codebase จริง (`SYSTEM.md`, `trustLevelWorker.js`, `jobService.js`, `risk.js`, `caregiverSearchRoutes.js`, `disputeRoutes.js`, `complaintRoutes.js`, `walletRoutes.js`, `notificationRoutes.js`, `adminRoutes.js`)
+>
+> 📌 หัวข้อที่มี `⚠️ ยังไม่มีใน FinalReport` = ยังไม่พบในไฟล์ .docx ควรเพิ่มเข้าไป
+
+---
+
+## 1. Trust Level
+
+**ระบบ Trust Level 4 ระดับ** — ใช้ร่วมกันทั้ง Hirer และ Caregiver (role-neutral)
+
+| ระดับ | ชื่อ | เงื่อนไข | สิทธิ์ที่ได้เพิ่ม |
+|:-----:|------|---------|-----------------|
+| L0 | เริ่มต้น | สมัครสมาชิก | สร้าง draft งาน, ดู feed, เติมเงิน |
+| L1 | ยืนยันการติดต่อ | ยืนยัน Email + Phone (OTP ทั้งคู่) | publish งาน low_risk, รับงาน, check-in/out |
+| L2 | ยืนยันตัวตน | L1 + ผ่าน KYC (บัตรประชาชน + selfie) | publish งาน high_risk, ถอนเงิน |
+| L3 | มืออาชีพ | L2 + ยืนยันบัญชีธนาคาร + Trust Score ≥ 80 | สิทธิ์เต็ม |
+
+**การควบคุมสิทธิ์**: ใช้ Policy Gate — function `can()` ใน middleware ตรวจ role + trust_level ก่อนเข้าทุก API route (30+ actions)
+
+**หมายเหตุ**: caregiver_documents (ใบรับรอง/ใบประกอบวิชาชีพ) ไม่ผูกกับ trust level แต่ใช้แยกเป็นเงื่อนไขรับงาน high_risk
+
+---
+
+## 2. หลักการแนะนำผู้ดูแล
+
+**ระบบค้นหาผู้ดูแล** (`/api/caregivers/search`) — ผู้ว่าจ้างค้นหาและกรองได้หลายเงื่อนไข:
+
+| ตัวกรอง | รายละเอียด |
+|---------|----------|
+| คำค้น (q) | ค้นจากชื่อ, email, เบอร์โทร |
+| ทักษะ (skills) | กรองตาม specializations + certifications |
+| Trust Level | กรองตามระดับความน่าเชื่อถือ |
+| ประสบการณ์ (min_experience_years) | กรองขั้นต่ำปีประสบการณ์ |
+| วันที่ว่าง (available_day) | กรองตาม available_days ที่ผู้ดูแลตั้งไว้ |
+
+**การเรียงลำดับ**: ผู้ดูแลที่อยู่ใน Favorites แสดงก่อน → ตามด้วย trust_score สูงสุด → completed_jobs_count มากสุด
+
+**ฟีเจอร์เสริม**:
+- กด ❤️ บันทึกผู้ดูแลที่ชอบ (Favorites) เรียกดูทีหลังได้
+- กดดูโปรไฟล์เต็ม — เห็น rating, รีวิว, ทักษะ, ใบรับรอง
+- Direct Assign — มอบหมายงานตรงให้ผู้ดูแลที่ต้องการโดยไม่ต้องรอสมัคร
+
+**⚠️ ยังไม่มีใน FinalReport**: รายละเอียดลำดับการเรียง (Favorites first → trust_score → completed_jobs)
+
+---
+
+## 3. แนะนำงาน (Job Feed)
+
+**ระบบ Job Feed** (`/api/jobs/feed`) — แสดงงานที่เหมาะสมกับผู้ดูแลแต่ละคน:
+
+**การกรองอัตโนมัติ** (ผู้ดูแลไม่เห็นงานเหล่านี้):
+1. งานที่ `min_trust_level` สูงกว่า trust level ของตัวเอง → ซ่อน
+2. งานที่ทับซ้อนเวลากับงานที่รับแล้ว → ซ่อน
+3. งานที่ตัวเองสร้าง (กรณีมี 2 roles) → ซ่อน
+4. งานที่ reserve ให้ผู้ดูแลคนอื่น (preferred_caregiver_id ≠ ตัวเอง) → ซ่อน
+
+**ตัวกรองที่ผู้ดูแลเลือกเอง**:
+- ประเภทงาน (job_type): companionship, personal_care, medical_monitoring, dementia_care, post_surgery, emergency
+- ระดับความเสี่ยง (risk_level): low_risk, high_risk
+- งานเร่งด่วน (is_urgent)
+
+**⚠️ ยังไม่มีใน FinalReport**: รายละเอียด 4 เงื่อนไขกรองอัตโนมัติ
+
+---
+
+## 4. การคิดคะแนน (Trust Score)
+
+**Trust Score** คำนวณจาก **9 ปัจจัย** ด้วย weighted sum (คะแนนฐาน 50 จากเต็ม 100):
+
+| ปัจจัย | น้ำหนัก | ขอบเขต | รายละเอียด |
+|--------|:-------:|:------:|----------|
+| งานเสร็จ | +5 ต่องาน | สูงสุด +30 | นับจาก job_assignments status=completed |
+| รีวิวดี (4-5 ดาว) | +3 ต่อรีวิว | สูงสุด +20 | จาก caregiver_reviews |
+| รีวิวปานกลาง (3 ดาว) | +1 ต่อรีวิว | สูงสุด +20 | รวมกับข้อบน |
+| รีวิวแย่ (1-2 ดาว) | -5 ต่อรีวิว | ต่ำสุด -20 | ลดคะแนนถ้าบริการไม่ดี |
+| ยกเลิกงาน | -10 ต่อครั้ง | ต่ำสุด -30 | นับจาก assignments cancelled |
+| GPS violation | -3 ต่อครั้ง | ต่ำสุด -15 | check-in/out มี fraud indicators |
+| Check-in ตรงเวลา | +2 ต่อครั้ง | สูงสุด +20 | check-in ภายใน 15 นาทีจากเวลานัด |
+| โปรไฟล์ครบ | +10 | ครั้งเดียว | มีชื่อ + bio + ประสบการณ์ |
+| ตอบกลับเร็ว | +5 | ครั้งเดียว | response time bonus |
+
+**สูตร**: `Trust Score = max(0, min(100, 50 + ผลรวมทุกปัจจัย))`
+
+**Hysteresis**: ป้องกัน level ขึ้น-ลงถี่เกินไป — L3→L2 จะลงก็ต่อเมื่อ score < 75 (ไม่ใช่ < 80)
+
+---
+
+## 5. การคิดเงิน (Payment & Fee Model)
+
+### Fee Model
+- **Platform fee = 10%** ของค่าจ้าง — `Math.floor(total_amount * 0.10)`
+- **หักจากค่าจ้างผู้ดูแล** — Hirer จ่ายตามราคาที่ตั้ง ไม่บวก fee เพิ่ม
+- Caregiver ได้รับ `total_amount - platform_fee`
+- Fee รับรู้เมื่อ job completed เท่านั้น
+
+### Hirer Deposit (มัดจำ)
+| ค่าจ้างรวม | มัดจำ |
+|-----------|:-----:|
+| ≤ 500 บาท | 100 |
+| 501–2,000 | 200 |
+| 2,001–5,000 | 500 |
+| 5,001–10,000 | 1,000 |
+| > 10,000 | 2,000 |
+
+### Money Flow (5 ขั้นตอน)
+
+1. **Top-up**: Hirer เติมเงินผ่าน QR Code (Stripe Checkout) → credit wallet
+2. **Publish**: hold ค่าจ้าง + มัดจำ จาก available → held balance
+3. **Accept**: ย้ายจาก held → escrow wallet (สร้างใหม่ต่องาน)
+4. **Checkout (Settlement)**: escrow → caregiver (ค่าจ้าง - fee) + platform (fee) + คืนมัดจำให้ hirer
+5. **Cancel**: คืนเงินตามเงื่อนไข (ก่อน/หลัง accept, ล่วงหน้า/ล่าช้า)
+
+### การยกเลิกและการคืนเงิน
+| สถานการณ์ | การคืนเงิน |
+|----------|----------|
+| ยกเลิกก่อน accept | คืนค่าจ้าง + มัดจำ ให้ hirer ทั้งหมด |
+| ยกเลิกหลัง accept ≥24 ชม. | คืนค่าจ้าง + คืนมัดจำ ให้ hirer |
+| ยกเลิกหลัง accept <24 ชม. (late) | คืนค่าจ้าง + ริบมัดจำ 50% (70% ชดเชย CG, 30% platform) |
+| CG ยกเลิก | เงินค้างใน escrow, fault_party=unresolved → Admin settle |
+
+**⚠️ ยังไม่มีใน FinalReport**: Deposit tier table, รายละเอียด late cancel penalty split
+
+---
+
+## 6. การดำเนินงานฝั่งผู้ดูแล (Caregiver Flow)
+
+**ขั้นตอนทำงานทั้งหมด**:
+
+1. **สมัครสมาชิก** → เลือกบทบาท "ผู้ดูแล" → ยอมรับนโยบาย
+2. **ยืนยันตัวตน** → OTP (Email + Phone) → KYC (บัตรประชาชน + selfie)
+3. **กรอกโปรไฟล์** → ทักษะ, ประสบการณ์, วันที่ว่าง, ใบรับรอง
+4. **ดู Job Feed** → กรองงานที่เหมาะสม → ดูรายละเอียด
+5. **รับงาน (Accept)** → ระบบสร้าง escrow + chat อัตโนมัติ
+6. **แชทกับผู้ว่าจ้าง** → นัดหมาย สอบถามรายละเอียด
+7. **Check-in** → กดเช็คอิน ระบบบันทึก GPS → สถานะ "กำลังดำเนินการ"
+8. **ทำงาน** → ดูแลผู้สูงอายุตามที่ตกลง
+9. **Check-out** → เขียน evidence note สรุปงาน → ระบบจ่ายเงินอัตโนมัติ
+10. **ถอนเงิน** → (ต้อง L2+) เลือกบัญชีธนาคาร → รอ Admin อนุมัติ
+
+**กรณีพิเศษ**:
+- **Early Checkout**: ส่งงานก่อนเวลา → เขียนเหตุผล → รอ hirer อนุมัติ/ปฏิเสธ
+- **ปฏิเสธงาน Direct Assign**: กด Reject พร้อมเหตุผล → งานกลับไปเปิดรับสมัคร
+- **Auto-complete**: ถ้าเลย scheduled_end_at + 10 นาที ระบบ checkout อัตโนมัติ
+
+---
+
+## 7. การดำเนินงานฝั่งผู้ว่าจ้าง (Hirer Flow)
+
+**ขั้นตอนทำงานทั้งหมด**:
+
+1. **สมัครสมาชิก** → เลือกบทบาท "ผู้ว่าจ้าง" → ยอมรับนโยบาย
+2. **เพิ่มผู้รับการดูแล** → กรอกข้อมูลผู้สูงอายุ (ชื่อ, อายุ, โรคประจำตัว, อุปกรณ์การแพทย์)
+3. **สร้างงาน (wizard form)**:
+   - เลือกผู้รับการดูแล
+   - กรอก: ชื่องาน, ประเภท (6 ประเภท), คำอธิบาย
+   - เลือกวันเวลา → ระบบคำนวณจำนวนชั่วโมงอัตโนมัติ
+   - กรอกที่อยู่ + ตั้งค่าจ้าง/ชม.
+   - เลือก job tasks, required skills, equipment, precautions
+   - ระบบคำนวณ **risk level อัตโนมัติ** จากข้อมูลผู้ป่วย + ประเภทงาน + tasks
+4. **เติมเงิน** → QR Code → เงินเข้า wallet
+5. **เผยแพร่งาน** → ระบบ hold เงิน (ค่าจ้าง + มัดจำ) → งานปรากฏใน feed
+6. **หรือ Direct Assign** → ค้นหาผู้ดูแล → เลือก → มอบหมายตรง
+7. **ติดตามงาน** → ได้รับ notification ทุกขั้นตอน (accept, check-in, check-out)
+8. **อนุมัติ/ปฏิเสธ Early Checkout** → ดูหลักฐาน → ตัดสินใจ
+9. **เขียนรีวิว** → หลังงานเสร็จ ให้คะแนน 1-5 ดาว + ความคิดเห็น
+
+---
+
+## 8. การแจ้งข้อพิพาท (Dispute)
+
+**ขั้นตอน**:
+1. ผู้ว่าจ้างหรือผู้ดูแล **กดเปิดข้อพิพาท** จากหน้ารายละเอียดงาน
+2. กรอก **เหตุผลและรายละเอียด** ปัญหา
+3. ระบบ **แจ้งเตือน Admin + อีกฝ่าย** ทันที
+4. ทั้ง 2 ฝ่าย **ส่งหลักฐานเพิ่มเติม** ผ่าน dispute messages
+5. Admin **รับมอบหมาย** → สถานะเปลี่ยนเป็น in_review
+6. Admin **อ่านหลักฐาน** แล้ว **ตัดสิน (settle)**:
+   - กำหนด refund_amount (คืน hirer)
+   - กำหนด payout_amount (จ่าย caregiver)
+   - กำหนด fee/penalty/deposit/compensation
+   - validation: ยอดรวมต้อง ≤ escrow balance, ป้องกัน double-settle
+7. ระบบ **โอนเงินจาก escrow** ตามที่ Admin กำหนด + **แจ้งเตือนทั้ง 2 ฝ่าย**
+
+**สถานะ dispute**: open → in_review → resolved / rejected
+
+---
+
+## 9. การร้องเรียน (Complaint)
+
+**⚠️ ยังไม่มีใน FinalReport**: ระบบร้องเรียนแยกต่างหากจาก dispute
+
+**ความแตกต่างจาก Dispute**:
+- Dispute = ปัญหาเกี่ยวกับงานเฉพาะ มีเงินเกี่ยวข้อง
+- Complaint = ร้องเรียนทั่วไป ไม่จำเป็นต้องผูกกับงาน
+
+**หมวดหมู่ร้องเรียน**: inappropriate_name, scam_fraud, harassment, safety_concern, payment_issue, other
+
+**ขั้นตอน**:
+1. ผู้ใช้กดเมนู "ร้องเรียน"
+2. เลือกหมวดหมู่ + กรอกรายละเอียด + แนบไฟล์ (สูงสุด 5 ไฟล์, 10MB/ไฟล์)
+3. ระบบบันทึก → Admin ดูรายการทั้งหมดได้
+4. Admin อัปเดตสถานะ + เขียน admin_note
+
+**สถานะ**: open → in_review → resolved / dismissed
+
+---
+
+## 10. แอดมินจัดการอะไรได้บ้าง
+
+| ฟังก์ชัน | รายละเอียด |
+|---------|----------|
+| **จัดการผู้ใช้** | ค้นหา, ดูรายละเอียด, เปลี่ยนสถานะ (active/suspended), แก้ไข trust level, แก้ไข trust score |
+| **Ban ผู้ใช้** | ban_login (ห้าม login), ban_job_create (ห้ามสร้างงาน), ban_job_accept (ห้ามรับงาน), ban_withdraw (ห้ามถอนเงิน) |
+| **ตรวจสอบ KYC** | ดูเอกสาร (บัตรประชาชน + selfie), approve/reject พร้อมเหตุผล |
+| **จัดการงาน** | ดูงานทั้งหมด, กรองตามสถานะ/ประเภท/ความเสี่ยง, ยกเลิกงานที่มีปัญหา (refund อัตโนมัติ) |
+| **ตัดสิน Dispute** | รับมอบหมาย, อ่านหลักฐาน, settle เงินจาก escrow (กำหนด refund/payout/fee/penalty) |
+| **จัดการ Complaint** | ดูรายการร้องเรียน, อัปเดตสถานะ, เขียน admin_note |
+| **อนุมัติถอนเงิน** | review → approve → mark-paid / reject พร้อมเหตุผล |
+| **ดูการเงิน** | Dashboard สถิติ, ledger transactions ทั้งหมด, รายงานสรุปรายได้ |
+| **คำนวณ Trust ใหม่** | recalculate ทั้งระบบ หรือ รายคน |
+| **ดูสุขภาพระบบ** | health check (DB connection, uptime) |
+
+---
+
+## 11. ระบบแจ้งเตือนทำได้ขนาดไหน
+
+**4 ช่องทาง**:
+
+| ช่องทาง | เทคโนโลยี | รายละเอียด |
+|---------|----------|----------|
+| **In-App (Real-time)** | Socket.IO | ส่ง event ทันทีเมื่อเกิดเหตุการณ์ → badge +1 + toast popup |
+| **In-App (Polling)** | HTTP GET ทุก 15 วิ | fallback กรณี socket หลุด + refresh เมื่อ focus/online/reconnect |
+| **Push Notification** | PWA Service Worker + Web Push | แจ้งเตือนแม้ไม่เปิด browser (ต้อง allow permission) |
+| **Email** | Nodemailer | ส่ง email เมื่อเกิด event สำคัญ |
+
+**เหตุการณ์ที่แจ้งเตือน**:
+- ผู้ดูแลรับงาน → แจ้ง hirer
+- Check-in → แจ้ง hirer "ผู้ดูแลเริ่มงานแล้ว"
+- Check-out → แจ้ง hirer "งานเสร็จสมบูรณ์"
+- งานถูกยกเลิก → แจ้งอีกฝ่าย
+- มีคำขอ Early Checkout → แจ้ง hirer
+- มอบหมายงานตรง → แจ้ง caregiver
+- Dispute เปิด → แจ้ง Admin + อีกฝ่าย
+- KYC อนุมัติ/ปฏิเสธ → แจ้งผู้ใช้
+
+**ฟีเจอร์เสริม**:
+- ผู้ใช้ตั้งค่า preferences ได้ (เปิด/ปิด email, push)
+- กดอ่านทีละรายการ / อ่านทั้งหมด
+- badge count แสดงที่ TopBar ตลอด
+
+---
+
+## 12. แอปทำรายได้ยังไง (Revenue Model)
+
+**⚠️ ยังไม่มีใน FinalReport**: Revenue Model โดยละเอียด
+
+**แหล่งรายได้หลัก**:
+
+| แหล่ง | วิธีคิด | เมื่อไร |
+|-------|--------|--------|
+| **Platform Service Fee** | 10% ของค่าจ้าง (หักจากส่วน caregiver) | เมื่อ job completed |
+| **Late Cancel Penalty** | 30% ของมัดจำที่ริบ (กรณี hirer ยกเลิก <24 ชม.) | เมื่อ late cancel |
+
+**ตัวอย่าง**:
+- งานค่าจ้าง 1,000 บาท → Platform ได้ fee 100 บาท, Caregiver ได้ 900 บาท
+- Hirer จ่ายทั้งหมด 1,000 + มัดจำ 200 = 1,200 บาท (มัดจำคืนเมื่องานเสร็จ)
+
+**Wallet Types**:
+| ประเภท | เจ้าของ | หน้าที่ |
+|--------|--------|--------|
+| hirer | ผู้ว่าจ้าง | เก็บเงินเติม ใช้จ่ายค่าจ้าง |
+| caregiver | ผู้ดูแล | รับเงินจากงานเสร็จ ถอนได้ |
+| escrow | ต่องาน | พักเงินระหว่างทำงาน ไม่มีใครเข้าถึง |
+| platform | ระบบ | เก็บ service fee |
+| platform_replacement | ระบบ | เก็บ replacement fee |
+
+---
+
+## 13. Tech Stack
+
+| เทคโนโลยี | คืออะไร | ทำไมต้องใช้ |
+|----------|--------|-----------|
+| **React 18** | JavaScript UI library แบบ component-based | Hooks, Concurrent rendering, ecosystem ใหญ่ |
+| **TypeScript** | superset ของ JS เพิ่มระบบ type | ป้องกัน bug ตอน compile, refactor ปลอดภัย |
+| **Tailwind CSS** | utility-first CSS framework | พัฒนา UI เร็ว, bundle size เล็ก (purge unused) |
+| **Vite** | frontend build tool (ESBuild + Rollup) | HMR เร็วมาก, build เร็วกว่า Webpack 10-100x |
+| **Node.js** | JavaScript runtime บน server (V8 engine) | ภาษาเดียว frontend+backend, non-blocking I/O |
+| **Express.js** | web framework สำหรับ Node.js | เบา, middleware architecture, ecosystem ใหญ่ |
+| **Socket.IO** | real-time bidirectional communication | auto-reconnect, room management, polling fallback |
+| **PostgreSQL 15** | relational database (SQL) | ACID สำหรับ financial, SELECT FOR UPDATE lock row |
+| **JWT** | JSON Web Token (stateless auth) | ไม่ต้อง store session, ใช้กับ Socket.IO auth ได้ |
+| **Google OAuth 2.0** | login ผ่านบัญชี Google | ไม่ต้องจำ password, verified email ทันที |
+| **Joi** | schema validation library | validate ทุก API input, ป้องกัน injection |
+| **bcrypt** | password hashing (one-way + salt) | ปลอดภัยกว่า SHA/MD5, industry standard |
+| **Docker Compose** | multi-container orchestration | ทุก environment เหมือนกัน, reproducible setup |
+| **Jest** | JavaScript testing framework | 179 tests, unit + integration, mock system |
+| **Playwright** | E2E browser testing | ทดสอบบน Chromium จริง, จำลอง user interaction |
+| **Stripe** | payment gateway | Checkout Session, webhook-driven, secure |
+| **SMSOK** | SMS OTP provider (ไทย) | ส่ง OTP ผ่าน SMS เบอร์ไทย |
+| **Nodemailer** | email sending library | password reset, email OTP, notifications |
+
+**ตัวเลขสำคัญ**:
+- 40 Use Cases / 128 API Endpoints / 16 Controllers
+- 40 Database Tables / 1,391 lines schema
+- 179 Automated Tests (Jest + Playwright)
+- 50+ Frontend Pages
