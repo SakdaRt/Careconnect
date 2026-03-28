@@ -217,7 +217,7 @@ Admin Settlement:
 
 ## 5. Database Schema (ERD)
 
-> Source: `database/schema.sql` (1391 lines, 40 tables)
+> Source: `database/schema.sql` (1470 lines, 41 tables)
 
 ### 5.1 Users & Profiles
 

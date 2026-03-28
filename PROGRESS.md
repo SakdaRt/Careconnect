@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-28
+> อัพเดทล่าสุด: 2026-03-28 (thesis sync complete)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -40,7 +40,7 @@ careconnect/
 │   │   └── migrations/
 │   └── tests/           Jest integration + unit (13 test files)
 ├── database/
-│   └── schema.sql             master schema (40 tables, 1391 lines)
+│   └── schema.sql             master schema (41 tables, 1470 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
@@ -173,7 +173,7 @@ careconnect/
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
 | `backend/src/models/Notification.js`      | Notification model                              |
-| `database/schema.sql`                     | Master DB schema (40 tables)                    |
+| `database/schema.sql`                     | Master DB schema (41 tables)                    |
 | `backend/database/migrations/`            | Migration files                                 |
 | `backend/src/workers/trustLevelWorker.js` | Trust score calculation + level determination   |
 | `backend/src/utils/risk.js`               | Risk level auto-compute                         |
@@ -189,6 +189,29 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-28 — Thesis Document Verification: Sync thesis ให้ตรงกับ codebase
+
+- docs: `CE68-29 FinalReport CARE_CONNECT (edit).docx` — แก้ทั้งหมด 20+ จุดเพื่อให้ตรงกับ codebase จริง
+  - §3.2.2: 16→17 route groups, "กว่า 120"→"139 endpoints", adminRoutes 20+→21
+  - Table 3.2: 16→17 ไฟล์, เพิ่ม complaintRoutes.js + แก้ endpoint counts ทุกไฟล์
+  - Table 3.3: 31→41 ตาราง + เพิ่ม table rows ใหม่ (job_deposits, payments, complaints, etc.)
+  - §3.2.4: 10→12 หมวดหลัก, เพิ่ม (11) Webhook & Provider, (12) Complaint
+  - Table 4.83 (summary): รวม 128→139, เพิ่ม Payment row (3 endpoints)
+  - Table 3.7: เพิ่ม "(ยังไม่ implement ใน MVP)" note สำหรับ Response time bonus
+  - Table 3.15: เพิ่ม altered_consciousness, high_fever, oxygen_monitoring, dementia_supervision
+  - Table 3.16: เพิ่ม MVP note สำหรับ Dispute + KYC events
+  - Table 3.18: เพิ่ม forfeit + compensation transaction types
+  - Table 3.4: "Fetch API 1.6"→"Fetch API —" (Fetch API เป็น browser built-in ไม่มี version)
+  - TOC สารบัญตาราง: "16 ไฟล์"→17, "31 ตาราง"→41
+  - §3.3.2: Trust Level L1 → "Phone OTP หรือ Email OTP" (OR condition)
+  - Ch4 Auth Controller table: เพิ่ม change-password + cancel-registration (19→21)
+  - Ch4 KYC Controller table: เพิ่ม mock/submit (2→3)
+  - Ch4 Admin Controller table: เพิ่ม jobs/:id/financial + settle (19→21)
+  - Ch4 Wallet Controller table: เพิ่ม admin/stats, add-funds, withdrawals/:id/detail (18→21)
+  - Gantt row 5: "25+ tables"→"41 tables"
+  - Fix duplicate paraIds (AAAAAAAA/BBBBBBBB/CCCCCCCC → 6551 unique IDs)
+- verify: 37-check comprehensive scan passed ✅
+
 ### 2026-03-28 — Thesis–Code Sync: Trust Level L1 fix + SYSTEM.md update
 
 - fix(backend): `trustLevelWorker.js` — เปลี่ยน L1 prereq จาก `emailVerified && phoneVerified` → `emailVerified || phoneVerified`
@@ -201,11 +224,12 @@ careconnect/
   - ✅ Integration tests: 170 passed, 9 failed (pre-existing auth/dispute DB issues)
 
 #### สิ่งที่ user ต้องแก้ใน Word document เอง (5 จุด):
-1. §3.3.2 + รูปที่ 3.2: "L1 หลังยืนยัน Phone OTP" → "Phone OTP **หรือ** Email OTP (อย่างน้อย 1 ช่องทาง)"
-2. §3.1.1 + §3.2.1: "REST API (Axios)" → "REST API (Native Fetch API)"
-3. ตารางที่ 3.2: "16 ไฟล์" → "17 ไฟล์" + เพิ่มแถว `complaintRoutes.js | /api/complaints | 5`
-4. ตารางที่ 3.3 + §3.2.4: "31 ตาราง" → "41 ตาราง" + เพิ่มกลุ่ม Financial: `job_deposits`, `payments`; Notification: `notification_preferences`, `push_subscriptions`; Complaint: `complaints`, `complaint_attachments`; Auth: `password_reset_tokens`, `otp_codes`; Job: `early_checkout_requests`; Audit: `audit_events`
-5. ตารางที่ 3.12 JWT: เพิ่ม note ว่า "default คือ 7 วัน (dev), production ควร set `JWT_EXPIRES_IN=15m` ผ่าน env var"
+> ✅ **แก้ทั้งหมดแล้วผ่าน XML manipulation** — ดู Git Log entry "Thesis Document Verification" ด้านบน
+1. ~~§3.3.2: L1 OR condition~~ ✅
+2. ~~Axios → Native Fetch API~~ ✅
+3. ~~Table 3.2: 16→17 ไฟล์~~ ✅
+4. ~~Table 3.3: 31→41 ตาราง~~ ✅
+5. ~~Table 3.12 JWT note~~ ✅
 
 ### 2026-03-19 — Financial MVP: Platform Fee 10% + Hirer Deposit + Settlement
 
