@@ -20,7 +20,6 @@ const TRUST_LEVELS = ['L0', 'L1', 'L2', 'L3'];
 const NO_SHOW_GRACE_PERIOD_MIN = 30;
 
 const SCORE_THRESHOLD_HIGH_RISK_BLOCK = 40;
-const SCORE_THRESHOLD_FULL_BAN = 20;
 
 /**
  * Check if user trust level meets requirement
@@ -839,12 +838,6 @@ export const acceptJob = async (jobPostId, caregiverId) => {
     }
 
     const caregiverScore = parseInt(caregiver.trust_score) || 0;
-    if (caregiverScore < SCORE_THRESHOLD_FULL_BAN) {
-      throw new ValidationError(
-        `Trust score ต่ำเกินไป ไม่สามารถรับงานใหม่ได้ (score: ${caregiverScore}/${SCORE_THRESHOLD_FULL_BAN})`,
-        { code: 'TRUST_SCORE_TOO_LOW', section: 'trust', details: { score: caregiverScore, required: SCORE_THRESHOLD_FULL_BAN } }
-      );
-    }
     if (caregiverScore < SCORE_THRESHOLD_HIGH_RISK_BLOCK && jobPost.risk_level === 'high_risk') {
       throw new ValidationError(
         `Trust score ต่ำเกินไปสำหรับงานความเสี่ยงสูง (score: ${caregiverScore}/${SCORE_THRESHOLD_HIGH_RISK_BLOCK})`,

@@ -58,6 +58,11 @@ export const requireAuth = async (req, res, next) => {
     try {
       const user = await getUserByToken(token);
 
+      if (user.ban_login) {
+        const error = new ForbiddenError('บัญชีถูกระงับการเข้าถึงระบบ เนื่องจาก trust score เป็น 0', { code: 'BAN_LOGIN' });
+        return res.status(error.status).json(error.toJSON());
+      }
+
       // Attach user to request
       req.user = user;
       req.userId = user.id;

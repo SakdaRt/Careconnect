@@ -123,27 +123,6 @@ describe('jobService access control + chat lock', () => {
     expect(updateJobPostCall).toBeUndefined();
   });
 
-  test('acceptJob rejects when score < 20 (full ban)', async () => {
-    User.findById.mockResolvedValue({
-      id: 'cg-1',
-      role: 'caregiver',
-      status: 'active',
-      trust_level: 'L2',
-      trust_score: 15,
-    });
-
-    fakeClient.query.mockImplementation(async (sql) => {
-      if (String(sql).includes('FROM job_posts') && String(sql).includes('FOR UPDATE')) {
-        return { rows: [{ id: 'job-1', status: 'posted', hirer_id: 'hirer-1', min_trust_level: 'L1', risk_level: 'low_risk' }] };
-      }
-      return { rows: [] };
-    });
-
-    await expect(jobService.acceptJob('job-1', 'cg-1')).rejects.toMatchObject({
-      code: 'TRUST_SCORE_TOO_LOW',
-    });
-  });
-
   test('acceptJob rejects when score < 40 and job is high_risk', async () => {
     User.findById.mockResolvedValue({
       id: 'cg-1',

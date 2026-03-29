@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-29 (caregiver no-show flow complete)
+> อัพเดทล่าสุด: 2026-03-29 (trust score: ลบ caps + score=0 ban_login)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -69,7 +69,9 @@ careconnect/
 - [x] L0 (Unverified) → L1 (Phone verified) → L2 (KYC approved) → L3 (Trusted)
 - [x] Risk-based job publishing: low_risk ต้อง L1+, high_risk ต้อง L2+
 - [x] Caregiver accepting: min_trust_level auto-set ตาม risk_level
-- [x] **No-show penalty แยกจาก regular cancel**: `NO_SHOW = -20` (vs `CANCELLATION = -10`), cap -40
+- [x] **No-show penalty แยกจาก regular cancel**: `NO_SHOW = -20` (vs `CANCELLATION = -10`), ไม่มี individual cap
+- [x] **score = 0 → ban_login**: เข้าระบบไม่ได้ (403 BAN_LOGIN) + assigned jobs ถูก auto-cancel
+- [x] **score < 40 → block high_risk**: รับงาน/check-in high_risk ไม่ได้
 
 ### Job System
 
@@ -205,6 +207,30 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-29 — Trust Score: ลบ Individual Caps + score=0 Ban Login
+
+- refactor(trust): ลบ individual caps ทุกปัจจัย (completedJobs/reviews/cancellations/noShow/GPS/punctuality) — ทำดีมากได้คะแนนสูง, ทำแย่มากถูกหักมาก
+- คง global clamp 0–100
+- **score = 0**: `ban_login = true` + cancel all assigned + `requireAuth` return 403 `BAN_LOGIN`
+- ลบ `SCORE_THRESHOLD_FULL_BAN = 20` และ score < 20 block ใน `acceptJob` (dead-end loop)
+- **score < 40**: ยังคงบล็อก high_risk job รับงาน/check-in
+- `trustLevelWorker`: `crossedFullBan` → `hitZero`; return value สะท้อน logic ใหม่
+- `otp_codes.user_id` nullable (migration + schema.sql) — registration OTP ก่อน user ถูกสร้าง
+- Tests: 227/227 pass (เพิ่ม ban_login test, ลบ old crossedFullBan tests)
+
+### 2026-03-29 — Caregiver No-Show Auto-Cancel + Score-based Job Restrictions
+
+- feat(job): `_cancelNoShowJob` atomic guard, escrow refund, notify, trust update
+- feat(job): `autoHandleNoShowJobs` trigger-on-view (hirer/caregiver job list)
+- feat(job): `processNoShowBatch(limit=100)` global scan ไม่ scoped by user
+- feat(worker): `noShowWorker.js` cron `*/5 min` + audit log + ALERT/WARN metrics
+- feat(job): `acceptJob/checkIn` score checks (< 40 block high_risk)
+- feat(job): `cancelAssignedJobsForScoreBan` auto-cancel + re-post เมื่อ score ตก threshold
+- feat(worker): `trustLevelWorker` auto-cancel assigned + NO_SHOW=-20 penalty
+- feat(backend): `adminJobController` + `adminRoutes` — no-show endpoints
+- feat(backend): `server.js` mount cron node-cron
+- Tests: 228/228 pass
 
 ### 2026-03-29 — Load Testing: k6 Performance Benchmark (5 Phases)
 

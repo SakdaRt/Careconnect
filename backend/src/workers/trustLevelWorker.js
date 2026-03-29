@@ -27,7 +27,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { cancelAssignedJobsForScoreBan } from '../services/jobService.js';
 
 const SCORE_THRESHOLD_HIGH_RISK_BLOCK = 40;
-const SCORE_THRESHOLD_FULL_BAN = 20;
 
 // Score weights
 const SCORE_WEIGHTS = {
@@ -67,7 +66,7 @@ async function calculateTrustScore(userId) {
     [userId]
   );
   const completedJobs = parseInt(completedJobsResult.rows[0].count) || 0;
-  breakdown.completedJobs = Math.min(completedJobs * SCORE_WEIGHTS.COMPLETED_JOB, 30);
+  breakdown.completedJobs = completedJobs * SCORE_WEIGHTS.COMPLETED_JOB;
 
   // Get reviews from caregiver_reviews table
   try {
@@ -82,7 +81,7 @@ async function calculateTrustScore(userId) {
       else if (r === 3) reviewPoints += SCORE_WEIGHTS.AVERAGE_REVIEW;
       else reviewPoints += SCORE_WEIGHTS.BAD_REVIEW;
     }
-    breakdown.reviews = Math.max(Math.min(reviewPoints, 20), -20);
+    breakdown.reviews = reviewPoints;
   } catch {
     breakdown.reviews = 0;
   }
@@ -98,7 +97,7 @@ async function calculateTrustScore(userId) {
     [userId]
   );
   const cancellations = parseInt(cancellationsResult.rows[0].count) || 0;
-  breakdown.cancellations = Math.max(cancellations * SCORE_WEIGHTS.CANCELLATION, -30);
+  breakdown.cancellations = cancellations * SCORE_WEIGHTS.CANCELLATION;
 
   // Get no-show cancellations (heavier penalty — caregiver accepted then never checked in)
   const noShowResult = await query(
@@ -111,7 +110,7 @@ async function calculateTrustScore(userId) {
     [userId]
   );
   const noShows = parseInt(noShowResult.rows[0].count) || 0;
-  breakdown.noShowPenalty = Math.max(noShows * SCORE_WEIGHTS.NO_SHOW, -40);
+  breakdown.noShowPenalty = noShows * SCORE_WEIGHTS.NO_SHOW;
 
   // Get GPS violations (events with fraud_indicators)
   const gpsViolationsResult = await query(
@@ -120,7 +119,7 @@ async function calculateTrustScore(userId) {
     [userId]
   );
   const gpsViolations = parseInt(gpsViolationsResult.rows[0]?.count) || 0;
-  breakdown.gpsViolations = Math.max(gpsViolations * SCORE_WEIGHTS.GPS_VIOLATION, -15);
+  breakdown.gpsViolations = gpsViolations * SCORE_WEIGHTS.GPS_VIOLATION;
 
   // Get on-time check-ins
   const onTimeResult = await query(
@@ -133,7 +132,7 @@ async function calculateTrustScore(userId) {
     [userId]
   );
   const onTimeCheckins = parseInt(onTimeResult.rows[0].count) || 0;
-  breakdown.punctuality = Math.min(onTimeCheckins * SCORE_WEIGHTS.ON_TIME_CHECKIN, 20);
+  breakdown.punctuality = onTimeCheckins * SCORE_WEIGHTS.ON_TIME_CHECKIN;
 
   // Check if profile is complete (caregiver)
   const profileResult = await query(
@@ -258,7 +257,7 @@ async function updateUserTrust(userId) {
     const newLevel = await determineTrustLevel(userId, totalScore);
 
     // Score-based job restriction enforcement
-    const crossedFullBan = currentScore >= SCORE_THRESHOLD_FULL_BAN && totalScore < SCORE_THRESHOLD_FULL_BAN;
+    const hitZero = totalScore === 0 && currentScore > 0;
     const crossedHighRiskBlock = currentScore >= SCORE_THRESHOLD_HIGH_RISK_BLOCK && totalScore < SCORE_THRESHOLD_HIGH_RISK_BLOCK;
 
     // Only update if changed
@@ -303,17 +302,24 @@ async function updateUserTrust(userId) {
         );
       });
 
-      // Auto-cancel assigned jobs that breach score thresholds (fire-and-forget)
-      if (crossedFullBan) {
-        cancelAssignedJobsForScoreBan(userId, 'all', 'score_ban_full')
+      // Auto-cancel assigned jobs + enforce login ban when score hits 0
+      if (hitZero) {
+        query(
+          `UPDATE users SET ban_login = true, updated_at = NOW() WHERE id = $1`,
+          [userId]
+        ).catch((err) => console.error('[TrustWorker] ban_login update failed:', err.message));
+        console.error(
+          `[TrustWorker][ALERT] score reached 0 for ${userId} — ban_login set to true`
+        );
+        cancelAssignedJobsForScoreBan(userId, 'all', 'score_ban_zero')
           .then((r) => {
             if (r.total > 0) {
               console.error(
-                `[TrustWorker][ALERT] score dropped below ${SCORE_THRESHOLD_FULL_BAN} for ${userId} — ${r.cancelled}/${r.total} assigned jobs auto-cancelled and re-posted`
+                `[TrustWorker][ALERT] score=0 for ${userId} — ${r.cancelled}/${r.total} assigned jobs auto-cancelled and re-posted`
               );
             }
           })
-          .catch((err) => console.error('[TrustWorker] cancelAssignedJobsForScoreBan(all) failed:', err.message));
+          .catch((err) => console.error('[TrustWorker] cancelAssignedJobsForScoreBan(zero) failed:', err.message));
       } else if (crossedHighRiskBlock) {
         cancelAssignedJobsForScoreBan(userId, 'high_risk_only', 'score_ban_high_risk')
           .then((r) => {
@@ -334,7 +340,7 @@ async function updateUserTrust(userId) {
         previousLevel: currentLevel,
         newLevel,
         breakdown,
-        crossedFullBan,
+        hitZero,
         crossedHighRiskBlock,
       };
     }
