@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-28 (thesis sync complete)
+> อัพเดทล่าสุด: 2026-03-29 (caregiver no-show flow complete)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -32,13 +32,13 @@ careconnect/
 │   │   ├── routes/
 │   │   ├── middleware/  auth.js (JWT + policy gates)
 │   │   ├── utils/       errors.js, risk.js, db.js, validation.js
-│   │   ├── workers/     trustLevelWorker.js
+│   │   ├── workers/     trustLevelWorker.js, noShowWorker.js
 │   │   ├── sockets/     chatSocket.js, realtimeHub.js
 │   │   └── server.js
 │   ├── database/
 │   │   ├── schema.sql
 │   │   └── migrations/
-│   └── tests/           Jest integration + unit (13 test files)
+│   └── tests/           Jest integration + unit (17 test files)
 ├── database/
 │   └── schema.sql             master schema (41 tables, 1470 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
@@ -69,6 +69,7 @@ careconnect/
 - [x] L0 (Unverified) → L1 (Phone verified) → L2 (KYC approved) → L3 (Trusted)
 - [x] Risk-based job publishing: low_risk ต้อง L1+, high_risk ต้อง L2+
 - [x] Caregiver accepting: min_trust_level auto-set ตาม risk_level
+- [x] **No-show penalty แยกจาก regular cancel**: `NO_SHOW = -20` (vs `CANCELLATION = -10`), cap -40
 
 ### Job System
 
@@ -77,6 +78,7 @@ careconnect/
 - [x] Job assignment, check-in, check-out
 - [x] Job status flow: draft → posted → assigned → in_progress → completed/cancelled
 - [x] Dispute system
+- [x] **Caregiver No-Show Auto-Cancel** — รายละเอียดดูหัวข้อ Caregiver No-Show ด้านล่าง
 
 ### KYC
 
@@ -114,6 +116,21 @@ careconnect/
 - [x] Dispute management
 - [x] AdminFinancialPage — dashboard การเงิน, filter ธุรกรรม/withdrawals, export CSV
 - [x] AdminFinancialPage — Settlement tab + settle modal + revenue breakdown (fee vs penalty)
+- [x] **No-show endpoints**: `GET /api/admin/jobs/no-show` + `GET /api/admin/jobs/no-show/stats`
+
+### Caregiver No-Show (2026-03-29)
+
+- [x] **Core fix**: job ค้าง `assigned` หลัง grace period 30 นาที → auto-cancel พร้อม full refund hirer
+- [x] **Trigger-on-view**: เรียกจาก `getHirerJobs` / `getCaregiverJobs` ทุกครั้งที่ user เปิดหน้า job list
+- [x] **Idempotency guard**: `UPDATE jobs WHERE status='assigned' RETURNING id` — DB row-level lock ป้องกัน concurrent double-cancel
+- [x] **Settlement**: `cancellation_reason='caregiver_no_show'`, `fault_party='caregiver'`, `fault_severity='severe'`, คืน `total_amount + hirer_deposit` ให้ hirer
+- [x] **Silent failure fix**: log `[CRITICAL]` + `settlement_mode='admin_override'` เมื่อ escrow/hirer wallet หาย
+- [x] **Grace period constant**: `NO_SHOW_GRACE_PERIOD_MIN = 30` ใน `jobService.js`
+- [x] **Background worker**: `noShowWorker.js` — `runNoShowWorker()` + `triggerNoShowScan()`, cron `*/5 * * * *` mount ใน `server.js`
+- [x] **Global scan**: `processNoShowBatch(limit=100)` ใน `jobService.js` — ไม่ scoped by user
+- [x] **Metrics**: `adminOverride`, `batchLimitHit`, `[ALERT]`, `[WARN]` logs
+- [x] **Audit log**: เขียน `audit_events` (`event_type='no_show_scan'`) หลัง scan
+- [x] **Tests**: 39 unit tests (jobService.noshow, noShowWorker, adminJobController.noshow, trustLevelWorker.hysteresis)
 
 ### UI/UX & Accessibility
 

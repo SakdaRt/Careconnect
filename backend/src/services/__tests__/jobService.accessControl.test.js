@@ -30,6 +30,7 @@ await jest.unstable_mockModule('../notificationService.js', () => ({
   notifyCheckIn: jest.fn(),
   notifyCheckOut: jest.fn(),
   notifyJobCancelled: jest.fn(),
+  notifyNoShow: jest.fn(),
 }));
 
 const jobService = await import('../jobService.js');
@@ -120,6 +121,139 @@ describe('jobService access control + chat lock', () => {
       String(sql).includes('UPDATE job_posts')
     );
     expect(updateJobPostCall).toBeUndefined();
+  });
+
+  test('acceptJob rejects when score < 20 (full ban)', async () => {
+    User.findById.mockResolvedValue({
+      id: 'cg-1',
+      role: 'caregiver',
+      status: 'active',
+      trust_level: 'L2',
+      trust_score: 15,
+    });
+
+    fakeClient.query.mockImplementation(async (sql) => {
+      if (String(sql).includes('FROM job_posts') && String(sql).includes('FOR UPDATE')) {
+        return { rows: [{ id: 'job-1', status: 'posted', hirer_id: 'hirer-1', min_trust_level: 'L1', risk_level: 'low_risk' }] };
+      }
+      return { rows: [] };
+    });
+
+    await expect(jobService.acceptJob('job-1', 'cg-1')).rejects.toMatchObject({
+      code: 'TRUST_SCORE_TOO_LOW',
+    });
+  });
+
+  test('acceptJob rejects when score < 40 and job is high_risk', async () => {
+    User.findById.mockResolvedValue({
+      id: 'cg-1',
+      role: 'caregiver',
+      status: 'active',
+      trust_level: 'L2',
+      trust_score: 35,
+    });
+
+    fakeClient.query.mockImplementation(async (sql) => {
+      if (String(sql).includes('FROM job_posts') && String(sql).includes('FOR UPDATE')) {
+        return { rows: [{ id: 'job-1', status: 'posted', hirer_id: 'hirer-1', min_trust_level: 'L2', risk_level: 'high_risk' }] };
+      }
+      return { rows: [] };
+    });
+
+    await expect(jobService.acceptJob('job-1', 'cg-1')).rejects.toMatchObject({
+      code: 'TRUST_SCORE_TOO_LOW_HIGH_RISK',
+    });
+  });
+
+  test('acceptJob allows score < 40 on low_risk job', async () => {
+    User.findById.mockResolvedValue({
+      id: 'cg-1',
+      role: 'caregiver',
+      status: 'active',
+      trust_level: 'L1',
+      trust_score: 35,
+    });
+
+    fakeClient.query.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('FROM job_posts') && text.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'job-1', status: 'posted', hirer_id: 'hirer-1', min_trust_level: 'L1', risk_level: 'low_risk', required_certifications: [], preferred_caregiver_id: null, total_amount: 1000, hirer_deposit_amount: 0 }] };
+      }
+      if (text.includes('NOT (')) return { rows: [] };
+      if (text.includes('FROM wallets') && text.includes("'hirer'")) {
+        return { rows: [{ id: 'hw-1', available_balance: 5000, held_balance: 0 }] };
+      }
+      if (text.includes('UPDATE job_posts') && text.includes('RETURNING id')) return { rows: [{ id: 'job-1' }] };
+      return { rows: [] };
+    });
+
+    await expect(jobService.acceptJob('job-1', 'cg-1')).resolves.toBeDefined();
+  });
+
+  test('acceptJob allows score >= 40 on high_risk job', async () => {
+    User.findById.mockResolvedValue({
+      id: 'cg-1',
+      role: 'caregiver',
+      status: 'active',
+      trust_level: 'L2',
+      trust_score: 50,
+    });
+
+    fakeClient.query.mockImplementation(async (sql) => {
+      const text = String(sql);
+      if (text.includes('FROM job_posts') && text.includes('FOR UPDATE')) {
+        return { rows: [{ id: 'job-1', status: 'posted', hirer_id: 'hirer-1', min_trust_level: 'L2', risk_level: 'high_risk', required_certifications: [], preferred_caregiver_id: null, total_amount: 1000, hirer_deposit_amount: 0 }] };
+      }
+      if (text.includes('FROM caregiver_documents')) return { rows: [{ count: 1 }] };
+      if (text.includes('FROM caregiver_profiles')) return { rows: [{ certifications: [] }] };
+      if (text.includes('NOT (')) return { rows: [] };
+      if (text.includes('FROM wallets') && text.includes("'hirer'")) {
+        return { rows: [{ id: 'hw-1', available_balance: 5000, held_balance: 0 }] };
+      }
+      if (text.includes('UPDATE job_posts') && text.includes('RETURNING id')) return { rows: [{ id: 'job-1' }] };
+      return { rows: [] };
+    });
+
+    await expect(jobService.acceptJob('job-1', 'cg-1')).resolves.toBeDefined();
+  });
+
+  test('checkIn rejects high_risk job when score < 40', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('jp.risk_level')) {
+        return { rows: [{ risk_level: 'high_risk', trust_score: 30 }] };
+      }
+      return { rows: [] };
+    });
+
+    await expect(jobService.checkIn('job-1', 'cg-1', {})).rejects.toMatchObject({
+      code: 'TRUST_SCORE_TOO_LOW_HIGH_RISK',
+    });
+  });
+
+  test('checkIn allows high_risk job when score >= 40', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('jp.risk_level')) {
+        return { rows: [{ risk_level: 'high_risk', trust_score: 40 }] };
+      }
+      return { rows: [] };
+    });
+
+    Job.checkIn = jest.fn().mockResolvedValue({ id: 'job-1', status: 'in_progress' });
+
+    await expect(jobService.checkIn('job-1', 'cg-1', {})).resolves.toBeDefined();
+  });
+
+  test('checkIn allows low_risk job when score < 40', async () => {
+    mockQuery.mockImplementation(async (sql) => {
+      if (String(sql).includes('jp.risk_level')) {
+        return { rows: [{ risk_level: 'low_risk', trust_score: 25 }] };
+      }
+      return { rows: [] };
+    });
+
+    Job.checkIn = jest.fn().mockResolvedValue({ id: 'job-1', status: 'in_progress' });
+
+    await expect(jobService.checkIn('job-1', 'cg-1', {})).resolves.toBeDefined();
   });
 
   test('cancelJob closes chat thread so no more messages can be sent', async () => {

@@ -224,6 +224,7 @@ export const can = (user, action) => {
   }
   if (action === 'job:accept') {
     if (role !== 'caregiver') return { allowed: false, reason: 'Caregiver role required' };
+    if (user.ban_job_accept) return { allowed: false, reason: 'Job acceptance banned' };
     return meets('L1') ? { allowed: true } : { allowed: false, reason: 'Trust level L1 required' };
   }
   if (action === 'job:checkin') {

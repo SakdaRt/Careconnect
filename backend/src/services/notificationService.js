@@ -436,3 +436,30 @@ export const notifyJobCancelled = async (caregiverId, jobTitle, jobId, reason) =
     referenceId: jobId,
   });
 };
+
+/**
+ * Notify both parties when caregiver no-show triggers auto-cancel
+ */
+export const notifyNoShow = async (hirerId, caregiverId, jobTitle, jobId) => {
+  const promises = [
+    createNotification({
+      userId: hirerId,
+      templateKey: 'job_cancelled',
+      title: 'ผู้ดูแลไม่มาตามนัด',
+      body: `งาน "${jobTitle}" ถูกยกเลิกอัตโนมัติเนื่องจากผู้ดูแลไม่ check-in ภายใน 30 นาที คืนเงินเต็มจำนวนแล้ว`,
+      data: { jobId, reason: 'caregiver_no_show' },
+      referenceType: 'job',
+      referenceId: jobId,
+    }),
+    createNotification({
+      userId: caregiverId,
+      templateKey: 'job_cancelled',
+      title: 'งานถูกยกเลิกเนื่องจากไม่ check-in',
+      body: `งาน "${jobTitle}" ถูกยกเลิกอัตโนมัติเนื่องจากไม่ check-in ภายใน 30 นาทีหลังเวลานัด`,
+      data: { jobId, reason: 'caregiver_no_show' },
+      referenceType: 'job',
+      referenceId: jobId,
+    }),
+  ];
+  await Promise.allSettled(promises);
+};

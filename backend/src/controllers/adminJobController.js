@@ -522,5 +522,136 @@ export const getJobFinancial = async (req, res) => {
   }
 };
 
-export default { listJobs, getJob, cancelJob, settleJob, getJobFinancial };
+export const listNoShowJobs = async (req, res) => {
+  try {
+    const page = Math.max(1, parseIntOr(req.query.page, 1));
+    const limit = Math.min(100, Math.max(1, parseIntOr(req.query.limit, 20)));
+    const offset = (page - 1) * limit;
+    const settlementMode = String(req.query.settlement_mode || '').trim();
+    const from = String(req.query.from || '').trim();
+    const to = String(req.query.to || '').trim();
+
+    const where = [`j.cancellation_reason = 'caregiver_no_show'`];
+    const values = [];
+    let idx = 1;
+
+    if (settlementMode) {
+      values.push(settlementMode);
+      where.push(`j.settlement_mode = $${idx++}`);
+    }
+    if (from) {
+      values.push(from);
+      where.push(`j.cancelled_at >= $${idx++}`);
+    }
+    if (to) {
+      values.push(to);
+      where.push(`j.cancelled_at <= $${idx++}`);
+    }
+
+    const whereSql = `WHERE ${where.join(' AND ')}`;
+
+    const result = await query(
+      `SELECT
+         j.id AS job_id,
+         j.job_post_id,
+         j.status AS job_status,
+         j.cancellation_reason,
+         j.fault_party,
+         j.fault_severity,
+         j.settlement_mode,
+         j.final_hirer_refund,
+         j.cancelled_at,
+         jp.title,
+         jp.total_amount,
+         jp.hirer_deposit_amount,
+         jp.scheduled_start_at,
+         jp.scheduled_end_at,
+         jp.hirer_id,
+         hp.display_name AS hirer_name,
+         ja.caregiver_id,
+         cp.display_name AS caregiver_name
+       FROM jobs j
+       JOIN job_posts jp ON jp.id = j.job_post_id
+       LEFT JOIN job_assignments ja ON ja.job_id = j.id
+       LEFT JOIN hirer_profiles hp ON hp.user_id = jp.hirer_id
+       LEFT JOIN caregiver_profiles cp ON cp.user_id = ja.caregiver_id
+       ${whereSql}
+       ORDER BY j.cancelled_at DESC
+       LIMIT $${idx++} OFFSET $${idx++}`,
+      [...values, limit, offset]
+    );
+
+    const countResult = await query(
+      `SELECT COUNT(*)::int AS total
+       FROM jobs j
+       JOIN job_posts jp ON jp.id = j.job_post_id
+       LEFT JOIN job_assignments ja ON ja.job_id = j.id
+       ${whereSql}`,
+      values
+    );
+
+    const total = countResult.rows[0]?.total || 0;
+
+    res.json({
+      success: true,
+      data: {
+        data: result.rows,
+        total,
+        page,
+        limit,
+        totalPages: Math.max(1, Math.ceil(total / limit)),
+      },
+    });
+  } catch (error) {
+    console.error('[Admin Jobs] List no-show jobs error:', error);
+    res.status(500).json({ error: 'Server error', message: 'Failed to list no-show jobs' });
+  }
+};
+
+export const getNoShowStats = async (req, res) => {
+  try {
+    const from = String(req.query.from || '').trim();
+    const to = String(req.query.to || '').trim();
+
+    const dateWhere = [];
+    const values = [];
+    let idx = 1;
+
+    if (from) {
+      values.push(from);
+      dateWhere.push(`j.cancelled_at >= $${idx++}`);
+    }
+    if (to) {
+      values.push(to);
+      dateWhere.push(`j.cancelled_at <= $${idx++}`);
+    }
+
+    const baseWhere = `WHERE j.cancellation_reason = 'caregiver_no_show'${dateWhere.length ? ' AND ' + dateWhere.join(' AND ') : ''}`;
+
+    const statsResult = await query(
+      `SELECT
+         COUNT(*)::int                                                        AS total_no_show,
+         COUNT(*) FILTER (WHERE j.settlement_mode = 'admin_override')::int   AS admin_override_count,
+         COUNT(*) FILTER (WHERE j.settlement_mode = 'normal')::int           AS normal_settled_count,
+         COALESCE(SUM(j.final_hirer_refund)
+           FILTER (WHERE j.settlement_mode = 'normal'), 0)::bigint           AS total_refunded,
+         COALESCE(SUM(jp.total_amount + COALESCE(jp.hirer_deposit_amount, 0))
+           FILTER (WHERE j.settlement_mode = 'admin_override'), 0)::bigint  AS total_unrefunded_estimate
+       FROM jobs j
+       JOIN job_posts jp ON jp.id = j.job_post_id
+       ${baseWhere}`,
+      values
+    );
+
+    res.json({
+      success: true,
+      data: statsResult.rows[0],
+    });
+  } catch (error) {
+    console.error('[Admin Jobs] No-show stats error:', error);
+    res.status(500).json({ error: 'Server error', message: 'Failed to get no-show stats' });
+  }
+};
+
+export default { listJobs, getJob, cancelJob, settleJob, getJobFinancial, listNoShowJobs, getNoShowStats };
 

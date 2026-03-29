@@ -176,6 +176,7 @@ export const createTestUser = async (userData = {}) => {
     role: 'caregiver',
     account_type: 'guest',
     trust_level: 'L2',
+    trust_score: 50,
     status: 'active',
     ...userData
   };
@@ -220,14 +221,15 @@ export const createTestUser = async (userData = {}) => {
        role,
        status,
        trust_level,
+       trust_score,
        is_email_verified,
        is_phone_verified,
        created_at,
        updated_at
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW()
+       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW()
      )
-     RETURNING id, email, phone_number, account_type, role, status, trust_level`,
+     RETURNING id, email, phone_number, account_type, role, status, trust_level, trust_score`,
     [
       uuidv4(),
       defaultUser.email,
@@ -237,6 +239,7 @@ export const createTestUser = async (userData = {}) => {
       defaultUser.role,
       defaultUser.status,
       defaultUser.trust_level,
+      defaultUser.trust_score,
       isEmailVerified,
       isPhoneVerified
     ]

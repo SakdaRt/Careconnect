@@ -4,7 +4,7 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { computeRiskLevel } from '../utils/risk.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
-import { notifyJobAccepted, notifyCheckIn, notifyCheckOut, notifyJobCancelled } from './notificationService.js';
+import { notifyJobAccepted, notifyCheckIn, notifyCheckOut, notifyJobCancelled, notifyNoShow } from './notificationService.js';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 
 /**
@@ -16,6 +16,11 @@ import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
  * Trust level hierarchy for comparison
  */
 const TRUST_LEVELS = ['L0', 'L1', 'L2', 'L3'];
+
+const NO_SHOW_GRACE_PERIOD_MIN = 30;
+
+const SCORE_THRESHOLD_HIGH_RISK_BLOCK = 40;
+const SCORE_THRESHOLD_FULL_BAN = 20;
 
 /**
  * Check if user trust level meets requirement
@@ -452,6 +457,7 @@ const autoCompleteOverdueJobsForHirer = async (hirerId) => {
  */
 export const getHirerJobs = async (hirerId, options = {}) => {
   await autoCompleteOverdueJobsForHirer(hirerId);
+  await autoHandleNoShowJobsForHirer(hirerId);
   return await Job.getHirerJobs(hirerId, options);
 };
 
@@ -484,9 +490,251 @@ const autoCompleteOverdueJobsForCaregiver = async (caregiverId) => {
   }
 };
 
+const _cancelNoShowJob = async (jobId, jobPostId, caregiverId, hirerId) => {
+  const processed = await transaction(async (client) => {
+    // Atomic idempotency guard: only one concurrent trigger (hirer vs caregiver opening job
+    // list simultaneously) can proceed. PostgreSQL acquires a row lock on UPDATE — the first
+    // transaction to match status='assigned' succeeds (rowCount=1); the second waits for the
+    // first to commit, then sees status='cancelled' and gets rowCount=0, so it exits cleanly.
+    const guardResult = await client.query(
+      `UPDATE jobs SET
+         status = 'cancelled', cancelled_at = NOW(), cancelled_by = NULL,
+         cancellation_reason = 'caregiver_no_show', fault_party = 'caregiver',
+         fault_severity = 'severe', settlement_mode = 'normal',
+         settlement_completed_at = NOW(), final_hirer_refund = 0,
+         final_platform_fee = 0, final_platform_penalty_revenue = 0,
+         updated_at = NOW()
+       WHERE id = $1 AND status = 'assigned'
+       RETURNING id`,
+      [jobId]
+    );
+
+    if (guardResult.rowCount === 0) return false; // Already cancelled by a concurrent trigger
+
+    // Mark job post and assignment as cancelled
+    await client.query(
+      `UPDATE job_posts SET status = 'cancelled', closed_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      [jobPostId]
+    );
+    await client.query(
+      `UPDATE job_assignments SET status = 'cancelled', updated_at = NOW()
+       WHERE job_id = $1 AND status = 'active'`,
+      [jobId]
+    );
+
+    // Fetch expected refund amount for log context
+    const jpAmountRes = await client.query(
+      `SELECT total_amount, hirer_deposit_amount FROM job_posts WHERE id = $1`,
+      [jobPostId]
+    );
+    const expectedRefund =
+      (parseInt(jpAmountRes.rows[0]?.total_amount) || 0) +
+      (parseInt(jpAmountRes.rows[0]?.hirer_deposit_amount) || 0);
+
+    // Get escrow wallet
+    const escrowRes = await client.query(
+      `SELECT * FROM wallets WHERE job_id = $1 AND wallet_type = 'escrow' FOR UPDATE`,
+      [jobId]
+    );
+    const escrowWallet = escrowRes.rows[0];
+
+    let adminOverrideFlagged = false;
+
+    if (!escrowWallet) {
+      adminOverrideFlagged = true;
+      console.error('[Job Service][NoShow][CRITICAL] Escrow wallet not found — job cancelled but hirer NOT refunded. Flagging for admin review.', {
+        jobId, jobPostId, hirerId, caregiverId, expectedRefund,
+        finalState: { jobs: 'cancelled', settlement_mode: 'admin_override', final_hirer_refund: 0 },
+      });
+      await client.query(
+        `UPDATE jobs SET settlement_mode = 'admin_override', updated_at = NOW() WHERE id = $1`,
+        [jobId]
+      );
+    } else if (parseInt(escrowWallet.held_balance) > 0) {
+      const refundAmount = parseInt(escrowWallet.held_balance);
+
+      // Get hirer wallet
+      const hirerWalletRes = await client.query(
+        `SELECT * FROM wallets WHERE user_id = $1 AND wallet_type = 'hirer' FOR UPDATE`,
+        [hirerId]
+      );
+      const hirerWallet = hirerWalletRes.rows[0];
+
+      if (!hirerWallet) {
+        adminOverrideFlagged = true;
+        console.error('[Job Service][NoShow][CRITICAL] Hirer wallet not found — escrow still holds funds. Flagging for admin review.', {
+          jobId, jobPostId, hirerId, caregiverId,
+          escrowId: escrowWallet.id, escrowHeld: refundAmount, expectedRefund,
+          finalState: { jobs: 'cancelled', settlement_mode: 'admin_override', escrow: 'still_held', final_hirer_refund: 0 },
+        });
+        await client.query(
+          `UPDATE jobs SET settlement_mode = 'admin_override', updated_at = NOW() WHERE id = $1`,
+          [jobId]
+        );
+      } else {
+        // Release all escrow funds back to hirer
+        await client.query(
+          `UPDATE wallets SET held_balance = held_balance - $1, updated_at = NOW() WHERE id = $2`,
+          [refundAmount, escrowWallet.id]
+        );
+        await client.query(
+          `UPDATE wallets SET available_balance = available_balance + $1, updated_at = NOW() WHERE id = $2`,
+          [refundAmount, hirerWallet.id]
+        );
+        await client.query(
+          `INSERT INTO ledger_transactions (id, from_wallet_id, to_wallet_id, amount, type, reference_type, reference_id, description, created_at)
+           VALUES ($1, $2, $3, $4, 'reversal', 'refund', $5, 'Full refund to hirer — caregiver no-show', NOW())`,
+          [uuidv4(), escrowWallet.id, hirerWallet.id, refundAmount, jobId]
+        );
+
+        // Update final_hirer_refund
+        await client.query(
+          `UPDATE jobs SET final_hirer_refund = $2 WHERE id = $1`,
+          [jobId, refundAmount]
+        );
+      }
+    }
+
+    // Release hirer deposit record if exists
+    await client.query(
+      `UPDATE job_deposits SET status = 'released', released_amount = amount,
+         settlement_reason = 'caregiver_no_show', settled_at = NOW(), updated_at = NOW()
+       WHERE job_id = $1 AND party = 'hirer' AND status = 'held'`,
+      [jobId]
+    );
+
+    // System message + close chat thread
+    const threadResult = await client.query(
+      `SELECT id FROM chat_threads WHERE job_id = $1 LIMIT 1`,
+      [jobId]
+    );
+    if (threadResult.rows.length > 0) {
+      const threadId = threadResult.rows[0].id;
+      await client.query(
+        `INSERT INTO chat_messages (id, thread_id, sender_id, type, content, is_system_message, created_at)
+         VALUES ($1, $2, NULL, 'system', 'งานถูกยกเลิกอัตโนมัติเนื่องจากผู้ดูแลไม่ check-in ภายใน 30 นาทีหลังเวลานัด', true, NOW())`,
+        [uuidv4(), threadId]
+      );
+      await client.query(
+        `UPDATE chat_threads SET status = 'closed', closed_at = COALESCE(closed_at, NOW()), updated_at = NOW() WHERE id = $1`,
+        [threadId]
+      );
+    }
+
+    return { adminOverride: adminOverrideFlagged }; // Signal that settlement was processed
+  });
+
+  if (!processed) return { skipped: true }; // Guard failed (concurrent trigger already handled this job)
+
+  // Notify both parties (fire-and-forget)
+  try {
+    const jpRes = await query(`SELECT title FROM job_posts WHERE id = $1`, [jobPostId]);
+    const title = jpRes.rows[0]?.title || 'งาน';
+    await notifyNoShow(hirerId, caregiverId, title, jobId);
+  } catch (e) {
+    console.error(`[Job Service] Failed to send no-show notification for job ${jobId}:`, e.message);
+  }
+
+  // Trigger trust score recalculation for caregiver (fire-and-forget)
+  try {
+    await triggerUserTrustUpdate(caregiverId);
+  } catch (e) {
+    console.error(`[Job Service] Failed to trigger trust update for caregiver ${caregiverId}:`, e.message);
+  }
+};
+
+const autoHandleNoShowJobsForHirer = async (hirerId) => {
+  const noShowResult = await query(
+    `SELECT j.id, ja.caregiver_id, j.job_post_id
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+     WHERE jp.hirer_id = $1
+       AND j.status = 'assigned'
+       AND jp.scheduled_start_at + INTERVAL '${NO_SHOW_GRACE_PERIOD_MIN} minutes' <= NOW()
+     ORDER BY jp.scheduled_start_at ASC
+     LIMIT 20`,
+    [hirerId]
+  );
+
+  for (const row of noShowResult.rows) {
+    try {
+      await _cancelNoShowJob(row.id, row.job_post_id, row.caregiver_id, hirerId);
+    } catch (error) {
+      console.error(`[Job Service] Failed to auto-cancel no-show job ${row.id}:`, error.message);
+    }
+  }
+};
+
+const autoHandleNoShowJobsForCaregiver = async (caregiverId) => {
+  const noShowResult = await query(
+    `SELECT j.id, j.job_post_id, jp.hirer_id
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+     WHERE ja.caregiver_id = $1
+       AND j.status = 'assigned'
+       AND jp.scheduled_start_at + INTERVAL '${NO_SHOW_GRACE_PERIOD_MIN} minutes' <= NOW()
+     ORDER BY jp.scheduled_start_at ASC
+     LIMIT 20`,
+    [caregiverId]
+  );
+
+  for (const row of noShowResult.rows) {
+    try {
+      await _cancelNoShowJob(row.id, row.job_post_id, caregiverId, row.hirer_id);
+    } catch (error) {
+      console.error(`[Job Service] Failed to auto-cancel no-show job ${row.id}:`, error.message);
+    }
+  }
+};
+
 export const getCaregiverJobs = async (caregiverId, options = {}) => {
   await autoCompleteOverdueJobsForCaregiver(caregiverId);
+  await autoHandleNoShowJobsForCaregiver(caregiverId);
   return await Job.getCaregiverJobs(caregiverId, options);
+};
+
+/**
+ * Global no-show batch processor — used by background worker (not scoped by user).
+ * Finds all assigned jobs system-wide that have passed the grace period and cancels them.
+ * Safe to call repeatedly; idempotency is handled at DB level inside _cancelNoShowJob.
+ * @param {number} limit - Max jobs to process per run
+ * @returns {{ total: number, processed: number, failed: number }}
+ */
+export const processNoShowBatch = async (limit = 100) => {
+  const noShowResult = await query(
+    `SELECT j.id, j.job_post_id, ja.caregiver_id, jp.hirer_id
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+     WHERE j.status = 'assigned'
+       AND jp.scheduled_start_at + INTERVAL '${NO_SHOW_GRACE_PERIOD_MIN} minutes' <= NOW()
+     ORDER BY jp.scheduled_start_at ASC
+     LIMIT $1`,
+    [limit]
+  );
+
+  const rows = noShowResult.rows;
+  let processed = 0;
+  let failed = 0;
+  let adminOverride = 0;
+  const batchLimitHit = rows.length === limit;
+
+  for (const row of rows) {
+    try {
+      const result = await _cancelNoShowJob(row.id, row.job_post_id, row.caregiver_id, row.hirer_id);
+      if (!result?.skipped) {
+        processed++;
+        if (result?.adminOverride) adminOverride++;
+      }
+    } catch (error) {
+      failed++;
+      console.error(`[Job Service] processNoShowBatch: failed to cancel job ${row.id}:`, error.message);
+    }
+  }
+
+  return { total: rows.length, processed, failed, adminOverride, batchLimitHit };
 };
 
 /**
@@ -588,6 +836,20 @@ export const acceptJob = async (jobPostId, caregiverId) => {
 
     if (!meetsRequiredTrustLevel(caregiver.trust_level, jobPost.min_trust_level)) {
       throw new Error(`Insufficient trust level. Required: ${jobPost.min_trust_level}, Your level: ${caregiver.trust_level}`);
+    }
+
+    const caregiverScore = parseInt(caregiver.trust_score) || 0;
+    if (caregiverScore < SCORE_THRESHOLD_FULL_BAN) {
+      throw new ValidationError(
+        `Trust score ต่ำเกินไป ไม่สามารถรับงานใหม่ได้ (score: ${caregiverScore}/${SCORE_THRESHOLD_FULL_BAN})`,
+        { code: 'TRUST_SCORE_TOO_LOW', section: 'trust', details: { score: caregiverScore, required: SCORE_THRESHOLD_FULL_BAN } }
+      );
+    }
+    if (caregiverScore < SCORE_THRESHOLD_HIGH_RISK_BLOCK && jobPost.risk_level === 'high_risk') {
+      throw new ValidationError(
+        `Trust score ต่ำเกินไปสำหรับงานความเสี่ยงสูง (score: ${caregiverScore}/${SCORE_THRESHOLD_HIGH_RISK_BLOCK})`,
+        { code: 'TRUST_SCORE_TOO_LOW_HIGH_RISK', section: 'trust', details: { score: caregiverScore, required: SCORE_THRESHOLD_HIGH_RISK_BLOCK } }
+      );
     }
 
     if (jobPost.preferred_caregiver_id && jobPost.preferred_caregiver_id !== caregiverId) {
@@ -873,6 +1135,25 @@ export const rejectAssignedJob = async (jobPostId, caregiverId, reason = '') => 
  * @returns {object} - Updated job
  */
 export const checkIn = async (jobId, caregiverId, gpsData = {}) => {
+  const jobCheckRes = await query(
+    `SELECT jp.risk_level, u.trust_score
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN users u ON u.id = $2
+     WHERE j.id = $1`,
+    [jobId, caregiverId]
+  );
+  if (jobCheckRes.rows.length > 0) {
+    const { risk_level, trust_score } = jobCheckRes.rows[0];
+    const score = parseInt(trust_score) || 0;
+    if (score < SCORE_THRESHOLD_HIGH_RISK_BLOCK && risk_level === 'high_risk') {
+      throw new ValidationError(
+        `ไม่สามารถ check-in งานความเสี่ยงสูงได้ เนื่องจาก trust score ต่ำเกินเกณฑ์ (score: ${score}/${SCORE_THRESHOLD_HIGH_RISK_BLOCK})`,
+        { code: 'TRUST_SCORE_TOO_LOW_HIGH_RISK', section: 'trust', details: { score, required: SCORE_THRESHOLD_HIGH_RISK_BLOCK } }
+      );
+    }
+  }
+
   const result = await Job.checkIn(jobId, caregiverId, gpsData);
 
   // Notify hirer about check-in
@@ -1603,6 +1884,101 @@ export const getJobStats = async () => {
   return result.rows[0];
 };
 
+/**
+ * Cancel a single assigned (not in_progress) job due to score-based ban,
+ * then re-post the job_post so hirer can find a new caregiver.
+ * Idempotent: guard UPDATE returns rowCount=0 if already cancelled.
+ *
+ * @param {string} jobId
+ * @param {string} jobPostId
+ * @param {string} caregiverId
+ * @param {string} hirerId
+ * @param {string} reason - cancellation_reason value
+ * @returns {{ cancelled: boolean }}
+ */
+const _cancelAssignedJobForScoreBan = async (jobId, jobPostId, caregiverId, hirerId, reason) => {
+  const cancelled = await transaction(async (client) => {
+    const guard = await client.query(
+      `UPDATE jobs SET
+         status = 'cancelled', cancelled_at = NOW(), cancelled_by = NULL,
+         cancellation_reason = $2, fault_party = 'caregiver',
+         fault_severity = 'mild', settlement_mode = 'normal',
+         settlement_completed_at = NOW(),
+         updated_at = NOW()
+       WHERE id = $1 AND status = 'assigned'
+       RETURNING id`,
+      [jobId, reason]
+    );
+    if (guard.rowCount === 0) return false;
+
+    await client.query(
+      `UPDATE job_assignments SET status = 'cancelled', updated_at = NOW()
+       WHERE job_id = $1 AND status = 'active'`,
+      [jobId]
+    );
+
+    await client.query(
+      `UPDATE job_posts SET status = 'posted', closed_at = NULL, updated_at = NOW()
+       WHERE id = $1`,
+      [jobPostId]
+    );
+
+    return true;
+  });
+
+  if (!cancelled) return { cancelled: false };
+
+  try {
+    const { notifyJobCancelled: notify } = await import('./notificationService.js');
+    await notify(hirerId, caregiverId, 'งาน', jobId, reason);
+  } catch (e) {
+    console.error(`[Job Service] Score-ban notify failed for job ${jobId}:`, e.message);
+  }
+
+  return { cancelled: true };
+};
+
+/**
+ * Cancel all assigned (not in_progress) jobs for a caregiver that breach a score threshold.
+ * Called by trustLevelWorker when score drops below SCORE_THRESHOLD_HIGH_RISK_BLOCK or SCORE_THRESHOLD_FULL_BAN.
+ *
+ * @param {string} caregiverId
+ * @param {'high_risk_only'|'all'} scope
+ * @param {string} reason
+ * @returns {{ total: number, cancelled: number, failed: number }}
+ */
+export const cancelAssignedJobsForScoreBan = async (caregiverId, scope, reason) => {
+  const riskFilter = scope === 'high_risk_only' ? `AND jp.risk_level = 'high_risk'` : '';
+
+  const jobsRes = await query(
+    `SELECT j.id, j.job_post_id, jp.hirer_id
+     FROM jobs j
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
+     WHERE ja.caregiver_id = $1
+       AND j.status = 'assigned'
+       ${riskFilter}
+     ORDER BY jp.scheduled_start_at ASC`,
+    [caregiverId]
+  );
+
+  const rows = jobsRes.rows;
+  let cancelled = 0;
+  let failed = 0;
+
+  for (const row of rows) {
+    try {
+      const result = await _cancelAssignedJobForScoreBan(row.id, row.job_post_id, caregiverId, row.hirer_id, reason);
+      if (result.cancelled) cancelled++;
+    } catch (err) {
+      failed++;
+      console.error(`[Job Service] cancelAssignedJobsForScoreBan: failed job ${row.id}:`, err.message);
+    }
+  }
+
+  return { total: rows.length, cancelled, failed };
+};
+
 export default {
   createJob,
   publishJob,
@@ -1615,4 +1991,6 @@ export default {
   checkOut,
   cancelJob,
   getJobStats,
+  processNoShowBatch,
+  cancelAssignedJobsForScoreBan,
 };

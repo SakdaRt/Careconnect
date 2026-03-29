@@ -91,7 +91,10 @@ describe('disputeService settleDispute', () => {
     expect(caregiverUpdate).toBeTruthy();
 
     const ledgerInserts = calls.filter(([sql]) => sql.includes('INSERT INTO ledger_transactions'));
-    expect(ledgerInserts).toHaveLength(2);
+    expect(ledgerInserts).toHaveLength(3);
+
+    const depositReturn = ledgerInserts.find(([sql]) => sql.includes("'deposit'") && sql.includes("'release'"));
+    expect(depositReturn).toBeTruthy();
 
     const statusUpdate = calls.find(([sql]) => sql.includes("UPDATE disputes SET status = 'resolved'"));
     expect(statusUpdate).toBeTruthy();

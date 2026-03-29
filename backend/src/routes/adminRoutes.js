@@ -4,7 +4,7 @@ import { requireAuth, requireRole } from '../middleware/auth.js';
 import { validateParams, validateQuery, validateBody, commonSchemas } from '../utils/validation.js';
 import { runTrustLevelWorker, triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 import { listUsers, getUser, setUserStatus, editUser, getUserWallet, setBan, getReportsSummary } from '../controllers/adminUserController.js';
-import { listJobs, getJob, cancelJob, settleJob, getJobFinancial } from '../controllers/adminJobController.js';
+import { listJobs, getJob, cancelJob, settleJob, getJobFinancial, listNoShowJobs, getNoShowStats } from '../controllers/adminJobController.js';
 import { listLedgerTransactions } from '../controllers/adminLedgerController.js';
 import { getHealth } from '../controllers/adminHealthController.js';
 import { listDisputes, getDispute, updateDispute, settle } from '../controllers/adminDisputeController.js';
@@ -39,6 +39,12 @@ const adminDisputeQuery = paginationQuery.keys({
   q: Joi.string().trim().max(200).allow(''),
   status: Joi.string().valid('open', 'in_review', 'resolved', 'rejected').allow(''),
   assigned: Joi.string().valid('me', 'unassigned').allow(''),
+});
+
+const noShowQuery = paginationQuery.keys({
+  settlement_mode: Joi.string().valid('normal', 'admin_override').allow(''),
+  from: Joi.string().isoDate().allow(''),
+  to: Joi.string().isoDate().allow(''),
 });
 
 const adminLedgerQuery = paginationQuery.keys({
@@ -216,6 +222,8 @@ router.post('/users/:id/ban', validateParams(uuidParams), validateBody(setBanBod
 router.get('/reports/summary', validateQuery(reportsSummaryQuery), getReportsSummary);
 
 router.get('/jobs', validateQuery(adminJobQuery), listJobs);
+router.get('/jobs/no-show', validateQuery(noShowQuery), listNoShowJobs);
+router.get('/jobs/no-show/stats', validateQuery(Joi.object({ from: Joi.string().isoDate().allow(''), to: Joi.string().isoDate().allow('') })), getNoShowStats);
 router.get('/jobs/:id', validateParams(uuidParams), getJob);
 router.post('/jobs/:id/cancel', validateParams(uuidParams), validateBody(cancelJobBody), cancelJob);
 router.get('/jobs/:id/financial', validateParams(uuidParams), getJobFinancial);

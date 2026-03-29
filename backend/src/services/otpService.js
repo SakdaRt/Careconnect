@@ -36,7 +36,7 @@ async function ensureOtpTable() {
     await query(`
       CREATE TABLE IF NOT EXISTS otp_codes (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        user_id UUID REFERENCES users(id) ON DELETE CASCADE,
         type VARCHAR(10) NOT NULL CHECK (type IN ('email', 'phone')),
         destination VARCHAR(255) NOT NULL,
         code_hash VARCHAR(255) NOT NULL,
@@ -49,6 +49,7 @@ async function ensureOtpTable() {
     `);
     await query(`CREATE INDEX IF NOT EXISTS idx_otp_codes_user_id ON otp_codes(user_id)`);
     await query(`CREATE INDEX IF NOT EXISTS idx_otp_codes_expires_at ON otp_codes(expires_at)`);
+    await query(`ALTER TABLE otp_codes ALTER COLUMN user_id DROP NOT NULL`).catch(() => {});
     _tableReady = true;
   } catch (err) {
     console.error('[OTP Service] Failed to ensure otp_codes table:', err.message);

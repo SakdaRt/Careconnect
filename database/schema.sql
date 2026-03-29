@@ -1330,7 +1330,7 @@ COMMENT ON TABLE password_reset_tokens IS 'Password reset tokens (hashed, time-l
 
 CREATE TABLE otp_codes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
     type VARCHAR(10) NOT NULL CHECK (type IN ('email', 'phone')),
     destination VARCHAR(255) NOT NULL,
     code_hash VARCHAR(255) NOT NULL,

@@ -24,6 +24,10 @@
 
 import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { cancelAssignedJobsForScoreBan } from '../services/jobService.js';
+
+const SCORE_THRESHOLD_HIGH_RISK_BLOCK = 40;
+const SCORE_THRESHOLD_FULL_BAN = 20;
 
 // Score weights
 const SCORE_WEIGHTS = {
@@ -31,7 +35,8 @@ const SCORE_WEIGHTS = {
   GOOD_REVIEW: 3,             // +3 per 4-5 star review
   AVERAGE_REVIEW: 1,          // +1 per 3 star review
   BAD_REVIEW: -5,             // -5 per 1-2 star review
-  CANCELLATION: -10,          // -10 per cancellation
+  CANCELLATION: -10,          // -10 per regular cancellation
+  NO_SHOW: -20,               // -20 per no-show (heavier than regular cancel)
   GPS_VIOLATION: -3,          // -3 per GPS violation
   ON_TIME_CHECKIN: 2,         // +2 per on-time check-in (max contribution 20)
   PROFILE_COMPLETE: 10,       // +10 for complete profile
@@ -48,6 +53,7 @@ async function calculateTrustScore(userId) {
     completedJobs: 0,
     reviews: 0,
     cancellations: 0,
+    noShowPenalty: 0,
     gpsViolations: 0,
     punctuality: 0,
     profileComplete: 0,
@@ -81,14 +87,31 @@ async function calculateTrustScore(userId) {
     breakdown.reviews = 0;
   }
 
-  // Get cancellations (as caregiver)
+  // Get regular cancellations (excluding no-shows to avoid double-counting)
   const cancellationsResult = await query(
-    `SELECT COUNT(*) as count FROM job_assignments
-     WHERE caregiver_id = $1 AND status = 'cancelled'`,
+    `SELECT COUNT(*) as count
+     FROM job_assignments ja
+     LEFT JOIN jobs j ON j.id = ja.job_id
+     WHERE ja.caregiver_id = $1
+       AND ja.status = 'cancelled'
+       AND (j.cancellation_reason IS NULL OR j.cancellation_reason != 'caregiver_no_show')`,
     [userId]
   );
   const cancellations = parseInt(cancellationsResult.rows[0].count) || 0;
   breakdown.cancellations = Math.max(cancellations * SCORE_WEIGHTS.CANCELLATION, -30);
+
+  // Get no-show cancellations (heavier penalty — caregiver accepted then never checked in)
+  const noShowResult = await query(
+    `SELECT COUNT(*) as count
+     FROM job_assignments ja
+     JOIN jobs j ON j.id = ja.job_id
+     WHERE ja.caregiver_id = $1
+       AND ja.status = 'cancelled'
+       AND j.cancellation_reason = 'caregiver_no_show'`,
+    [userId]
+  );
+  const noShows = parseInt(noShowResult.rows[0].count) || 0;
+  breakdown.noShowPenalty = Math.max(noShows * SCORE_WEIGHTS.NO_SHOW, -40);
 
   // Get GPS violations (events with fraud_indicators)
   const gpsViolationsResult = await query(
@@ -130,6 +153,7 @@ async function calculateTrustScore(userId) {
     breakdown.completedJobs +
     breakdown.reviews +
     breakdown.cancellations +
+    breakdown.noShowPenalty +
     breakdown.gpsViolations +
     breakdown.punctuality +
     breakdown.profileComplete +
@@ -233,6 +257,10 @@ async function updateUserTrust(userId) {
     // Determine new trust level
     const newLevel = await determineTrustLevel(userId, totalScore);
 
+    // Score-based job restriction enforcement
+    const crossedFullBan = currentScore >= SCORE_THRESHOLD_FULL_BAN && totalScore < SCORE_THRESHOLD_FULL_BAN;
+    const crossedHighRiskBlock = currentScore >= SCORE_THRESHOLD_HIGH_RISK_BLOCK && totalScore < SCORE_THRESHOLD_HIGH_RISK_BLOCK;
+
     // Only update if changed
     if (totalScore !== currentScore || newLevel !== currentLevel) {
       await transaction(async (client) => {
@@ -275,6 +303,29 @@ async function updateUserTrust(userId) {
         );
       });
 
+      // Auto-cancel assigned jobs that breach score thresholds (fire-and-forget)
+      if (crossedFullBan) {
+        cancelAssignedJobsForScoreBan(userId, 'all', 'score_ban_full')
+          .then((r) => {
+            if (r.total > 0) {
+              console.error(
+                `[TrustWorker][ALERT] score dropped below ${SCORE_THRESHOLD_FULL_BAN} for ${userId} — ${r.cancelled}/${r.total} assigned jobs auto-cancelled and re-posted`
+              );
+            }
+          })
+          .catch((err) => console.error('[TrustWorker] cancelAssignedJobsForScoreBan(all) failed:', err.message));
+      } else if (crossedHighRiskBlock) {
+        cancelAssignedJobsForScoreBan(userId, 'high_risk_only', 'score_ban_high_risk')
+          .then((r) => {
+            if (r.total > 0) {
+              console.error(
+                `[TrustWorker][ALERT] score dropped below ${SCORE_THRESHOLD_HIGH_RISK_BLOCK} for ${userId} — ${r.cancelled}/${r.total} high_risk assigned jobs auto-cancelled and re-posted`
+              );
+            }
+          })
+          .catch((err) => console.error('[TrustWorker] cancelAssignedJobsForScoreBan(high_risk_only) failed:', err.message));
+      }
+
       return {
         success: true,
         userId,
@@ -283,6 +334,8 @@ async function updateUserTrust(userId) {
         previousLevel: currentLevel,
         newLevel,
         breakdown,
+        crossedFullBan,
+        crossedHighRiskBlock,
       };
     }
 

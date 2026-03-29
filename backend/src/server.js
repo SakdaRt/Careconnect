@@ -30,6 +30,8 @@ import Job from "./models/Job.js";
 import { initChatSocket } from "./sockets/chatSocket.js";
 import { setSocketServer } from "./sockets/realtimeHub.js";
 import { DEV_MOCK_CAREGIVERS, DEV_MOCK_HIRERS, DEV_MOCK_ESCORT_JOB_TEMPLATES } from "./seeds/mockData.js";
+import cron from "node-cron";
+import { triggerNoShowScan } from "./workers/noShowWorker.js";
 
 // Load environment variables
 
@@ -617,6 +619,9 @@ const bootstrapAndListen = async () => {
       .catch((error) => {
         console.error("[Backend] Bootstrap failed:", error);
       });
+
+    cron.schedule("*/5 * * * *", triggerNoShowScan);
+    console.log("[Backend] No-show worker scheduled (every 5 minutes)");
 
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`[Backend] Server running on port ${PORT}`);

@@ -38,6 +38,7 @@ describe('jobService money flow', () => {
       role: 'caregiver',
       status: 'active',
       trust_level: 'L2',
+      trust_score: 50,
     });
 
     fakeClient.query.mockImplementation(async (sql) => {
