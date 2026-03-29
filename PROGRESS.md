@@ -189,6 +189,36 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-29 — Load Testing: k6 Performance Benchmark (5 Phases)
+
+- test: สร้าง load test suite ด้วย k6 v1.7.0 — `load-tests/` directory ใหม่
+  - `load-tests/lib/auth.js` — login helper + token constants
+  - `load-tests/lib/checks.js` — shared check/group functions (แยก hirer/caregiver role)
+  - `load-tests/k6-smoke.js` — Phase 1: Smoke (1→5 VU, 30s)
+  - `load-tests/k6-load.js` — Phase 2: Load (10→50→100 VU, 6 min)
+  - `load-tests/k6-stress.js` — Phase 3: Stress (50→300 VU, 6 min)
+  - `load-tests/k6-soak.js` — Phase 4: Soak (30 VU, 11 min)
+  - `load-tests/k6-stress-extended.js` — Phase 5: Extended Stress (300→1000 VU, 6 min)
+  - `load-tests/LOAD_TEST_RESULTS.md` — ผลลัพธ์ครบทุก phase
+- fix(test): แก้ role-based policy bug — `/jobs/feed` (caregiver only) ถูกเรียกด้วย hirer token
+- verify: ทุก phase ผ่าน — **ไม่พบ breaking point แม้ที่ 1,000 VU**
+
+#### ผลลัพธ์สำคัญ (Load Test 2026-03-29)
+
+| Phase | Max VU | Peak RPS | p95 | Errors |
+|-------|--------|----------|-----|--------|
+| Smoke | 5 | 10.8/s | 6.44ms | 0% |
+| Load | 100 | 129.7/s | 12.8ms | 0% |
+| Stress | 300 | 418.8/s | 808ms | 0% |
+| Soak (11 min) | 30 | 41.8/s | 7.27ms | 0% |
+| Extended Stress | **1,000** | **460/s** | 3.62s | **0%** |
+
+- **Concurrent Users รองรับได้**: ทดสอบถึง 1,000 VU ไม่พบ HTTP error
+- **Performance Degradation**: ที่ ~300 VU เริ่มช้า (p95>800ms), ~700 VU ช้ามาก (p95>2s)
+- **Production Sweet Spot**: ≤ 200 VU → p95 < 1s
+- **ไม่พบ memory leak**: soak test 11 นาที response time ไม่ drift
+- **Bottleneck**: `POST /api/auth/login/email` (bcrypt, by design)
+
 ### 2026-03-28 — Thesis Document Verification: Sync thesis ให้ตรงกับ codebase
 
 - docs: `CE68-29 FinalReport CARE_CONNECT (edit).docx` — แก้ทั้งหมด 20+ จุดเพื่อให้ตรงกับ codebase จริง
