@@ -604,6 +604,10 @@ const SECTION_STEP_MAP: Record<string, CreateJobStep> = {
   caregiver: 4,
 };
 
+const THAI_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+const HOURS_24 = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'));
+const MINUTES_5 = ['00','05','10','15','20','25','30','35','40','45','50','55'];
+
 function DateTimeInput24h({
   label,
   value,
@@ -619,23 +623,34 @@ function DateTimeInput24h({
 }) {
   const datePart = value ? value.slice(0, 10) : '';
   const timePart = value && value.includes('T') ? value.slice(11, 16) : '';
+  const hourStr = timePart.slice(0, 2);
+  const minuteStr = timePart.slice(3, 5);
+
+  const combine = (d: string, h: string, m: string) =>
+    d && h && m ? `${d}T${h}:${m}` : '';
 
   const handleDate = (e: ChangeEvent<HTMLInputElement>) => {
     const d = e.target.value;
-    const t = timePart || '00:00';
-    onChange({ target: { value: d ? `${d}T${t}` : '' } });
+    onChange({ target: { value: combine(d, hourStr || '08', minuteStr || '00') } });
   };
 
-  const handleTime = (e: ChangeEvent<HTMLInputElement>) => {
-    const t = e.target.value;
-    const d = datePart || '';
-    onChange({ target: { value: d && t ? `${d}T${t}` : '' } });
+  const handleHour = (e: ChangeEvent<HTMLSelectElement>) => {
+    if (!datePart) return;
+    onChange({ target: { value: combine(datePart, e.target.value, minuteStr || '00') } });
   };
 
-  const baseClass =
-    'px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
-  const normalClass = 'border-gray-300 hover:border-gray-400';
-  const errorClass = 'border-red-500 focus:ring-red-500';
+  const handleMinute = (e: ChangeEvent<HTMLSelectElement>) => {
+    if (!datePart) return;
+    onChange({ target: { value: combine(datePart, hourStr || '08', e.target.value) } });
+  };
+
+  const thaiDatePreview = datePart ? (() => {
+    const [y, m, d] = datePart.split('-');
+    return `${parseInt(d)} ${THAI_MONTHS[parseInt(m) - 1]} ${parseInt(y) + 543}`;
+  })() : null;
+
+  const base = 'px-3 py-2 border rounded-lg bg-white transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const cls = error ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 hover:border-gray-400';
 
   return (
     <div className="flex flex-col gap-1">
@@ -643,21 +658,41 @@ function DateTimeInput24h({
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center flex-wrap">
         <input
           type="date"
           value={datePart}
           onChange={handleDate}
-          className={cn('flex-1', baseClass, error ? errorClass : normalClass)}
+          className={cn('flex-1 min-w-0', base, cls)}
+          aria-label={`วันที่ ${label}`}
         />
-        <input
-          type="time"
-          value={timePart}
-          onChange={handleTime}
-          lang="th"
-          className={cn('w-28', baseClass, error ? errorClass : normalClass)}
-        />
+        <select
+          value={hourStr}
+          onChange={handleHour}
+          disabled={!datePart}
+          className={cn('w-20', base, cls, !datePart && 'opacity-40 cursor-not-allowed')}
+          aria-label="ชั่วโมง"
+        >
+          <option value="">ชม.</option>
+          {HOURS_24.map((h) => <option key={h} value={h}>{h}</option>)}
+        </select>
+        <span className="text-gray-500 font-semibold select-none">:</span>
+        <select
+          value={minuteStr}
+          onChange={handleMinute}
+          disabled={!datePart}
+          className={cn('w-20', base, cls, !datePart && 'opacity-40 cursor-not-allowed')}
+          aria-label="นาที"
+        >
+          <option value="">นาที</option>
+          {MINUTES_5.map((m) => <option key={m} value={m}>{m}</option>)}
+        </select>
       </div>
+      {thaiDatePreview && hourStr && minuteStr && (
+        <p className="text-xs text-blue-600">
+          {thaiDatePreview} เวลา {hourStr}.{minuteStr} น.
+        </p>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </div>
   );
