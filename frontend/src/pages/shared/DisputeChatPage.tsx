@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { MainLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState } from '../../components/ui';
@@ -143,12 +143,6 @@ export default function DisputeChatPage() {
                 </div>
               )}
               <div className="flex flex-wrap gap-2 mt-3">
-                <Link to={`/jobs/${dispute.job_post_id}`} target="_blank">
-                  <Button variant="outline" size="sm">เปิดงาน</Button>
-                </Link>
-                <Link to={`/chat/${dispute.job_id || dispute.job_post_id}`} target="_blank">
-                  <Button variant="outline" size="sm">เปิดแชทงาน</Button>
-                </Link>
                 {canSend && (
                   <Button variant="outline" size="sm" onClick={requestClose}>
                     ขอปิดข้อพิพาท

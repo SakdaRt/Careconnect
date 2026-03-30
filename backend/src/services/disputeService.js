@@ -55,7 +55,6 @@ export async function settleDispute(disputeId, adminUserId, input = {}) {
          d.job_id,
          d.job_post_id,
          jp.hirer_id,
-         j.caregiver_id as job_caregiver_id,
          ja.caregiver_id as assignment_caregiver_id
        FROM disputes d
        JOIN job_posts jp ON jp.id = d.job_post_id
@@ -74,7 +73,7 @@ export async function settleDispute(disputeId, adminUserId, input = {}) {
     const jobId = ctx?.job_id;
     const jobPostId = ctx?.job_post_id;
     const hirerId = ctx?.hirer_id;
-    const caregiverId = ctx?.job_caregiver_id || ctx?.assignment_caregiver_id;
+    const caregiverId = ctx?.assignment_caregiver_id;
 
     if (!jobId || !hirerId) {
       throw new Error('Dispute has no job context');

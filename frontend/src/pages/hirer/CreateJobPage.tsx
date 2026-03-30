@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams, useBlocker } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Car, Heart, Brain, BedDouble, Activity, Stethoscope, User as UserIcon, PlusCircle, Check, Search, Star, ChevronDown, ChevronUp } from 'lucide-react';
@@ -603,6 +603,65 @@ const SECTION_STEP_MAP: Record<string, CreateJobStep> = {
   job_location: 3,
   caregiver: 4,
 };
+
+function DateTimeInput24h({
+  label,
+  value,
+  onChange,
+  error,
+  required,
+}: {
+  label: string;
+  value: string;
+  onChange: (e: { target: { value: string } }) => void;
+  error?: string;
+  required?: boolean;
+}) {
+  const datePart = value ? value.slice(0, 10) : '';
+  const timePart = value && value.includes('T') ? value.slice(11, 16) : '';
+
+  const handleDate = (e: ChangeEvent<HTMLInputElement>) => {
+    const d = e.target.value;
+    const t = timePart || '00:00';
+    onChange({ target: { value: d ? `${d}T${t}` : '' } });
+  };
+
+  const handleTime = (e: ChangeEvent<HTMLInputElement>) => {
+    const t = e.target.value;
+    const d = datePart || '';
+    onChange({ target: { value: d && t ? `${d}T${t}` : '' } });
+  };
+
+  const baseClass =
+    'px-4 py-2 border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+  const normalClass = 'border-gray-300 hover:border-gray-400';
+  const errorClass = 'border-red-500 focus:ring-red-500';
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-semibold text-gray-700">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <div className="flex gap-2">
+        <input
+          type="date"
+          value={datePart}
+          onChange={handleDate}
+          className={cn('flex-1', baseClass, error ? errorClass : normalClass)}
+        />
+        <input
+          type="time"
+          value={timePart}
+          onChange={handleTime}
+          lang="th"
+          className={cn('w-28', baseClass, error ? errorClass : normalClass)}
+        />
+      </div>
+      {error && <p className="text-sm text-red-600">{error}</p>}
+    </div>
+  );
+}
 
 export default function CreateJobPage() {
   const navigate = useNavigate();
@@ -1594,7 +1653,7 @@ export default function CreateJobPage() {
         </div>
       )}
 
-      <div className="max-w-3xl mx-auto px-4 pt-4 pb-28">
+      <div className="max-w-3xl mx-auto px-4 pt-4 pb-8">
         {/* ── Mobile-first progress header ── */}
         <div className="mb-5">
           <div className="flex items-center justify-between mb-1">
@@ -1799,8 +1858,8 @@ export default function CreateJobPage() {
             <Card className={cn(errorSection === 'job_schedule' ? 'border-red-400 bg-red-50' : undefined)}>
               <div className="text-sm font-semibold text-gray-900 mb-3">วันและเวลา</div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <Input label="เริ่มงาน" type="datetime-local" value={form.scheduled_start_at} error={fieldErrors.scheduled_start_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_start_at: '' })); setForm({ ...form, scheduled_start_at: e.target.value }); }} required />
-                <Input label="สิ้นสุด" type="datetime-local" value={form.scheduled_end_at} error={fieldErrors.scheduled_end_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_end_at: '' })); setForm({ ...form, scheduled_end_at: e.target.value }); }} required />
+                <DateTimeInput24h label="เริ่มงาน" value={form.scheduled_start_at} error={fieldErrors.scheduled_start_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_start_at: '' })); setForm({ ...form, scheduled_start_at: e.target.value }); }} required />
+                <DateTimeInput24h label="สิ้นสุด" value={form.scheduled_end_at} error={fieldErrors.scheduled_end_at} onChange={(e) => { setErrorSection(null); setErrorMessage(null); setFieldErrors((prev) => ({ ...prev, scheduled_end_at: '' })); setForm({ ...form, scheduled_end_at: e.target.value }); }} required />
               </div>
             </Card>
 
@@ -2043,9 +2102,6 @@ export default function CreateJobPage() {
                           </div>
                         );
                       })}
-                      <div className="text-center pt-1">
-                        <Link to="/hirer/search-caregivers"><Button variant="outline" size="sm" leftIcon={<Search className="w-4 h-4" />}>ค้นหาเพิ่มเติม</Button></Link>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -2283,25 +2339,22 @@ export default function CreateJobPage() {
             </div>
           </div>
         )}
-      </div>
-
-      {/* ── Sticky bottom nav (hide on success) ── */}
+      {/* ── Bottom nav ── */}
       {!successJobId && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40 shadow-[0_-2px_8px_rgba(0,0,0,0.08)] safe-area-bottom">
-          <div className="max-w-3xl mx-auto flex gap-3">
-            {currentStep > 1 && (
-              <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>← ย้อนกลับ</Button>
-            )}
-            {currentStep < totalSteps ? (
-              <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
-                ถัดไป →
-              </Button>
-            ) : (
-              <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
-            )}
-          </div>
+        <div className="flex gap-3 pt-4 border-t border-gray-200">
+          {currentStep > 1 && (
+            <Button variant="outline" fullWidth onClick={handlePrevStep} disabled={loading}>← ย้อนกลับ</Button>
+          )}
+          {currentStep < totalSteps ? (
+            <Button variant="primary" fullWidth onClick={handleNextStep} disabled={loading}>
+              ถัดไป →
+            </Button>
+          ) : (
+            <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
+          )}
         </div>
       )}
+      </div>
 
       <Modal
         isOpen={templateSwitchOpen}

@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-29 (trust score: ลบ caps + score=0 ban_login)
+> อัพเดทล่าสุด: 2026-03-30 (UI cleanup: ลบปุ่มซ้ำซ้อน dispute/admin + time input 24h)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -207,6 +207,13 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-30 — UI Cleanup: ลบปุ่มซ้ำซ้อน + Time Input 24h
+
+- refactor(ui): ลบปุ่ม "รับผิดชอบเรื่องนี้" และ "เปลี่ยนสถานะเป็น in_review" ออกจาก `AdminDisputesPage` — ทั้ง 2 ปุ่มเป็น convenience shortcut ที่มี auto-assign ทดแทนอยู่แล้ว (ตอนส่งข้อความ / settle)
+- refactor(ui): แก้ `datetime-local` input ใน `CreateJobPage` เป็น `DateTimeInput24h` component — แยก date + time, ใช้ `type="time"` + `lang="th"` เพื่อแสดง 24h แทน AM/PM
+- refactor(dispute): ลบปุ่ม "เปิดงาน" / "เปิดแชทงาน" ออกจาก `DisputeChatPage` + ลบ `Link` import ที่ไม่ใช้
+- fix(disputeService): simplify caregiver lookup ใน `settleDispute` — ใช้ `assignment_caregiver_id` เท่านั้น (ตัด `job_caregiver_id` fallback ที่ไม่ใช้แล้ว)
 
 ### 2026-03-29 — Trust Score: ลบ Individual Caps + score=0 Ban Login
 

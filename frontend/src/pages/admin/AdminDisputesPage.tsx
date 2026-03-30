@@ -465,22 +465,6 @@ export default function AdminDisputesPage() {
                 variant="outline"
                 size="sm"
                 loading={actionLoading === selectedHeader.dispute_id}
-                onClick={() => doUpdate(selectedHeader.dispute_id, { assign_to_me: true })}
-              >
-                รับผิดชอบเรื่องนี้
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                loading={actionLoading === selectedHeader.dispute_id}
-                onClick={() => doUpdate(selectedHeader.dispute_id, { status: 'in_review' })}
-              >
-                เปลี่ยนสถานะเป็น "กำลังตรวจสอบ"
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                loading={actionLoading === selectedHeader.dispute_id}
                 onClick={() => doUpdate(selectedHeader.dispute_id, { status: 'rejected' })}
               >
                 ปฏิเสธข้อพิพาท
