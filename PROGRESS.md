@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (Notification system: เพิ่ม triggers ที่ขาดหาย + แก้ bug score-ban cancel)
+> อัพเดทล่าสุด: 2026-03-31 (fix: notification job_assigned redirect ไปหน้างานแทน chat)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -107,6 +107,7 @@ careconnect/
 - [x] Trigger: score-ban cancel → แจ้งทั้ง hirer + caregiver (bug fix)
 - [x] Trigger: review received → แจ้ง caregiver
 - [x] Trigger: complaint status updated → แจ้ง reporter
+- [x] **Bug fix**: กด notification `job_assigned` redirect ไปที่ `/jobs/:id` แทน `/chat/:id` (เดิม error "ยังไม่มีห้องแชท")
 
 ### Wallet & Payment
 

@@ -734,6 +734,8 @@ export default function CreateJobPage() {
   const [quickRecipientSaving, setQuickRecipientSaving] = useState(false);
   const [suggestedCaregivers, setSuggestedCaregivers] = useState<any[]>([]);
   const [suggestedLoading, setSuggestedLoading] = useState(false);
+  const [favoriteCaregivers, setFavoriteCaregivers] = useState<any[]>([]);
+  const [favoritesLoading, setFavoritesLoading] = useState(false);
   const [selectedCaregiverId, setSelectedCaregiverId] = useState<string>(preferredCaregiverIdParam || '');
   const [showAdvancedStep3, setShowAdvancedStep3] = useState(false);
   const [previewCaregiverId, setPreviewCaregiverId] = useState<string | null>(null);
@@ -799,12 +801,13 @@ export default function CreateJobPage() {
 
   const clearDraft = () => sessionStorage.removeItem(DRAFT_KEY);
 
-  // ── Fetch caregiver suggestions when entering Step 4 ──
+  // ── Fetch caregiver suggestions + favorites when entering Step 4 ──
   useEffect(() => {
     if (currentStep !== 4 || preferredCaregiverIdParam) return;
     let cancelled = false;
     const run = async () => {
       setSuggestedLoading(true);
+      setFavoritesLoading(true);
       try {
         const skills = form.required_skills_flags.join(',');
         let availableDay: number | undefined;
@@ -812,21 +815,32 @@ export default function CreateJobPage() {
           const d = new Date(form.scheduled_start_at);
           if (!isNaN(d.getTime())) availableDay = d.getDay();
         }
-        const res = await appApi.searchCaregivers({
-          skills: skills || undefined,
-          trust_level: computedRisk.risk_level === 'high_risk' ? 'L2' : 'L1',
-          available_day: availableDay,
-          limit: 12,
-        });
+        const [suggestRes, favRes] = await Promise.all([
+          appApi.searchCaregivers({
+            skills: skills || undefined,
+            trust_level: computedRisk.risk_level === 'high_risk' ? 'L2' : 'L1',
+            available_day: availableDay,
+            limit: 12,
+          }),
+          appApi.getFavorites(1, 20),
+        ]);
         if (cancelled) return;
-        if (res.success && res.data?.data) {
-          const ranked = res.data.data
+        if (suggestRes.success && suggestRes.data?.data) {
+          const ranked = suggestRes.data.data
             .map((cg: any) => ({ ...cg, _matchScore: computeMatchScore(cg) }))
             .sort((a: any, b: any) => b._matchScore - a._matchScore);
           setSuggestedCaregivers(ranked);
         }
+        if (favRes.success && favRes.data?.data) {
+          setFavoriteCaregivers(favRes.data.data);
+        }
       } catch { /* ignore */ }
-      finally { if (!cancelled) setSuggestedLoading(false); }
+      finally {
+        if (!cancelled) {
+          setSuggestedLoading(false);
+          setFavoritesLoading(false);
+        }
+      }
     };
     run();
     return () => { cancelled = true; };
@@ -2046,6 +2060,75 @@ export default function CreateJobPage() {
                     {!selectedCaregiverId && <Check className="w-5 h-5 text-green-600 flex-shrink-0" aria-hidden="true" />}
                   </div>
                 </button>
+
+                {/* ── Favorite caregivers section ── */}
+                {(favoritesLoading || favoriteCaregivers.length > 0) && (
+                  <div className="pt-2">
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-900 mb-2">
+                      <Heart className="w-4 h-4 fill-red-500 text-red-500" aria-hidden="true" />
+                      ผู้ดูแลที่ชื่นชอบ
+                    </div>
+                    {favoritesLoading ? (
+                      <div className="text-center py-4 text-sm text-gray-500">กำลังโหลดรายการโปรด...</div>
+                    ) : (
+                      <div className="space-y-2">
+                        {favoriteCaregivers.slice(0, 5).map((fav) => {
+                          const isSelected = selectedCaregiverId === fav.caregiver_id;
+                          const rating = Number(fav.avg_rating) || 0;
+                          const certs = (fav.certifications || []) as string[];
+                          const specs = (fav.specializations || []) as string[];
+                          const requiredSkills = new Set(form.required_skills_flags);
+                          const matchedSkills = [...specs, ...certs].filter((s: string) => requiredSkills.has(s));
+                          return (
+                            <div key={fav.id} className={cn('border-2 rounded-xl transition-all', isSelected ? 'border-blue-500 bg-blue-50' : 'border-red-200 bg-red-50/20')}>
+                              <button type="button" onClick={() => setSelectedCaregiverId(isSelected ? '' : fav.caregiver_id)} className="w-full p-3 text-left focus:outline-none">
+                                <div className="flex items-start gap-3">
+                                  <Avatar
+                                    userId={fav.caregiver_id}
+                                    avatarVersion={fav.avatar_version}
+                                    src={!fav.avatar_version && fav.avatar ? `/uploads/${fav.avatar}` : undefined}
+                                    name={fav.display_name || 'ผู้ดูแล'}
+                                    size="md"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm font-semibold text-gray-900 line-clamp-1">{fav.display_name || 'ผู้ดูแล'}</span>
+                                      <Badge variant={getTrustLevelConfig(fav.trust_level).badgeVariant}>{getTrustLevelLabel(fav.trust_level)}</Badge>
+                                      <Heart className="w-3.5 h-3.5 fill-red-400 text-red-400 flex-shrink-0" aria-hidden="true" />
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs text-gray-600">
+                                      {rating > 0 && (
+                                        <span className="flex items-center gap-0.5 text-amber-600">
+                                          <Star className="w-3 h-3 fill-amber-400 text-amber-400" aria-hidden="true" />
+                                          {rating.toFixed(1)}{fav.total_reviews > 0 && <span className="text-gray-500">({fav.total_reviews})</span>}
+                                        </span>
+                                      )}
+                                      {fav.experience_years > 0 && <span>ประสบการณ์ {fav.experience_years} ปี</span>}
+                                      {Number(fav.completed_jobs_count) > 0 && <span>งานสำเร็จ {fav.completed_jobs_count}</span>}
+                                    </div>
+                                    {matchedSkills.length > 0 && (
+                                      <div className="flex flex-wrap gap-1 mt-1.5">
+                                        {matchedSkills.slice(0, 3).map((s: string) => (
+                                          <span key={s} className="text-[10px] px-1.5 py-0.5 bg-green-100 text-green-800 rounded-full">✓ {s}</span>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="flex-shrink-0">
+                                    {isSelected ? <Check className="w-5 h-5 text-blue-600" aria-hidden="true" /> : null}
+                                  </div>
+                                </div>
+                              </button>
+                              <div className="px-3 pb-2">
+                                <button type="button" onClick={(e) => { e.stopPropagation(); openPreview(fav.caregiver_id); }} className="text-xs text-blue-600 hover:underline">ดูโปรไฟล์</button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="pt-2">
                   <div className="text-sm font-semibold text-gray-900 mb-2">หรือเลือกผู้ดูแลที่แนะนำ</div>

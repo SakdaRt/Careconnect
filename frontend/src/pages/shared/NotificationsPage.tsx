@@ -20,6 +20,8 @@ function getNotificationLink(n: AppNotification): string | null {
     const b = (n.body || '').toLowerCase();
     if (t.includes('ข้อพิพาท') || b.includes('dispute')) return `/dispute/${n.reference_id}`;
     if (t.includes('ยกเลิก') || t.includes('เผยแพร่') || t.includes('สร้าง') || b.includes('draft')) return `/jobs/${n.reference_id}`;
+    if (n.template_key === 'job_assigned' || t.includes('มอบหมาย')) return `/jobs/${n.reference_id}`;
+    if (n.template_key === 'early_checkout_request' || t.includes('ส่งงาน')) return `/jobs/${n.reference_id}`;
     return `/chat/${n.reference_id}`;
   }
   return null;

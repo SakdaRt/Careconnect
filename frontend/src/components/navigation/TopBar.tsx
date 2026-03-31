@@ -38,6 +38,10 @@ function getNotificationLink(n: AppNotification): string | null {
     if (title.includes('ยกเลิก') || title.includes('เผยแพร่') || title.includes('สร้าง') || body.includes('draft')) {
       return `/jobs/${n.reference_id}`;
     }
+    if (n.template_key === 'job_assigned' || body.includes('มอบหมาย')) return `/jobs/${n.reference_id}`;
+    if (n.template_key === 'early_checkout_request' || body.includes('ส่งงาน')) {
+      return `/jobs/${n.reference_id}`;
+    }
     return `/chat/${n.reference_id}`;
   }
   return '/notifications';

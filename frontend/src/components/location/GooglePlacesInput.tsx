@@ -142,6 +142,7 @@ export function GooglePlacesInput({
     const applyLatLng = (nextLat: number, nextLng: number, zoom?: number) => {
       latestLatLngRef.current = { lat: nextLat, lng: nextLng };
       if (!mapInstanceRef.current || !markerRef.current) return;
+      markerRef.current.setMap(mapInstanceRef.current);
       markerRef.current.setPosition({ lat: nextLat, lng: nextLng });
       mapInstanceRef.current.setCenter({ lat: nextLat, lng: nextLng });
       if (zoom) mapInstanceRef.current.setZoom(zoom);
