@@ -198,7 +198,7 @@ describe('Auth entry navigation', () => {
 
   it('navigates to register from login entry', () => {
     renderWithRouter(<LoginEntryPage />, ['/login']);
-    fireEvent.click(screen.getByRole('button', { name: 'สมัครสมาชิก' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ลงทะเบียน' }));
     expect(screen.getByTestId('location').textContent).toBe('/register');
   });
 

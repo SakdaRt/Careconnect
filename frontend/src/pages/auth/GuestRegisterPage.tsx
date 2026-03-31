@@ -120,7 +120,7 @@ export default function GuestRegisterPage() {
       startCooldown();
       setStep('otp');
     } catch (error: any) {
-      toast.error(error.message || 'สมัครสมาชิกไม่สำเร็จ');
+      toast.error(error.message || 'ลงทะเบียนไม่สำเร็จ');
     } finally {
       setLoading(false);
     }
@@ -147,7 +147,7 @@ export default function GuestRegisterPage() {
       if (response.data?.registered && response.data?.accessToken) {
         api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
         await refreshUser();
-        toast.success('สมัครสมาชิกสำเร็จ!');
+        toast.success('ลงทะเบียนสำเร็จ!');
         setScopedStorageItem('pendingRole', 'hirer');
         navigate('/register/consent', { replace: true });
       } else {

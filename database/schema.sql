@@ -482,6 +482,10 @@ CREATE TABLE jobs (
     admin_settlement_note TEXT,
     admin_settlement_at TIMESTAMPTZ,
 
+    -- Checkout evidence
+    evidence_note TEXT,
+    evidence_photo_url TEXT,
+
     -- Timestamps
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

@@ -886,10 +886,10 @@ class ApiClient {
     return this.request<{ dispute: any; events: AdminDisputeEvent[]; messages: DisputeMessage[] }>(`/api/disputes/${disputeId}`);
   }
 
-  async postDisputeMessage(disputeId: string, content: string) {
+  async postDisputeMessage(disputeId: string, content: string, attachmentKey?: string) {
     return this.request<{ message: DisputeMessage }>(`/api/disputes/${disputeId}/messages`, {
       method: 'POST',
-      body: { content },
+      body: { content, ...(attachmentKey ? { attachment_key: attachmentKey, type: 'image' } : {}) },
     });
   }
 
@@ -1200,10 +1200,14 @@ class ApiClient {
     });
   }
 
-  async checkOut(jobId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }, evidenceNote?: string) {
+  async uploadCheckoutPhoto(jobId: string, formData: FormData) {
+    return this.requestFormData<{ photo_url: string }>(`/api/jobs/${jobId}/checkout-photo`, formData);
+  }
+
+  async checkOut(jobId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }, evidenceNote?: string, evidencePhotoUrl?: string) {
     return this.request<{ job: Job }>(`/api/jobs/${jobId}/checkout`, {
       method: 'POST',
-      body: { ...gpsData, evidence_note: evidenceNote },
+      body: { ...gpsData, evidence_note: evidenceNote, evidence_photo_url: evidencePhotoUrl },
     });
   }
 
@@ -1298,16 +1302,24 @@ class ApiClient {
     } as ApiResponse<Paginated<ChatMessage>>;
   }
 
-  async sendMessage(threadId: string, content: string, messageType: string = 'text') {
+  async sendMessage(threadId: string, content: string, messageType: string = 'text', attachmentKey?: string) {
     const raw: any = await this.request<any>(`/api/chat/threads/${threadId}/messages`, {
       method: 'POST',
-      body: { content, type: messageType },
+      body: { content, type: messageType, ...(attachmentKey ? { attachment_key: attachmentKey } : {}) },
     });
     if (!raw.success) return raw as ApiResponse<{ message: ChatMessage }>;
     return {
       success: true,
       data: { message: raw.message as ChatMessage },
     } as ApiResponse<{ message: ChatMessage }>;
+  }
+
+  async uploadChatImage(threadId: string, formData: FormData) {
+    return this.requestFormData<{ attachment_key: string; url: string }>(`/api/chat/threads/${threadId}/upload`, formData);
+  }
+
+  async uploadDisputeImage(disputeId: string, formData: FormData) {
+    return this.requestFormData<{ attachment_key: string; url: string }>(`/api/disputes/${disputeId}/upload`, formData);
   }
 
   // Token refresh
@@ -1528,6 +1540,7 @@ export interface DisputeMessage {
   sender_id: string | null;
   type: string;
   content: string | null;
+  attachment_key?: string | null;
   is_system_message: boolean;
   metadata?: any;
   created_at: string;

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { CalendarDays, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
+import { CalendarDays, Camera, ChevronLeft, ChevronRight, MessageCircle, X } from 'lucide-react';
 import { MainLayout } from '../../layouts';
-import { Badge, Button, Card, LoadingState, Modal, ReasonModal, StatusBadge, Textarea } from '../../components/ui';
+import { Badge, Button, Card, LoadingState, Modal, StatusBadge, Textarea } from '../../components/ui';
 import { CHECKOUT_PRESETS } from '../../components/ui/ReasonModal';
 import { CaregiverAssignedJob } from '../../services/api';
 import { useAuth } from '../../contexts';
@@ -104,6 +104,12 @@ export default function CaregiverMyJobsPage() {
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutJobId, setCheckoutJobId] = useState<string | null>(null);
   const [checkoutIsEarly, setCheckoutIsEarly] = useState(false);
+  const [checkoutNote, setCheckoutNote] = useState('');
+  const [checkoutPreset, setCheckoutPreset] = useState('');
+  const [checkoutPhoto, setCheckoutPhoto] = useState<File | null>(null);
+  const [checkoutPhotoPreview, setCheckoutPhotoPreview] = useState<string | null>(null);
+  const [checkoutUploading, setCheckoutUploading] = useState(false);
+  const checkoutPhotoInputRef = useRef<HTMLInputElement>(null);
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleLoading, setScheduleLoading] = useState(false);
   const [scheduleJobs, setScheduleJobs] = useState<CaregiverAssignedJob[]>([]);
@@ -299,45 +305,75 @@ export default function CaregiverMyJobsPage() {
     }
   };
 
+  const resetCheckoutModal = () => {
+    setCheckoutOpen(false);
+    setCheckoutJobId(null);
+    setCheckoutIsEarly(false);
+    setCheckoutNote('');
+    setCheckoutPreset('');
+    setCheckoutPhoto(null);
+    setCheckoutPhotoPreview(null);
+  };
+
   const handleOpenCheckout = (job: CaregiverAssignedJob) => {
     const now = new Date();
     const endAt = new Date(job.scheduled_end_at);
     const isEarly = now < endAt;
     setCheckoutJobId(job.id);
     setCheckoutIsEarly(isEarly);
+    setCheckoutNote('');
+    setCheckoutPreset('');
+    setCheckoutPhoto(null);
+    setCheckoutPhotoPreview(null);
     setCheckoutOpen(true);
   };
 
-  const handleConfirmCheckout = async (evidenceNote: string) => {
-    if (!checkoutJobId || !evidenceNote.trim()) return;
+  const handleConfirmCheckout = async () => {
+    if (!checkoutJobId) return;
+    const evidenceNote = checkoutPreset
+      ? `${checkoutPreset}${checkoutNote.trim() ? ` — ${checkoutNote.trim()}` : ''}`
+      : checkoutNote.trim();
+    if (!evidenceNote) {
+      toast.error('กรุณาเลือกหรือกรอกหลักฐานการทำงาน');
+      return;
+    }
+    if (!checkoutIsEarly && !checkoutPhoto) {
+      toast.error('กรุณาแนบรูปภาพหลักฐานการทำงาน');
+      return;
+    }
     setActionLoadingId(checkoutJobId);
     try {
       if (checkoutIsEarly) {
-        const res = await appApi.requestEarlyCheckout(checkoutJobId, evidenceNote.trim());
+        const res = await appApi.requestEarlyCheckout(checkoutJobId, evidenceNote);
         if (!res.success) {
           toast.error(res.error || 'ส่งคำขอไม่สำเร็จ');
           return;
         }
         toast.success('ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ');
-        setCheckoutOpen(false);
-        setCheckoutJobId(null);
-        setCheckoutIsEarly(false);
+        resetCheckoutModal();
         await load();
       } else {
+        const formData = new FormData();
+        formData.append('file', checkoutPhoto!);
+        setCheckoutUploading(true);
+        const uploadRes = await appApi.uploadCheckoutPhoto(checkoutJobId, formData);
+        setCheckoutUploading(false);
+        if (!uploadRes.success || !uploadRes.data?.photo_url) {
+          toast.error(uploadRes.error || 'อัปโหลดรูปภาพไม่สำเร็จ');
+          return;
+        }
         let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
         try {
           const raw = await getCurrentGps();
           gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
         } catch { /* checkout allowed anywhere */ }
-        const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote.trim());
+        const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote, uploadRes.data.photo_url);
         if (!res.success) {
           toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
           return;
         }
         toast.success('ส่งงานเสร็จแล้ว');
-        setCheckoutOpen(false);
-        setCheckoutJobId(null);
-        setCheckoutIsEarly(false);
+        resetCheckoutModal();
         if (filter === 'completed') {
           await load();
         } else {
@@ -348,6 +384,7 @@ export default function CaregiverMyJobsPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
+      setCheckoutUploading(false);
       setActionLoadingId(null);
     }
   };
@@ -750,20 +787,118 @@ export default function CaregiverMyJobsPage() {
           </div>
         </Modal>
 
-        <ReasonModal
+        <Modal
           isOpen={checkoutOpen}
-          onClose={() => { setCheckoutOpen(false); setCheckoutJobId(null); setCheckoutIsEarly(false); }}
-          onConfirm={handleConfirmCheckout}
+          onClose={resetCheckoutModal}
           title={checkoutIsEarly ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
-          description={checkoutIsEarly
-            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'
-            : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'}
-          placeholder="รายละเอียดเพิ่มเติม เช่น อาการผู้ป่วย ข้อสังเกต..."
-          confirmText={checkoutIsEarly ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
-          variant="primary"
-          loading={!!actionLoadingId}
-          presetReasons={CHECKOUT_PRESETS}
-        />
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={resetCheckoutModal}
+                disabled={!!actionLoadingId || checkoutUploading}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                กลับไป
+              </button>
+              <button
+                onClick={handleConfirmCheckout}
+                disabled={
+                  !!actionLoadingId ||
+                  checkoutUploading ||
+                  (!checkoutIsEarly && !checkoutPhoto) ||
+                  (!checkoutPreset && !checkoutNote.trim())
+                }
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {checkoutUploading ? 'กำลังอัปโหลด...' : actionLoadingId ? 'กำลังส่ง...' : checkoutIsEarly ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600">
+              {checkoutIsEarly
+                ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'
+                : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ'}
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+              {CHECKOUT_PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setCheckoutPreset(checkoutPreset === preset ? '' : preset)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    checkoutPreset === preset
+                      ? 'bg-blue-600 text-white border-blue-600'
+                      : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+
+            <Textarea
+              label="รายละเอียดเพิ่มเติม (ถ้ามี)"
+              fullWidth
+              value={checkoutNote}
+              onChange={(e) => setCheckoutNote(e.target.value)}
+              placeholder="เช่น อาการผู้ป่วย ข้อสังเกต..."
+              className="min-h-20"
+            />
+
+            {!checkoutIsEarly && (
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-gray-700">
+                  รูปภาพหลักฐาน <span className="text-red-500">*</span>
+                </div>
+                {checkoutPhotoPreview ? (
+                  <div className="relative">
+                    <img
+                      src={checkoutPhotoPreview}
+                      alt="หลักฐาน"
+                      className="w-full max-h-48 object-cover rounded-lg border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setCheckoutPhoto(null); setCheckoutPhotoPreview(null); }}
+                      className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-gray-900/60 text-white hover:bg-gray-900/80"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => checkoutPhotoInputRef.current?.click()}
+                    className="w-full flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50/40 transition-colors text-gray-500 hover:text-blue-600"
+                  >
+                    <Camera className="w-8 h-8" />
+                    <span className="text-sm font-medium">กดเพื่อเลือกรูปภาพ</span>
+                    <span className="text-xs text-gray-400">JPG, PNG, WebP (ไม่เกิน 10 MB)</span>
+                  </button>
+                )}
+                <input
+                  ref={checkoutPhotoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setCheckoutPhoto(file);
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setCheckoutPhotoPreview(ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            )}
+          </div>
+        </Modal>
       </div>
     </MainLayout>
   );

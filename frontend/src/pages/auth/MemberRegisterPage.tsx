@@ -125,7 +125,7 @@ export default function MemberRegisterPage() {
       if (response.data?.registered && response.data?.accessToken) {
         api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
         await refreshUser();
-        toast.success('สมัครสมาชิกสำเร็จ!');
+        toast.success('ลงทะเบียนสำเร็จ!');
       } else {
         await refreshUser();
         toast.success('ยืนยันเบอร์โทรสำเร็จ');

@@ -660,7 +660,7 @@ export default function HirerHomePage() {
           const hasRecipient = careRecipients.length > 0;
 
           const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
-            { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
+            { done: true, label: 'ลงทะเบียน', sub: 'เสร็จแล้ว' },
             { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ดูแลจะเห็น', link: '/profile' },
             { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: hasPhone ? 'ยืนยันแล้ว' : 'จำเป็นสำหรับการติดต่อและปลดล็อกฟีเจอร์', link: '/profile' },
           ];

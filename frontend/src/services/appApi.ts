@@ -139,8 +139,12 @@ export const appApi = {
     return api.checkIn(jobId, gpsData);
   },
 
-  async checkOut(jobId: string, _caregiverId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }, evidenceNote?: string) {
-    return api.checkOut(jobId, gpsData, evidenceNote);
+  async checkOut(jobId: string, _caregiverId: string, gpsData?: { lat: number; lng: number; accuracy_m?: number }, evidenceNote?: string, evidencePhotoUrl?: string) {
+    return api.checkOut(jobId, gpsData, evidenceNote, evidencePhotoUrl);
+  },
+
+  async uploadCheckoutPhoto(jobId: string, formData: FormData) {
+    return api.uploadCheckoutPhoto(jobId, formData);
   },
 
   async requestEarlyCheckout(jobId: string, evidenceNote: string) {
@@ -167,8 +171,16 @@ export const appApi = {
     return api.getChatMessages(threadId, limit, before);
   },
 
-  async sendMessage(threadId: string, _sender: { id: string; role: string; name?: string }, content: string, messageType = 'text') {
-    return api.sendMessage(threadId, content, messageType);
+  async sendMessage(threadId: string, _sender: { id: string; role: string; name?: string }, content: string, messageType = 'text', attachmentKey?: string) {
+    return api.sendMessage(threadId, content, messageType, attachmentKey);
+  },
+
+  async uploadChatImage(threadId: string, formData: FormData) {
+    return api.uploadChatImage(threadId, formData);
+  },
+
+  async uploadDisputeImage(disputeId: string, formData: FormData) {
+    return api.uploadDisputeImage(disputeId, formData);
   },
 
   async getDispute(disputeId: string) {
@@ -193,9 +205,10 @@ export const appApi = {
   async postDisputeMessage(
     disputeId: string,
     _sender: { id: string; role?: string; email?: string },
-    content: string
+    content: string,
+    attachmentKey?: string
   ) {
-    return api.postDisputeMessage(disputeId, content);
+    return api.postDisputeMessage(disputeId, content, attachmentKey);
   },
 
   async requestDisputeClose(disputeId: string, _actor: { id: string }, reason?: string) {

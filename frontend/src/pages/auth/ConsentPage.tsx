@@ -51,7 +51,7 @@ export default function ConsentPage() {
       setActiveRole(resolvedRole);
 
       const isFirstTime = state?.mode !== 'login';
-      toast.success(isFirstTime ? 'สมัครสมาชิกสำเร็จ! ยินดีต้อนรับสู่ Careconnect' : 'เข้าสู่ระบบสำเร็จ');
+      toast.success(isFirstTime ? 'ลงทะเบียนสำเร็จ! ยินดีต้อนรับสู่ Careconnect' : 'เข้าสู่ระบบสำเร็จ');
 
       // Navigate based on role
       setTimeout(() => {
@@ -225,7 +225,7 @@ export default function ConsentPage() {
           loading={loading}
           onClick={handleComplete}
         >
-          ยอมรับและสมัครสมาชิก
+          ยอมรับและลงทะเบียน
         </Button>
 
         {/* Help Text */}

@@ -1,4 +1,5 @@
 import chatService from '../services/chatService.js';
+import Chat from '../models/Chat.js';
 
 /**
  * Chat Controller
@@ -237,6 +238,39 @@ const chatController = {
           error: error.message,
         });
       }
+      next(error);
+    }
+  },
+
+  /**
+   * Upload an image to a chat thread
+   * POST /api/chat/threads/:threadId/upload
+   */
+  async uploadImage(req, res, next) {
+    try {
+      const userId = req.user.id;
+      const { threadId } = req.params;
+
+      if (!req.file) {
+        return res.status(400).json({ success: false, error: 'ไม่พบไฟล์รูปภาพ' });
+      }
+
+      const hasAccess = await Chat.canAccessThread(threadId, userId);
+      if (!hasAccess) {
+        return res.status(403).json({ success: false, error: 'ไม่มีสิทธิ์เข้าถึงแชทนี้' });
+      }
+
+      const filename = req.file.filename;
+      const attachmentKey = `chat/${filename}`;
+
+      res.status(201).json({
+        success: true,
+        data: {
+          attachment_key: attachmentKey,
+          url: `/uploads/${attachmentKey}`,
+        },
+      });
+    } catch (error) {
       next(error);
     }
   },

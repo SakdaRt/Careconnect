@@ -189,7 +189,12 @@ export const postMessage = async (req, res) => {
   try {
     const { id } = req.params;
     const content = String(req.body?.content || '').trim();
-    if (!content) return res.status(400).json({ error: 'Validation error', message: 'content is required' });
+    const attachmentKey = req.body?.attachment_key ? String(req.body.attachment_key).trim() : null;
+    const msgType = attachmentKey ? 'image' : 'text';
+
+    if (msgType === 'text' && !content) {
+      return res.status(400).json({ error: 'Validation error', message: 'content is required' });
+    }
 
     const check = await ensureParticipant(id, req.userId);
     if (!check.dispute) return res.status(404).json({ error: 'Not Found', message: 'Dispute not found' });
@@ -213,9 +218,9 @@ export const postMessage = async (req, res) => {
       }
       const msgId = uuidv4();
       await client.query(
-        `INSERT INTO dispute_messages (id, dispute_id, sender_id, type, content, is_system_message, created_at)
-         VALUES ($1, $2, $3, 'text', $4, false, NOW())`,
-        [msgId, id, req.userId, content]
+        `INSERT INTO dispute_messages (id, dispute_id, sender_id, type, content, attachment_key, is_system_message, created_at)
+         VALUES ($1, $2, $3, $4, $5, $6, false, NOW())`,
+        [msgId, id, req.userId, msgType, content || null, attachmentKey]
       );
       await client.query(`UPDATE disputes SET updated_at = NOW() WHERE id = $1`, [id]);
       const row = await client.query(
@@ -279,5 +284,33 @@ export const requestClose = async (req, res) => {
   }
 };
 
-export default { createDispute, getDisputeByJob, getDispute, postMessage, requestClose };
+export const uploadDisputeImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'ไม่พบไฟล์รูปภาพ' });
+    }
+
+    const check = await ensureParticipant(id, req.userId);
+    if (!check.dispute) return res.status(404).json({ error: 'Not Found', message: 'Dispute not found' });
+    if (!check.ok) return res.status(403).json({ error: 'Forbidden', message: 'Not authorized' });
+
+    const filename = req.file.filename;
+    const attachmentKey = `disputes/${filename}`;
+
+    res.status(201).json({
+      success: true,
+      data: {
+        attachment_key: attachmentKey,
+        url: `/uploads/${attachmentKey}`,
+      },
+    });
+  } catch (error) {
+    console.error('[Disputes] Upload image error:', error);
+    res.status(500).json({ error: 'Server error', message: 'Failed to upload image' });
+  }
+};
+
+export default { createDispute, getDisputeByJob, getDispute, postMessage, requestClose, uploadDisputeImage };
 

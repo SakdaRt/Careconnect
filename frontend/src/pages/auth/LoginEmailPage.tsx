@@ -122,7 +122,7 @@ export default function LoginEmailPage() {
           <p className="text-gray-600 mb-4">ยังไม่มีบัญชี?</p>
           <Link to="/register">
             <Button variant="outline" fullWidth>
-              สมัครสมาชิก
+              ลงทะเบียน
             </Button>
           </Link>
         </div>

@@ -69,7 +69,7 @@ export default function LoginEntryPage() {
           <p className="text-gray-600 mb-4">ยังไม่มีบัญชี?</p>
           <Link to="/register">
             <Button variant="outline" size="lg" fullWidth>
-              สมัครสมาชิก
+              ลงทะเบียน
             </Button>
           </Link>
         </div>

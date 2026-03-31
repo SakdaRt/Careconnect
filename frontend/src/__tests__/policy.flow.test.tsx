@@ -65,7 +65,7 @@ describe('Policy flow', () => {
       fireEvent.click(screen.getByLabelText('ข้าพเจ้ายอมรับเงื่อนไขการให้บริการ'));
       fireEvent.click(screen.getByLabelText('ข้าพเจ้ายอมรับนโยบายความเป็นส่วนตัว'));
       fireEvent.click(screen.getByLabelText('ข้าพเจ้ายินยอมให้ประมวลผลข้อมูลส่วนบุคคล'));
-      fireEvent.click(screen.getByRole('button', { name: 'ยอมรับและสมัครสมาชิก' }));
+      fireEvent.click(screen.getByRole('button', { name: 'ยอมรับและลงทะเบียน' }));
       await vi.runAllTimersAsync();
     });
 

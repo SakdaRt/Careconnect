@@ -158,7 +158,7 @@ export default function CaregiverJobFeedPage() {
           const hasAvailability = !!((profile?.available_days || []).length > 0);
 
           const steps: { done: boolean; label: string; sub: string; link?: string }[] = [
-            { done: true, label: 'สมัครสมาชิก', sub: 'เสร็จแล้ว' },
+            { done: true, label: 'ลงทะเบียน', sub: 'เสร็จแล้ว' },
             { done: hasName, label: 'ตั้งชื่อ-นามสกุล', sub: 'ชื่อที่ผู้ว่าจ้างจะเห็น', link: '/profile' },
             { done: hasPhone, label: 'ยืนยันเบอร์โทร', sub: hasPhone ? 'ยืนยันแล้ว' : 'เพื่อรับงานและปลดล็อกฟีเจอร์', link: '/profile' },
             { done: hasProfile, label: 'กรอกข้อมูลโปรไฟล์', sub: 'bio ความเชี่ยวชาญ ประสบการณ์', link: '/caregiver/profile' },

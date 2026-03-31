@@ -1,7 +1,7 @@
 # CareConnect — System Documentation
 
 > Source of truth สำหรับ architecture, database, API, UML ทั้งหมด
-> อัพเดทล่าสุด: 2026-03-12
+> อัพเดทล่าสุด: 2026-03-31
 
 ---
 
@@ -49,7 +49,7 @@ Dev mock seed data ถูกแยกออกจาก `server.js` ไปที
 ## 2. Trust Level System
 
 ```
-L0 (เริ่มต้น)  ← สมัครสมาชิก ยังไม่ยืนยันอะไร
+L0 (เริ่มต้น)  ← ลงทะเบียน ยังไม่ยืนยันอะไร
     │
     ▼  ยืนยัน Email OTP หรือ Phone OTP (อย่างน้อย 1 ช่องทาง)
 L1 (ยืนยันการติดต่อ)
@@ -308,6 +308,8 @@ Admin Settlement:
 │        cancelled,expired)                       │
 │ assigned_at, started_at, completed_at           │
 │ cancelled_at, expired_at, job_closed_at         │
+│ evidence_note TEXT (nullable)                   │
+│ evidence_photo_url TEXT (nullable)              │
 └───────────────────┬─────────────────────────────┘
                     │ 1
                     ▼ N
@@ -668,11 +670,16 @@ Caregiver         Frontend                   Backend                    DB
  │                    │                          │─ notify hirer ───────►│
  │                    │◄── 200 OK ──────────────│                       │
  │                    │                          │                       │
+ │─ อัปโหลดรูปหลักฐาน►│                          │                       │
+ │                    │─ POST /jobs/:id/checkout-photo►                  │
+ │                    │  (multipart: file)        │─ save /uploads/jobs/ ►│
+ │                    │◄── { photo_url } ─────────│                       │
+ │                    │                          │                       │
  │─ Check-out ───────►│                          │                       │
- │  (GPS lat/lng)     │─ POST /jobs/:jobId/checkout►                     │
- │                    │                          │─ INSERT gps_event ───►│
+ │  (GPS + note +     │─ POST /jobs/:jobId/checkout►                     │
+ │   photo_url)       │                          │─ INSERT gps_event ───►│
  │                    │                          │─ UPDATE job status ──►│
- │                    │                          │  = completed          │
+ │                    │                          │  + evidence_note/url  │
  │                    │                          │─ release escrow ─────►│
  │                    │                          │─ transfer to cg ─────►│
  │                    │                          │─ platform fee ───────►│
@@ -813,8 +820,9 @@ POST   /api/jobs/:id/publish           โพสต์งาน (draft→posted)
 POST   /api/jobs/:id/accept            รับงาน (posted→assigned)
 POST   /api/jobs/:id/reject            ปฏิเสธงาน direct-assigned
 POST   /api/jobs/:jobId/checkin        Check-in (GPS: lat, lng, accuracy_m)
-POST   /api/jobs/:jobId/checkout       Check-out (GPS: lat, lng, accuracy_m)
-POST   /api/jobs/:jobId/early-checkout-request   ขอส่งงานก่อนเวลา (evidence_note)
+POST   /api/jobs/:jobId/checkout-photo อัปโหลดรูปภาพหลักฐาน (multipart: file, 10MB, jpeg/png/webp/heic)
+POST   /api/jobs/:jobId/checkout       Check-out (GPS + evidence_note + evidence_photo_url — บังคับแนบรูป)
+POST   /api/jobs/:jobId/early-checkout-request   ขอส่งงานก่อนเวลา (evidence_note, ไม่บังคับรูป)
 POST   /api/jobs/:jobId/early-checkout-respond   ตอบรับ/ปฏิเสธคำขอส่งงานก่อนเวลา (action, reason?)
 GET    /api/jobs/:jobId/early-checkout-request    ดูคำขอส่งงานก่อนเวลา
 POST   /api/jobs/:id/cancel            ยกเลิกงาน (reason required)
@@ -909,7 +917,8 @@ POST   /api/payments/:id/simulate      Simulate payment (admin/testing)
 GET    /api/chat/threads                          ดู chat threads ทั้งหมด
 GET    /api/chat/threads/:threadId                ดู thread detail
 GET    /api/chat/threads/:threadId/messages       ดูข้อความ (paginated)
-POST   /api/chat/threads/:threadId/messages       ส่งข้อความ (type, content)
+POST   /api/chat/threads/:threadId/messages       ส่งข้อความ (type, content, attachment_key?)
+POST   /api/chat/threads/:threadId/upload         อัปโหลดรูปภาพ (multipart, 5MB, jpeg/png/webp/gif)
 POST   /api/chat/threads/:threadId/read           mark messages as read
 GET    /api/chat/threads/:threadId/unread         นับ unread
 POST   /api/chat/threads/:threadId/close          ปิด thread
@@ -923,7 +932,8 @@ GET    /api/chat/job/:jobId/thread                ดู thread ของ job
 POST   /api/disputes                       เปิดข้อพิพาท (job_id, reason)
 GET    /api/disputes/by-job/:jobId         ดูข้อพิพาทของ job
 GET    /api/disputes/:id                   ดูข้อพิพาท detail
-POST   /api/disputes/:id/messages          ส่งข้อความใน dispute
+POST   /api/disputes/:id/messages          ส่งข้อความใน dispute (content?, attachment_key?, type?)
+POST   /api/disputes/:id/upload            อัปโหลดรูปภาพ (multipart, 5MB, jpeg/png/webp/gif)
 POST   /api/disputes/:id/request-close     ขอปิดข้อพิพาท
 ```
 

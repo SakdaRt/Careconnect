@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (fix: notification job_assigned redirect ไปหน้างานแทน chat)
+> อัพเดทล่าสุด: 2026-03-31 (feat: Checkout Photo Upload — บังคับแนบรูปภาพตอนส่งงาน)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -93,6 +93,13 @@ careconnect/
 - [x] ChatRoomPage — real-time chat ระหว่าง hirer/caregiver
 - [x] DisputeChatPage — admin เข้าร่วมได้
 - [x] แสดง role label แทน email/phone
+- [x] **ส่งรูปภาพได้ทุกหน้าแชท** — ChatRoomPage, DisputeChatPage, AdminDisputesPage (upload → attachment_key → render thumbnail → คลิกเปิด full-size)
+
+### Job Checkout
+
+- [x] **รูปภาพหลักฐานการทำงาน** — caregiver บังคับแนบรูปตอน checkout (ปกติ), ไม่บังคับตอน early checkout request
+- [x] `POST /api/jobs/:jobId/checkout-photo` (multer, 10MB, jpeg/png/webp/heic → `/app/uploads/jobs/`)
+- [x] `evidence_photo_url` บันทึกลง `jobs` table + ส่งไปใน checkout request body
 
 ### Notifications
 
@@ -216,6 +223,32 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — feat: Checkout Photo Upload — บังคับแนบรูปภาพตอนส่งงาน
+
+- feat(database): `ALTER TABLE jobs ADD COLUMN evidence_note TEXT, evidence_photo_url TEXT` (applied via psql)
+- feat(backend): `jobRoutes.js` — เพิ่ม `POST /api/jobs/:jobId/checkout-photo` (multer diskStorage, 10MB, jpeg/png/webp/heic → `/app/uploads/jobs/`)
+- feat(backend): `jobController.js` — เพิ่ม `uploadCheckoutPhoto` handler; fix `checkOut` ให้ require `evidence_photo_url` + pass ทั้งสองค่าไปที่ service
+- fix(backend): `jobController.js` — `evidence_note` เคย validate แต่ไม่ save → fixed
+- feat(backend): `jobService.js` — `checkOut(jobId, caregiverId, gpsData, evidenceNote, evidencePhotoUrl)` — save evidence fields ลง `jobs` table ตอน UPDATE
+- feat(frontend): `api.ts` — เพิ่ม `uploadCheckoutPhoto(jobId, formData)`, update `checkOut` signature รับ `evidencePhotoUrl`
+- feat(frontend): `appApi.ts` — update `checkOut` + เพิ่ม `uploadCheckoutPhoto` wrapper
+- feat(frontend): `CaregiverMyJobsPage.tsx` — แทน `ReasonModal` ด้วย custom Modal ที่มี preset buttons + textarea + photo picker (บังคับ, regular checkout เท่านั้น); early checkout ยังเป็น text-only
+- verify: ✅ TypeScript: 0 errors | Backend restart: OK | DB columns: verified | /uploads/jobs/ directory: exists
+
+### 2026-04-01 — feat: Chat Image Upload — ส่งรูปภาพได้ทุกหน้าแชท
+
+- feat(backend): `chatRoutes.js` — เพิ่ม `POST /api/chat/threads/:threadId/upload` (multer, 5MB, jpeg/png/webp/gif → `/app/uploads/chat/`)
+- feat(backend): `chatController.js` — เพิ่ม `uploadImage` handler (ตรวจ thread access ผ่าน `Chat.canAccessThread`)
+- feat(backend): `disputeRoutes.js` — เพิ่ม `POST /api/disputes/:id/upload` (multer → `/app/uploads/disputes/`)
+- feat(backend): `disputeController.js` — เพิ่ม `uploadDisputeImage` handler + แก้ `postMessage` รองรับ `attachment_key` + `type='image'`
+- feat(backend): `disputeRoutes.js` — แก้ `postMessageBody` validation รองรับ `attachment_key` + `type` (optional)
+- feat(frontend): `api.ts` — เพิ่ม `uploadChatImage`, `uploadDisputeImage` methods, อัพเดท `sendMessage` + `postDisputeMessage` รองรับ `attachmentKey`, เพิ่ม `attachment_key` ใน `DisputeMessage` interface
+- feat(frontend): `appApi.ts` — เพิ่ม wrapper `uploadChatImage`, `uploadDisputeImage`, อัพเดท `sendMessage` + `postDisputeMessage`
+- feat(frontend): `ChatRoomPage.tsx` — ปุ่มรูปภาพ + hidden file input + `handleImageSend` + render image bubble (thumbnail คลิกเปิด new tab)
+- feat(frontend): `DisputeChatPage.tsx` — เหมือน ChatRoomPage + ใช้ `uploadDisputeImage`
+- feat(frontend): `AdminDisputesPage.tsx` — เพิ่มปุ่มรูปภาพ + `handleAdminImageSend` ในส่วน admin chat
+- verify: ✅ TypeScript: 0 errors | Backend restart: OK
 
 ### 2026-03-31 — Fix: CreateJobPage Step 4 แสดงผู้ดูแลที่ชื่นชอบ
 
@@ -446,7 +479,7 @@ careconnect/
 
 ### 2026-03-15 — Fix Google login toast "สมัครสำเร็จ" + SMS OTP investigation
 
-- fix(frontend): `ConsentPage.tsx` — toast "สมัครสมาชิกสำเร็จ" แสดงแม้ user มีบัญชีอยู่แล้ว
+- fix(frontend): `ConsentPage.tsx` — toast "ลงทะเบียนสำเร็จ" แสดงแม้ user มีบัญชีอยู่แล้ว
   - Root cause: toast message hardcoded ไม่ดู `state.mode`
   - Fix: ถ้า `mode === 'login'` → แสดง "เข้าสู่ระบบสำเร็จ" แทน
 - investigate: SMS OTP ไม่ส่ง

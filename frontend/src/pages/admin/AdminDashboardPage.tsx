@@ -7,8 +7,8 @@ export default function AdminDashboardPage() {
     { title: 'จัดการงาน', desc: 'ค้นหา/ดูสถานะ/ยกเลิกงาน', to: '/admin/jobs' },
     { title: 'จัดการผู้ใช้', desc: 'ค้นหา/ระงับ/ดูระดับความน่าเชื่อถือ', to: '/admin/users' },
     { title: 'การเงิน', desc: 'รายการถอนเงิน/ตรวจสอบธุรกรรม', to: '/admin/financial' },
-    { title: 'ข้อพิพาท', desc: 'ดูรายการและสถานะการแก้ไข', to: '/admin/disputes' },
-    { title: 'รายงาน', desc: 'สรุปภาพรวมและ export', to: '/admin/reports' },
+    { title: 'รายงาน', desc: 'ดูรายการและสถานะการแก้ไข', to: '/admin/disputes' },
+    { title: 'แดชบอร์ด', desc: 'สรุปภาพรวมและ export', to: '/admin/reports' },
     { title: 'ตั้งค่าระบบ', desc: 'ค่าพื้นฐาน/health check', to: '/admin/settings' },
   ];
 

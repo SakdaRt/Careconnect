@@ -1,8 +1,30 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 import chatController from '../controllers/chatController.js';
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
 
 const router = express.Router();
+
+const chatUploadDir = path.join(process.env.UPLOAD_DIR || '/app/uploads', 'chat');
+if (!fs.existsSync(chatUploadDir)) fs.mkdirSync(chatUploadDir, { recursive: true });
+
+const chatImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, chatUploadDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.bin';
+      cb(null, `${uuidv4()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 /**
  * Chat Routes
@@ -66,6 +88,21 @@ router.get('/threads/:threadId/unread', requireAuth, requirePolicy('chat:access'
  * Headers: Authorization: Bearer <token>
  */
 router.post('/threads/:threadId/close', requireAuth, requirePolicy('chat:access'), chatController.closeThread);
+
+/**
+ * Upload an image to a chat thread
+ * POST /api/chat/threads/:threadId/upload
+ * Headers: Authorization: Bearer <token>
+ * Body: multipart/form-data, field: file
+ */
+router.post('/threads/:threadId/upload', requireAuth, requirePolicy('chat:access'), (req, res, next) => {
+  chatImageUpload.single('file')(req, res, (err) => {
+    if (err) {
+      return res.status(400).json({ success: false, error: err.message || 'อัปโหลดไฟล์ไม่สำเร็จ' });
+    }
+    next();
+  });
+}, chatController.uploadImage);
 
 /**
  * Get or create thread for a job

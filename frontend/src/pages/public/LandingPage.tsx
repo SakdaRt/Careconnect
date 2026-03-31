@@ -73,7 +73,7 @@ export default function LandingPage() {
   const howItWorks = [
     {
       step: '1',
-      title: 'สมัครสมาชิก',
+      title: 'ลงทะเบียน',
       description: 'เลือกเป็นผู้ว่าจ้างหรือผู้ดูแล สมัครง่ายด้วยอีเมลหรือเบอร์โทร',
     },
     {
@@ -127,7 +127,7 @@ export default function LandingPage() {
                     <Button variant="ghost" leftIcon={<LogIn className="w-4 h-4" />}>เข้าสู่ระบบ</Button>
                   </Link>
                   <Link to="/register">
-                    <Button variant="primary">สมัครสมาชิก</Button>
+                    <Button variant="primary">ลงทะเบียน</Button>
                   </Link>
                 </>
               )}
@@ -422,7 +422,7 @@ export default function LandingPage() {
                   <>
                     <li>
                       <Link to="/register" className="hover:text-white transition-colors">
-                        สมัครสมาชิก
+                        ลงทะเบียน
                       </Link>
                     </li>
                     <li>

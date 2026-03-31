@@ -176,7 +176,7 @@ export const verifyOtp = async (req, res) => {
 
       return res.json({
         success: true,
-        message: 'สมัครสมาชิกสำเร็จ',
+        message: 'ลงทะเบียนสำเร็จ',
         data: {
           type: result.type,
           registered: true,

@@ -183,7 +183,7 @@ export default function AboutPage() {
           </p>
           <Link to="/register">
             <Button variant="outline" size="lg">
-              สมัครสมาชิก
+              ลงทะเบียน
             </Button>
           </Link>
         </div>

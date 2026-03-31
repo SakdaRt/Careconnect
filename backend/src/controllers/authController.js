@@ -531,7 +531,7 @@ export const registerGuest = async (req, res) => {
     });
   } catch (error) {
     console.error('[Auth Controller] Register guest error:', error);
-    res.status(500).json({ error: 'Server error', message: 'สมัครสมาชิกไม่สำเร็จ' });
+    res.status(500).json({ error: 'Server error', message: 'ลงทะเบียนไม่สำเร็จ' });
   }
 };
 
@@ -581,7 +581,7 @@ export const registerMember = async (req, res) => {
     });
   } catch (error) {
     console.error('[Auth Controller] Register member error:', error);
-    res.status(500).json({ error: 'Server error', message: 'สมัครสมาชิกไม่สำเร็จ' });
+    res.status(500).json({ error: 'Server error', message: 'ลงทะเบียนไม่สำเร็จ' });
   }
 };
 

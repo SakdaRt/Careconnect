@@ -1179,7 +1179,7 @@ export const checkIn = async (jobId, caregiverId, gpsData = {}) => {
  * @param {object} gpsData - GPS coordinates
  * @returns {object} - Updated job
  */
-export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
+export const checkOut = async (jobId, caregiverId, gpsData = {}, evidenceNote = null, evidencePhotoUrl = null) => {
   // Use transaction for checkout + financial settlement
   const checkoutResult = await transaction(async (client) => {
     // Use FOR UPDATE OF j to avoid Postgres lock errors with LEFT JOIN LATERAL
@@ -1247,13 +1247,14 @@ export const checkOut = async (jobId, caregiverId, gpsData = {}) => {
       throw new Error(`Cannot check out from job in status: ${job.status}`);
     }
 
-    // Update job status
+    // Update job status + evidence fields
     const updatedJob = await client.query(
       `UPDATE jobs
-       SET status = 'completed', completed_at = NOW(), updated_at = NOW()
+       SET status = 'completed', completed_at = NOW(), updated_at = NOW(),
+           evidence_note = $2, evidence_photo_url = $3
        WHERE id = $1 AND status = 'in_progress'
        RETURNING id`,
-      [actualJobId]
+      [actualJobId, evidenceNote || null, evidencePhotoUrl || null]
     );
 
     if (updatedJob.rows.length === 0) {

@@ -30,13 +30,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'แดชบอร์ด', path: '/admin/dashboard' },
+    { icon: LayoutDashboard, label: 'หน้าหลัก', path: '/admin/dashboard' },
     { icon: Briefcase, label: 'จัดการงาน', path: '/admin/jobs' },
     { icon: Users, label: 'จัดการผู้ใช้', path: '/admin/users' },
     { icon: DollarSign, label: 'การเงิน', path: '/admin/financial' },
-    { icon: MessageSquare, label: 'ข้อพิพาท', path: '/admin/disputes' },
-    { icon: FileText, label: 'รายงาน', path: '/admin/reports' },
-    { icon: Settings, label: 'ตั้งค่าระบบ', path: '/admin/settings' },
+    { icon: MessageSquare, label: 'รายงาน', path: '/admin/disputes' },
+    { icon: FileText, label: 'แดชบอร์ด', path: '/admin/reports' },
+    { icon: Settings, label: 'สถานะระบบ', path: '/admin/settings' },
   ];
 
   const handleLogout = () => {

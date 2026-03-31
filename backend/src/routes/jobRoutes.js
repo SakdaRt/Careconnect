@@ -1,4 +1,8 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 import {
   getJobStats,
   getJobFeed,
@@ -11,6 +15,7 @@ import {
   rejectAssignedJob,
   checkIn,
   checkOut,
+  uploadCheckoutPhoto,
   cancelJob,
   requestEarlyCheckout,
   respondEarlyCheckout,
@@ -19,6 +24,24 @@ import {
 import { requireAuth, requirePolicy } from '../middleware/auth.js';
 import { validateBody, validateQuery, validateParams, jobSchemas, commonSchemas } from '../utils/validation.js';
 import Joi from 'joi';
+
+const checkoutUploadDir = path.join(process.env.UPLOAD_DIR || '/app/uploads', 'jobs');
+if (!fs.existsSync(checkoutUploadDir)) fs.mkdirSync(checkoutUploadDir, { recursive: true });
+
+const checkoutImageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, checkoutUploadDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || '.jpg';
+      cb(null, `${uuidv4()}${ext}`);
+    },
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+    cb(null, allowed.includes(file.mimetype));
+  },
+});
 
 const router = express.Router();
 
@@ -54,6 +77,7 @@ const gpsSchema = Joi.object({
   lng: Joi.number(),
   accuracy_m: Joi.number(),
   evidence_note: Joi.string().trim().max(2000).allow('', null),
+  evidence_photo_url: Joi.string().trim().max(1000).allow('', null),
 }).unknown(true);
 
 const cancelSchema = Joi.object({
@@ -215,10 +239,29 @@ router.post('/:jobId/checkin',
 );
 
 /**
+ * Upload checkout evidence photo
+ * POST /api/jobs/:jobId/checkout-photo
+ * Headers: Authorization: Bearer <token>
+ * Body: multipart/form-data { file }
+ */
+router.post('/:jobId/checkout-photo',
+  requireAuth,
+  requirePolicy('job:checkout'),
+  validateParams(Joi.object({ jobId: commonSchemas.uuid })),
+  (req, res, next) => {
+    checkoutImageUpload.single('file')(req, res, (err) => {
+      if (err) return res.status(400).json({ success: false, error: err.message || 'อัปโหลดไฟล์ไม่สำเร็จ' });
+      next();
+    });
+  },
+  uploadCheckoutPhoto
+);
+
+/**
  * Check out from job (in_progress → completed)
  * POST /api/jobs/:jobId/checkout
  * Headers: Authorization: Bearer <token>
- * Body: { lat, lng, accuracy_m? }
+ * Body: { lat, lng, accuracy_m?, evidence_note, evidence_photo_url }
  */
 router.post('/:jobId/checkout', 
   requireAuth, 

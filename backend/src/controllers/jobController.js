@@ -356,6 +356,27 @@ export const checkIn = async (req, res) => {
 };
 
 /**
+ * Upload checkout evidence photo
+ * POST /api/jobs/:jobId/checkout-photo
+ * Requires: requireAuth, requirePolicy('job:checkout')
+ */
+export const uploadCheckoutPhoto = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: 'ไม่พบไฟล์รูปภาพ' });
+    }
+    const filename = req.file.filename;
+    const photoUrl = `/uploads/jobs/${filename}`;
+    return res.status(201).json({
+      success: true,
+      data: { photo_url: photoUrl },
+    });
+  } catch (error) {
+    handleJobError(error, res, 'upload checkout photo');
+  }
+};
+
+/**
  * Check out from job (in_progress → completed)
  * POST /api/jobs/:jobId/checkout
  * Requires: requireAuth, requireRole('caregiver')
@@ -364,7 +385,14 @@ export const checkOut = async (req, res) => {
   try {
     const caregiverId = req.userId;
     const { jobId } = req.params;
-    const { lat, lng, accuracy_m, evidence_note } = req.body;
+    const { lat, lng, accuracy_m, evidence_note, evidence_photo_url } = req.body;
+
+    if (!evidence_photo_url || !String(evidence_photo_url).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณาแนบรูปภาพหลักฐานการทำงาน',
+      });
+    }
 
     if (!evidence_note || !String(evidence_note).trim()) {
       return res.status(400).json({
@@ -374,7 +402,9 @@ export const checkOut = async (req, res) => {
     }
 
     const gpsData = { lat, lng, accuracy_m };
-    const result = await checkOutService(jobId, caregiverId, gpsData);
+    const evidenceNote = String(evidence_note).trim();
+    const evidencePhotoUrl = String(evidence_photo_url).trim();
+    const result = await checkOutService(jobId, caregiverId, gpsData, evidenceNote, evidencePhotoUrl);
 
     res.status(200).json({
       success: true,
@@ -686,6 +716,7 @@ export default {
   rejectAssignedJob,
   checkIn,
   checkOut,
+  uploadCheckoutPhoto,
   cancelJob,
   getJobStats,
   requestEarlyCheckout,
