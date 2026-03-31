@@ -370,8 +370,11 @@ export default function JobDetailPage() {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
-                <div className="mt-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <StatusBadge status={job.status as any} />
+                  {job.preferred_caregiver_id && (
+                    <Badge variant="warning">มอบหมายให้ผู้ดูแล</Badge>
+                  )}
                 </div>
               </div>
               <div className="text-right">

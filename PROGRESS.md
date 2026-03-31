@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.)
+> อัพเดทล่าสุด: 2026-03-31 (fix(ui): JobDetailPage badge มอบหมายให้ผู้ดูแล)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,11 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — fix(ui): JobDetailPage badge มอบหมายให้ผู้ดูแล ไม่แสดง
+
+- fix(frontend): `JobDetailPage.tsx` — เพิ่ม `<Badge variant="warning">มอบหมายให้ผู้ดูแล</Badge>` เมื่อ `job.preferred_caregiver_id` มีค่า; เดิมแสดงแค่ `<StatusBadge>` ซึ่ง `status=posted` → ขึ้น "เปิดรับสมัคร" เสมอ โดยไม่บ่งบอก direct assignment
+- verify: สอดคล้องกับ logic ใน `HirerHomePage.tsx` (บรรทัด 170-172)
 
 ### 2026-03-31 — feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.
 
