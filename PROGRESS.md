@@ -217,6 +217,14 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
+### 2026-03-31 — Fix: CreateJobPage Step 4 แสดงผู้ดูแลที่ชื่นชอบ
+
+- fix(frontend): `CreateJobPage.tsx` Step 4 — เพิ่ม section "ผู้ดูแลที่ชื่นชอบ" ก่อน section แนะนำจากระบบ
+  - เพิ่ม state `favoriteCaregivers` + `favoritesLoading`
+  - fetch `appApi.getFavorites(1, 20)` พร้อมกับ `searchCaregivers` ด้วย `Promise.all` ตอนเข้า Step 4
+  - แสดงสูงสุด 5 รายการ, border แดง, ❤️ badge ข้างชื่อ, กดเลือก/ดูโปรไฟล์ได้
+  - ซ่อน section ถ้าไม่มี favorites เลย
+
 ### 2026-03-31 — Notification System: เพิ่ม triggers ที่ขาดหาย + bug fix score-ban
 
 - fix(job): `_cancelAssignedJobForScoreBan` — แก้ argument order ผิด (caregiverId/jobTitle/jobId ผิดตำแหน่งทั้งหมด) + เพิ่มแจ้ง caregiver ด้วย `notifyScoreBanCancel`
