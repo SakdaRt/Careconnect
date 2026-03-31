@@ -141,7 +141,7 @@ const avatarUploadMiddleware = (req, res, next) => {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        error: 'รูปโปรไฟล์ต้องมีขนาดไม่เกิน 5 MB',
+        error: 'รูปโปรไฟล์ต้องมีขนาดไม่เกิน 10 MB',
       });
     }
 

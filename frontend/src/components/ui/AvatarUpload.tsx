@@ -107,6 +107,7 @@ export function AvatarUpload({
         className="hidden"
         onChange={handleFileChange}
       />
+      <p className="text-xs text-gray-400 mt-1 text-center">JPEG, PNG, WebP ไม่เกิน 10 MB</p>
 
       {cropSrc && (
         <CropModal

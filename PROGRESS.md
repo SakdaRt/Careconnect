@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat: เพิ่มรูปหลักฐานในส่วนอนุมัติส่งงานก่อนเวลา)
+> อัพเดทล่าสุด: 2026-03-31 (fix+ui: เพิ่มคำอธิบายขนาดไฟล์ทุกจุด upload + แก้ bug authRoutes error message)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,16 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — fix+ui: เพิ่มคำอธิบายขนาดไฟล์ทุกจุด upload + แก้ bug error message
+
+- fix(backend): `authRoutes.js` — แก้ bug `LIMIT_FILE_SIZE` error message บอก "5 MB" แต่ actual limit คือ 10 MB
+- ui(frontend): `AvatarUpload.tsx` — เพิ่ม hint text "JPEG, PNG, WebP ไม่เกิน 10 MB" ใต้ปุ่ม avatar
+- ui(frontend): `KycPage.tsx` — ด้านหน้า: อัพเดทเป็น "JPEG, PNG, WebP, HEIC ไม่เกิน 10 MB"; ด้านหลัง: เปลี่ยนจาก "ไม่บังคับ" → "JPEG, PNG, WebP, HEIC ไม่เกิน 10 MB (ไม่บังคับ)"
+- ui(frontend): `ChatRoomPage.tsx` — เพิ่ม hint "รูปภาพ: JPG, PNG, WebP, GIF ไม่เกิน 5 MB" ใต้ input bar
+- ui(frontend): `DisputeChatPage.tsx` — เพิ่ม hint "รูปภาพ: JPG, PNG, WebP, GIF ไม่เกิน 5 MB" ใต้ปุ่มส่ง
+- ui(frontend): `CaregiverMyJobsPage.tsx` — เพิ่ม HEIC ใน checkout photo label ให้ตรง backend
+- ui(frontend): `ProfilePage.tsx` — เพิ่ม WebP ใน cert docs label ให้ตรง backend
 
 ### 2026-03-31 — feat: แสดงรูปหลักฐานในส่วนอนุมัติส่งงานก่อนเวลา (JobDetailPage)
 

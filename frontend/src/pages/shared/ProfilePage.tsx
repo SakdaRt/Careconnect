@@ -1223,7 +1223,7 @@ export default function ProfilePage() {
                         <label className="text-sm font-semibold text-gray-700">
                           ไฟล์เอกสาร *{" "}
                           <span className="text-xs text-gray-500 font-normal">
-                            (JPEG, PNG, PDF ไม่เกิน 10 MB)
+                            (JPEG, PNG, WebP, PDF ไม่เกิน 10 MB)
                           </span>
                         </label>
                         {certFile ? (

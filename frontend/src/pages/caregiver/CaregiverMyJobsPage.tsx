@@ -876,7 +876,7 @@ export default function CaregiverMyJobsPage() {
                   >
                     <Camera className="w-8 h-8" />
                     <span className="text-sm font-medium">กดเพื่อเลือกรูปภาพ</span>
-                    <span className="text-xs text-gray-400">JPG, PNG, WebP (ไม่เกิน 10 MB)</span>
+                    <span className="text-xs text-gray-400">JPG, PNG, WebP, HEIC (ไม่เกิน 10 MB)</span>
                   </button>
                 )}
                 <input

@@ -640,6 +640,9 @@ export default function ChatRoomPage() {
                   ส่ง
                 </Button>
               </div>
+              {!isChatLocked && (
+                <p className="text-xs text-gray-400">รูปภาพ: JPG, PNG, WebP, GIF ไม่เกิน 5 MB</p>
+              )}
             </div>
           </>
         )}
