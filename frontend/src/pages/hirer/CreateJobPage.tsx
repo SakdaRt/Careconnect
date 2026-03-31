@@ -784,7 +784,6 @@ export default function CreateJobPage() {
       if (draft.dynamicAnswers) setDynamicAnswers(draft.dynamicAnswers);
       if (draft.currentStep) setCurrentStep(draft.currentStep as CreateJobStep);
       if (draft.maxVisitedStep) setMaxVisitedStep(draft.maxVisitedStep as CreateJobStep);
-      if (draft.selectedCaregiverId) setSelectedCaregiverId(draft.selectedCaregiverId);
     } catch { /* ignore corrupt draft */ }
   }, []);
 
@@ -795,10 +794,9 @@ export default function CreateJobPage() {
       dynamicAnswers,
       currentStep,
       maxVisitedStep,
-      selectedCaregiverId,
     };
     sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-  }, [form, careRecipientId, dynamicAnswers, currentStep, maxVisitedStep, selectedCaregiverId]);
+  }, [form, careRecipientId, dynamicAnswers, currentStep, maxVisitedStep]);
 
   const clearDraft = () => sessionStorage.removeItem(DRAFT_KEY);
 

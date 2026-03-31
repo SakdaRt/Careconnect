@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (fix+ui: เพิ่มคำอธิบายขนาดไฟล์ทุกจุด upload + แก้ bug authRoutes error message)
+> อัพเดทล่าสุด: 2026-03-31 (fix(job): แก้ bug selectedCaregiverId หลุดจาก sessionStorage draft ทำให้ open job ถูก assign preferred_caregiver โดยไม่ตั้งใจ)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,13 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — fix(job): แก้ bug selectedCaregiverId หลุดจาก sessionStorage draft
+
+- **root cause**: `selectedCaregiverId` ถูก save ลง sessionStorage draft และ restore กลับมาในครั้งถัดไป — ถ้า hirer เคยเปิด CreateJobPage จาก caregiver profile page (URL มี `?preferred_caregiver_id=X`) แล้วยกเลิกไม่ submit, ครั้งถัดไปที่เปิดหน้าสร้างงานแบบปกติ `selectedCaregiverId=X` จะถูก restore → job ที่สร้างจะ assign preferred_caregiver โดยไม่ตั้งใจ → auto-publish → caregiver อื่นมองไม่เห็น
+- fix(frontend): `CreateJobPage.tsx` — ลบ `selectedCaregiverId` ออกจาก draft save (`useEffect`) และ draft restore (`if (draft.selectedCaregiverId)`) ทั้งหมด — ค่าถูก init จาก URL params `preferredCaregiverIdParam` อยู่แล้ว ไม่ต้อง persist
+- fix(db): clear `preferred_caregiver_id = NULL` ใน 2 jobs ที่ affected (`661b1c26`, `a00fed55`) เพื่อให้ผู้ดูแลทุกคนมองเห็นได้อีกครั้ง
+- verify: ✅ TypeScript: 0 errors
 
 ### 2026-03-31 — fix+ui: เพิ่มคำอธิบายขนาดไฟล์ทุกจุด upload + แก้ bug error message
 
