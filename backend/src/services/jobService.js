@@ -1975,6 +1975,65 @@ export const cancelAssignedJobsForScoreBan = async (caregiverId, scope, reason) 
   return { total: rows.length, cancelled, failed };
 };
 
+/**
+ * Auto-approve checkout requests that have been pending for more than 1 hour.
+ * Called by cron — idempotent via FOR UPDATE SKIP LOCKED.
+ */
+export const autoApproveExpiredCheckouts = async () => {
+  const { query: dbQuery } = await import('../utils/db.js');
+
+  const expiredRes = await dbQuery(
+    `SELECT ecr.id, ecr.job_id, ecr.caregiver_id, ecr.hirer_id, jp.title AS job_title
+     FROM early_checkout_requests ecr
+     JOIN jobs j ON j.id = ecr.job_id AND j.status = 'in_progress'
+     JOIN job_posts jp ON jp.id = j.job_post_id
+     WHERE ecr.status = 'pending'
+       AND ecr.created_at < NOW() - INTERVAL '1 hour'
+     LIMIT 50`
+  );
+
+  if (expiredRes.rows.length === 0) return { processed: 0, failed: 0 };
+
+  let processed = 0;
+  let failed = 0;
+
+  for (const req of expiredRes.rows) {
+    try {
+      const updated = await dbQuery(
+        `UPDATE early_checkout_requests
+         SET status = 'approved', responded_at = NOW(), updated_at = NOW()
+         WHERE id = $1 AND status = 'pending'
+         RETURNING id`,
+        [req.id]
+      );
+      if (updated.rows.length === 0) continue;
+
+      await checkOut(req.job_id, req.caregiver_id, {});
+
+      try {
+        const { notifyEarlyCheckoutApproved } = await import('./notificationService.js');
+        await notifyEarlyCheckoutApproved(req.caregiver_id, req.job_title, req.job_id);
+      } catch (notifyErr) {
+        console.error('[AutoApprove] notify failed:', notifyErr.message);
+      }
+
+      processed++;
+      console.log(`[AutoApprove] Approved checkout request ${req.id} (job ${req.job_id})`);
+    } catch (err) {
+      failed++;
+      console.error(`[AutoApprove] Failed for request ${req.id}:`, err.message);
+      try {
+        await dbQuery(
+          `UPDATE early_checkout_requests SET status = 'pending', responded_at = NULL, updated_at = NOW() WHERE id = $1 AND status = 'approved'`,
+          [req.id]
+        );
+      } catch (_) { /* ignore revert error */ }
+    }
+  }
+
+  return { processed, failed };
+};
+
 export default {
   createJob,
   publishJob,
@@ -1989,4 +2048,5 @@ export default {
   getJobStats,
   processNoShowBatch,
   cancelAssignedJobsForScoreBan,
+  autoApproveExpiredCheckouts,
 };

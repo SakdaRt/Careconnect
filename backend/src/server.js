@@ -32,6 +32,7 @@ import { setSocketServer } from "./sockets/realtimeHub.js";
 import { DEV_MOCK_CAREGIVERS, DEV_MOCK_HIRERS, DEV_MOCK_ESCORT_JOB_TEMPLATES } from "./seeds/mockData.js";
 import cron from "node-cron";
 import { triggerNoShowScan } from "./workers/noShowWorker.js";
+import { autoApproveExpiredCheckouts } from "./services/jobService.js";
 
 // Load environment variables
 
@@ -622,6 +623,18 @@ const bootstrapAndListen = async () => {
 
     cron.schedule("*/5 * * * *", triggerNoShowScan);
     console.log("[Backend] No-show worker scheduled (every 5 minutes)");
+
+    cron.schedule("*/5 * * * *", async () => {
+      try {
+        const result = await autoApproveExpiredCheckouts();
+        if (result.processed > 0) {
+          console.log(`[AutoApprove] Approved ${result.processed} expired checkout request(s)`);
+        }
+      } catch (err) {
+        console.error("[AutoApprove] Cron failed:", err.message);
+      }
+    });
+    console.log("[Backend] Auto-approve checkout worker scheduled (every 5 minutes)");
 
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`[Backend] Server running on port ${PORT}`);

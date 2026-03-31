@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat(job): เปลี่ยน "ขอจบงานก่อน" → "ขอจบงานกรณีพิเศษ" + แยกเป็น 2 ปุ่มอิสระ)
+> อัพเดทล่าสุด: 2026-03-31 (feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,13 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.
+
+- refactor(frontend): `ChatRoomPage.tsx` + `CaregiverMyJobsPage.tsx` — เพิ่ม `checkoutType: 'normal' | 'special'` state; `handleOpenCheckout` (ปุ่ม "ส่งงานเสร็จ") ตอนนี้ตั้ง `checkoutIsEarly = true, checkoutType = 'normal'` → ใช้ `requestEarlyCheckout` เสมอ; ลบ direct `checkOut` branch ออกจาก frontend ทั้งหมด
+- feat(backend): `jobService.js` — เพิ่ม `autoApproveExpiredCheckouts()`: query `early_checkout_requests WHERE status='pending' AND created_at < NOW() - INTERVAL '1 hour'`, UPDATE status → approved, call `checkOut()`, notify caregiver; idempotent (RETURNING id guard)
+- feat(backend): `server.js` — import `autoApproveExpiredCheckouts` + mount cron `*/5 * * * *` ทุก 5 นาที; log เฉพาะเมื่อ `processed > 0`
+- **พฤติกรรมใหม่**: ทั้ง "ส่งงานเสร็จ" และ "ขอจบงานกรณีพิเศษ" ส่ง request ให้ hirer อนุมัติเสมอ; หาก hirer ไม่ตอบรับใน 1 ชม. → ระบบ auto-approve; ฝั่ง caregiver เห็น toast แตกต่างกันตาม type
 
 ### 2026-03-31 — feat(job): ขอจบงานกรณีพิเศษ — แยกปุ่ม + rename labels
 

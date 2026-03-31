@@ -81,6 +81,7 @@ export default function ChatRoomPage() {
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutIsEarly, setCheckoutIsEarly] = useState(false);
+  const [checkoutType, setCheckoutType] = useState<'normal' | 'special'>('normal');
   const [checkoutNote, setCheckoutNote] = useState('');
   const [checkoutPreset, setCheckoutPreset] = useState('');
   const [checkoutPhoto, setCheckoutPhoto] = useState<File | null>(null);
@@ -295,7 +296,8 @@ export default function ChatRoomPage() {
   };
 
   const handleOpenCheckout = () => {
-    setCheckoutIsEarly(false);
+    setCheckoutIsEarly(true);
+    setCheckoutType('normal');
     setCheckoutNote('');
     setCheckoutPreset('');
     setCheckoutPhoto(null);
@@ -305,6 +307,7 @@ export default function ChatRoomPage() {
 
   const handleOpenSpecialCheckout = () => {
     setCheckoutIsEarly(true);
+    setCheckoutType('special');
     setCheckoutNote('');
     setCheckoutPreset('');
     setCheckoutPhoto(null);
@@ -330,25 +333,11 @@ export default function ChatRoomPage() {
         toast.error(uploadRes.error || 'อัปโหลดรูปภาพไม่สำเร็จ');
         return;
       }
-      if (checkoutIsEarly) {
-        const res = await appApi.requestEarlyCheckout(jobId, evidenceNote, uploadRes.data.photo_url);
-        if (!res.success) { toast.error(res.error || 'ส่งคำขอไม่สำเร็จ'); return; }
-        toast.success('ส่งคำขอจบงานกรณีพิเศษแล้ว รอผู้ว่าจ้างอนุมัติ');
-        setCheckoutOpen(false);
-        await load();
-      } else {
-        const caregiverId = user?.id || 'demo-caregiver';
-        let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
-        try {
-          const raw = await getCurrentGps();
-          gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
-        } catch { /* checkout allowed anywhere */ }
-        const res = await appApi.checkOut(jobId, caregiverId, gps, evidenceNote, uploadRes.data.photo_url);
-        if (!res.success) { toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ'); return; }
-        toast.success('ส่งงานเสร็จแล้ว');
-        setCheckoutOpen(false);
-        await load();
-      }
+      const res = await appApi.requestEarlyCheckout(jobId, evidenceNote, uploadRes.data.photo_url);
+      if (!res.success) { toast.error(res.error || 'ส่งคำขอไม่สำเร็จ'); return; }
+      toast.success(checkoutType === 'normal' ? 'ส่งงานรอผู้ว่าจ้างอนุมัติแล้ว (อนุมัติอัตโนมัติใน 1 ชม.)' : 'ส่งคำขอจบงานกรณีพิเศษแล้ว รอผู้ว่าจ้างอนุมัติ');
+      setCheckoutOpen(false);
+      await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
@@ -689,7 +678,7 @@ export default function ChatRoomPage() {
         <Modal
           isOpen={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
-          title={checkoutIsEarly ? 'ขอจบงานกรณีพิเศษ' : 'ส่งงานเสร็จ'}
+          title={checkoutType === 'special' ? 'ขอจบงานกรณีพิเศษ' : 'ส่งงานเสร็จ'}
           size="sm"
           footer={
             <div className="flex gap-3 justify-end">
@@ -700,14 +689,16 @@ export default function ChatRoomPage() {
               <button onClick={handleConfirmCheckout}
                 disabled={!!actionLoading || checkoutUploading || !checkoutPhoto || (!checkoutPreset && !checkoutNote.trim())}
                 className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                {checkoutUploading ? 'กำลังอัปโหลด...' : actionLoading === 'checkout' ? 'กำลังส่ง...' : checkoutIsEarly ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
+                {checkoutUploading ? 'กำลังอัปโหลด...' : actionLoading === 'checkout' ? 'กำลังส่ง...' : 'ส่งคำขอ'}
               </button>
             </div>
           }
         >
           <div className="flex flex-col gap-4">
             <p className="text-sm text-gray-600">
-              {checkoutIsEarly ? 'ขอจบงานในกรณีพิเศษ เช่น ไม่สามารถอยู่ในโลเคชั่นที่กำหนดได้ ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน' : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ'}
+              {checkoutType === 'special'
+                ? 'ขอจบงานในกรณีพิเศษ เช่น ไม่สามารถอยู่ในโลเคชั่นที่กำหนดได้ ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติ หากไม่มีการตอบรับภายใน 1 ชม. ระบบจะอนุมัติอัตโนมัติ'
+                : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ ผู้ว่าจ้างต้องอนุมัติก่อน หากไม่ตอบรับภายใน 1 ชม. ระบบจะอนุมัติอัตโนมัติ'}
             </p>
             <div className="flex flex-wrap gap-2">
               {CHECKOUT_PRESETS.map((preset) => (
