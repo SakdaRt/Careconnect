@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import { query } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { notifyAccountBanned } from '../services/notificationService.js';
 
 const logAdminAction = async (adminUserId, action, details = {}) => {
   try {
@@ -327,6 +328,11 @@ export const setBan = async (req, res) => {
     });
 
     const safe = updated.rows[0] ? safeUser(updated.rows[0]) : null;
+
+    if (value && ban_type !== 'ban_login') {
+      notifyAccountBanned(id, ban_type, reason || null).catch(() => {});
+    }
+
     res.json({ success: true, message, data: { user: safe } });
   } catch (error) {
     console.error('[Admin Users] Set ban error:', error);

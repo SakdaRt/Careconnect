@@ -2,6 +2,7 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import fs from 'fs';
+import { notifyComplaintUpdated } from '../services/notificationService.js';
 
 const VALID_CATEGORIES = [
   'inappropriate_name',
@@ -210,6 +211,10 @@ export const adminUpdateComplaint = async (req, res) => {
 
     if (!result) {
       return res.status(404).json({ error: 'Not Found', message: 'ไม่พบเรื่องร้องเรียน' });
+    }
+
+    if (status && result.reporter_id) {
+      notifyComplaintUpdated(result.reporter_id, status, result.subject, id).catch(() => {});
     }
 
     res.json({ success: true, data: { complaint: result } });

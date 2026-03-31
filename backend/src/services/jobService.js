@@ -4,7 +4,7 @@ import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { computeRiskLevel } from '../utils/risk.js';
 import { NotFoundError, ValidationError } from '../utils/errors.js';
-import { notifyJobAccepted, notifyCheckIn, notifyCheckOut, notifyJobCancelled, notifyNoShow } from './notificationService.js';
+import { notifyJobAccepted, notifyCheckIn, notifyCheckOut, notifyJobCancelled, notifyNoShow, notifyScoreBanCancel } from './notificationService.js';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 
 /**
@@ -1887,9 +1887,10 @@ export const getJobStats = async () => {
  * @param {string} caregiverId
  * @param {string} hirerId
  * @param {string} reason - cancellation_reason value
+ * @param {string} jobTitle
  * @returns {{ cancelled: boolean }}
  */
-const _cancelAssignedJobForScoreBan = async (jobId, jobPostId, caregiverId, hirerId, reason) => {
+const _cancelAssignedJobForScoreBan = async (jobId, jobPostId, caregiverId, hirerId, reason, jobTitle) => {
   const cancelled = await transaction(async (client) => {
     const guard = await client.query(
       `UPDATE jobs SET
@@ -1922,8 +1923,11 @@ const _cancelAssignedJobForScoreBan = async (jobId, jobPostId, caregiverId, hire
   if (!cancelled) return { cancelled: false };
 
   try {
-    const { notifyJobCancelled: notify } = await import('./notificationService.js');
-    await notify(hirerId, caregiverId, 'งาน', jobId, reason);
+    const title = jobTitle || 'งาน';
+    await Promise.allSettled([
+      notifyJobCancelled(hirerId, title, jobId, reason),
+      notifyScoreBanCancel(caregiverId, title, jobId),
+    ]);
   } catch (e) {
     console.error(`[Job Service] Score-ban notify failed for job ${jobId}:`, e.message);
   }
@@ -1944,7 +1948,7 @@ export const cancelAssignedJobsForScoreBan = async (caregiverId, scope, reason) 
   const riskFilter = scope === 'high_risk_only' ? `AND jp.risk_level = 'high_risk'` : '';
 
   const jobsRes = await query(
-    `SELECT j.id, j.job_post_id, jp.hirer_id
+    `SELECT j.id, j.job_post_id, jp.hirer_id, jp.title
      FROM jobs j
      JOIN job_posts jp ON jp.id = j.job_post_id
      JOIN job_assignments ja ON ja.job_id = j.id AND ja.status = 'active'
@@ -1961,7 +1965,7 @@ export const cancelAssignedJobsForScoreBan = async (caregiverId, scope, reason) 
 
   for (const row of rows) {
     try {
-      const result = await _cancelAssignedJobForScoreBan(row.id, row.job_post_id, caregiverId, row.hirer_id, reason);
+      const result = await _cancelAssignedJobForScoreBan(row.id, row.job_post_id, caregiverId, row.hirer_id, reason, row.title);
       if (result.cancelled) cancelled++;
     } catch (err) {
       failed++;

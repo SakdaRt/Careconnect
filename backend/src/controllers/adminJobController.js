@@ -1,6 +1,7 @@
 import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import Job from '../models/Job.js';
+import { notifyJobSettled } from '../services/notificationService.js';
 
 const logAdminAction = async (adminUserId, action, details = {}) => {
   try {
@@ -458,6 +459,23 @@ export const settleJob = async (req, res) => {
       job_id: jobId, refund, payout, fee, penaltyRev, depRelease, comp,
       fault_party, settlement_note,
     });
+
+    if (!result.already_settled) {
+      try {
+        const parties = await query(
+          `SELECT jp.hirer_id,
+                  (SELECT caregiver_id FROM job_assignments WHERE job_id = $1 ORDER BY created_at DESC LIMIT 1) as caregiver_id
+           FROM jobs j JOIN job_posts jp ON jp.id = j.job_post_id WHERE j.id = $1`,
+          [jobId]
+        );
+        const { hirer_id, caregiver_id } = parties.rows[0] || {};
+        if (hirer_id && caregiver_id) {
+          notifyJobSettled(hirer_id, caregiver_id, refund, payout, jobId).catch(() => {});
+        }
+      } catch (e) {
+        console.error('[Admin Jobs] notifyJobSettled failed:', e.message);
+      }
+    }
 
     res.json({ success: true, message: 'Job settled successfully', data: result });
   } catch (error) {

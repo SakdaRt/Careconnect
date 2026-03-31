@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-30 (UI cleanup: ลบปุ่มซ้ำซ้อน dispute/admin + time input 24h)
+> อัพเดทล่าสุด: 2026-03-31 (Notification system: เพิ่ม triggers ที่ขาดหาย + แก้ bug score-ban cancel)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -99,6 +99,14 @@ careconnect/
 - [x] Real-time notification count ใน TopBar (polling 15s)
 - [x] NotificationsPage — อ่าน/mark as read
 - [x] Trigger: job accepted, check-in, check-out
+- [x] Trigger: topup success / topup failed
+- [x] Trigger: withdrawal review/approved/rejected/paid
+- [x] Trigger: dispute settled (admin) → แจ้งทั้ง hirer + caregiver
+- [x] Trigger: admin settle job → แจ้งทั้ง hirer + caregiver
+- [x] Trigger: account banned/suspended by admin
+- [x] Trigger: score-ban cancel → แจ้งทั้ง hirer + caregiver (bug fix)
+- [x] Trigger: review received → แจ้ง caregiver
+- [x] Trigger: complaint status updated → แจ้ง reporter
 
 ### Wallet & Payment
 
@@ -207,6 +215,18 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — Notification System: เพิ่ม triggers ที่ขาดหาย + bug fix score-ban
+
+- fix(job): `_cancelAssignedJobForScoreBan` — แก้ argument order ผิด (caregiverId/jobTitle/jobId ผิดตำแหน่งทั้งหมด) + เพิ่มแจ้ง caregiver ด้วย `notifyScoreBanCancel`
+- feat(notification): `notifyTopupSuccess/Failed` — แจ้ง user เมื่อเติมเงินสำเร็จ/ล้มเหลว (trigger ใน `walletService.processTopupSuccess/Failure`)
+- feat(notification): `notifyDisputeSettled` — แจ้งทั้ง hirer + caregiver เมื่อ admin settle dispute (trigger ใน `disputeService.settleDispute`)
+- feat(notification): `notifyJobSettled` — แจ้งทั้ง hirer + caregiver เมื่อ admin settle job (trigger ใน `adminJobController.settleJob`)
+- feat(notification): `notifyAccountBanned` — แจ้ง user เมื่อถูก ban/suspend (trigger ใน `adminUserController.setBan`, ยกเว้น ban_login)
+- feat(notification): `notifyReviewReceived` — แจ้ง caregiver เมื่อถูก review (trigger ใน `reviewRoutes` POST /)
+- feat(notification): `notifyComplaintUpdated` — แจ้ง reporter เมื่อ admin เปลี่ยนสถานะ complaint (trigger ใน `complaintController`)
+- feat(admin): `caregiverDocumentController/Service/Routes` — admin สามารถ delete/update เอกสาร + upload แทน user ด้วย `target_user_id`
+- feat(frontend): `AdminUsersPage.tsx` + `api.ts` — เพิ่มฟีเจอร์จัดการเอกสารใน admin panel
 
 ### 2026-03-30 — UI Cleanup: ลบปุ่มซ้ำซ้อน + Time Input 24h
 

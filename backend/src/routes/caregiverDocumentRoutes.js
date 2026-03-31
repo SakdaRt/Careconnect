@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 import caregiverDocumentController from '../controllers/caregiverDocumentController.js';
 
 const router = express.Router();
@@ -45,8 +45,11 @@ router.get('/', requireAuth, caregiverDocumentController.listMine);
 // Caregiver: upload new document
 router.post('/', requireAuth, upload.single('file'), caregiverDocumentController.upload);
 
-// Caregiver: delete own document
+// Caregiver: delete own document (admin can delete any)
 router.delete('/:id', requireAuth, caregiverDocumentController.remove);
+
+// Admin: update document metadata
+router.put('/:id', requireAuth, requireRole('admin'), caregiverDocumentController.update);
 
 // Hirer/Admin: view caregiver's documents (gated by job assignment)
 router.get('/by-caregiver/:caregiverId', requireAuth, caregiverDocumentController.listByCaregiver);

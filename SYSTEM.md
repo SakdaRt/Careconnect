@@ -1318,6 +1318,34 @@ admin role → allowed for ALL actions (bypass)
 - `emitToUserRoom(userId, event, payload)` — ส่ง event ไปยัง personal room ของ user
 - ใช้สำหรับ push notifications, status updates
 
+### Notification Events (via `notification:new` / `notification:push`)
+
+> Source: `backend/src/services/notificationService.js`
+> Template keys ที่ใช้ใน `notifications.template_key`:
+
+| templateKey | Trigger | ผู้รับ |
+|---|---|---|
+| `job_accepted` | CG รับงาน | Hirer |
+| `job_started` | CG check-in | Hirer |
+| `job_completed` | CG check-out | Hirer |
+| `job_assigned` | Hirer assign ตรง | Caregiver |
+| `job_cancelled` | ยกเลิกงาน / no-show / score-ban | ฝั่งตรงข้าม หรือ ทั้งคู่ |
+| `job_settled` | Admin settle job | Hirer + Caregiver |
+| `early_checkout_request` | CG ขอส่งงานก่อนเวลา | Hirer |
+| `early_checkout_approved` | Hirer อนุมัติ | Caregiver |
+| `early_checkout_rejected` | Hirer ปฏิเสธ | Caregiver |
+| `chat_message` | ข้อความแชทใหม่ | Recipient |
+| `topup_success` | เติมเงินสำเร็จ | User เจ้าของ wallet |
+| `topup_failed` | เติมเงินล้มเหลว | User เจ้าของ wallet |
+| `withdrawal_review` | Withdrawal อยู่ระหว่างตรวจสอบ | User เจ้าของ |
+| `withdrawal_approved` | Withdrawal อนุมัติ | User เจ้าของ |
+| `withdrawal_rejected` | Withdrawal ถูกปฏิเสธ | User เจ้าของ |
+| `withdrawal_paid` | โอนเงินสำเร็จ | User เจ้าของ |
+| `dispute_settled` | Admin settle dispute | Hirer + Caregiver |
+| `account_banned` | Admin ban/suspend account | User ที่ถูกกระทำ |
+| `review_received` | มีรีวิวใหม่ | Caregiver |
+| `complaint_updated` | Admin เปลี่ยนสถานะ complaint | Reporter |
+
 ---
 
 ## 13. Error Response Format

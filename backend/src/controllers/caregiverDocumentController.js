@@ -5,6 +5,8 @@ import {
   getDocumentById,
   createDocument,
   deleteDocument,
+  deleteDocumentByIdAny,
+  updateDocument,
   hirerHasAssignmentWithCaregiver,
 } from '../services/caregiverDocumentService.js';
 
@@ -33,7 +35,7 @@ const caregiverDocumentController = {
         return res.status(400).json({ success: false, error: 'กรุณาอัปโหลดไฟล์เอกสาร' });
       }
 
-      const { document_type, title, description, issuer, issued_date, expiry_date } = req.body || {};
+      const { document_type, title, description, issuer, issued_date, expiry_date, target_user_id } = req.body || {};
 
       if (!document_type || !title) {
         // Clean up uploaded file
@@ -46,7 +48,9 @@ const caregiverDocumentController = {
         file.path
       ).replace(/\\/g, '/');
 
-      const doc = await createDocument(req.user.id, {
+      const ownerId = (req.user.role === 'admin' && target_user_id) ? target_user_id : req.user.id;
+
+      const doc = await createDocument(ownerId, {
         document_type: document_type.trim(),
         title: title.trim(),
         description: description?.trim() || null,
@@ -71,7 +75,10 @@ const caregiverDocumentController = {
    */
   async remove(req, res, next) {
     try {
-      const deleted = await deleteDocument(req.params.id, req.user.id);
+      const isAdmin = req.user.role === 'admin';
+      const deleted = isAdmin
+        ? await deleteDocumentByIdAny(req.params.id)
+        : await deleteDocument(req.params.id, req.user.id);
       if (!deleted) {
         return res.status(404).json({ success: false, error: 'ไม่พบเอกสาร' });
       }
@@ -84,6 +91,37 @@ const caregiverDocumentController = {
       }
 
       res.json({ success: true, data: { id: deleted.id } });
+    } catch (error) {
+      next(error);
+    }
+  },
+
+  /**
+   * PUT /api/caregiver-documents/:id
+   * Admin: update document metadata
+   */
+  async update(req, res, next) {
+    try {
+      const { document_type, title, description, issuer, issued_date, expiry_date } = req.body || {};
+
+      if (!document_type || !title) {
+        return res.status(400).json({ success: false, error: 'กรุณาระบุประเภทเอกสารและชื่อเอกสาร' });
+      }
+
+      const doc = await updateDocument(req.params.id, {
+        document_type: document_type.trim(),
+        title: title.trim(),
+        description: description?.trim() || null,
+        issuer: issuer?.trim() || null,
+        issued_date: issued_date || null,
+        expiry_date: expiry_date || null,
+      });
+
+      if (!doc) {
+        return res.status(404).json({ success: false, error: 'ไม่พบเอกสาร' });
+      }
+
+      res.json({ success: true, data: doc });
     } catch (error) {
       next(error);
     }

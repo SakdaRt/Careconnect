@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { AdminLayout } from '../../layouts';
 import { Button, Card, Input, LoadingState, Select } from '../../components/ui';
 import api, { AdminUserListItem, CaregiverDocument } from '../../services/api';
-import { FileText, Plus, Trash2 } from 'lucide-react';
+import { FileText, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 type BanType = 'suspend' | 'delete' | 'ban_login' | 'ban_job_create' | 'ban_job_accept' | 'ban_withdraw';
 
@@ -138,6 +138,9 @@ export default function AdminUsersPage() {
   const [newDocIssuer, setNewDocIssuer] = useState('');
   const [newDocFile, setNewDocFile] = useState<File | null>(null);
   const [docSaving, setDocSaving] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<CaregiverDocument | null>(null);
+  const [editDocForm, setEditDocForm] = useState({ document_type: '', title: '', issuer: '', description: '', issued_date: '', expiry_date: '' });
+  const [editDocSaving, setEditDocSaving] = useState(false);
 
   const statusBadge = (s: string) => s === 'active' ? 'bg-green-100 text-green-800' : s === 'suspended' ? 'bg-yellow-100 text-yellow-800' : s === 'deleted' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800';
   const trustBadge = (t: string) => t === 'L3' ? 'bg-amber-100 text-amber-800' : t === 'L2' ? 'bg-blue-100 text-blue-800' : t === 'L1' ? 'bg-yellow-100 text-yellow-800' : 'bg-gray-100 text-gray-600';
@@ -181,6 +184,38 @@ export default function AdminUsersPage() {
     if (userRes.data.user.role === 'caregiver') loadDocs(userId);
   }, [loadDocs]);
 
+  const openEditDoc = (doc: CaregiverDocument) => {
+    setEditingDoc(doc);
+    setEditDocForm({
+      document_type: doc.document_type || '',
+      title: doc.title || '',
+      issuer: doc.issuer || '',
+      description: doc.description || '',
+      issued_date: doc.issued_date ? doc.issued_date.slice(0, 10) : '',
+      expiry_date: doc.expiry_date ? doc.expiry_date.slice(0, 10) : '',
+    });
+  };
+
+  const handleEditDoc = async () => {
+    if (!editingDoc) return;
+    if (!editDocForm.document_type || !editDocForm.title.trim()) { toast.error('กรุณาระบุประเภทและชื่อเอกสาร'); return; }
+    setEditDocSaving(true);
+    try {
+      const res = await api.adminUpdateCaregiverDocument(editingDoc.id, {
+        document_type: editDocForm.document_type,
+        title: editDocForm.title.trim(),
+        description: editDocForm.description.trim() || null,
+        issuer: editDocForm.issuer.trim() || null,
+        issued_date: editDocForm.issued_date || null,
+        expiry_date: editDocForm.expiry_date || null,
+      });
+      if (!res.success) { toast.error((res as any).error || 'แก้ไขไม่สำเร็จ'); return; }
+      toast.success('แก้ไขเอกสารแล้ว');
+      setEditingDoc(null);
+      if (selectedUser) loadDocs(selectedUser.id);
+    } finally { setEditDocSaving(false); }
+  };
+
   const handleDeleteDoc = async (docId: string) => {
     if (!window.confirm('ลบเอกสารนี้?')) return;
     const res = await api.deleteCaregiverDocument(docId);
@@ -198,6 +233,7 @@ export default function AdminUsersPage() {
       fd.append('document_type', newDocType);
       fd.append('title', newDocTitle.trim());
       if (newDocIssuer.trim()) fd.append('issuer', newDocIssuer.trim());
+      fd.append('target_user_id', selectedUser.id);
       const res = await api.uploadCaregiverDocument(fd);
       if (!res.success) { toast.error((res as any).error || 'อัปโหลดไม่สำเร็จ'); return; }
       toast.success('เพิ่มเอกสารแล้ว');
@@ -436,6 +472,41 @@ export default function AdminUsersPage() {
                     </div>
                   )}
 
+                  {editingDoc && (
+                    <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-amber-800">แก้ไขเอกสาร</span>
+                        <button onClick={() => setEditingDoc(null)} className="text-gray-400 hover:text-gray-600"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                      <Input label="ชื่อเอกสาร *" value={editDocForm.title} onChange={(e) => setEditDocForm((p) => ({ ...p, title: e.target.value }))} />
+                      <div className="grid grid-cols-2 gap-2">
+                        <Select label="ประเภท" value={editDocForm.document_type} onChange={(e) => setEditDocForm((p) => ({ ...p, document_type: e.target.value }))}>
+                          <option value="certification">ใบรับรอง</option>
+                          <option value="license">ใบอนุญาต</option>
+                          <option value="training">ใบอบรม</option>
+                          <option value="other">อื่นๆ</option>
+                        </Select>
+                        <Input label="ผู้ออก" value={editDocForm.issuer} onChange={(e) => setEditDocForm((p) => ({ ...p, issuer: e.target.value }))} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">วันที่ออก</label>
+                          <input type="date" value={editDocForm.issued_date} onChange={(e) => setEditDocForm((p) => ({ ...p, issued_date: e.target.value }))}
+                            className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-600 block mb-1">วันหมดอายุ</label>
+                          <input type="date" value={editDocForm.expiry_date} onChange={(e) => setEditDocForm((p) => ({ ...p, expiry_date: e.target.value }))}
+                            className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="primary" size="sm" loading={editDocSaving} onClick={handleEditDoc}>บันทึก</Button>
+                        <Button variant="outline" size="sm" onClick={() => setEditingDoc(null)}>ยกเลิก</Button>
+                      </div>
+                    </div>
+                  )}
+
                   {docsLoading ? (
                     <div className="text-xs text-gray-500 py-2">กำลังโหลด...</div>
                   ) : docs.length === 0 ? (
@@ -443,7 +514,7 @@ export default function AdminUsersPage() {
                   ) : (
                     <div className="space-y-1.5">
                       {docs.map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-xs bg-white hover:bg-gray-50">
+                        <div key={doc.id} className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs bg-white hover:bg-gray-50 ${editingDoc?.id === doc.id ? 'border-amber-300 bg-amber-50' : 'border-gray-100'}`}>
                           <div className="min-w-0 flex-1">
                             <div className="font-medium text-gray-800 truncate">{doc.title}</div>
                             <div className="text-[11px] text-gray-500 flex flex-wrap gap-x-2">
@@ -457,6 +528,9 @@ export default function AdminUsersPage() {
                               <a href={`/uploads/${doc.file_path}`} target="_blank" rel="noopener noreferrer"
                                 className="text-blue-500 hover:text-blue-700 text-[11px]">ดู</a>
                             )}
+                            <button onClick={() => openEditDoc(doc)} className="text-amber-500 hover:text-amber-700" title="แก้ไข">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                             <button onClick={() => handleDeleteDoc(doc.id)} className="text-red-400 hover:text-red-600" title="ลบ">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>

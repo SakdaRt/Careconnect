@@ -4,6 +4,7 @@ import Notification from '../models/Notification.js';
 import { query, transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
+import { notifyTopupSuccess, notifyTopupFailed } from './notificationService.js';
 import { emitToUserRoom } from '../sockets/realtimeHub.js';
 import '../config/loadEnv.js';
 import Stripe from 'stripe';
@@ -348,7 +349,7 @@ class WalletService {
    * @returns {object} - Updated wallet
    */
   async processTopupSuccess(topupId, providerData = {}) {
-    return await transaction(async (client) => {
+    const result = await transaction(async (client) => {
       // Get and lock top-up intent
       const topupResult = await client.query(
         `SELECT ti.*, w.id as wallet_id FROM topup_intents ti
@@ -394,8 +395,11 @@ class WalletService {
         [topup.wallet_id]
       );
 
-      return walletResult.rows[0];
+      return { wallet: walletResult.rows[0], userId: topup.user_id, amount: topup.amount, topupId };
     });
+
+    notifyTopupSuccess(result.userId, result.amount, result.topupId).catch(() => {});
+    return result.wallet;
   }
 
   /**
@@ -414,7 +418,9 @@ class WalletService {
       throw { status: 404, message: 'Top-up request not found or already processed' };
     }
 
-    return result.rows[0];
+    const topup = result.rows[0];
+    notifyTopupFailed(topup.user_id, topup.amount, topupId).catch(() => {});
+    return topup;
   }
 
   /**

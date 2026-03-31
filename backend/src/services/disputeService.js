@@ -1,5 +1,6 @@
 import { transaction } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
+import { notifyDisputeSettled } from './notificationService.js';
 
 const parseAmount = (value) => {
   if (value === undefined || value === null || value === '') return 0;
@@ -251,7 +252,22 @@ export async function settleDispute(disputeId, adminUserId, input = {}) {
     return {
       dispute: finalRes.rows[0],
       settlement: { refund_amount: refundAmount, payout_amount: payoutAmount },
+      _hirerId: hirerId,
+      _caregiverId: caregiverId,
     };
   });
+
+  if (result._hirerId && result._caregiverId) {
+    notifyDisputeSettled(
+      result._hirerId,
+      result._caregiverId,
+      refundAmount,
+      payoutAmount,
+      disputeId
+    ).catch(() => {});
+  }
+
+  const { _hirerId, _caregiverId, ...publicResult } = result;
+  return publicResult;
 }
 

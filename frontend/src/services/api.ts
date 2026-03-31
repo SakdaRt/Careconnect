@@ -939,6 +939,20 @@ class ApiClient {
     });
   }
 
+  async adminUpdateCaregiverDocument(docId: string, payload: {
+    document_type: string;
+    title: string;
+    description?: string | null;
+    issuer?: string | null;
+    issued_date?: string | null;
+    expiry_date?: string | null;
+  }) {
+    return this.request<CaregiverDocument>(`/api/caregiver-documents/${docId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  }
+
   async getCaregiverDocumentsByCaregiver(caregiverId: string) {
     return this.request<CaregiverDocument[]>(`/api/caregiver-documents/by-caregiver/${caregiverId}`);
   }

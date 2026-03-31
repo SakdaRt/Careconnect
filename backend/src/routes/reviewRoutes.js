@@ -4,6 +4,7 @@ import { query } from '../utils/db.js';
 import { v4 as uuidv4 } from 'uuid';
 import Joi from 'joi';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
+import { notifyReviewReceived } from '../services/notificationService.js';
 
 const router = Router();
 
@@ -119,6 +120,20 @@ router.post(
 
       // Trigger trust score recalculation for the reviewed caregiver (fire-and-forget)
       triggerUserTrustUpdate(caregiver_id, 'review_created').catch(() => {});
+
+      // Notify caregiver of new review (fire-and-forget)
+      try {
+        const hirerRes = await query(`SELECT display_name FROM hirer_profiles WHERE user_id = $1 LIMIT 1`, [reviewerId]);
+        const jobRes = await query(`SELECT title FROM job_posts WHERE id = $1 LIMIT 1`, [jobPostId]);
+        notifyReviewReceived(
+          caregiver_id,
+          hirerRes.rows[0]?.display_name || 'ผู้ว่าจ้าง',
+          rating,
+          jobRes.rows[0]?.title || 'งาน'
+        ).catch(() => {});
+      } catch (e) {
+        console.error('[Review] notifyReviewReceived failed:', e.message);
+      }
     } catch (error) {
       console.error('[Review] Create error:', error);
       res.status(500).json({ success: false, error: 'ไม่สามารถบันทึกรีวิวได้' });

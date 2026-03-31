@@ -438,6 +438,166 @@ export const notifyJobCancelled = async (caregiverId, jobTitle, jobId, reason) =
 };
 
 /**
+ * Notify user when top-up succeeds
+ */
+export const notifyTopupSuccess = async (userId, amount, topupId) => {
+  return await createNotification({
+    userId,
+    templateKey: 'topup_success',
+    title: 'เติมเงินสำเร็จ',
+    body: `เติมเงิน ฿${Number(amount).toLocaleString()} เข้า wallet เรียบร้อยแล้ว`,
+    data: { amount, topupId },
+    referenceType: 'topup',
+    referenceId: topupId ?? null,
+  });
+};
+
+/**
+ * Notify user when top-up fails or expires
+ */
+export const notifyTopupFailed = async (userId, amount, topupId) => {
+  return await createNotification({
+    userId,
+    templateKey: 'topup_failed',
+    title: 'เติมเงินไม่สำเร็จ',
+    body: `การเติมเงิน ฿${Number(amount).toLocaleString()} ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง`,
+    data: { amount, topupId },
+    referenceType: 'topup',
+    referenceId: topupId ?? null,
+  });
+};
+
+/**
+ * Notify both parties when a dispute is settled by admin
+ */
+export const notifyDisputeSettled = async (hirerId, caregiverId, refundAmount, payoutAmount, disputeId) => {
+  const promises = [
+    createNotification({
+      userId: hirerId,
+      templateKey: 'dispute_settled',
+      title: 'การระงับข้อพิพาทเสร็จสิ้น',
+      body: `Admin ตัดสินข้อพิพาทแล้ว${refundAmount > 0 ? ` คืนเงิน ฿${Number(refundAmount).toLocaleString()} เข้า wallet` : ''}`,
+      data: { refundAmount, disputeId },
+      referenceType: 'dispute',
+      referenceId: disputeId,
+    }),
+    createNotification({
+      userId: caregiverId,
+      templateKey: 'dispute_settled',
+      title: 'การระงับข้อพิพาทเสร็จสิ้น',
+      body: `Admin ตัดสินข้อพิพาทแล้ว${payoutAmount > 0 ? ` โอนเงิน ฿${Number(payoutAmount).toLocaleString()} เข้า wallet` : ''}`,
+      data: { payoutAmount, disputeId },
+      referenceType: 'dispute',
+      referenceId: disputeId,
+    }),
+  ];
+  await Promise.allSettled(promises);
+};
+
+/**
+ * Notify both parties when admin manually settles a job
+ */
+export const notifyJobSettled = async (hirerId, caregiverId, refundAmount, payoutAmount, jobId) => {
+  const promises = [
+    createNotification({
+      userId: hirerId,
+      templateKey: 'job_settled',
+      title: 'Admin ตัดสินงานเสร็จสิ้น',
+      body: `งานของคุณได้รับการตัดสินโดย admin${refundAmount > 0 ? ` คืนเงิน ฿${Number(refundAmount).toLocaleString()} เข้า wallet` : ''}`,
+      data: { refundAmount, jobId },
+      referenceType: 'job',
+      referenceId: jobId,
+    }),
+    createNotification({
+      userId: caregiverId,
+      templateKey: 'job_settled',
+      title: 'Admin ตัดสินงานเสร็จสิ้น',
+      body: `งานของคุณได้รับการตัดสินโดย admin${payoutAmount > 0 ? ` โอนเงิน ฿${Number(payoutAmount).toLocaleString()} เข้า wallet` : ''}`,
+      data: { payoutAmount, jobId },
+      referenceType: 'job',
+      referenceId: jobId,
+    }),
+  ];
+  await Promise.allSettled(promises);
+};
+
+/**
+ * Notify user when account is banned or suspended by admin
+ */
+export const notifyAccountBanned = async (userId, banType, reason) => {
+  const messages = {
+    suspend: { title: 'บัญชีถูกระงับชั่วคราว', body: `บัญชีของคุณถูกระงับชั่วคราว${reason ? ': ' + reason : ''} กรุณาติดต่อทีมงาน` },
+    ban_job_create: { title: 'ถูกระงับการสร้างประกาศงาน', body: `บัญชีของคุณถูกระงับสิทธิ์สร้างประกาศงาน${reason ? ': ' + reason : ''}` },
+    ban_job_accept: { title: 'ถูกระงับการรับงาน', body: `บัญชีของคุณถูกระงับสิทธิ์รับงาน${reason ? ': ' + reason : ''}` },
+    ban_withdraw: { title: 'ถูกระงับการถอนเงิน', body: `บัญชีของคุณถูกระงับสิทธิ์ถอนเงิน${reason ? ': ' + reason : ''}` },
+    delete: { title: 'บัญชีถูกปิด', body: `บัญชีของคุณถูกปิดโดย admin${reason ? ': ' + reason : ''}` },
+  };
+  const msg = messages[banType];
+  if (!msg) return;
+  return await createNotification({
+    userId,
+    templateKey: 'account_banned',
+    title: msg.title,
+    body: msg.body,
+    data: { banType, reason: reason || null },
+    referenceType: 'account',
+    referenceId: userId,
+  });
+};
+
+/**
+ * Notify caregiver when their assigned job is cancelled due to score-based ban
+ */
+export const notifyScoreBanCancel = async (caregiverId, jobTitle, jobId) => {
+  return await createNotification({
+    userId: caregiverId,
+    templateKey: 'job_cancelled',
+    title: 'งานถูกยกเลิกเนื่องจากคะแนนต่ำ',
+    body: `งาน "${jobTitle}" ถูกยกเลิกเนื่องจากคะแนนของคุณต่ำกว่าเกณฑ์`,
+    data: { jobId, reason: 'score_ban' },
+    referenceType: 'job',
+    referenceId: jobId,
+  });
+};
+
+/**
+ * Notify caregiver when a hirer submits a review
+ */
+export const notifyReviewReceived = async (caregiverId, hirerName, rating, jobTitle) => {
+  return await createNotification({
+    userId: caregiverId,
+    templateKey: 'review_received',
+    title: 'มีรีวิวใหม่',
+    body: `${hirerName || 'ผู้ว่าจ้าง'} ให้คะแนนคุณ ${rating}/5 สำหรับงาน "${jobTitle || 'งาน'}"`,
+    data: { hirerName, rating, jobTitle },
+    referenceType: 'review',
+    referenceId: null,
+  });
+};
+
+/**
+ * Notify complaint reporter when admin updates complaint status
+ */
+export const notifyComplaintUpdated = async (reporterId, status, subject, complaintId) => {
+  const statusLabels = {
+    in_review: { title: 'เรื่องร้องเรียนอยู่ระหว่างพิจารณา', body: `เรื่องร้องเรียน "${subject}" กำลังได้รับการพิจารณาโดย admin` },
+    resolved: { title: 'เรื่องร้องเรียนได้รับการแก้ไขแล้ว', body: `เรื่องร้องเรียน "${subject}" ได้รับการแก้ไขเรียบร้อยแล้ว` },
+    dismissed: { title: 'เรื่องร้องเรียนถูกปิด', body: `เรื่องร้องเรียน "${subject}" ถูกปิดโดย admin` },
+  };
+  const msg = statusLabels[status];
+  if (!msg) return;
+  return await createNotification({
+    userId: reporterId,
+    templateKey: 'complaint_updated',
+    title: msg.title,
+    body: msg.body,
+    data: { status, complaintId },
+    referenceType: 'complaint',
+    referenceId: complaintId,
+  });
+};
+
+/**
  * Notify both parties when caregiver no-show triggers auto-cancel
  */
 export const notifyNoShow = async (hirerId, caregiverId, jobTitle, jobId) => {

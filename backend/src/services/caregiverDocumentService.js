@@ -55,6 +55,34 @@ export const deleteDocument = async (docId, userId) => {
   return result.rows[0] || null;
 };
 
+export const deleteDocumentByIdAny = async (docId) => {
+  const result = await query(
+    `DELETE FROM caregiver_documents WHERE id = $1 RETURNING id, file_path`,
+    [docId]
+  );
+  return result.rows[0] || null;
+};
+
+export const updateDocument = async (docId, payload) => {
+  const result = await query(
+    `UPDATE caregiver_documents
+     SET document_type = $2, title = $3, description = $4, issuer = $5,
+         issued_date = $6, expiry_date = $7, updated_at = NOW()
+     WHERE id = $1
+     RETURNING *`,
+    [
+      docId,
+      payload.document_type,
+      payload.title,
+      payload.description || null,
+      payload.issuer || null,
+      payload.issued_date || null,
+      payload.expiry_date || null,
+    ]
+  );
+  return result.rows[0] || null;
+};
+
 /**
  * Check if a hirer has an active job assignment with a specific caregiver.
  * Returns true if the hirer has at least one job where this caregiver is assigned.
