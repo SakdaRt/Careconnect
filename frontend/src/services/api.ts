@@ -1218,10 +1218,10 @@ class ApiClient {
     });
   }
 
-  async requestEarlyCheckout(jobId: string, evidenceNote: string) {
+  async requestEarlyCheckout(jobId: string, evidenceNote: string, evidencePhotoUrl: string) {
     return this.request<{ request: any }>(`/api/jobs/${jobId}/early-checkout-request`, {
       method: 'POST',
-      body: { evidence_note: evidenceNote },
+      body: { evidence_note: evidenceNote, evidence_photo_url: evidencePhotoUrl },
     });
   }
 

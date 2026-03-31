@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat: Checkout Photo Upload — บังคับแนบรูปภาพตอนส่งงาน)
+> อัพเดทล่าสุด: 2026-03-31 (feat: บังคับแนบรูปภาพทั้งส่งงานปกติและขอส่งงานก่อนเวลา)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -249,6 +249,24 @@ careconnect/
 - feat(frontend): `DisputeChatPage.tsx` — เหมือน ChatRoomPage + ใช้ `uploadDisputeImage`
 - feat(frontend): `AdminDisputesPage.tsx` — เพิ่มปุ่มรูปภาพ + `handleAdminImageSend` ในส่วน admin chat
 - verify: ✅ TypeScript: 0 errors | Backend restart: OK
+
+### 2026-03-31 — feat: บังคับแนบรูปภาพทั้ง checkout ปกติ และ early checkout request
+
+- feat(backend): `jobController.js` — `requestEarlyCheckout` require `evidence_photo_url` + store ลง `early_checkout_requests`
+- feat(backend): `jobController.js` — `CREATE TABLE IF NOT EXISTS early_checkout_requests` เพิ่ม `evidence_photo_url TEXT` column (ทั้ง 2 function)
+- feat(backend): `jobController.js` — `ALTER TABLE early_checkout_requests ADD COLUMN IF NOT EXISTS evidence_photo_url TEXT` (idempotent migration)
+- feat(frontend): `api.ts` + `appApi.ts` — `requestEarlyCheckout` รับ `evidencePhotoUrl: string` parameter
+- feat(frontend): `CaregiverMyJobsPage.tsx` — ลบ `{!checkoutIsEarly && (...)}` condition → photo upload แสดงทุก case; `handleConfirmCheckout` upload photo ก่อนเสมอ แล้ว branch early/normal
+- feat(frontend): `ChatRoomPage.tsx` — แทน `ReasonModal` checkout ด้วย custom `Modal` (preset + textarea + photo upload บังคับ); เพิ่ม `handleOpenCheckout()` + `handleConfirmCheckout()`
+- fix(test): `jobs.test.js`, `e2eSmoke.test.js` — เพิ่ม `evidence_photo_url` ใน checkout request
+- verify: ✅ TypeScript: 0 errors | tests standalone: PASS
+
+### 2026-03-31 — Fix: Chat/Dispute Image Upload Response Format
+
+- fix(backend): `chatController.js` — แก้ `uploadImage` คืน `{ success, data: { attachment_key, url } }` (เดิมไม่มี `data` wrapper → frontend อ่าน `uploadRes.data?.attachment_key` ได้ undefined)
+- fix(backend): `disputeController.js` — แก้ `uploadDisputeImage` เหมือนกัน
+- root cause: `requestFormData` ใน frontend ทำ pass-through ของ parsed response ตรงๆ → ต้องใช้ `data` wrapper ให้ตรงกับ `ApiResponse<T>` shape
+- verify: ✅ Backend restart: OK
 
 ### 2026-03-31 — Fix: CreateJobPage Step 4 แสดงผู้ดูแลที่ชื่นชอบ
 

@@ -158,6 +158,7 @@ describe('E2E Smoke Integration Tests', () => {
         lng: 100.5018,
         accuracy_m: 10,
         evidence_note: 'E2E smoke checkout completed',
+        evidence_photo_url: '/uploads/jobs/test-evidence.jpg',
       })
       .expect(200);
 

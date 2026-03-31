@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Camera, X } from 'lucide-react';
 import { io, Socket } from 'socket.io-client';
 import { ChatLayout } from '../../layouts';
-import { Button, Card, Input, LoadingState, ReasonModal, StatusBadge } from '../../components/ui';
+import { Button, Card, Input, LoadingState, Modal, ReasonModal, StatusBadge, Textarea } from '../../components/ui';
 import { CANCEL_PRESETS, CHECKOUT_PRESETS } from '../../components/ui/ReasonModal';
 import { ChatMessage, ChatThread, JobPost } from '../../services/api';
 import { appApi } from '../../services/appApi';
@@ -79,6 +80,13 @@ export default function ChatRoomPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkoutIsEarly, setCheckoutIsEarly] = useState(false);
+  const [checkoutNote, setCheckoutNote] = useState('');
+  const [checkoutPreset, setCheckoutPreset] = useState('');
+  const [checkoutPhoto, setCheckoutPhoto] = useState<File | null>(null);
+  const [checkoutPhotoPreview, setCheckoutPhotoPreview] = useState<string | null>(null);
+  const [checkoutUploading, setCheckoutUploading] = useState(false);
+  const checkoutPhotoInputRef = useRef<HTMLInputElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const [cancelReasonDisplay, setCancelReasonDisplay] = useState<string>('');
@@ -286,20 +294,38 @@ export default function ChatRoomPage() {
     navigate(`/jobs/${viewJobDetailId}`);
   };
 
-  const handleCheckOut = async (evidenceNote: string) => {
-    if (!jobId || !evidenceNote.trim()) return;
+  const handleOpenCheckout = () => {
+    const now = new Date();
+    const endAt = job?.scheduled_end_at ? new Date(job.scheduled_end_at) : null;
+    setCheckoutIsEarly(endAt ? now < endAt : false);
+    setCheckoutNote('');
+    setCheckoutPreset('');
+    setCheckoutPhoto(null);
+    setCheckoutPhotoPreview(null);
+    setCheckoutOpen(true);
+  };
+
+  const handleConfirmCheckout = async () => {
+    if (!jobId) return;
+    const evidenceNote = checkoutPreset
+      ? `${checkoutPreset}${checkoutNote.trim() ? ` — ${checkoutNote.trim()}` : ''}`
+      : checkoutNote.trim();
+    if (!evidenceNote) { toast.error('กรุณาเลือกหรือกรอกหลักฐานการทำงาน'); return; }
+    if (!checkoutPhoto) { toast.error('กรุณาแนบรูปภาพหลักฐานการทำงาน'); return; }
     setActionLoading('checkout');
     try {
-      const now = new Date();
-      const endAt = job?.scheduled_end_at ? new Date(job.scheduled_end_at) : null;
-      const isEarly = endAt ? now < endAt : false;
-
-      if (isEarly) {
-        const res = await appApi.requestEarlyCheckout(jobId, evidenceNote.trim());
-        if (!res.success) {
-          toast.error(res.error || 'ส่งคำขอไม่สำเร็จ');
-          return;
-        }
+      const formData = new FormData();
+      formData.append('file', checkoutPhoto);
+      setCheckoutUploading(true);
+      const uploadRes = await appApi.uploadCheckoutPhoto(jobId, formData);
+      setCheckoutUploading(false);
+      if (!uploadRes.success || !uploadRes.data?.photo_url) {
+        toast.error(uploadRes.error || 'อัปโหลดรูปภาพไม่สำเร็จ');
+        return;
+      }
+      if (checkoutIsEarly) {
+        const res = await appApi.requestEarlyCheckout(jobId, evidenceNote, uploadRes.data.photo_url);
+        if (!res.success) { toast.error(res.error || 'ส่งคำขอไม่สำเร็จ'); return; }
         toast.success('ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ');
         setCheckoutOpen(false);
         await load();
@@ -310,11 +336,8 @@ export default function ChatRoomPage() {
           const raw = await getCurrentGps();
           gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
         } catch { /* checkout allowed anywhere */ }
-        const res = await appApi.checkOut(jobId, caregiverId, gps, evidenceNote.trim());
-        if (!res.success) {
-          toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
-          return;
-        }
+        const res = await appApi.checkOut(jobId, caregiverId, gps, evidenceNote, uploadRes.data.photo_url);
+        if (!res.success) { toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ'); return; }
         toast.success('ส่งงานเสร็จแล้ว');
         setCheckoutOpen(false);
         await load();
@@ -322,6 +345,7 @@ export default function ChatRoomPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'ส่งงานเสร็จไม่สำเร็จ');
     } finally {
+      setCheckoutUploading(false);
       setActionLoading(null);
     }
   };
@@ -517,7 +541,7 @@ export default function ChatRoomPage() {
                       size="sm"
                       disabled={!canCheckOut}
                       loading={actionLoading === 'checkout'}
-                      onClick={() => setCheckoutOpen(true)}
+                      onClick={handleOpenCheckout}
                     >
                       ส่งงานเสร็จ
                     </Button>
@@ -644,20 +668,73 @@ export default function ChatRoomPage() {
           loading={actionLoading === 'dispute'}
           minLength={10}
         />
-        <ReasonModal
+        <Modal
           isOpen={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
-          onConfirm={handleCheckOut}
-          title={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at) ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
-          description={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at)
-            ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'
-            : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'}
-          placeholder="รายละเอียดเพิ่มเติม เช่น อาการผู้ป่วย ข้อสังเกต..."
-          confirmText={job?.scheduled_end_at && new Date() < new Date(job.scheduled_end_at) ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
-          variant="primary"
-          loading={actionLoading === 'checkout'}
-          presetReasons={CHECKOUT_PRESETS}
-        />
+          title={checkoutIsEarly ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button onClick={() => setCheckoutOpen(false)} disabled={!!actionLoading || checkoutUploading}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50">
+                กลับไป
+              </button>
+              <button onClick={handleConfirmCheckout}
+                disabled={!!actionLoading || checkoutUploading || !checkoutPhoto || (!checkoutPreset && !checkoutNote.trim())}
+                className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {checkoutUploading ? 'กำลังอัปโหลด...' : actionLoading === 'checkout' ? 'กำลังส่ง...' : checkoutIsEarly ? 'ส่งคำขอ' : 'ยืนยันส่งงาน'}
+              </button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-gray-600">
+              {checkoutIsEarly ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน' : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ'}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {CHECKOUT_PRESETS.map((preset) => (
+                <button key={preset} type="button" onClick={() => setCheckoutPreset(checkoutPreset === preset ? '' : preset)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    checkoutPreset === preset ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:border-blue-400'
+                  }`}>
+                  {preset}
+                </button>
+              ))}
+            </div>
+            <Textarea label="รายละเอียดเพิ่มเติม (ถ้ามี)" fullWidth value={checkoutNote}
+              onChange={(e) => setCheckoutNote(e.target.value)}
+              placeholder="เช่น อาการผู้ป่วย ข้อสังเกต..." className="min-h-20" />
+            <div className="space-y-2">
+              <div className="text-sm font-medium text-gray-700">รูปภาพหลักฐาน <span className="text-red-500">*</span></div>
+              {checkoutPhotoPreview ? (
+                <div className="relative">
+                  <img src={checkoutPhotoPreview} alt="หลักฐาน" className="w-full max-h-48 object-cover rounded-lg border border-gray-200" />
+                  <button type="button" onClick={() => { setCheckoutPhoto(null); setCheckoutPhotoPreview(null); }}
+                    className="absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-gray-900/60 text-white hover:bg-gray-900/80">
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button type="button" onClick={() => checkoutPhotoInputRef.current?.click()}
+                  className="w-full flex flex-col items-center gap-2 p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-400 hover:bg-blue-50/40 transition-colors text-gray-500 hover:text-blue-600">
+                  <Camera className="w-8 h-8" />
+                  <span className="text-sm font-medium">กดเพื่อเลือกรูปภาพ</span>
+                  <span className="text-xs text-gray-400">JPG, PNG, WebP (ไม่เกิน 10 MB)</span>
+                </button>
+              )}
+              <input ref={checkoutPhotoInputRef} type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+                className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  setCheckoutPhoto(file);
+                  const reader = new FileReader();
+                  reader.onload = (ev) => setCheckoutPhotoPreview(ev.target?.result as string);
+                  reader.readAsDataURL(file);
+                  e.target.value = '';
+                }} />
+            </div>
+          </div>
+        </Modal>
       </div>
     </ChatLayout>
   );

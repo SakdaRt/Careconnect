@@ -337,14 +337,23 @@ export default function CaregiverMyJobsPage() {
       toast.error('กรุณาเลือกหรือกรอกหลักฐานการทำงาน');
       return;
     }
-    if (!checkoutIsEarly && !checkoutPhoto) {
+    if (!checkoutPhoto) {
       toast.error('กรุณาแนบรูปภาพหลักฐานการทำงาน');
       return;
     }
     setActionLoadingId(checkoutJobId);
     try {
+      const formData = new FormData();
+      formData.append('file', checkoutPhoto);
+      setCheckoutUploading(true);
+      const uploadRes = await appApi.uploadCheckoutPhoto(checkoutJobId, formData);
+      setCheckoutUploading(false);
+      if (!uploadRes.success || !uploadRes.data?.photo_url) {
+        toast.error(uploadRes.error || 'อัปโหลดรูปภาพไม่สำเร็จ');
+        return;
+      }
       if (checkoutIsEarly) {
-        const res = await appApi.requestEarlyCheckout(checkoutJobId, evidenceNote);
+        const res = await appApi.requestEarlyCheckout(checkoutJobId, evidenceNote, uploadRes.data.photo_url);
         if (!res.success) {
           toast.error(res.error || 'ส่งคำขอไม่สำเร็จ');
           return;
@@ -353,21 +362,12 @@ export default function CaregiverMyJobsPage() {
         resetCheckoutModal();
         await load();
       } else {
-        const formData = new FormData();
-        formData.append('file', checkoutPhoto!);
-        setCheckoutUploading(true);
-        const uploadRes = await appApi.uploadCheckoutPhoto(checkoutJobId, formData);
-        setCheckoutUploading(false);
-        if (!uploadRes.success || !uploadRes.data?.photo_url) {
-          toast.error(uploadRes.error || 'อัปโหลดรูปภาพไม่สำเร็จ');
-          return;
-        }
         let gps: { lat: number; lng: number; accuracy_m: number } = { lat: 0, lng: 0, accuracy_m: 0 };
         try {
           const raw = await getCurrentGps();
           gps = { lat: raw.lat, lng: raw.lng, accuracy_m: raw.accuracy_m ?? 0 };
         } catch { /* checkout allowed anywhere */ }
-        const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote, uploadRes.data.photo_url);
+        const res = await appApi.checkOut(checkoutJobId, caregiverId, gps, evidenceNote, uploadRes.data!.photo_url);
         if (!res.success) {
           toast.error(res.error || 'ส่งงานเสร็จไม่สำเร็จ');
           return;
@@ -806,7 +806,7 @@ export default function CaregiverMyJobsPage() {
                 disabled={
                   !!actionLoadingId ||
                   checkoutUploading ||
-                  (!checkoutIsEarly && !checkoutPhoto) ||
+                  !checkoutPhoto ||
                   (!checkoutPreset && !checkoutNote.trim())
                 }
                 className="px-4 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -849,7 +849,6 @@ export default function CaregiverMyJobsPage() {
               className="min-h-20"
             />
 
-            {!checkoutIsEarly && (
               <div className="space-y-2">
                 <div className="text-sm font-medium text-gray-700">
                   รูปภาพหลักฐาน <span className="text-red-500">*</span>
@@ -896,7 +895,6 @@ export default function CaregiverMyJobsPage() {
                   }}
                 />
               </div>
-            )}
           </div>
         </Modal>
       </div>

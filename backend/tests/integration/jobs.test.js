@@ -162,7 +162,8 @@ describe('Jobs Integration Tests', () => {
           lat: 13.7563,
           lng: 100.5018,
           accuracy_m: 10,
-          evidence_note: 'Completed all requested companionship tasks.'
+          evidence_note: 'Completed all requested companionship tasks.',
+          evidence_photo_url: '/uploads/jobs/test-evidence.jpg'
         })
         .expect(200);
 

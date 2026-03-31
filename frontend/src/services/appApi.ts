@@ -147,8 +147,8 @@ export const appApi = {
     return api.uploadCheckoutPhoto(jobId, formData);
   },
 
-  async requestEarlyCheckout(jobId: string, evidenceNote: string) {
-    return api.requestEarlyCheckout(jobId, evidenceNote);
+  async requestEarlyCheckout(jobId: string, evidenceNote: string, evidencePhotoUrl: string) {
+    return api.requestEarlyCheckout(jobId, evidenceNote, evidencePhotoUrl);
   },
 
   async respondEarlyCheckout(jobId: string, action: 'approve' | 'reject', reason?: string) {

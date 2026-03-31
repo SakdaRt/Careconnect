@@ -478,12 +478,19 @@ export const requestEarlyCheckout = async (req, res) => {
   try {
     const caregiverId = req.userId;
     const { jobId } = req.params;
-    const { evidence_note } = req.body;
+    const { evidence_note, evidence_photo_url } = req.body;
 
     if (!evidence_note || !String(evidence_note).trim()) {
       return res.status(400).json({
         success: false,
         error: 'กรุณากรอกหลักฐานการทำงาน (สรุปงานที่ทำ)',
+      });
+    }
+
+    if (!evidence_photo_url || !String(evidence_photo_url).trim()) {
+      return res.status(400).json({
+        success: false,
+        error: 'กรุณาแนบรูปภาพหลักฐานการทำงาน',
       });
     }
 
@@ -525,6 +532,7 @@ export const requestEarlyCheckout = async (req, res) => {
         caregiver_id UUID NOT NULL,
         hirer_id UUID NOT NULL,
         evidence_note TEXT NOT NULL,
+        evidence_photo_url TEXT,
         status VARCHAR(20) NOT NULL DEFAULT 'pending',
         rejected_reason TEXT,
         responded_at TIMESTAMPTZ,
@@ -543,11 +551,14 @@ export const requestEarlyCheckout = async (req, res) => {
       return res.status(400).json({ success: false, error: 'มีคำขอส่งงานก่อนเวลาที่รอตอบรับอยู่แล้ว' });
     }
 
+    // Add column if it doesn't exist yet (idempotent)
+    await dbQuery(`ALTER TABLE early_checkout_requests ADD COLUMN IF NOT EXISTS evidence_photo_url TEXT`);
+
     const insertResult = await dbQuery(
-      `INSERT INTO early_checkout_requests (job_id, job_post_id, caregiver_id, hirer_id, evidence_note)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO early_checkout_requests (job_id, job_post_id, caregiver_id, hirer_id, evidence_note, evidence_photo_url)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [job.job_id, job.job_post_id, caregiverId, job.hirer_id, String(evidence_note).trim()]
+      [job.job_id, job.job_post_id, caregiverId, job.hirer_id, String(evidence_note).trim(), String(evidence_photo_url).trim()]
     );
 
     // Send notification to hirer
@@ -677,6 +688,7 @@ export const getEarlyCheckoutRequest = async (req, res) => {
         caregiver_id UUID NOT NULL,
         hirer_id UUID NOT NULL,
         evidence_note TEXT NOT NULL,
+        evidence_photo_url TEXT,
         status VARCHAR(20) NOT NULL DEFAULT 'pending',
         rejected_reason TEXT,
         responded_at TIMESTAMPTZ,
