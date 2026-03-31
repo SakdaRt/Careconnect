@@ -549,6 +549,24 @@ export default function JobDetailPage() {
                 <div className="text-sm text-amber-800 mb-3">
                   <span className="font-medium">สรุปงานที่ทำ:</span> {earlyCheckoutRequest.evidence_note}
                 </div>
+                {earlyCheckoutRequest.evidence_photo_url && (
+                  <div className="mb-3">
+                    <div className="text-sm font-medium text-amber-800 mb-1.5">รูปหลักฐานจากผู้ดูแล:</div>
+                    <a
+                      href={earlyCheckoutRequest.evidence_photo_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block"
+                    >
+                      <img
+                        src={earlyCheckoutRequest.evidence_photo_url}
+                        alt="รูปหลักฐานการทำงาน"
+                        className="max-h-40 max-w-full rounded-lg border border-amber-300 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                      />
+                      <div className="mt-1 text-xs text-amber-700 underline">กดเพื่อดูรูปขนาดเต็ม</div>
+                    </a>
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
                     variant="primary"

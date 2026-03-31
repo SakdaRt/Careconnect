@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat: เลือก caregiver ใน CreateJobPage = direct assignment ทันที)
+> อัพเดทล่าสุด: 2026-03-31 (feat: เพิ่มรูปหลักฐานในส่วนอนุมัติส่งงานก่อนเวลา)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,12 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — feat: แสดงรูปหลักฐานในส่วนอนุมัติส่งงานก่อนเวลา (JobDetailPage)
+
+- feat(frontend): `JobDetailPage.tsx` — เพิ่ม thumbnail รูปหลักฐาน (`evidence_photo_url`) ใน section "ผู้ดูแลขอส่งงานก่อนเวลา" ระหว่าง `evidence_note` และปุ่ม อนุมัติ/ปฏิเสธ
+- รูปแสดงเฉพาะเมื่อ `earlyCheckoutRequest.evidence_photo_url` มีค่า (conditional render)
+- กด thumbnail เพื่อเปิดรูปขนาดเต็มใน tab ใหม่
 
 ### 2026-03-31 — feat: Direct Assignment — เลือก Caregiver ใน CreateJobPage = มอบหมายงานทันที
 
