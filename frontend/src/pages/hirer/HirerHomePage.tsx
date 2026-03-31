@@ -203,7 +203,7 @@ function JobPostCard({
 
           {job.has_early_checkout_request && job.job_status === 'in_progress' && (
             <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="text-xs font-semibold text-amber-900 mb-1">ผู้ดูแลขอส่งงานก่อนเวลา</div>
+              <div className="text-xs font-semibold text-amber-900 mb-1">ผู้ดูแลขอจบงานกรณีพิเศษ</div>
               {job.early_checkout_evidence && (
                 <div className="text-xs text-amber-800 mb-2 line-clamp-2">
                   <span className="font-medium">สรุปงาน:</span> {job.early_checkout_evidence}

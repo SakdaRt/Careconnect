@@ -548,7 +548,7 @@ export const requestEarlyCheckout = async (req, res) => {
     );
 
     if (existing.rows.length > 0) {
-      return res.status(400).json({ success: false, error: 'มีคำขอส่งงานก่อนเวลาที่รอตอบรับอยู่แล้ว' });
+      return res.status(400).json({ success: false, error: 'มีคำขอจบงานกรณีพิเศษที่รอตอบรับอยู่แล้ว' });
     }
 
     // Add column if it doesn't exist yet (idempotent)
@@ -573,7 +573,7 @@ export const requestEarlyCheckout = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ',
+      message: 'ส่งคำขอจบงานกรณีพิเศษแล้ว รอผู้ว่าจ้างอนุมัติ',
       data: { request: insertResult.rows[0] },
     });
   } catch (error) {
@@ -613,7 +613,7 @@ export const respondEarlyCheckout = async (req, res) => {
     );
 
     if (reqResult.rows.length === 0) {
-      return res.status(404).json({ success: false, error: 'ไม่พบคำขอส่งงานก่อนเวลาที่รอตอบรับ' });
+      return res.status(404).json({ success: false, error: 'ไม่พบคำขอจบงานกรณีพิเศษที่รอตอบรับ' });
     }
 
     const request = reqResult.rows[0];
@@ -638,7 +638,7 @@ export const respondEarlyCheckout = async (req, res) => {
 
         return res.status(200).json({
           success: true,
-          message: 'อนุมัติส่งงานก่อนเวลาแล้ว ระบบดำเนินการเช็คเอาต์เรียบร้อย',
+          message: 'อนุมัติคำขอจบงานกรณีพิเศษแล้ว ระบบดำเนินการเช็คเอาต์เรียบร้อย',
           data: { checkout: result },
         });
       } catch (checkoutError) {
@@ -660,7 +660,7 @@ export const respondEarlyCheckout = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: 'ปฏิเสธคำขอส่งงานก่อนเวลาแล้ว',
+        message: 'ปฏิเสธคำขอจบงานกรณีพิเศษแล้ว',
       });
     }
   } catch (error) {

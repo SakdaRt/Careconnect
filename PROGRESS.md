@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (fix(job): แก้ bug selectedCaregiverId หลุดจาก sessionStorage draft ทำให้ open job ถูก assign preferred_caregiver โดยไม่ตั้งใจ)
+> อัพเดทล่าสุด: 2026-03-31 (feat(job): เปลี่ยน "ขอจบงานก่อน" → "ขอจบงานกรณีพิเศษ" + แยกเป็น 2 ปุ่มอิสระ)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,16 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — feat(job): ขอจบงานกรณีพิเศษ — แยกปุ่ม + rename labels
+
+- refactor(frontend): `ChatRoomPage.tsx` — แยก `handleOpenCheckout` (regular, direct) + `handleOpenSpecialCheckout` (special case, hirer approval เสมอ); ลบ time-based auto-trigger `checkoutIsEarly`; เพิ่มปุ่ม "ขอจบงานกรณีพิเศษ" ข้าง "ส่งงานเสร็จ"
+- refactor(frontend): `CaregiverMyJobsPage.tsx` — เหมือนกัน: แยก 2 handler + 2 ปุ่ม; แก้ modal description
+- refactor(frontend): `JobDetailPage.tsx` — rename label "ผู้ดูแลขอส่งงานก่อนเวลา" → "ผู้ดูแลขอจบงานกรณีพิเศษ" + reject modal title
+- refactor(frontend): `HirerHomePage.tsx` — rename banner label
+- refactor(backend): `jobController.js` — rename Thai messages ทุก early-checkout endpoint (400/404/201/200)
+- **พฤติกรรมใหม่**: "ส่งงานเสร็จ" → direct checkout เสมอ; "ขอจบงานกรณีพิเศษ" → hirer approval เสมอ (ไม่ว่าจะถึงเวลาหรือยัง + ไม่ต้องอยู่ในโลเคชั่นที่กำหนด)
+- verify: ✅ ไม่มี "ก่อนเวลา" labels หลงเหลือใน frontend/backend
 
 ### 2026-03-31 — fix(job): แก้ bug selectedCaregiverId หลุดจาก sessionStorage draft
 

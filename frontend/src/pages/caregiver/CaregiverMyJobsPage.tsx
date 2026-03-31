@@ -305,6 +305,16 @@ export default function CaregiverMyJobsPage() {
     }
   };
 
+  const handleOpenSpecialCheckout = (job: CaregiverAssignedJob) => {
+    setCheckoutJobId(job.id);
+    setCheckoutIsEarly(true);
+    setCheckoutNote('');
+    setCheckoutPreset('');
+    setCheckoutPhoto(null);
+    setCheckoutPhotoPreview(null);
+    setCheckoutOpen(true);
+  };
+
   const resetCheckoutModal = () => {
     setCheckoutOpen(false);
     setCheckoutJobId(null);
@@ -316,11 +326,8 @@ export default function CaregiverMyJobsPage() {
   };
 
   const handleOpenCheckout = (job: CaregiverAssignedJob) => {
-    const now = new Date();
-    const endAt = new Date(job.scheduled_end_at);
-    const isEarly = now < endAt;
     setCheckoutJobId(job.id);
-    setCheckoutIsEarly(isEarly);
+    setCheckoutIsEarly(false);
     setCheckoutNote('');
     setCheckoutPreset('');
     setCheckoutPhoto(null);
@@ -358,7 +365,7 @@ export default function CaregiverMyJobsPage() {
           toast.error(res.error || 'ส่งคำขอไม่สำเร็จ');
           return;
         }
-        toast.success('ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ');
+        toast.success('ส่งคำขอจบงานกรณีพิเศษแล้ว รอผู้ว่าจ้างอนุมัติ');
         resetCheckoutModal();
         await load();
       } else {
@@ -584,27 +591,36 @@ export default function CaregiverMyJobsPage() {
                           )}
 
                           {job.status === 'in_progress' && (job as any).early_checkout_status !== 'pending' && (
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              loading={isLoading}
-                              onClick={() => handleOpenCheckout(job)}
-                            >
-                              ส่งงานเสร็จ
-                            </Button>
+                            <>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                loading={isLoading}
+                                onClick={() => handleOpenCheckout(job)}
+                              >
+                                ส่งงานเสร็จ
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleOpenSpecialCheckout(job)}
+                              >
+                                ขอจบงานกรณีพิเศษ
+                              </Button>
+                            </>
                           )}
                         </div>
 
                         {job.status === 'in_progress' && (job as any).early_checkout_status === 'pending' && (
                           <div className="mt-2 p-2.5 bg-amber-50 border border-amber-200 rounded-lg">
-                            <div className="text-xs font-semibold text-amber-800">รอผู้ว่าจ้างอนุมัติส่งงานก่อนเวลา</div>
+                            <div className="text-xs font-semibold text-amber-800">รอผู้ว่าจ้างอนุมัติคำขอจบงานกรณีพิเศษ</div>
                             <div className="text-xs text-amber-700 mt-0.5">ระบบจะแจ้งเตือนเมื่อผู้ว่าจ้างตอบรับ</div>
                           </div>
                         )}
 
                         {job.status === 'in_progress' && (job as any).early_checkout_status === 'rejected' && (
                           <div className="mt-2 p-2.5 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="text-xs font-semibold text-red-800">ผู้ว่าจ้างปฏิเสธคำขอส่งงานก่อนเวลา</div>
+                            <div className="text-xs font-semibold text-red-800">ผู้ว่าจ้างปฏิเสธคำขอจบงานกรณีพิเศษ</div>
                             <div className="text-xs text-red-700 mt-0.5">กรุณาดูแลต่อจนถึงเวลาสิ้นสุด หรือกดส่งงานเสร็จอีกครั้ง</div>
                             <Button
                               variant="primary"
@@ -790,7 +806,7 @@ export default function CaregiverMyJobsPage() {
         <Modal
           isOpen={checkoutOpen}
           onClose={resetCheckoutModal}
-          title={checkoutIsEarly ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
+          title={checkoutIsEarly ? 'ขอจบงานกรณีพิเศษ' : 'ส่งงานเสร็จ'}
           size="sm"
           footer={
             <div className="flex gap-3 justify-end">
@@ -819,7 +835,7 @@ export default function CaregiverMyJobsPage() {
           <div className="flex flex-col gap-4">
             <p className="text-sm text-gray-600">
               {checkoutIsEarly
-                ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน'
+                ? 'ขอจบงานในกรณีพิเศษ เช่น ไม่สามารถอยู่ในโลเคชั่นที่กำหนดได้ ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน'
                 : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ'}
             </p>
 

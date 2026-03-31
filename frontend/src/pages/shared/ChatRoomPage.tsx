@@ -295,9 +295,16 @@ export default function ChatRoomPage() {
   };
 
   const handleOpenCheckout = () => {
-    const now = new Date();
-    const endAt = job?.scheduled_end_at ? new Date(job.scheduled_end_at) : null;
-    setCheckoutIsEarly(endAt ? now < endAt : false);
+    setCheckoutIsEarly(false);
+    setCheckoutNote('');
+    setCheckoutPreset('');
+    setCheckoutPhoto(null);
+    setCheckoutPhotoPreview(null);
+    setCheckoutOpen(true);
+  };
+
+  const handleOpenSpecialCheckout = () => {
+    setCheckoutIsEarly(true);
     setCheckoutNote('');
     setCheckoutPreset('');
     setCheckoutPhoto(null);
@@ -326,7 +333,7 @@ export default function ChatRoomPage() {
       if (checkoutIsEarly) {
         const res = await appApi.requestEarlyCheckout(jobId, evidenceNote, uploadRes.data.photo_url);
         if (!res.success) { toast.error(res.error || 'ส่งคำขอไม่สำเร็จ'); return; }
-        toast.success('ส่งคำขอส่งงานก่อนเวลาแล้ว รอผู้ว่าจ้างอนุมัติ');
+        toast.success('ส่งคำขอจบงานกรณีพิเศษแล้ว รอผู้ว่าจ้างอนุมัติ');
         setCheckoutOpen(false);
         await load();
       } else {
@@ -545,6 +552,14 @@ export default function ChatRoomPage() {
                     >
                       ส่งงานเสร็จ
                     </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={!canCheckOut}
+                      onClick={handleOpenSpecialCheckout}
+                    >
+                      ขอจบงานกรณีพิเศษ
+                    </Button>
                   </div>
                   <div className="text-xs text-gray-500 mt-2">สถานะงาน: {jobStatusLabel}</div>
                   <div className="text-xs text-gray-500 mt-1">{caregiverActionHint}</div>
@@ -674,7 +689,7 @@ export default function ChatRoomPage() {
         <Modal
           isOpen={checkoutOpen}
           onClose={() => setCheckoutOpen(false)}
-          title={checkoutIsEarly ? 'ขอส่งงานก่อนเวลา' : 'ส่งงานเสร็จ'}
+          title={checkoutIsEarly ? 'ขอจบงานกรณีพิเศษ' : 'ส่งงานเสร็จ'}
           size="sm"
           footer={
             <div className="flex gap-3 justify-end">
@@ -692,7 +707,7 @@ export default function ChatRoomPage() {
         >
           <div className="flex flex-col gap-4">
             <p className="text-sm text-gray-600">
-              {checkoutIsEarly ? 'ยังไม่ถึงเวลาสิ้นสุดงาน ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน' : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ'}
+              {checkoutIsEarly ? 'ขอจบงานในกรณีพิเศษ เช่น ไม่สามารถอยู่ในโลเคชั่นที่กำหนดได้ ระบบจะส่งคำขอไปให้ผู้ว่าจ้างอนุมัติก่อน' : 'กรุณาเลือกสิ่งที่ทำเป็นหลักฐาน และแนบรูปภาพ'}
             </p>
             <div className="flex flex-wrap gap-2">
               {CHECKOUT_PRESETS.map((preset) => (

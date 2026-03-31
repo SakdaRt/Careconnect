@@ -542,7 +542,7 @@ export default function JobDetailPage() {
             {/* Early checkout request — visible to hirer */}
             {!isCaregiverView && earlyCheckoutRequest?.status === 'pending' && ((job as any).job_status === 'in_progress' || job.status === 'in_progress') && (
               <div className="mt-5 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                <div className="text-sm font-semibold text-amber-900 mb-2">ผู้ดูแลขอส่งงานก่อนเวลา</div>
+                <div className="text-sm font-semibold text-amber-900 mb-2">ผู้ดูแลขอจบงานกรณีพิเศษ</div>
                 <div className="text-sm text-amber-800 mb-1">
                   <span className="font-medium">ผู้ดูแล:</span> {earlyCheckoutRequest.caregiver_name || 'ผู้ดูแล'}
                 </div>
@@ -577,7 +577,7 @@ export default function JobDetailPage() {
                       try {
                         const res = await appApi.respondEarlyCheckout(job.job_id || id || '', 'approve');
                         if (res.success) {
-                          toast.success('อนุมัติส่งงานก่อนเวลาแล้ว');
+                          toast.success('อนุมัติคำขอจบงานกรณีพิเศษแล้ว');
                           setEarlyCheckoutRequest(null);
                           await load();
                         } else {
@@ -773,7 +773,7 @@ export default function JobDetailPage() {
             try {
               const res = await appApi.respondEarlyCheckout(job.job_id || id || '', 'reject', reason);
               if (res.success) {
-                toast.success('ปฏิเสธคำขอส่งงานก่อนเวลาแล้ว');
+                toast.success('ปฏิเสธคำขอจบงานกรณีพิเศษแล้ว');
                 setEarlyCheckoutRequest({ ...earlyCheckoutRequest, status: 'rejected' });
                 setRejectEarlyCheckoutOpen(false);
               } else {
@@ -783,7 +783,7 @@ export default function JobDetailPage() {
               setEarlyCheckoutLoading(false);
             }
           }}
-          title="ปฏิเสธคำขอส่งงานก่อนเวลา"
+          title="ปฏิเสธคำขอจบงานกรณีพิเศษ"
           description="กรุณาอธิบายเหตุผลที่ปฏิเสธ เพื่อให้ผู้ดูแลเข้าใจ"
           placeholder="อธิบายเหตุผลในการปฏิเสธ..."
           confirmText="ยืนยันปฏิเสธ"
