@@ -123,6 +123,16 @@ posted → expired (หมดอายุ)
 max 3 replacement chains per job_post
 ```
 
+### Direct Assignment Path (CreateJobPage Step 4)
+
+เมื่อ hirer เลือก caregiver ในขั้นตอนสร้างงาน:
+1. `POST /api/jobs` — สร้าง draft พร้อม `preferred_caregiver_id` (backend รับค่าจาก request body)
+2. `POST /api/jobs/:id/publish` — auto-publish ทันที (frontend เรียกต่อเนื่อง)
+3. job_post.status = `posted` + `preferred_caregiver_id` set → caregiver เห็นเฉพาะ job นี้เท่านั้น
+4. caregiver กด accept → flow ปกติ (assigned → in_progress → completed)
+
+> ก่อนหน้านี้ backend hardcode `preferred_caregiver_id = null` ใน `createJob` → แก้แล้ว (2026-03-31)
+
 ---
 
 ## 4. Payment Flow (Double-entry Ledger)

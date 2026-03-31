@@ -743,6 +743,7 @@ export default function CreateJobPage() {
   const [previewReviews, setPreviewReviews] = useState<any[]>([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [successJobId, setSuccessJobId] = useState<string | null>(null);
+  const [isDirectAssignment, setIsDirectAssignment] = useState(false);
 
   const initialDetailedType = (serviceParam && DETAILED_JOB_TEMPLATES[serviceParam]) ? serviceParam : DEFAULT_DETAILED_JOB_TYPE;
   const initialTemplate = DETAILED_JOB_TEMPLATES[initialDetailedType];
@@ -1586,6 +1587,20 @@ export default function CreateJobPage() {
       setReviewOpen(false);
       setPendingPayload(null);
 
+      const directCaregiverId = selectedCaregiverId || preferredCaregiverIdParam;
+      if (directCaregiverId && !shouldReturnToAssign) {
+        const pubRes = await appApi.publishJob(createdJob.id, hirerId);
+        if (!pubRes.success) {
+          const errMsg = typeof pubRes.error === 'string' ? pubRes.error : 'เผยแพร่งานไม่สำเร็จ';
+          toast.error(errMsg);
+          setSuccessJobId(createdJob.id);
+          return;
+        }
+        setIsDirectAssignment(true);
+        setSuccessJobId(createdJob.id);
+        return;
+      }
+
       if (shouldReturnToAssign && preferredCaregiverIdParam) {
         const returnParams = new URLSearchParams();
         returnParams.set('resume_assign', '1');
@@ -1601,6 +1616,7 @@ export default function CreateJobPage() {
         return;
       }
 
+      setIsDirectAssignment(false);
       setSuccessJobId(createdJob.id);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'สร้างงานไม่สำเร็จ');
@@ -2418,32 +2434,47 @@ export default function CreateJobPage() {
         {successJobId && (
           <div className="space-y-5 text-center py-4">
             <div className="text-5xl">✅</div>
-            <h2 className="text-xl font-bold text-gray-900">สร้างงานสำเร็จแล้ว!</h2>
+            <h2 className="text-xl font-bold text-gray-900">{isDirectAssignment ? 'มอบหมายงานสำเร็จแล้ว!' : 'สร้างงานสำเร็จแล้ว!'}</h2>
             <p className="text-sm text-gray-600">
-              {(selectedCaregiverId || preferredCaregiverIdParam)
-                ? 'งานถูกบันทึกเป็นแบบร่างแล้ว เผยแพร่จากหน้า "งานของฉัน" เพื่อส่งงานให้ผู้ดูแล'
+              {isDirectAssignment
+                ? 'งานถูกส่งให้ผู้ดูแลที่คุณเลือกแล้ว กรุณารอการตอบรับ'
                 : 'งานถูกบันทึกเป็นแบบร่างแล้ว เผยแพร่จากหน้า "งานของฉัน" เพื่อเปิดรับสมัครผู้ดูแล'}
             </p>
 
             <Card padding="responsive" className="text-left">
               <div className="text-sm font-semibold text-gray-900 mb-2">สิ่งที่ควรทำต่อ</div>
               <div className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold text-sm mt-0.5">1</span>
-                  <div className="text-sm text-gray-700">ไปที่ <strong>หน้า "งานของฉัน"</strong> เพื่อเผยแพร่งาน</div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold text-sm mt-0.5">2</span>
-                  <div className="text-sm text-gray-700">
-                    {(selectedCaregiverId || preferredCaregiverIdParam)
-                      ? 'รอผู้ดูแลตอบรับงาน จากนั้นแชทเพื่อนัดรายละเอียด'
-                      : 'รอผู้ดูแลสมัครเข้ามา จากนั้นเลือกผู้ดูแลที่เหมาะสม'}
-                  </div>
-                </div>
-                <div className="flex items-start gap-2">
-                  <span className="text-green-600 font-bold text-sm mt-0.5">3</span>
-                  <div className="text-sm text-gray-700">สามารถแก้ไขหรือยกเลิกงานได้ก่อนเริ่มงาน</div>
-                </div>
+                {isDirectAssignment ? (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold text-sm mt-0.5">1</span>
+                      <div className="text-sm text-gray-700">รอผู้ดูแลตอบรับงาน — ระบบจะแจ้งเตือนคุณทันที</div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold text-sm mt-0.5">2</span>
+                      <div className="text-sm text-gray-700">เมื่อผู้ดูแลตอบรับแล้ว สามารถแชทเพื่อนัดรายละเอียดได้</div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold text-sm mt-0.5">3</span>
+                      <div className="text-sm text-gray-700">สามารถยกเลิกงานได้ก่อนผู้ดูแลตอบรับ</div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold text-sm mt-0.5">1</span>
+                      <div className="text-sm text-gray-700">ไปที่ <strong>หน้า "งานของฉัน"</strong> เพื่อเผยแพร่งาน</div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold text-sm mt-0.5">2</span>
+                      <div className="text-sm text-gray-700">รอผู้ดูแลสมัครเข้ามา จากนั้นเลือกผู้ดูแลที่เหมาะสม</div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <span className="text-green-600 font-bold text-sm mt-0.5">3</span>
+                      <div className="text-sm text-gray-700">สามารถแก้ไขหรือยกเลิกงานได้ก่อนเริ่มงาน</div>
+                    </div>
+                  </>
+                )}
               </div>
             </Card>
 
@@ -2468,7 +2499,7 @@ export default function CreateJobPage() {
               ถัดไป →
             </Button>
           ) : (
-            <Button variant="primary" fullWidth loading={loading} onClick={openReview}>✓ ยืนยันบันทึกแบบร่าง</Button>
+            <Button variant="primary" fullWidth loading={loading} onClick={openReview}>{(selectedCaregiverId || preferredCaregiverIdParam) ? '✓ ยืนยันมอบหมายงาน' : '✓ ยืนยันบันทึกแบบร่าง'}</Button>
           )}
         </div>
       )}

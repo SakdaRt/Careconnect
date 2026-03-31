@@ -178,9 +178,7 @@ export const createJob = async (hirerId, jobData) => {
     throw new ValidationError('Please select at least one job task', { code: 'JOB_TASKS_REQUIRED', field: 'job_tasks_flags', section: 'job_tasks' });
   }
 
-  // Creation always starts as an open post. A specific caregiver can be set later
-  // via explicit assignment flow only.
-  const preferred_caregiver_id = null;
+  const preferred_caregiver_id = jobData.preferred_caregiver_id || null;
 
   let patientProfile = null;
   if (jobData.patient_profile_id) {

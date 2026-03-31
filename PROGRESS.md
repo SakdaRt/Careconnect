@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat: บังคับแนบรูปภาพทั้งส่งงานปกติและขอส่งงานก่อนเวลา)
+> อัพเดทล่าสุด: 2026-03-31 (feat: เลือก caregiver ใน CreateJobPage = direct assignment ทันที)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,16 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-03-31 — feat: Direct Assignment — เลือก Caregiver ใน CreateJobPage = มอบหมายงานทันที
+
+- fix(backend): `jobService.js` `createJob` — ลบ hardcode `preferred_caregiver_id = null` → ใช้ `jobData.preferred_caregiver_id || null`
+- feat(frontend): `CreateJobPage.tsx` `handleSubmit` — เมื่อ `selectedCaregiverId` หรือ `preferredCaregiverIdParam` มีค่า (และ `!shouldReturnToAssign`) → auto-call `appApi.publishJob` ต่อจาก `createJob`; set `isDirectAssignment = true` เมื่อ publish สำเร็จ
+- feat(frontend): `CreateJobPage.tsx` success screen — แสดง "มอบหมายงานสำเร็จแล้ว!" + รายการ steps สำหรับ direct assignment flow แทน "บันทึกแบบร่าง"
+- feat(frontend): `CreateJobPage.tsx` confirm button — เปลี่ยนเป็น "✓ ยืนยันมอบหมายงาน" เมื่อเลือก caregiver
+- root cause: `createJob` backend เคย hardcode `preferred_caregiver_id = null` ทำให้ caregiver ที่เลือกถูก ignore; job บันทึกเป็น draft เสมอ — แก้แล้ว
+- flow ใหม่: เลือก CG → Submit → createJob (draft + preferred_caregiver_id) → publishJob (wallet hold + status=posted) → success "มอบหมายงาน"
+- flow เดิม (ไม่เลือก CG) และ `shouldReturnToAssign` flow จาก search page ยังทำงานปกติ
 
 ### 2026-03-31 — feat: Checkout Photo Upload — บังคับแนบรูปภาพตอนส่งงาน
 
