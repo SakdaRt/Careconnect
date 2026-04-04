@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.)
+> อัพเดทล่าสุด: 2026-04-04 (docs(system): เพิ่มคู่มือการติดตั้งระบบ INSTALLATION.md)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -223,6 +223,23 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-04 — docs(system): เพิ่มคู่มือการติดตั้งระบบ INSTALLATION.md
+
+- docs: สร้าง `INSTALLATION.md` (976 บรรทัด, 13 หัวข้อ) — คู่มือการติดตั้งระบบ CareConnect ครบวงจร
+  - §1 ภาพรวมระบบ (architecture diagram + ส่วนประกอบ 4 ส่วน)
+  - §2 ความต้องการระบบ: ฮาร์ดแวร์ (dev/prod), ซอฟต์แวร์ (Docker vs Manual), OS ที่รองรับ
+  - §3 การดาวน์โหลดซอร์สโค้ด: Git Clone, Download ZIP, Upload Source Code
+  - §4 โครงสร้างโปรเจค (directory tree + คำอธิบาย)
+  - §5 การติดตั้งแบบ Docker: 7 ขั้นตอน (build → start → migration → seed → verify)
+  - §6 การติดตั้งแบบ Manual: 10 ขั้นตอน (Node.js + PostgreSQL + npm install)
+  - §7 Environment Variables: Dev (.env ตัวอย่างครบ), Optional (Google OAuth, Stripe, SMS, Email), Production
+  - §8 การตั้งค่าฐานข้อมูล: schema, migrations, demo seed
+  - §9 การรันระบบ Development (Docker + Manual + verify checklist)
+  - §10 การรันระบบ Production (build, deploy, Dev vs Prod differences, Nginx, SSL)
+  - §11 การทดสอบระบบ (Jest, Playwright, k6)
+  - §12 การแก้ไขปัญหาที่พบบ่อย (7 ปัญหาพร้อมวิธีแก้)
+  - §13 ภาคผนวก — รายการ Port ที่ใช้งาน
 
 ### 2026-03-31 — feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.
 
