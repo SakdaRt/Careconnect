@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-04 (docs(system): เพิ่มคู่มือการติดตั้งระบบ INSTALLATION.md)
+> อัพเดทล่าสุด: 2026-04-04 (docs(guide): เพิ่ม DEVELOPER_GUIDE.md และแก้ไข INSTALLATION.md ให้ตรงกับโค้ดจริง)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -40,7 +40,7 @@ careconnect/
 │   │   └── migrations/
 │   └── tests/           Jest integration + unit (17 test files)
 ├── database/
-│   └── schema.sql             master schema (41 tables, 1470 lines)
+│   └── schema.sql             master schema (41 tables, 1143 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
@@ -219,10 +219,29 @@ careconnect/
 | `backend/src/services/walletService.js`   | Wallet business logic (topup/withdraw/admin)    |
 | `frontend/src/components/ui/AvatarUpload.tsx` | Avatar upload + crop component              |
 | `frontend/src/utils/trustLevel.ts`        | Trust level labels, config, checklist utility    |
+| `DEVELOPER_GUIDE.md`                      | คู่มือนักพัฒนา (architecture, modules, flowcharts, parameters) |
+| `INSTALLATION.md`                         | คู่มือการติดตั้งระบบ (Docker, Manual, env vars, production) |
 
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-04 — docs(guide): เพิ่ม DEVELOPER_GUIDE.md และแก้ไข INSTALLATION.md ให้ตรงกับโค้ดจริง
+
+- docs: สร้าง `DEVELOPER_GUIDE.md` (2,273 บรรทัด, 10 sections + appendix) — คู่มือนักพัฒนา CareConnect
+  - §1-3 ภาพรวมระบบ + โครงสร้าง + ระบบ Authentication
+  - §4 Backend modules (controllers 17 + services 12 + models 9 + routes 17 = 148 endpoints)
+  - §5 Frontend modules (pages 49 + components 21 + layouts 4 + 52 routes)
+  - §6 Database (41 tables, 15+21 migrations, ERD)
+  - §7 Mock Provider
+  - §8 Flowcharts (Registration, Job lifecycle, Payment, Trust level, Chat, KYC, Notification)
+  - §9 Module relationships (backend + frontend + cross-system + service-to-service)
+  - §10 Parameter details (request/response format, controller-service, service-model contracts)
+  - Appendix A: การรัน dev/test, Appendix B: สรุปจำนวนไฟล์ทั้งหมด
+- docs: แก้ไข `INSTALLATION.md` ให้ตรงกับโค้ดจริง:
+  - schema.sql line count ~1,470 → ~1,143
+  - เพิ่ม Makefile, .env.example, load-tests/, database/migrations/, DEVELOPER_GUIDE.md ใน file tree
+- verification: ตรวจสอบทุกตัวเลขจาก source code จริง (file counts, function names, route paths, endpoint counts, DB schema)
 
 ### 2026-04-04 — docs(system): เพิ่มคู่มือการติดตั้งระบบ INSTALLATION.md
 

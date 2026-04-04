@@ -206,14 +206,20 @@ careconnect/
 │   └── Dockerfile.dev
 │
 ├── database/
-│   └── schema.sql               # Master DB schema (41 tables, ~1,470 lines)
+│   ├── schema.sql               # Master DB schema (41 tables, ~1,143 lines)
+│   └── migrations/              # Schema migrations (15 files, applied by Docker initdb)
+│
+├── load-tests/                  # k6 load/smoke/soak test scripts
 │
 ├── docker-compose.yml           # Development environment (หลัก)
 ├── docker-compose.override.yml  # Development overrides (hot-reload)
 ├── docker-compose.prod.yml      # Production environment
 ├── docker-compose.test.yml      # Test environment
+├── Makefile                     # Docker shortcut commands (make dev, make prod, etc.)
+├── .env.example                 # ตัวอย่าง environment variables
 ├── SYSTEM.md                    # System documentation
 ├── PROGRESS.md                  # Progress log
+├── DEVELOPER_GUIDE.md           # คู่มือนักพัฒนา
 └── INSTALLATION.md              # คู่มือนี้
 ```
 
