@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-05 (feat(otp): graceful SMS/email fallback + frontend dev code toast display)
+> อัพเดทล่าสุด: 2026-04-05 (fix(db): add missing patient_profile_id column to job_posts)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -225,6 +225,12 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-05 — fix(db): add missing patient_profile_id column to job_posts
+
+- **root cause**: `job_posts` table ไม่มี column `patient_profile_id` ทั้งที่ `schema.sql` กำหนดไว้ และ `Job.getHirerJobs` SQL อ้างถึง `jp.patient_profile_id` → `500 errorMissingColumn`
+- fix(db): `20260405_02_job_posts_patient_profile_id.sql` — `ALTER TABLE job_posts ADD COLUMN IF NOT EXISTS patient_profile_id UUID REFERENCES patient_profiles(id)` + index
+- ผล: hirer home page (`GET /api/jobs/my-jobs`) ทำงานได้อีกครั้ง ไม่ขึ้น "Failed to get jobs"
 
 ### 2026-04-05 — feat(otp): graceful SMS/email fallback + frontend dev code toast display
 
