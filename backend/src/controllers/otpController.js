@@ -6,6 +6,14 @@
 import otpService from '../services/otpService.js';
 import { query } from '../utils/db.js';
 
+const sanitizeOtpData = (result) => {
+  if (process.env.NODE_ENV !== 'production' || !result || typeof result !== 'object') {
+    return result;
+  }
+  const { _dev_code, ...safeResult } = result;
+  return safeResult;
+};
+
 /**
  * Send email OTP
  * POST /api/otp/email/send
@@ -63,7 +71,7 @@ export const sendEmailOtp = async (req, res) => {
     res.json({
       success: true,
       message: 'OTP sent to email',
-      data: result,
+      data: sanitizeOtpData(result),
     });
   } catch (error) {
     console.error('[OTP Controller] Send email OTP error:', error);
@@ -132,7 +140,7 @@ export const sendPhoneOtp = async (req, res) => {
     res.json({
       success: true,
       message: 'OTP sent to phone',
-      data: result,
+      data: sanitizeOtpData(result),
     });
   } catch (error) {
     console.error('[OTP Controller] Send phone OTP error:', error);
@@ -240,7 +248,7 @@ export const resendOtp = async (req, res) => {
     res.json({
       success: true,
       message: 'OTP resent',
-      data: result,
+      data: sanitizeOtpData(result),
     });
   } catch (error) {
     console.error('[OTP Controller] Resend OTP error:', error);

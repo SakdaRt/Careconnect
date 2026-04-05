@@ -69,9 +69,19 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_ACCOUNT_ID: ${STRIPE_ACCOUNT_ID:-}
-      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mock}
+      SMS_PROVIDER: ${SMS_PROVIDER:?SMS_PROVIDER is required}
+      SMSOK_API_URL: ${SMSOK_API_URL:-https://api.smsok.co/s}
+      SMSOK_API_KEY: ${SMSOK_API_KEY:-}
+      SMSOK_API_SECRET: ${SMSOK_API_SECRET:-}
+      SMSOK_SENDER: ${SMSOK_SENDER:-CareConnect}
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:?EMAIL_PROVIDER is required}
       EMAIL_FROM: ${EMAIL_FROM:-noreply@careconnect.local}
-      PUSH_PROVIDER: ${PUSH_PROVIDER:-mock}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      PUSH_PROVIDER: ${PUSH_PROVIDER:?PUSH_PROVIDER is required}
       TZ: ${TZ:-Asia/Bangkok}
       UPLOAD_DIR: /app/uploads
       MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}

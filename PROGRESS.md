@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-05 (fix(url): dynamic URL resolution — ป้องกัน localhost/domain ข้ามกัน)
+> อัพเดทล่าสุด: 2026-04-05 (env: separate dev/prod env + OTP debug safety)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -63,6 +63,12 @@ careconnect/
 - [x] Auto-create profile (display_name) ตอน register
 - [x] RequireProfile guard — บังคับตั้งชื่อก่อนใช้งาน
 - [x] Email/phone masked ใน TopBar dropdown
+
+### Environment & Deployment
+
+- [x] Mode-aware env loading — รองรับ `.env` + optional `.env.development` / `.env.production`
+- [x] Production env validation — require provider-specific secrets ตาม provider ที่เลือกใช้จริง
+- [x] OTP debug safety — backend ส่ง/strip `_dev_code` เฉพาะ dev และ frontend toast แสดงเฉพาะ dev build
 
 ### Trust Level System
 
@@ -199,11 +205,13 @@ careconnect/
 | `frontend/src/router.tsx`                 | Route definitions + guards                      |
 | `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequirePolicy, RequireProfile, RequireAdmin |
 | `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
+| `frontend/src/utils/otpDebug.ts`          | helper กลางสำหรับแสดง OTP debug toast เฉพาะ dev build |
 | `frontend/src/services/api.ts`            | fetch-based ApiClient + API methods             |
 | `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
 | `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
 | `frontend/src/layouts/MainLayout.tsx`     | Layout หลัก (TopBar + BottomBar)                |
 | `frontend/src/layouts/AdminLayout.tsx`    | Layout admin (sidebar)                          |
+| `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
 | `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
@@ -226,22 +234,29 @@ careconnect/
 
 ## Git Log (งานล่าสุด)
 
-### 2026-04-05 — fix(url): dynamic URL resolution — ป้องกัน localhost/domain ข้ามกัน
+### 2026-04-05 — feat(env): separate dev/prod env loading and OTP debug safety
 
-- **root cause**: backend URL functions (`getBaseUrl`, `getFrontendBaseUrl`, `getCallbackUrl`) ใช้ env var (`FRONTEND_URL`, `GOOGLE_CALLBACK_URL`) ก่อน request headers → เมื่อเข้าผ่าน localhost แต่ env ตั้งเป็น domain ทำให้ redirect ข้าม origin
-- **Docker issue**: Vite proxy `changeOrigin: true` เปลี่ยน Host header เป็น Docker internal name (`backend:3000`) → callback URL ผิด
-- fix(backend): `authController.js` — reorder priority: `origin` → `referer` → `x-forwarded-host` → env var → fallback
-- fix(backend): `authController.js` — `getCallbackUrl` ใช้ frontend origin แทน backend host (เพราะ Vite/nginx proxy route `/api` ไป backend)
-- fix(backend): `authController.js` — `googleCallback` ใช้ saved frontend cookie สำหรับ callback URL matching
-- fix(backend): `walletController.js` — ส่ง `frontendBaseUrl` จาก request ไปให้ `walletService.initiateTopup()`
-- fix(backend): `walletService.js` — รับ `frontendBaseUrl` parameter สำหรับ Stripe `success_url`/`cancel_url`
-- fix(backend): `walletService.js` — mock payment URL ใช้ `mockProviderUrl` env แทน hardcoded `localhost:4000`
-- fix(frontend): `vite.config.ts` — เพิ่ม `X-Forwarded-Host` header ใน `/api` proxy configure callback
-- fix(frontend): `nginx.conf` — เพิ่ม `/uploads/` proxy location (production ขาดไป)
-- fix(frontend): `nginx.conf` — เพิ่ม `X-Forwarded-Host $host` ทุก proxy location
-- **files**: `authController.js`, `walletController.js`, `walletService.js`, `vite.config.ts`, `nginx.conf`
-- **test results**: ✅ redirect_uri = `localhost:5173` เมื่อเข้าผ่าน localhost (ทั้งมี/ไม่มี Referer) | ✅ backend syntax check pass | ✅ health check OK
-- **note**: Google OAuth ต้องลงทะเบียน redirect URI ทั้ง localhost และ domain ใน Google Cloud Console
+- feat(backend): `backend/src/config/loadEnv.js` — โหลด root/backend `.env` แล้วตามด้วย optional `.env.<mode>` overlays โดยไม่ override env ที่ inject จากภายนอก
+- feat(backend): `backend/src/server.js` — production env validation require `EMAIL_PROVIDER`, `SMS_PROVIDER`, `PUSH_PROVIDER` และ secrets ของ provider ที่เลือกใช้จริง
+- feat(backend): `backend/src/controllers/authController.js`, `backend/src/controllers/otpController.js` — เพิ่ม safety guard ไม่ให้ `_dev_code` หลุดใน production responses
+- fix(backend): `backend/src/services/otpService.js` — registration OTP respect `EMAIL_PROVIDER`; SMTP/SMSOK fail → fallback mock โดยไม่ลบ OTP; ใช้ default `SMSOK_API_URL=https://api.smsok.co/s`
+- feat(frontend): `frontend/src/utils/otpDebug.ts` — รวม logic toast `_dev_code` แบบ dev-only แล้วผูกใช้ใน `GuestRegisterPage.tsx`, `MemberRegisterPage.tsx`, `ProfilePage.tsx`
+- feat(frontend): `frontend/src/vite-env.d.ts` — เพิ่ม type definition สำหรับ Vite env variables
+- docs: `.env.example`, `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `docker-compose.prod.yml` — แยก dev/prod env ให้ชัด, ใช้ `.env.production`, และระบุว่า production ห้ามคืน/แสดง OTP debug code
+- verify: grep ไม่พบ `api.smsok.co/api/v1/s` ค้างใน repo; targeted lint backend/frontend ผ่านแบบไม่มี error (backend มี warnings เดิม 5 จุดเรื่อง unused vars); production smoke rerun ผ่านด้วย env inline + dynamic free port — backend import `stripe` ได้, env validation ผ่าน, ต่อ PostgreSQL สำเร็จ, และ start server ใน `NODE_ENV=production` ได้จริง
+- verify: ตรวจ local backend install-state พบว่า package `stripe` หายจาก `node_modules` แม้อยู่ใน `package.json` และ `package-lock.json` → รัน `npm install` ใน `backend/` เพื่อ restore dependency
+- **files**: `.env.example`, `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `docker-compose.prod.yml`, `backend/src/config/loadEnv.js`, `backend/src/server.js`, `backend/src/services/otpService.js`, `backend/src/controllers/authController.js`, `backend/src/controllers/otpController.js`, `frontend/src/utils/otpDebug.ts`, `frontend/src/vite-env.d.ts`, `frontend/src/pages/auth/GuestRegisterPage.tsx`, `frontend/src/pages/auth/MemberRegisterPage.tsx`, `frontend/src/pages/shared/ProfilePage.tsx`
+
+### 2026-04-05 — docs(guide): sync DEVELOPER_GUIDE.md with verified source code
+
+- ตรวจ `DEVELOPER_GUIDE.md` เทียบกับ source code จริงอีกครั้ง โดยเน้น `authController.js`, `authService.js`, `AuthContext.tsx`, `api.ts`, `router.tsx`, `chatSocket.js`, `errors.js`, `trustLevelWorker.js`, `schema.sql`, `docker-compose.yml`, `docker-compose.prod.yml`
+- แก้จำนวน endpoints ใน file tree ให้ตรงกับ route files จริง (`authRoutes` 21, `walletRoutes` 21, `adminRoutes` 23 และ summary รวม 145 endpoints)
+- แก้ flow `RoleSelectionPage` และ Frontend dependency map ให้ตรงกับ implementation ปัจจุบัน
+- กู้ section `10. รายละเอียดพารามิเตอร์ระหว่างโปรแกรมย่อย` กลับมาใหม่ โดยใส่เฉพาะข้อมูลที่ `verified from code`
+- อัพเดท auth contract ในเอกสาร: registration responses เป็น OTP metadata, login/refresh ใช้ `accessToken`/`refreshToken`, avatar upload ตอบ `avatar_version`
+- อัพเดทชื่อ methods ฝั่ง frontend API/AuthContext ให้ตรงกับ implementation ปัจจุบัน (`loginWithEmail`, `loginWithPhone`, `getCurrentUser`, `getMyProfile`, `updateMyProfile` ฯลฯ)
+- แก้คำอธิบาย response patterns ให้สะท้อนโค้ดจริงว่าปัจจุบันมีหลาย shape ไม่ได้ uniform 100%
+- **files**: `DEVELOPER_GUIDE.md`
 
 ### 2026-04-05 — fix(db): add missing patient_profile_id column to job_posts
 

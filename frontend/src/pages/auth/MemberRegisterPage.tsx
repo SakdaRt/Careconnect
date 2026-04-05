@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../contexts';
 import { setScopedStorageItem } from '../../utils/authStorage';
+import { showDevOtpToast } from '../../utils/otpDebug';
 
 type Step = 'phone' | 'otp' | 'password';
 
@@ -151,9 +152,7 @@ export default function MemberRegisterPage() {
         }
         setOtpId(response.data.otp_id);
         setOtpTimerKey(k => k + 1);
-        if ((response.data as any)._dev_code) {
-          toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
-        } else {
+        if (!showDevOtpToast(response.data, 'sms')) {
           toast.success('ส่งรหัส OTP แล้ว');
         }
         return;
@@ -166,9 +165,7 @@ export default function MemberRegisterPage() {
       setOtpId(response.data.otp_id);
       setFormData({ ...formData, otp: '' });
       setOtpTimerKey(k => k + 1);
-      if ((response.data as any)._dev_code) {
-        toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
-      } else {
+      if (!showDevOtpToast(response.data, 'sms')) {
         toast.success('ส่งรหัส OTP ใหม่แล้ว');
       }
     } catch (error: any) {
@@ -209,9 +206,7 @@ export default function MemberRegisterPage() {
     try {
       const result = await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
       setOtpId(result.otp_id);
-      if (result._dev_code) {
-        toast(`รหัส OTP: ${result._dev_code}`, { icon: '🔑', duration: 15000 });
-      } else {
+      if (!showDevOtpToast(result, 'sms')) {
         toast.success('ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยัน');
       }
       setStep('otp');

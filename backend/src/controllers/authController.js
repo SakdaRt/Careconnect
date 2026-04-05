@@ -528,7 +528,11 @@ export const registerGuest = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี',
-      data: { otp_id: result.otp_id, expires_in: result.expires_in, ...(result._dev_code ? { _dev_code: result._dev_code } : {}) },
+      data: {
+        otp_id: result.otp_id,
+        expires_in: result.expires_in,
+        ...(process.env.NODE_ENV !== 'production' && result._dev_code ? { _dev_code: result._dev_code } : {}),
+      },
     });
   } catch (error) {
     console.error('[Auth Controller] Register guest error:', error);
@@ -578,7 +582,11 @@ export const registerMember = async (req, res) => {
     res.status(200).json({
       success: true,
       message: 'ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยันเพื่อสร้างบัญชี',
-      data: { otp_id: result.otp_id, expires_in: result.expires_in, ...(result._dev_code ? { _dev_code: result._dev_code } : {}) },
+      data: {
+        otp_id: result.otp_id,
+        expires_in: result.expires_in,
+        ...(process.env.NODE_ENV !== 'production' && result._dev_code ? { _dev_code: result._dev_code } : {}),
+      },
     });
   } catch (error) {
     console.error('[Auth Controller] Register member error:', error);

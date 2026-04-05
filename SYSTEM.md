@@ -1107,7 +1107,8 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ### Backend (Root `.env`)
 
 > Source of truth: `/home/careconnect/Careconnect/.env`
-> Loader: `backend/src/config/loadEnv.js` (โหลด root `.env` ก่อน แล้ว fallback ไป `backend/.env` หากมี)
+> Loader: `backend/src/config/loadEnv.js` (โหลด root `.env` และ `backend/.env` ก่อน แล้วค่อย overlay optional `.env.<NODE_ENV>` / `backend/.env.<NODE_ENV>` โดยไม่ override env ที่ inject จากภายนอก)
+> Validation: `backend/src/server.js` ใช้ Joi validate env ตอน startup; `NODE_ENV=production` บังคับ core secrets และ provider-specific vars ตาม provider ที่เลือกใช้จริง
 
 ```env
 NODE_ENV=development
@@ -1148,16 +1149,16 @@ WEBHOOK_BASE_URL=http://backend:3000
 WEBHOOK_SECRET=your_webhook_secret
 
 # SMS - SMSOK (production)
-# Note: ถ้า SMS_PROVIDER=smsok แต่ไม่มี SMSOK_API_KEY/SECRET → auto-fallback เป็น mock
-# ถ้า SMSOK ส่งไม่สำเร็จ (API error/หมดเครดิต) → fallback mock, OTP ไม่ถูกลบ
-# dev mode (NODE_ENV≠production) จะ return _dev_code ใน response ให้ frontend แสดง toast
+# Note: dev/test ใช้ SMS_PROVIDER=mock และปล่อย SMSOK_* ว่างได้
+# ถ้าเลือก SMS_PROVIDER=smsok ต้องตั้ง SMSOK_* ให้ครบ; production startup จะ fail ถ้าขาดค่า required
+# ถ้า SMSOK ส่งไม่สำเร็จ runtime จะ fallback mock และ OTP ไม่ถูกลบ; `_dev_code` จะมีเฉพาะ dev mode และ production controllers จะ omit/strip ออก
 SMSOK_API_URL=https://api.smsok.co/s
 SMSOK_API_KEY=
 SMSOK_API_SECRET=
 SMSOK_SENDER=CareConnect
 
 # Email (production)
-# Note: ถ้า EMAIL_PROVIDER=smtp แต่ SMTP ส่งไม่สำเร็จ → fallback mock, OTP ไม่ถูกลบ
+# Note: dev/test ใช้ EMAIL_PROVIDER=mock และปล่อย SMTP_* ว่างได้; ถ้าเลือก smtp ต้องตั้ง SMTP_* ให้ครบ และถ้า SMTP ส่งไม่สำเร็จ runtime จะ fallback mock โดยไม่ลบ OTP
 EMAIL_PROVIDER=mock
 EMAIL_FROM=noreply@careconnect.local
 SMTP_HOST=

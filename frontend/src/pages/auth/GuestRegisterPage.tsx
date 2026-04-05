@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 import { setScopedStorageItem } from '../../utils/authStorage';
+import { showDevOtpToast } from '../../utils/otpDebug';
 
 type Step = 'credentials' | 'otp';
 
@@ -116,9 +117,7 @@ export default function GuestRegisterPage() {
     try {
       const result = await registerGuest(formData.email, formData.password, 'hirer');
       setOtpId(result.otp_id);
-      if (result._dev_code) {
-        toast(`รหัส OTP: ${result._dev_code}`, { icon: '🔑', duration: 15000 });
-      } else {
+      if (!showDevOtpToast(result, 'email')) {
         toast.success('ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี');
       }
       startCooldown();
@@ -176,9 +175,7 @@ export default function GuestRegisterPage() {
           return;
         }
         setOtpId(response.data.otp_id);
-        if ((response.data as any)._dev_code) {
-          toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
-        } else {
+        if (!showDevOtpToast(response.data, 'email')) {
           toast.success('OTP sent to your email');
         }
         startCooldown();
@@ -196,9 +193,7 @@ export default function GuestRegisterPage() {
       setFormData({ ...formData, otp: '' });
       setOtpTimerKey(k => k + 1);
       startCooldown();
-      if ((response.data as any)._dev_code) {
-        toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
-      } else {
+      if (!showDevOtpToast(response.data, 'email')) {
         toast.success('New OTP sent');
       }
     } catch (error: any) {

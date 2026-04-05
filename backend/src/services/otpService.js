@@ -12,7 +12,7 @@ import crypto from 'crypto';
 import { triggerUserTrustUpdate } from '../workers/trustLevelWorker.js';
 import nodemailer from 'nodemailer';
 
-const MOCK_PROVIDER_URL = process.env.MOCK_PROVIDER_URL || 'http://mock-provider:4000';
+const MOCK_PROVIDER_URL = process.env.MOCK_PROVIDER_BASE_URL || process.env.MOCK_PROVIDER_URL || 'http://mock-provider:4000';
 const OTP_EXPIRY_MINUTES = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_VERIFY_ATTEMPTS = 5;
@@ -31,6 +31,13 @@ const SMS_PROVIDER = (() => {
   }
   return requested;
 })();
+
+const buildDevOtpPayload = (otpCode) => (IS_DEV ? { _dev_code: otpCode } : {});
+
+const logDevOtp = (label, destination, otpCode) => {
+  if (!IS_DEV) return;
+  console.log(`[OTP Service] [DEV] ${label} OTP code for ${destination}: ${otpCode}`);
+};
 
 // ============================================================================
 // DB helpers — ensure otp_codes table exists
@@ -175,16 +182,14 @@ async function sendEmailOtp(userId, email) {
     }
   }
 
-  if (IS_DEV) {
-    console.log(`[OTP Service] [DEV] Email OTP code for ${email}: ${otpCode}`);
-  }
+  logDevOtp('Email', email, otpCode);
 
   return {
     success: true,
     otp_id: otpId,
     email,
     expires_in: OTP_EXPIRY_MINUTES * 60,
-    ...(IS_DEV ? { _dev_code: otpCode } : {}),
+    ...buildDevOtpPayload(otpCode),
   };
 }
 
@@ -261,16 +266,14 @@ async function sendPhoneOtp(userId, phoneNumber) {
     }
   }
 
-  if (IS_DEV) {
-    console.log(`[OTP Service] [DEV] Phone OTP code for ${phoneNumber}: ${otpCode}`);
-  }
+  logDevOtp('Phone', phoneNumber, otpCode);
 
   return {
     success: true,
     otp_id: otpId,
     phone_number: phoneNumber,
     expires_in: OTP_EXPIRY_MINUTES * 60,
-    ...(IS_DEV ? { _dev_code: otpCode } : {}),
+    ...buildDevOtpPayload(otpCode),
   };
 }
 
@@ -332,34 +335,45 @@ async function sendRegistrationOtp(type, destination, registrationData) {
         }
       }
     } else if (type === 'email') {
-      // Email: use same transport as sendEmailOtp
-      try {
-        const nodemailer = await import('nodemailer');
-        const transport = nodemailer.default.createTransport({
-          host: process.env.SMTP_HOST,
-          port: parseInt(process.env.SMTP_PORT || '587'),
-          secure: process.env.SMTP_SECURE === 'true',
-          auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-        });
-        await transport.sendMail({
-          from: process.env.EMAIL_FROM || '"CareConnect" <noreply@careconnect.local>',
-          to: destination,
-          subject: 'CareConnect — รหัส OTP ยืนยันตัวตน',
-          text: `รหัส OTP ของคุณคือ: ${otpCode}\nใช้ได้ภายใน ${OTP_EXPIRY_MINUTES} นาที`,
-        });
-      } catch (emailErr) {
-        console.warn(`[OTP Service] Email send failed (registration): ${emailErr.message} — OTP stored, dev code in logs`);
+      let regEmailSent = false;
+      if (EMAIL_PROVIDER === 'smtp') {
+        try {
+          const transport = createSmtpTransporter();
+          await transport.sendMail({
+            from: process.env.EMAIL_FROM || 'noreply@careconnect.local',
+            to: destination,
+            subject: 'CareConnect — รหัส OTP ยืนยันตัวตน',
+            text: `รหัส OTP ของคุณคือ: ${otpCode}\nใช้ได้ภายใน ${OTP_EXPIRY_MINUTES} นาที`,
+          });
+          console.log(`[OTP Service] Registration email OTP sent via SMTP to ${destination}`);
+          regEmailSent = true;
+        } catch (emailErr) {
+          console.warn(`[OTP Service] SMTP failed (registration): ${emailErr.message} → falling back to mock`);
+        }
       }
-      console.log(`[OTP Service] Registration email OTP for ${destination}`);
+      if (!regEmailSent) {
+        try {
+          const response = await fetch(`${MOCK_PROVIDER_URL}/email/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: destination, otp_code: otpCode }),
+          });
+          const result = await response.json();
+          if (!result.success) throw new Error('Failed to send email OTP via mock');
+          console.log(`[OTP Service] Registration email OTP sent via mock to ${destination}`);
+        } catch (mockErr) {
+          console.warn(`[OTP Service] Mock email also failed (registration): ${mockErr.message} — use dev code from logs`);
+        }
+      }
     }
 
-    if (IS_DEV) console.log(`[OTP Service] [DEV] Registration OTP for ${destination}: ${otpCode}`);
+    logDevOtp('Registration', destination, otpCode);
 
     return {
       success: true,
       otp_id: otpId,
       expires_in: OTP_EXPIRY_MINUTES * 60,
-      ...(IS_DEV ? { _dev_code: otpCode } : {}),
+      ...buildDevOtpPayload(otpCode),
     };
   } catch (error) {
     console.error('[OTP Service] Failed to send registration OTP:', error.message);
