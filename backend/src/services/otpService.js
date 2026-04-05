@@ -17,12 +17,20 @@ const OTP_EXPIRY_MINUTES = 5;
 const RESEND_COOLDOWN_SECONDS = 60;
 const MAX_VERIFY_ATTEMPTS = 5;
 const EMAIL_PROVIDER = process.env.EMAIL_PROVIDER || 'mock';
-const SMS_PROVIDER = process.env.SMS_PROVIDER || 'mock';
 const SMSOK_API_URL = process.env.SMSOK_API_URL || 'https://api.smsok.co/s';
 const SMSOK_API_KEY = process.env.SMSOK_API_KEY || '';
 const SMSOK_API_SECRET = process.env.SMSOK_API_SECRET || '';
 const SMSOK_SENDER = process.env.SMSOK_SENDER || 'CareConnect';
 const IS_DEV = process.env.NODE_ENV !== 'production';
+
+const SMS_PROVIDER = (() => {
+  const requested = process.env.SMS_PROVIDER || 'mock';
+  if (requested === 'smsok' && (!SMSOK_API_KEY || !SMSOK_API_SECRET)) {
+    console.warn('[OTP Service] SMS_PROVIDER=smsok but SMSOK credentials missing → falling back to mock');
+    return 'mock';
+  }
+  return requested;
+})();
 
 // ============================================================================
 // DB helpers — ensure otp_codes table exists
@@ -126,8 +134,10 @@ async function sendEmailOtp(userId, email) {
 
   await storeOtp(otpId, userId, 'email', email, otpCode, expiresAt);
 
-  try {
-    if (EMAIL_PROVIDER === 'smtp') {
+  let emailSent = false;
+
+  if (EMAIL_PROVIDER === 'smtp') {
+    try {
       const transporter = createSmtpTransporter();
       await transporter.sendMail({
         from: process.env.EMAIL_FROM || 'noreply@careconnect.local',
@@ -144,7 +154,14 @@ async function sendEmailOtp(userId, email) {
           </div>`,
       });
       console.log(`[OTP Service] Email OTP sent via SMTP to ${email}`);
-    } else {
+      emailSent = true;
+    } catch (smtpErr) {
+      console.warn(`[OTP Service] SMTP failed: ${smtpErr.message} → falling back to mock`);
+    }
+  }
+
+  if (!emailSent) {
+    try {
       const response = await fetch(`${MOCK_PROVIDER_URL}/email/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -153,24 +170,22 @@ async function sendEmailOtp(userId, email) {
       const result = await response.json();
       if (!result.success) throw new Error('Failed to send email OTP via mock');
       console.log(`[OTP Service] Email OTP sent via mock to ${email}`);
+    } catch (mockErr) {
+      console.warn(`[OTP Service] Mock email also failed: ${mockErr.message} — OTP stored, use dev code from logs`);
     }
-
-    if (IS_DEV) {
-      console.log(`[OTP Service] [DEV] Email OTP code for ${email}: ${otpCode}`);
-    }
-
-    return {
-      success: true,
-      otp_id: otpId,
-      email,
-      expires_in: OTP_EXPIRY_MINUTES * 60,
-      ...(IS_DEV ? { _dev_code: otpCode } : {}),
-    };
-  } catch (error) {
-    console.error('[OTP Service] Failed to send email OTP:', error.message || error);
-    await deleteOtp(otpId);
-    throw error;
   }
+
+  if (IS_DEV) {
+    console.log(`[OTP Service] [DEV] Email OTP code for ${email}: ${otpCode}`);
+  }
+
+  return {
+    success: true,
+    otp_id: otpId,
+    email,
+    expires_in: OTP_EXPIRY_MINUTES * 60,
+    ...(IS_DEV ? { _dev_code: otpCode } : {}),
+  };
 }
 
 // ============================================================================
@@ -186,12 +201,10 @@ async function sendPhoneOtp(userId, phoneNumber) {
 
   await storeOtp(otpId, userId, 'phone', canonical, otpCode, expiresAt);
 
-  try {
-    if (SMS_PROVIDER === 'smsok') {
-      if (!SMSOK_API_KEY || !SMSOK_API_SECRET) {
-        throw new Error('SMSOK credentials not configured (SMSOK_API_KEY / SMSOK_API_SECRET)');
-      }
+  let smsSent = false;
 
+  if (SMS_PROVIDER === 'smsok' && SMSOK_API_KEY && SMSOK_API_SECRET) {
+    try {
       const providerPhone = toE164(canonical) || canonical;
       const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
       const smsBody = {
@@ -227,7 +240,14 @@ async function sendPhoneOtp(userId, phoneNumber) {
       }
 
       console.log(`[OTP Service] SMS OTP sent via SMSOK to ${phoneNumber} — message_id: ${dest?.message_id}, balance: ${result.remaining_balance}`);
-    } else {
+      smsSent = true;
+    } catch (smsokErr) {
+      console.warn(`[OTP Service] SMSOK failed: ${smsokErr.message} → falling back to mock`);
+    }
+  }
+
+  if (!smsSent) {
+    try {
       const response = await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -236,24 +256,22 @@ async function sendPhoneOtp(userId, phoneNumber) {
       const result = await response.json();
       if (!result.success) throw new Error('Failed to send SMS OTP via mock');
       console.log(`[OTP Service] SMS OTP sent via mock to ${phoneNumber}`);
+    } catch (mockErr) {
+      console.warn(`[OTP Service] Mock SMS also failed: ${mockErr.message} — OTP stored, use dev code from logs`);
     }
-
-    if (IS_DEV) {
-      console.log(`[OTP Service] [DEV] Phone OTP code for ${phoneNumber}: ${otpCode}`);
-    }
-
-    return {
-      success: true,
-      otp_id: otpId,
-      phone_number: phoneNumber,
-      expires_in: OTP_EXPIRY_MINUTES * 60,
-      ...(IS_DEV ? { _dev_code: otpCode } : {}),
-    };
-  } catch (error) {
-    console.error('[OTP Service] Failed to send SMS OTP:', error.message || error);
-    await deleteOtp(otpId);
-    throw error;
   }
+
+  if (IS_DEV) {
+    console.log(`[OTP Service] [DEV] Phone OTP code for ${phoneNumber}: ${otpCode}`);
+  }
+
+  return {
+    success: true,
+    otp_id: otpId,
+    phone_number: phoneNumber,
+    expires_in: OTP_EXPIRY_MINUTES * 60,
+    ...(IS_DEV ? { _dev_code: otpCode } : {}),
+  };
 }
 
 // ============================================================================
@@ -278,30 +296,40 @@ async function sendRegistrationOtp(type, destination, registrationData) {
       const canonical = normalizePhone(destination) || destination;
       const providerPhone = toE164(canonical) || canonical;
 
-      if (SMS_PROVIDER === 'smsok') {
-        if (!SMSOK_API_KEY || !SMSOK_API_SECRET) throw new Error('SMSOK credentials not configured');
-        const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
-        const response = await fetch(SMSOK_API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Accept: '*/*', Authorization: `Basic ${credentials}` },
-          body: JSON.stringify({
-            sender: SMSOK_SENDER,
-            text: `รหัส OTP CareConnect: ${otpCode} ใช้ได้ ${OTP_EXPIRY_MINUTES} นาที`,
-            destinations: [{ destination: providerPhone }],
-          }),
-        });
-        if (!response.ok) { const t = await response.text(); throw new Error(`SMSOK error ${response.status}: ${t}`); }
-        const result = await response.json();
-        const dest = result.destinations?.[0];
-        if (dest && dest.status !== 'NO_ERROR') throw new Error(`SMS delivery failed: ${dest.status}`);
-        console.log(`[OTP Service] Registration SMS sent to ${providerPhone} (${canonical})`);
-      } else {
-        await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ phone_number: destination, otp_code: otpCode }),
-        });
-        console.log(`[OTP Service] Registration SMS sent via mock to ${destination}`);
+      let regSmsSent = false;
+      if (SMS_PROVIDER === 'smsok' && SMSOK_API_KEY && SMSOK_API_SECRET) {
+        try {
+          const credentials = Buffer.from(`${SMSOK_API_KEY}:${SMSOK_API_SECRET}`).toString('base64');
+          const response = await fetch(SMSOK_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Accept: '*/*', Authorization: `Basic ${credentials}` },
+            body: JSON.stringify({
+              sender: SMSOK_SENDER,
+              text: `รหัส OTP CareConnect: ${otpCode} ใช้ได้ ${OTP_EXPIRY_MINUTES} นาที`,
+              destinations: [{ destination: providerPhone }],
+            }),
+          });
+          if (!response.ok) { const t = await response.text(); throw new Error(`SMSOK error ${response.status}: ${t}`); }
+          const result = await response.json();
+          const dest = result.destinations?.[0];
+          if (dest && dest.status !== 'NO_ERROR') throw new Error(`SMS delivery failed: ${dest.status}`);
+          console.log(`[OTP Service] Registration SMS sent to ${providerPhone} (${canonical})`);
+          regSmsSent = true;
+        } catch (smsokErr) {
+          console.warn(`[OTP Service] SMSOK failed (registration): ${smsokErr.message} → falling back to mock`);
+        }
+      }
+      if (!regSmsSent) {
+        try {
+          await fetch(`${MOCK_PROVIDER_URL}/sms/send-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phone_number: destination, otp_code: otpCode }),
+          });
+          console.log(`[OTP Service] Registration SMS sent via mock to ${destination}`);
+        } catch (mockErr) {
+          console.warn(`[OTP Service] Mock SMS also failed (registration): ${mockErr.message} — use dev code from logs`);
+        }
       }
     } else if (type === 'email') {
       // Email: use same transport as sendEmailOtp

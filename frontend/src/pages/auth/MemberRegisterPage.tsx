@@ -151,7 +151,11 @@ export default function MemberRegisterPage() {
         }
         setOtpId(response.data.otp_id);
         setOtpTimerKey(k => k + 1);
-        toast.success('ส่งรหัส OTP แล้ว');
+        if ((response.data as any)._dev_code) {
+          toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
+        } else {
+          toast.success('ส่งรหัส OTP แล้ว');
+        }
         return;
       }
       const response = await api.resendOtp(otpId);
@@ -162,7 +166,11 @@ export default function MemberRegisterPage() {
       setOtpId(response.data.otp_id);
       setFormData({ ...formData, otp: '' });
       setOtpTimerKey(k => k + 1);
-      toast.success('ส่งรหัส OTP ใหม่แล้ว');
+      if ((response.data as any)._dev_code) {
+        toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
+      } else {
+        toast.success('ส่งรหัส OTP ใหม่แล้ว');
+      }
     } catch (error: any) {
       toast.error('เกิดข้อผิดพลาด');
     } finally {
@@ -201,7 +209,11 @@ export default function MemberRegisterPage() {
     try {
       const result = await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
       setOtpId(result.otp_id);
-      toast.success('ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยัน');
+      if (result._dev_code) {
+        toast(`รหัส OTP: ${result._dev_code}`, { icon: '🔑', duration: 15000 });
+      } else {
+        toast.success('ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยัน');
+      }
       setStep('otp');
     } catch (error: any) {
       toast.error(error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');

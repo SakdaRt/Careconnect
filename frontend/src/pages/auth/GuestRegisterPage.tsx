@@ -116,7 +116,11 @@ export default function GuestRegisterPage() {
     try {
       const result = await registerGuest(formData.email, formData.password, 'hirer');
       setOtpId(result.otp_id);
-      toast.success('ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี');
+      if (result._dev_code) {
+        toast(`รหัส OTP: ${result._dev_code}`, { icon: '🔑', duration: 15000 });
+      } else {
+        toast.success('ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี');
+      }
       startCooldown();
       setStep('otp');
     } catch (error: any) {
@@ -172,7 +176,11 @@ export default function GuestRegisterPage() {
           return;
         }
         setOtpId(response.data.otp_id);
-        toast.success('OTP sent to your email');
+        if ((response.data as any)._dev_code) {
+          toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
+        } else {
+          toast.success('OTP sent to your email');
+        }
         startCooldown();
         return;
       }
@@ -188,7 +196,11 @@ export default function GuestRegisterPage() {
       setFormData({ ...formData, otp: '' });
       setOtpTimerKey(k => k + 1);
       startCooldown();
-      toast.success('New OTP sent');
+      if ((response.data as any)._dev_code) {
+        toast(`รหัส OTP: ${(response.data as any)._dev_code}`, { icon: '🔑', duration: 15000 });
+      } else {
+        toast.success('New OTP sent');
+      }
     } catch (error: any) {
       toast.error('Failed to resend OTP');
     } finally {

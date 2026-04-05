@@ -397,14 +397,14 @@ class ApiClient {
 
   // OTP endpoints
   async sendEmailOtp(email?: string) {
-    return this.request<{ otp_id: string; email: string; expires_in: number }>(
+    return this.request<{ otp_id: string; email: string; expires_in: number; _dev_code?: string }>(
       '/api/otp/email/send',
       { method: 'POST', body: email ? { email } : undefined }
     );
   }
 
   async sendPhoneOtp(phone_number?: string) {
-    return this.request<{ otp_id: string; phone_number: string; expires_in: number }>(
+    return this.request<{ otp_id: string; phone_number: string; expires_in: number; _dev_code?: string }>(
       '/api/otp/phone/send',
       { method: 'POST', body: phone_number ? { phone_number } : undefined }
     );
@@ -427,7 +427,7 @@ class ApiClient {
   }
 
   async resendOtp(otp_id: string) {
-    return this.request<{ otp_id: string; expires_in: number }>('/api/otp/resend', {
+    return this.request<{ otp_id: string; expires_in: number; _dev_code?: string }>('/api/otp/resend', {
       method: 'POST',
       body: { otp_id },
     });

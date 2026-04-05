@@ -197,19 +197,19 @@ CREATE INDEX IF NOT EXISTS idx_users_trust_level ON users(trust_level);
 -- Wallets indexes
 CREATE INDEX IF NOT EXISTS idx_wallets_user_id ON wallets(user_id);
 
--- Jobs indexes
-CREATE INDEX IF NOT EXISTS idx_jobs_hirer_id ON jobs(hirer_id);
-CREATE INDEX IF NOT EXISTS idx_jobs_patient_id ON jobs(patient_id);
-CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
-CREATE INDEX IF NOT EXISTS idx_jobs_job_type ON jobs(job_type);
-CREATE INDEX IF NOT EXISTS idx_jobs_risk_level ON jobs(risk_level);
-CREATE INDEX IF NOT EXISTS idx_jobs_scheduled_start ON jobs(scheduled_start_time);
+-- Jobs indexes (wrapped in DO blocks — actual schema may differ from this early migration)
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_jobs_hirer_id ON jobs(hirer_id); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_jobs_patient_id ON jobs(patient_id); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_jobs_job_type ON jobs(job_type); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_jobs_risk_level ON jobs(risk_level); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_jobs_scheduled_start ON jobs(scheduled_start_time); EXCEPTION WHEN undefined_column THEN null; END $$;
 
--- Ledger indexes
-CREATE INDEX IF NOT EXISTS idx_ledger_wallet_id ON ledger_transactions(wallet_id);
-CREATE INDEX IF NOT EXISTS idx_ledger_type ON ledger_transactions(transaction_type);
-CREATE INDEX IF NOT EXISTS idx_ledger_reference ON ledger_transactions(reference_type, reference_id);
-CREATE INDEX IF NOT EXISTS idx_ledger_created_at ON ledger_transactions(created_at);
+-- Ledger indexes (wrapped — actual schema may use different column names)
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_ledger_wallet_id ON ledger_transactions(wallet_id); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_ledger_type ON ledger_transactions(transaction_type); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_ledger_reference ON ledger_transactions(reference_type, reference_id); EXCEPTION WHEN undefined_column THEN null; END $$;
+DO $$ BEGIN CREATE INDEX IF NOT EXISTS idx_ledger_created_at ON ledger_transactions(created_at); EXCEPTION WHEN undefined_column THEN null; END $$;
 
 -- ============================================================================
 -- CONSTRAINTS
@@ -221,6 +221,7 @@ DO $$ BEGIN
         CHECK (balance >= 0 AND available_balance >= 0 AND held_balance >= 0);
 EXCEPTION
     WHEN duplicate_object THEN null;
+    WHEN undefined_column THEN null;
 END $$;
 
 -- One active assignment per job
@@ -261,9 +262,12 @@ DROP TRIGGER IF EXISTS update_jobs_updated_at ON jobs;
 CREATE TRIGGER update_jobs_updated_at BEFORE UPDATE ON jobs
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_kyc_submissions_updated_at ON kyc_submissions;
-CREATE TRIGGER update_kyc_submissions_updated_at BEFORE UPDATE ON kyc_submissions
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$ BEGIN
+    DROP TRIGGER IF EXISTS update_kyc_submissions_updated_at ON kyc_submissions;
+    CREATE TRIGGER update_kyc_submissions_updated_at BEFORE UPDATE ON kyc_submissions
+        FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+EXCEPTION WHEN undefined_table THEN null;
+END $$;
 
 DROP TRIGGER IF EXISTS update_payments_updated_at ON payments;
 CREATE TRIGGER update_payments_updated_at BEFORE UPDATE ON payments

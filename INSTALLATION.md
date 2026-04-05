@@ -241,22 +241,18 @@ docker compose version
 # ตัวอย่างผลลัพธ์: Docker Compose version v2.23.3
 ```
 
-### ขั้นตอนที่ 2: Build Docker Images
+### ขั้นตอนที่ 2: Build และเริ่มระบบ
 
 ```bash
 # เข้าสู่โฟลเดอร์โปรเจค
 cd careconnect
 
-# Build images ทั้งหมด (ครั้งแรกจะใช้เวลาประมาณ 3-5 นาที)
-docker compose build
+# Build images และเริ่มทุก service (ครั้งแรกจะใช้เวลาประมาณ 3-5 นาที)
+# --build จะ rebuild images ใหม่ทุกครั้ง เพื่อให้ dependencies เป็นปัจจุบัน
+docker compose up -d --build
 ```
 
-### ขั้นตอนที่ 3: เริ่มระบบ
-
-```bash
-# เริ่มทุก service (รันใน background)
-docker compose up -d
-```
+> **หมายเหตุ**: Database migrations จะรันอัตโนมัติทุกครั้งที่ backend container เริ่มทำงาน ไม่ต้องรันแยก
 
 Docker Compose จะสร้างและเริ่ม services ต่อไปนี้โดยอัตโนมัติ:
 
@@ -281,11 +277,14 @@ docker compose logs -f
 docker compose logs -f backend
 ```
 
-### ขั้นตอนที่ 5: รัน Database Migrations
+### ขั้นตอนที่ 5: Database Migrations (อัตโนมัติ)
+
+> **ไม่ต้องรัน migrations แยก** — Backend จะรัน migrations อัตโนมัติทุกครั้งที่ start (idempotent — รันซ้ำกี่ครั้งก็ไม่พัง)
+
+ถ้าต้องการตรวจสอบสถานะ:
 
 ```bash
-# รัน migrations เพื่ออัพเดท schema เพิ่มเติม
-docker compose run --rm migrate
+docker compose exec backend node scripts/migrate.js status
 ```
 
 ### ขั้นตอนที่ 6: สร้างข้อมูลตัวอย่าง (ไม่บังคับ)
@@ -672,7 +671,9 @@ psql -U careconnect -d careconnect -f database/schema.sql
 
 ### 8.2 Database Migrations
 
-ระบบมี migration files 21 ไฟล์ อยู่ที่ `backend/database/migrations/` ใช้สำหรับปรับปรุง schema เพิ่มเติมหลังจาก schema หลัก
+ระบบมี migration files 22 ไฟล์ อยู่ที่ `backend/database/migrations/` ใช้สำหรับปรับปรุง schema เพิ่มเติมหลังจาก schema หลัก
+
+> **หมายเหตุ**: เมื่อใช้ Docker — migrations จะรันอัตโนมัติทุกครั้งที่ backend container เริ่มทำงาน ไม่จำเป็นต้องรันเองแยก
 
 ```bash
 # ดูสถานะ migrations
@@ -719,15 +720,17 @@ npm run seed:demo:reset
 ### 9.1 ด้วย Docker Compose (แนะนำ)
 
 ```bash
-# เริ่มทุก service
+# เริ่มทุก service (migrations จะรันอัตโนมัติก่อน backend start)
 docker compose up -d
 
 # ดู logs แบบ real-time
 docker compose logs -f
-
-# รัน migrations
-docker compose run --rm migrate
 ```
+
+> **สำคัญ**: ถ้า dependencies มีการเปลี่ยนแปลง (เช่น เพิ่ม package ใหม่ใน package.json) ต้อง rebuild images ก่อน:
+> ```bash
+> docker compose up -d --build
+> ```
 
 **คุณสมบัติ Development Mode:**
 - **Hot Reload**: แก้ไขโค้ดแล้วเห็นผลทันที (ทั้ง frontend และ backend)

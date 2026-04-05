@@ -1146,12 +1146,16 @@ WEBHOOK_BASE_URL=http://backend:3000
 WEBHOOK_SECRET=your_webhook_secret
 
 # SMS - SMSOK (production)
+# Note: ถ้า SMS_PROVIDER=smsok แต่ไม่มี SMSOK_API_KEY/SECRET → auto-fallback เป็น mock
+# ถ้า SMSOK ส่งไม่สำเร็จ (API error/หมดเครดิต) → fallback mock, OTP ไม่ถูกลบ
+# dev mode (NODE_ENV≠production) จะ return _dev_code ใน response ให้ frontend แสดง toast
 SMSOK_API_URL=https://api.smsok.co/s
 SMSOK_API_KEY=
 SMSOK_API_SECRET=
 SMSOK_SENDER=CareConnect
 
 # Email (production)
+# Note: ถ้า EMAIL_PROVIDER=smtp แต่ SMTP ส่งไม่สำเร็จ → fallback mock, OTP ไม่ถูกลบ
 EMAIL_PROVIDER=mock
 EMAIL_FROM=noreply@careconnect.local
 SMTP_HOST=

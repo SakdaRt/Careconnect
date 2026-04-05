@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-04 (docs(guide): เพิ่ม DEVELOPER_GUIDE.md และแก้ไข INSTALLATION.md ให้ตรงกับโค้ดจริง)
+> อัพเดทล่าสุด: 2026-04-05 (feat(otp): graceful SMS/email fallback + frontend dev code toast display)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -225,6 +225,23 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-05 — feat(otp): graceful SMS/email fallback + frontend dev code toast display
+
+- feat(backend): `otpService.js` — SMS_PROVIDER auto-fallback to `mock` เมื่อ `SMS_PROVIDER=smsok` แต่ไม่มี `SMSOK_API_KEY`/`SMSOK_API_SECRET`
+- feat(backend): `otpService.js` — `sendPhoneOtp` + `sendRegistrationOtp` SMSOK fail → fallback mock (ไม่ลบ OTP, ไม่ throw)
+- feat(backend): `otpService.js` — `sendEmailOtp` SMTP fail → fallback mock (เดิมลบ OTP + throw → แก้ให้ graceful เหมือน phone)
+- feat(backend): `otpService.js` — return `_dev_code` ใน response เมื่อ `NODE_ENV !== 'production'` (ทุก OTP function)
+- feat(frontend): `api.ts` — เพิ่ม `_dev_code?: string` ใน response types (`sendEmailOtp`, `sendPhoneOtp`, `resendOtp`)
+- feat(frontend): `MemberRegisterPage.tsx` — แสดง toast 🔑 OTP code 15s เมื่อมี `_dev_code` (3 จุด: register, send, resend)
+- feat(frontend): `GuestRegisterPage.tsx` — เหมือนกัน (3 จุด)
+- feat(frontend): `ProfilePage.tsx` — เหมือนกัน (4 จุด: sendEmail, resendEmail, sendPhone, resendPhone)
+- fix(db): `20260405_01_missing_tables.sql` — สร้าง 3 tables ที่หายไป (audit_events, job_deposits, password_reset_tokens)
+- fix(db): `20260214_01_initial_schema.sql` — wrap failing indexes/constraints ใน DO blocks เพื่อ idempotency
+- fix(docker): `docker-compose.yml` — backend command เป็น `sh -c "npm run migrate && npm run dev"` (auto-migrate ทุกครั้ง)
+- docs: `INSTALLATION.md` — อัพเดท auto-migrate note, migration count, แก้ file tree
+- **production safety**: `_dev_code` guarded by `IS_DEV` — `NODE_ENV=production` ไม่ส่ง code ใน response
+- verify: ✅ TypeScript: 0 new errors | Backend restart: OK | 133 tests passed (pre-existing failures only)
 
 ### 2026-04-04 — docs(guide): เพิ่ม DEVELOPER_GUIDE.md และแก้ไข INSTALLATION.md ให้ตรงกับโค้ดจริง
 
