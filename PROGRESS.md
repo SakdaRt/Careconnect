@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-05 (fix(db): add missing patient_profile_id column to job_posts)
+> อัพเดทล่าสุด: 2026-04-05 (fix(url): dynamic URL resolution — ป้องกัน localhost/domain ข้ามกัน)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -225,6 +225,23 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-05 — fix(url): dynamic URL resolution — ป้องกัน localhost/domain ข้ามกัน
+
+- **root cause**: backend URL functions (`getBaseUrl`, `getFrontendBaseUrl`, `getCallbackUrl`) ใช้ env var (`FRONTEND_URL`, `GOOGLE_CALLBACK_URL`) ก่อน request headers → เมื่อเข้าผ่าน localhost แต่ env ตั้งเป็น domain ทำให้ redirect ข้าม origin
+- **Docker issue**: Vite proxy `changeOrigin: true` เปลี่ยน Host header เป็น Docker internal name (`backend:3000`) → callback URL ผิด
+- fix(backend): `authController.js` — reorder priority: `origin` → `referer` → `x-forwarded-host` → env var → fallback
+- fix(backend): `authController.js` — `getCallbackUrl` ใช้ frontend origin แทน backend host (เพราะ Vite/nginx proxy route `/api` ไป backend)
+- fix(backend): `authController.js` — `googleCallback` ใช้ saved frontend cookie สำหรับ callback URL matching
+- fix(backend): `walletController.js` — ส่ง `frontendBaseUrl` จาก request ไปให้ `walletService.initiateTopup()`
+- fix(backend): `walletService.js` — รับ `frontendBaseUrl` parameter สำหรับ Stripe `success_url`/`cancel_url`
+- fix(backend): `walletService.js` — mock payment URL ใช้ `mockProviderUrl` env แทน hardcoded `localhost:4000`
+- fix(frontend): `vite.config.ts` — เพิ่ม `X-Forwarded-Host` header ใน `/api` proxy configure callback
+- fix(frontend): `nginx.conf` — เพิ่ม `/uploads/` proxy location (production ขาดไป)
+- fix(frontend): `nginx.conf` — เพิ่ม `X-Forwarded-Host $host` ทุก proxy location
+- **files**: `authController.js`, `walletController.js`, `walletService.js`, `vite.config.ts`, `nginx.conf`
+- **test results**: ✅ redirect_uri = `localhost:5173` เมื่อเข้าผ่าน localhost (ทั้งมี/ไม่มี Referer) | ✅ backend syntax check pass | ✅ health check OK
+- **note**: Google OAuth ต้องลงทะเบียน redirect URI ทั้ง localhost และ domain ใน Google Cloud Console
 
 ### 2026-04-05 — fix(db): add missing patient_profile_id column to job_posts
 

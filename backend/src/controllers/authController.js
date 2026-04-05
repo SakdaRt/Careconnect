@@ -57,32 +57,33 @@ const getGoogleOAuthClient = async () => {
 };
 
 const getBaseUrl = (req) => {
-  // ใช้ค่าจาก environment variable ใน production ก่อน
-  if (process.env.NODE_ENV === 'production' && process.env.BACKEND_URL) {
-    return process.env.BACKEND_URL;
+  if (req) {
+    const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+    const host = req.get('x-forwarded-host') || req.get('host');
+    if (host) return `${proto}://${host}`;
   }
-  const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
-  const host = req.get('x-forwarded-host') || req.get('host') || 'localhost:3000';
-  return `${proto}://${host}`;
+  if (process.env.BACKEND_URL) return process.env.BACKEND_URL;
+  return 'http://localhost:3000';
 };
 
-const getCallbackUrl = (req) => {
-  if (process.env.GOOGLE_CALLBACK_URL) return process.env.GOOGLE_CALLBACK_URL;
-  return `${getBaseUrl(req)}/api/auth/google/callback`;
+const getCallbackUrl = (req, frontendBase = null) => {
+  const base = (frontendBase || getFrontendBaseUrl(req)).replace(/\/$/, '');
+  return `${base}/api/auth/google/callback`;
 };
 
 const getFrontendBaseUrl = (req) => {
-  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
-  if (process.env.NODE_ENV === 'production' && process.env.BACKEND_URL) {
-    // ใช้ backend URL เป็น fallback ใน production ถ้าไม่มี FRONTEND_URL
-    return process.env.BACKEND_URL;
-  }
   if (req) {
     const origin = req.get('origin');
-    if (origin) return origin;
+    if (origin && origin !== 'null') return origin;
     const referer = req.get('referer');
     if (referer) { try { return new URL(referer).origin; } catch { /* ignore */ } }
+    const fwdHost = req.get('x-forwarded-host');
+    if (fwdHost) {
+      const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+      return `${proto}://${fwdHost}`;
+    }
   }
+  if (process.env.FRONTEND_URL) return process.env.FRONTEND_URL;
   return 'http://localhost:5173';
 };
 
@@ -324,8 +325,8 @@ export const googleLogin = async (req, res) => {
       });
     }
 
-    const callbackUrl = getCallbackUrl(req);
     const frontendUrl = getFrontendBaseUrl(req);
+    const callbackUrl = getCallbackUrl(req, frontendUrl);
     const state = crypto.randomBytes(32).toString('hex');
     const cookieOpts = getOAuthStateCookieOptions();
     res.cookie(GOOGLE_OAUTH_STATE_COOKIE, state, cookieOpts);
@@ -370,7 +371,7 @@ export const googleCallback = async (req, res) => {
       return redirectToOauthFailed();
     }
 
-    const callbackUrl = getCallbackUrl(req);
+    const callbackUrl = getCallbackUrl(req, savedFrontendUrl);
     const { code, state, error: oauthError } = req.query;
     if (oauthError) {
       console.warn(`[Auth Controller] Google callback returned error: ${String(oauthError)}`);

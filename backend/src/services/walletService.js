@@ -209,7 +209,7 @@ class WalletService {
    * @param {string} paymentMethod - Payment method (promptpay, card, bank_transfer)
    * @returns {object} - Top-up request with payment instructions
    */
-  async initiateTopup(userId, role, amount, paymentMethod = 'stripe') {
+  async initiateTopup(userId, role, amount, paymentMethod = 'stripe', frontendBaseUrl = null) {
     if (amount < 100) {
       throw { status: 400, message: 'Minimum top-up amount is 100 THB' };
     }
@@ -228,7 +228,7 @@ class WalletService {
 
     const stripe = getStripeClient();
     const topupId = uuidv4();
-    const frontendBaseUrl = String(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const effectiveFrontendUrl = String(frontendBaseUrl || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
     const walletPath = role === 'hirer' ? '/hirer/wallet' : '/caregiver/wallet';
     const expiresAtEpoch = Math.floor(Date.now() / 1000) + 30 * 60;
 
@@ -251,8 +251,8 @@ class WalletService {
         user_id: userId,
         wallet_id: wallet.id,
       },
-      success_url: `${frontendBaseUrl}${walletPath}?topup=success&topup_id=${topupId}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${frontendBaseUrl}${walletPath}?topup=cancel&topup_id=${topupId}`,
+      success_url: `${effectiveFrontendUrl}${walletPath}?topup=success&topup_id=${topupId}&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${effectiveFrontendUrl}${walletPath}?topup=cancel&topup_id=${topupId}`,
       expires_at: expiresAtEpoch,
     });
 
@@ -336,7 +336,7 @@ class WalletService {
       // Return mock response for development
       return {
         reference_id: topupRequest.id,
-        payment_url: `http://localhost:4000/payment/mock/${topupRequest.id}`,
+        payment_url: `${mockProviderUrl}/payment/mock/${topupRequest.id}`,
         qr_code: `mock_qr_${topupRequest.id}`,
       };
     }

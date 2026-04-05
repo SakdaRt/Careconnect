@@ -1129,8 +1129,10 @@ JWT_REFRESH_EXPIRES_IN=30d
 # Google OAuth
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
+# GOOGLE_CALLBACK_URL ไม่ใช้แล้ว — derive จาก request origin อัตโนมัติ
+# FRONTEND_URL/BACKEND_URL เป็น fallback เท่านั้น (ถ้าไม่มี origin/referer/x-forwarded-host)
 FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3000
 
 # Providers (Stripe sandbox in dev)
 MOCK_PROVIDER_BASE_URL=http://mock-provider:4000
