@@ -130,6 +130,10 @@ function renderWithRouter(ui: React.ReactNode, initialEntries: string[] = ['/'])
 }
 
 describe('Landing page navigation', () => {
+  beforeEach(() => {
+    currentUser = null;
+  });
+
   it('navigates via header links', () => {
     renderWithRouter(<LandingPage />);
     fireEvent.click(screen.getAllByRole('link', { name: 'เกี่ยวกับเรา' })[0]);
@@ -170,6 +174,13 @@ describe('Landing page navigation', () => {
     renderWithRouter(<LandingPage />);
     fireEvent.click(screen.getAllByRole('button', { name: 'สมัครเป็นผู้ว่าจ้าง' })[0]);
     expect(screen.getByTestId('location').textContent).toBe('/register');
+  });
+
+  it('shows admin home CTA and navigates to admin dashboard for admin users', () => {
+    currentUser = { id: 'admin-1', role: 'admin', email: 'admin@test.com', trust_level: 'L1', name: 'Admin' };
+    renderWithRouter(<LandingPage />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'เข้าหน้าหลัก (แอดมิน)' })[0]);
+    expect(screen.getByTestId('location').textContent).toBe('/admin/dashboard');
   });
 });
 

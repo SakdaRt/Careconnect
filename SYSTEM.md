@@ -991,7 +991,7 @@ GET    /api/admin/stats                          System statistics
 GET    /api/admin/health                         Health check
 POST   /api/admin/trust/recalculate              คำนวณ trust level ทุก user
 POST   /api/admin/trust/recalculate/:userId      คำนวณ trust level user เดียว
-GET    /api/admin/users                          ดู user list (q, role, status)
+GET    /api/admin/users                          ดู user list (q, role, status, reg_type)
 GET    /api/admin/users/:id                      ดู user detail
 POST   /api/admin/users/:id/status               เปลี่ยน user status
 PATCH  /api/admin/users/:id/edit                 แก้ไข user (trust, verify, note)
@@ -1024,6 +1024,9 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 /faq                           FAQPage
 /contact                       ContactPage
 ```
+
+> `LandingPage` เป็น public landing page ไม่ใช่ dashboard ของ role ใดโดยตรง
+> เมื่อ user login แล้ว CTA `เข้าหน้าหลัก (...)` จะ resolve ตาม role จริงจาก `user.role`/`activeRole`: `admin -> /admin/dashboard`, `caregiver -> /caregiver/jobs/feed`, `hirer -> /hirer/home`; ถ้ายังไม่มี role ที่ resolve ได้จะพาไป `/select-role`
 
 ### Auth (ไม่ต้อง login)
 

@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(auth): make SMS/OTP frontend notifications log-only)
+> อัพเดทล่าสุด: 2026-04-06 (fix(frontend): correct landing-page home CTA role resolution)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -191,6 +191,7 @@ careconnect/
 - [ ] เพิ่ม targeted frontend tests สำหรับ guest/member/profile verification flows ที่ตอนนี้ยังพึ่ง typecheck + manual review เป็นหลัก
 - [ ] ทำ IaC/เอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (เช่น restart policy)
 - [ ] ล้างค่า legacy `GOOGLE_CALLBACK_URL` ออกจาก env/secret จริงของเครื่อง deploy หลัง rollout template ใหม่เสร็จ
+- [ ] เพิ่ม regression tests ของ LandingPage CTA สำหรับ hirer/caregiver/role-unresolved ให้ครอบคลุมเท่า admin case
 
 ### Low Priority
 
@@ -212,6 +213,7 @@ careconnect/
 | `frontend/src/router.tsx`                 | Route definitions + guards                      |
 | `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequirePolicy, RequireProfile, RequireAdmin |
 | `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
+| `frontend/src/pages/public/LandingPage.tsx` | Public landing page + role-aware home CTA      |
 | `frontend/src/utils/otpDebug.ts`          | helper กลางสำหรับ log OTP debug/events ไป console โดยไม่แสดงบนหน้าจอ |
 | `frontend/src/services/api.ts`            | fetch-based ApiClient + API methods             |
 | `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
@@ -222,6 +224,7 @@ careconnect/
 | `.env.production.example`                 | Production env template (deploy checklist)      |
 | `docker-compose.prod.yml`                 | Production compose + frontend Vite build args   |
 | `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
+| `backend/src/controllers/adminUserController.js` | Admin user list/detail, filters, status, ban, wallet lookup |
 | `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
@@ -233,17 +236,27 @@ careconnect/
 | `backend/src/utils/errors.js`             | Custom error classes (7 types) + error handler  |
 | `backend/src/sockets/chatSocket.js`       | Socket.IO chat events (12 events)               |
 | `backend/src/sockets/realtimeHub.js`      | Realtime push to user rooms                     |
-| `backend/src/services/imageService.js`    | Image processing (avatar crop/resize)           |
-| `backend/src/services/walletService.js`   | Wallet business logic (topup/withdraw/admin)    |
-| `frontend/src/components/ui/AvatarUpload.tsx` | Avatar upload + crop component              |
-| `frontend/src/utils/trustLevel.ts`        | Trust level labels, config, checklist utility    |
-| `DEVELOPER_GUIDE.md`                      | คู่มือนักพัฒนา (architecture, modules, flowcharts, parameters) |
-| `INSTALLATION.md`                         | คู่มือการติดตั้งระบบ (Docker, Manual, env vars, production) |
 | `.windsurfrules`                          | กฎ AI                                          |
 
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-06 — fix(frontend): correct landing-page home CTA role resolution
+
+- fix(frontend): `frontend/src/pages/public/LandingPage.tsx` — แก้ landing page ไม่ให้ default ผู้ใช้ที่ไม่ใช่ caregiver ทั้งหมดเป็น `hirer`; ตอนนี้ resolve ปุ่ม `เข้าหน้าหลัก (...)` ตาม `user.role`/`activeRole` เป็น `admin -> /admin/dashboard`, `caregiver -> /caregiver/jobs/feed`, `hirer -> /hirer/home`, และ fallback เป็น `/select-role`
+- test(frontend): `frontend/src/__tests__/navigation.webNavigation.test.tsx` — เพิ่ม regression test ยืนยันว่า admin เห็นปุ่ม `เข้าหน้าหลัก (แอดมิน)` และ navigate ไป `/admin/dashboard`
+- verify(runtime): ตรวจ runtime จริงว่า `careconnect-frontend` รันจาก `docker-compose.yml` + `docker-compose.override.yml` แบบ bind mount ไป `./frontend`, restart service `frontend`, และทั้ง `http://127.0.0.1:5173/src/pages/public/LandingPage.tsx` กับ `https://careconnect.kmitl.site/src/pages/public/LandingPage.tsx` เสิร์ฟโค้ดใหม่ที่มี `/admin/dashboard` และ label `แอดมิน`
+- note(runtime): public hostname `careconnect.kmitl.site` ยังชี้ผ่าน Cloudflare Tunnel มาที่ `localhost:5173`; ใน environment ปัจจุบันไม่ต้อง build image ใหม่ทั้ง stack แค่ restart `frontend` service ก็พอ
+- **files**: `frontend/src/pages/public/LandingPage.tsx`, `frontend/src/__tests__/navigation.webNavigation.test.tsx`, `PROGRESS.md`, `SYSTEM.md`
+
+### 2026-04-06 — fix(admin): restore phone search on AdminUsersPage
+
+- fix(backend): `backend/src/controllers/adminUserController.js` — แก้ `reg_type=phone` ให้หมายถึง user ที่มี `phone_number` จริง ไม่ใช่จำกัดเฉพาะบัญชีที่ไม่มีอีเมล ทำให้ค้นด้วยเลขบางส่วนบนหน้าแอดมินเจอ user ที่มีทั้งอีเมลและเบอร์ได้อีกครั้ง
+- fix(validation): `backend/src/routes/adminRoutes.js` — เพิ่ม query validation ของ `reg_type` สำหรับ `GET /api/admin/users` ให้รองรับเฉพาะ `email` และ `phone`
+- test(backend): `backend/src/controllers/__tests__/adminUserController.test.js` — เพิ่ม regression test สำหรับเคสค้นหาเบอร์โทรของ user ที่มีทั้ง email + phone และเคส error path
+- verify(container): `docker exec careconnect-backend node --experimental-vm-modules ./node_modules/jest/bin/jest.js src/controllers/__tests__/adminUserController.test.js --runInBand --coverage=false` ผ่าน (2 tests)
+- **files**: `backend/src/controllers/adminUserController.js`, `backend/src/routes/adminRoutes.js`, `backend/src/controllers/__tests__/adminUserController.test.js`, `PROGRESS.md`, `SYSTEM.md`
 
 ### 2026-04-06 — fix(auth): make SMS/OTP frontend notifications log-only
 

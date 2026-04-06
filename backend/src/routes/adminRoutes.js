@@ -26,6 +26,7 @@ const adminUserQuery = paginationQuery.keys({
   q: Joi.string().trim().max(200).allow(''),
   role: Joi.string().valid('admin', 'hirer', 'caregiver').allow(''),
   status: Joi.string().valid('active', 'suspended', 'deleted').allow(''),
+  reg_type: Joi.string().valid('email', 'phone').allow(''),
 });
 
 const adminJobQuery = paginationQuery.keys({
