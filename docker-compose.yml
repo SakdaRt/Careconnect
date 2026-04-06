@@ -88,7 +88,7 @@ services:
 
       # Mock Provider URLs
       MOCK_PROVIDER_BASE_URL: http://mock-provider:4000
-      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-stripe}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
@@ -149,7 +149,7 @@ services:
         condition: service_started
     networks:
       - careconnect-network
-    command: npm run dev
+    command: sh -c "npm run migrate && npm run dev"
 
   # ==========================================================================
   # Mock Provider Server

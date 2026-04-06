@@ -40,7 +40,7 @@ careconnect/
 │   │   └── migrations/
 │   └── tests/           Jest integration + unit (17 test files)
 ├── database/
-│   └── schema.sql             master schema (41 tables, 1470 lines)
+│   └── schema.sql             master schema (41 tables, 1143 lines)
 ├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
@@ -63,6 +63,12 @@ careconnect/
 - [x] Auto-create profile (display_name) ตอน register
 - [x] RequireProfile guard — บังคับตั้งชื่อก่อนใช้งาน
 - [x] Email/phone masked ใน TopBar dropdown
+
+### Environment & Deployment
+
+- [x] Mode-aware env loading — รองรับ `.env` + optional `.env.development` / `.env.production`
+- [x] Production env validation — require provider-specific secrets ตาม provider ที่เลือกใช้จริง
+- [x] OTP debug safety — backend ส่ง/strip `_dev_code` เฉพาะ dev และ frontend toast แสดงเฉพาะ dev build
 
 ### Trust Level System
 
@@ -200,11 +206,13 @@ careconnect/
 | `frontend/src/router.tsx`                 | Route definitions + guards                      |
 | `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequirePolicy, RequireProfile, RequireAdmin |
 | `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
+| `frontend/src/utils/otpDebug.ts`          | helper กลางสำหรับแสดง OTP debug toast เฉพาะ dev build |
 | `frontend/src/services/api.ts`            | fetch-based ApiClient + API methods             |
 | `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
 | `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
 | `frontend/src/layouts/MainLayout.tsx`     | Layout หลัก (TopBar + BottomBar)                |
 | `frontend/src/layouts/AdminLayout.tsx`    | Layout admin (sidebar)                          |
+| `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
 | `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
@@ -220,6 +228,9 @@ careconnect/
 | `backend/src/services/walletService.js`   | Wallet business logic (topup/withdraw/admin)    |
 | `frontend/src/components/ui/AvatarUpload.tsx` | Avatar upload + crop component              |
 | `frontend/src/utils/trustLevel.ts`        | Trust level labels, config, checklist utility    |
+| `DEVELOPER_GUIDE.md`                      | คู่มือนักพัฒนา (architecture, modules, flowcharts, parameters) |
+| `INSTALLATION.md`                         | คู่มือการติดตั้งระบบ (Docker, Manual, env vars, production) |
+| `.windsurfrules`                          | กฎ AI                                          |
 
 ---
 
@@ -231,10 +242,88 @@ careconnect/
 - fix(runtime): สร้าง systemd drop-in `/etc/systemd/system/cloudflared.service.d/restart.conf` ตั้ง `Restart=always` + `RestartSec=5s` เพื่อกู้ service ทันที, จากนั้นแก้ unit หลัก `/etc/systemd/system/cloudflared.service` จาก `Restart=alway` → `Restart=always`, `daemon-reload` และ restart service
 - verify(runtime): `cloudflared` register tunnel connections ได้อีกครั้ง, remote ingress config ชี้ `careconnect.kmitl.site` → `http://localhost:5173`, local checks ที่ `127.0.0.1:80` และ `127.0.0.1:5173` ตอบ `200`, และ public URL `https://careconnect.kmitl.site` ตอบ `HTTP 200`
 
-### 2026-03-31 — fix(ui): JobDetailPage badge มอบหมายให้ผู้ดูแล ไม่แสดง
+### 2026-04-05 — feat(env): separate dev/prod env loading and OTP debug safety
 
-- fix(frontend): `JobDetailPage.tsx` — เพิ่ม `<Badge variant="warning">มอบหมายให้ผู้ดูแล</Badge>` เมื่อ `job.preferred_caregiver_id` มีค่า; เดิมแสดงแค่ `<StatusBadge>` ซึ่ง `status=posted` → ขึ้น "เปิดรับสมัคร" เสมอ โดยไม่บ่งบอก direct assignment
-- verify: สอดคล้องกับ logic ใน `HirerHomePage.tsx` (บรรทัด 170-172)
+- feat(backend): `backend/src/config/loadEnv.js` — โหลด root/backend `.env` แล้วตามด้วย optional `.env.<mode>` overlays โดยไม่ override env ที่ inject จากภายนอก
+- feat(backend): `backend/src/server.js` — production env validation require `EMAIL_PROVIDER`, `SMS_PROVIDER`, `PUSH_PROVIDER` และ secrets ของ provider ที่เลือกใช้จริง
+- feat(backend): `backend/src/controllers/authController.js`, `backend/src/controllers/otpController.js` — เพิ่ม safety guard ไม่ให้ `_dev_code` หลุดใน production responses
+- feat(backend): `backend/src/services/otpService.js` — registration OTP respect `EMAIL_PROVIDER`; SMTP/SMSOK fail → fallback mock โดยไม่ลบ OTP; ใช้ default `SMSOK_API_URL=https://api.smsok.co/s`
+- feat(frontend): `frontend/src/utils/otpDebug.ts` — รวม logic toast `_dev_code` แบบ dev-only แล้วผูกใช้ใน `GuestRegisterPage.tsx`, `MemberRegisterPage.tsx`, `ProfilePage.tsx`
+- feat(frontend): `frontend/src/vite-env.d.ts` — เพิ่ม type definition สำหรับ Vite env variables
+- docs: `.env.example`, `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `docker-compose.prod.yml` — แยก dev/prod env ให้ชัด, ใช้ `.env.production`, และระบุว่า production ห้ามคืน/แสดง OTP debug code
+- verify: grep ไม่พบ `api.smsok.co/api/v1/s` ค้างใน repo; targeted lint backend/frontend ผ่านแบบไม่มี error (backend มี warnings เดิม 5 จุดเรื่อง unused vars); production smoke rerun ผ่านด้วย env inline + dynamic free port — backend import `stripe` ได้, env validation ผ่าน, ต่อ PostgreSQL สำเร็จ, และ start server ใน `NODE_ENV=production` ได้จริง
+- verify: ตรวจ local backend install-state พบว่า package `stripe` หายจาก `node_modules` แม้อยู่ใน `package.json` และ `package-lock.json` → รัน `npm install` ใน `backend/` เพื่อ restore dependency
+- **files**: `.env.example`, `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `docker-compose.prod.yml`, `backend/src/config/loadEnv.js`, `backend/src/server.js`, `backend/src/services/otpService.js`, `backend/src/controllers/authController.js`, `backend/src/controllers/otpController.js`, `frontend/src/utils/otpDebug.ts`, `frontend/src/vite-env.d.ts`, `frontend/src/pages/auth/GuestRegisterPage.tsx`, `frontend/src/pages/auth/MemberRegisterPage.tsx`, `frontend/src/pages/shared/ProfilePage.tsx`
+
+### 2026-04-05 — docs(guide): sync DEVELOPER_GUIDE.md with verified source code
+
+- ตรวจ `DEVELOPER_GUIDE.md` เทียบกับ source code จริงอีกครั้ง โดยเน้น `authController.js`, `authService.js`, `AuthContext.tsx`, `api.ts`, `router.tsx`, `chatSocket.js`, `errors.js`, `trustLevelWorker.js`, `schema.sql`, `docker-compose.yml`, `docker-compose.prod.yml`
+- แก้จำนวน endpoints ใน file tree ให้ตรงกับ route files จริง (`authRoutes` 21, `walletRoutes` 21, `adminRoutes` 23 และ summary รวม 145 endpoints)
+- แก้ flow `RoleSelectionPage` และ Frontend dependency map ให้ตรงกับ implementation ปัจจุบัน
+- กู้ section `10. รายละเอียดพารามิเตอร์ระหว่างโปรแกรมย่อย` กลับมาใหม่ โดยใส่เฉพาะข้อมูลที่ `verified from code`
+- อัพเดท auth contract ในเอกสาร: registration responses เป็น OTP metadata, login/refresh ใช้ `accessToken`/`refreshToken`, avatar upload ตอบ `avatar_version`
+- อัพเดทชื่อ methods ฝั่ง frontend API/AuthContext ให้ตรงกับ implementation ปัจจุบัน (`loginWithEmail`, `loginWithPhone`, `getCurrentUser`, `getMyProfile`, `updateMyProfile` ฯลฯ)
+- แก้คำอธิบาย response patterns ให้สะท้อนโค้ดจริงว่าปัจจุบันมีหลาย shape ไม่ได้ uniform 100%
+- **files**: `DEVELOPER_GUIDE.md`
+
+### 2026-04-05 — fix(db): add missing patient_profile_id column to job_posts
+
+- **root cause**: `job_posts` table ไม่มี column `patient_profile_id` ทั้งที่ `schema.sql` กำหนดไว้ และ `Job.getHirerJobs` SQL อ้างถึง `jp.patient_profile_id` → `500 errorMissingColumn`
+- fix(db): `20260405_02_job_posts_patient_profile_id.sql` — `ALTER TABLE job_posts ADD COLUMN IF NOT EXISTS patient_profile_id UUID REFERENCES patient_profiles(id)` + index
+- ผล: hirer home page (`GET /api/jobs/my-jobs`) ทำงานได้อีกครั้ง ไม่ขึ้น "Failed to get jobs"
+
+### 2026-04-05 — feat(otp): graceful SMS/email fallback + frontend dev code toast display
+
+- feat(backend): `otpService.js` — SMS_PROVIDER auto-fallback to `mock` เมื่อ `SMS_PROVIDER=smsok` แต่ไม่มี `SMSOK_API_KEY`/`SMSOK_API_SECRET`
+- feat(backend): `otpService.js` — `sendPhoneOtp` + `sendRegistrationOtp` SMSOK fail → fallback mock (ไม่ลบ OTP, ไม่ throw)
+- feat(backend): `otpService.js` — `sendEmailOtp` SMTP fail → fallback mock (เดิมลบ OTP + throw → แก้ให้ graceful เหมือน phone)
+- feat(backend): `otpService.js` — return `_dev_code` ใน response เมื่อ `NODE_ENV !== 'production'` (ทุก OTP function)
+- feat(frontend): `api.ts` — เพิ่ม `_dev_code?: string` ใน response types (`sendEmailOtp`, `sendPhoneOtp`, `resendOtp`)
+- feat(frontend): `appApi.ts` — เพิ่ม wrapper `uploadChatImage`, `uploadDisputeImage`, อัพเดท `sendMessage` + `postDisputeMessage`
+- feat(frontend): `MemberRegisterPage.tsx` — แสดง toast 🔑 OTP code 15s เมื่อมี `_dev_code` (3 จุด: register, send, resend)
+- feat(frontend): `GuestRegisterPage.tsx` — เหมือนกัน (3 จุด)
+- feat(frontend): `ProfilePage.tsx` — เหมือนกัน (4 จุด: sendEmail, resendEmail, sendPhone, resendPhone)
+- fix(db): `20260405_01_missing_tables.sql` — สร้าง 3 tables ที่หายไป (audit_events, job_deposits, password_reset_tokens)
+- fix(db): `20260214_01_initial_schema.sql` — wrap failing indexes/constraints ใน DO blocks เพื่อ idempotency
+- fix(docker): `docker-compose.yml` — backend command เป็น `sh -c "npm run migrate && npm run dev"` (auto-migrate ทุกครั้ง)
+- docs: `INSTALLATION.md` — อัพเดท auto-migrate note, migration count, แก้ file tree
+- **production safety**: `_dev_code` guarded by `IS_DEV` — `NODE_ENV=production` ไม่ส่ง code ใน response
+- verify: ✅ TypeScript: 0 new errors | Backend restart: OK | 133 tests passed (pre-existing failures only)
+
+### 2026-04-04 — docs(guide): เพิ่ม DEVELOPER_GUIDE.md และแก้ไข INSTALLATION.md ให้ตรงกับโค้ดจริง
+
+- docs: สร้าง `DEVELOPER_GUIDE.md` (2,273 บรรทัด, 10 sections + appendix) — คู่มือนักพัฒนา CareConnect
+  - §1-3 ภาพรวมระบบ + โครงสร้าง + ระบบ Authentication
+  - §4 Backend modules (controllers 17 + services 12 + models 9 + routes 17 = 148 endpoints)
+  - §5 Frontend modules (pages 49 + components 21 + layouts 4 + 52 routes)
+  - §6 Database (41 tables, 15+21 migrations, ERD)
+  - §7 Mock Provider
+  - §8 Flowcharts (Registration, Job lifecycle, Payment, Trust level, Chat, KYC, Notification)
+  - §9 Module relationships (backend + frontend + cross-system + service-to-service)
+  - §10 Parameter details (request/response format, controller-service, service-model contracts)
+  - Appendix A: การรัน dev/test, Appendix B: สรุปจำนวนไฟล์ทั้งหมด
+- docs: แก้ไข `INSTALLATION.md` ให้ตรงกับโค้ดจริง:
+  - schema.sql line count ~1,470 → ~1,143
+  - เพิ่ม Makefile, .env.example, load-tests/, database/migrations/, DEVELOPER_GUIDE.md ใน file tree
+- verification: ตรวจสอบทุกตัวเลขจาก source code จริง (file counts, function names, route paths, endpoint counts, DB schema)
+
+### 2026-04-04 — docs(system): เพิ่มคู่มือการติดตั้งระบบ INSTALLATION.md
+
+- docs: สร้าง `INSTALLATION.md` (976 บรรทัด, 13 หัวข้อ) — คู่มือการติดตั้งระบบ CareConnect ครบวงจร
+  - §1 ภาพรวมระบบ (architecture diagram + ส่วนประกอบ 4 ส่วน)
+  - §2 ความต้องการระบบ: ฮาร์ดแวร์ (dev/prod), ซอฟต์แวร์ (Docker vs Manual), OS ที่รองรับ
+  - §3 การดาวน์โหลดซอร์สโค้ด: Git Clone, Download ZIP, Upload Source Code
+  - §4 โครงสร้างโปรเจค (directory tree + คำอธิบาย)
+  - §5 การติดตั้งแบบ Docker: 7 ขั้นตอน (build → start → migration → seed → verify)
+  - §6 การติดตั้งแบบ Manual: 10 ขั้นตอน (Node.js + PostgreSQL + npm install)
+  - §7 Environment Variables: Dev (.env ตัวอย่างครบ), Optional (Google OAuth, Stripe, SMS, Email), Production
+  - §8 การตั้งค่าฐานข้อมูล: schema, migrations, demo seed
+  - §9 การรันระบบ Development (Docker + Manual + verify checklist)
+  - §10 การรันระบบ Production (build, deploy, Dev vs Prod differences, Nginx, SSL)
+  - §11 การทดสอบระบบ (Jest, Playwright, k6)
+  - §12 การแก้ไขปัญหาที่พบบ่อย (7 ปัญหาพร้อมวิธีแก้)
+  - §13 ภาคผนวก — รายการ Port ที่ใช้งาน
+- verify: 37-check comprehensive scan passed ✅
 
 ### 2026-03-31 — feat(job): ส่งงานเสร็จต้องรออนุมัติ + auto-approve หลัง 1 ชม.
 

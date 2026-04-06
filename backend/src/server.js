@@ -36,6 +36,11 @@ import { autoApproveExpiredCheckouts } from "./services/jobService.js";
 
 // Load environment variables
 
+const providerString = Joi.string().trim().lowercase();
+const optionalProviderString = providerString.allow("");
+const optionalSecretString = Joi.string().allow("");
+const smtpPortSchema = Joi.number().integer().min(1).max(65535);
+
 const envSchema = Joi.object({
   NODE_ENV: Joi.string()
     .valid("development", "test", "production")
@@ -71,11 +76,37 @@ const envSchema = Joi.object({
     is: "production",
     then: Joi.required(),
   }),
-  EMAIL_PROVIDER: Joi.string().when("NODE_ENV", {
+  EMAIL_PROVIDER: providerString.valid("mock", "smtp").when("NODE_ENV", {
     is: "production",
     then: Joi.required(),
+    otherwise: optionalProviderString,
   }),
-  EMAIL_FROM: Joi.string(),
+  EMAIL_FROM: Joi.string().when("EMAIL_PROVIDER", {
+    is: "smtp",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  SMTP_HOST: Joi.string().when("EMAIL_PROVIDER", {
+    is: "smtp",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  SMTP_PORT: smtpPortSchema.when("EMAIL_PROVIDER", {
+    is: "smtp",
+    then: Joi.required(),
+    otherwise: Joi.optional(),
+  }),
+  SMTP_SECURE: Joi.boolean().truthy("true").falsy("false"),
+  SMTP_USER: Joi.string().when("EMAIL_PROVIDER", {
+    is: "smtp",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  SMTP_PASS: Joi.string().when("EMAIL_PROVIDER", {
+    is: "smtp",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
   PUSH_PROVIDER: Joi.string().when("NODE_ENV", {
     is: "production",
     then: Joi.required(),
@@ -96,7 +127,27 @@ const envSchema = Joi.object({
     otherwise: Joi.optional().allow(""),
   }),
   STRIPE_ACCOUNT_ID: Joi.string().allow(""),
-  SMS_PROVIDER: Joi.string(),
+  SMS_PROVIDER: providerString.valid("mock", "smsok").when("NODE_ENV", {
+    is: "production",
+    then: Joi.required(),
+    otherwise: optionalProviderString,
+  }),
+  SMSOK_API_URL: Joi.string().uri({ scheme: [/https?/] }).when("SMS_PROVIDER", {
+    is: "smsok",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  SMSOK_API_KEY: Joi.string().when("SMS_PROVIDER", {
+    is: "smsok",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  SMSOK_API_SECRET: Joi.string().when("SMS_PROVIDER", {
+    is: "smsok",
+    then: Joi.required(),
+    otherwise: Joi.optional().allow(""),
+  }),
+  SMSOK_SENDER: optionalSecretString,
   KYC_PROVIDER: Joi.string(),
   BANK_TRANSFER_PROVIDER: Joi.string(),
   UPLOAD_DIR: Joi.string(),

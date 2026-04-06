@@ -42,6 +42,7 @@ import {
   isConfiguredDisplayName,
   toDisplayNameFromFullName,
 } from "../../utils/profileName";
+import { showDevOtpToast } from "../../utils/otpDebug";
 
 function roleLabel(role: string) {
   if (role === "hirer") return "ผู้ว่าจ้าง";
@@ -190,7 +191,9 @@ export default function ProfilePage() {
         return;
       }
       setEmailOtpId(response.data.otp_id);
-      toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบอีเมล");
+      if (!showDevOtpToast(response.data, "email")) {
+        toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบอีเมล");
+      }
       startEmailCooldown();
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
@@ -215,7 +218,9 @@ export default function ProfilePage() {
       setEmailOtpId(response.data.otp_id);
       setEmailOtpCode("");
       startEmailCooldown();
-      toast.success("ส่งรหัส OTP ใหม่แล้ว");
+      if (!showDevOtpToast(response.data, "email")) {
+        toast.success("ส่งรหัส OTP ใหม่แล้ว");
+      }
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด");
     } finally {
@@ -268,7 +273,9 @@ export default function ProfilePage() {
         return;
       }
       setOtpId(response.data.otp_id);
-      toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบ SMS");
+      if (!showDevOtpToast(response.data, "sms")) {
+        toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบ SMS");
+      }
     } catch (error: any) {
       toast.error(error.message || "เกิดข้อผิดพลาด");
     } finally {
@@ -291,7 +298,9 @@ export default function ProfilePage() {
       }
       setOtpId(response.data.otp_id);
       setOtpCode("");
-      toast.success("ส่งรหัส OTP ใหม่แล้ว");
+      if (!showDevOtpToast(response.data, "sms")) {
+        toast.success("ส่งรหัส OTP ใหม่แล้ว");
+      }
     } catch (error: any) {
       toast.error("เกิดข้อผิดพลาด");
     } finally {

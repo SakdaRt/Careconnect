@@ -1,5 +1,20 @@
 import walletService from '../services/walletService.js';
 
+const getFrontendBaseUrl = (req) => {
+  if (req) {
+    const origin = req.get('origin');
+    if (origin && origin !== 'null') return origin;
+    const referer = req.get('referer');
+    if (referer) { try { return new URL(referer).origin; } catch { /* ignore */ } }
+    const fwdHost = req.get('x-forwarded-host');
+    if (fwdHost) {
+      const proto = req.get('x-forwarded-proto') || req.protocol || 'http';
+      return `${proto}://${fwdHost}`;
+    }
+  }
+  return process.env.FRONTEND_URL || 'http://localhost:5173';
+};
+
 /**
  * Wallet Controller
  * Handles HTTP requests for wallet operations
@@ -78,11 +93,13 @@ const walletController = {
         });
       }
 
+      const frontendBaseUrl = getFrontendBaseUrl(req);
       const topup = await walletService.initiateTopup(
         userId,
         role,
         parseInt(amount),
-        payment_method || 'stripe'
+        payment_method || 'stripe',
+        frontendBaseUrl
       );
 
       res.status(201).json({

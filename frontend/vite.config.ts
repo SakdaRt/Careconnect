@@ -56,6 +56,12 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_API_TARGET || 'http://localhost:3000',
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              const host = req.headers.host;
+              if (host) proxyReq.setHeader('x-forwarded-host', host);
+            });
+          },
         },
         '/uploads': {
           target: env.VITE_API_TARGET || 'http://localhost:3000',
