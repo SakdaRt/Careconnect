@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(frontend): correct landing-page home CTA role resolution)
+> อัพเดทล่าสุด: 2026-04-06 (docs(runtime): refresh installation + developer deployment guides)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -40,8 +40,8 @@ careconnect/
 │   │   └── migrations/
 │   └── tests/           Jest integration + unit (17 test files)
 ├── database/
-│   └── schema.sql             master schema (41 tables, 1143 lines)
-├── docker-compose.yml         (dev — รัน postgres + backend + frontend + pgadmin)
+│   └── schema.sql             master schema (41 tables, 1474 lines)
+├── docker-compose.yml         (dev — รัน postgres + backend + mock-provider + frontend + pgadmin, มี profile `migrate`)
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
 ├── docker-compose.prod.yml    (production — ไม่มี dev tools)
@@ -72,6 +72,7 @@ careconnect/
 - [x] Development env fallback — optional integrations ที่ config ไม่ครบจะ warn ใน console และ fallback เป็น `mock`
 - [x] Mock top-up flow สำหรับ development — `PAYMENT_PROVIDER=mock` ใช้งานได้จริงทั้ง backend + wallet UI
 - [x] Frontend production build รับ `VITE_*` ผ่าน Docker build args จาก `.env.production`
+- [x] Docker-first installation/docs sync กับ runtime ปัจจุบันของเครื่องจริง (Ubuntu 22.04 + dev compose + Cloudflare Tunnel → `localhost:5173`)
 
 ### Trust Level System
 
@@ -189,7 +190,7 @@ careconnect/
 - [x] Caregiver availability calendar
 - [x] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (rebuild Docker image แก้ได้)
 - [ ] เพิ่ม targeted frontend tests สำหรับ guest/member/profile verification flows ที่ตอนนี้ยังพึ่ง typecheck + manual review เป็นหลัก
-- [ ] ทำ IaC/เอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (เช่น restart policy)
+- [x] เขียนเอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (ครอบคลุม `Restart=always` / `RestartSec=5s`)
 - [ ] ล้างค่า legacy `GOOGLE_CALLBACK_URL` ออกจาก env/secret จริงของเครื่อง deploy หลัง rollout template ใหม่เสร็จ
 - [ ] เพิ่ม regression tests ของ LandingPage CTA สำหรับ hirer/caregiver/role-unresolved ให้ครอบคลุมเท่า admin case
 
@@ -222,6 +223,8 @@ careconnect/
 | `frontend/src/layouts/AdminLayout.tsx`    | Layout admin (sidebar)                          |
 | `.env.example`                            | Development env template (mock-first defaults)  |
 | `.env.production.example`                 | Production env template (deploy checklist)      |
+| `INSTALLATION.md`                         | Docker-first server bring-up, env setup, Cloudflare Tunnel, production deploy |
+| `DEVELOPER_GUIDE.md`                      | Runtime topology, env responsibilities, compose service map, quick start |
 | `docker-compose.prod.yml`                 | Production compose + frontend Vite build args   |
 | `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
 | `backend/src/controllers/adminUserController.js` | Admin user list/detail, filters, status, ban, wallet lookup |
@@ -241,6 +244,17 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+> หมายเหตุ: entries ด้านล่างเป็นประวัติการทำงานตามช่วงเวลา จึงอาจอ้างอิง counts, paths, หรือ runtime values ตามสภาพของวันนั้น ๆ ไม่ใช่สถานะล่าสุดเสมอไป ให้ใช้ `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, และ `SYSTEM.md` เป็น reference ปัจจุบัน
+
+### 2026-04-06 — docs(runtime): refresh installation + developer deployment guides
+
+- docs(INSTALLATION): `INSTALLATION.md` — rewrite ให้ยึด current live baseline ของเครื่องจริง (Ubuntu 22.04.5, Docker 28.4.0, Docker Compose v2.39.1, live stack = `docker-compose.yml` + Cloudflare Tunnel → `localhost:5173`) และเปลี่ยน flow หลักเป็น Docker-first แทน host Node workflow
+- docs(env): อธิบาย source of truth ของ env loading ตาม `backend/src/config/loadEnv.js`, `docker-compose.yml`, `docker-compose.prod.yml`, `frontend/vite.config.ts`; แยก required/optional/fallback keys, `VITE_PUBLIC_*` สำหรับ tunnel/HMR, และพฤติกรรม fallback เป็น `console.warn`
+- docs(deploy): เพิ่มขั้นตอน schema bootstrap/migrations, Cloudflare Tunnel systemd service (`Restart=always`, `RestartSec=5s`), production compose first deploy vs subsequent deploy, และแนวทาง verification ผ่าน container เพราะ host Node/npm ยังต่ำกว่า engines ของโปรเจค
+- docs(DEVELOPER_GUIDE): sync runtime baseline, compose service map, env responsibilities, quick start, และ current live public path ให้ตรงกับ runtime ปัจจุบัน
+- verify(code): cross-check commands / ports / env keys กับ `.env.example`, `.env.production.example`, `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.test.yml`, `frontend/Dockerfile`, `frontend/vite.config.ts`, `backend/src/config/loadEnv.js`, `backend/src/server.js`, และ `backend/src/controllers/authController.js`
+- **files**: `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `PROGRESS.md`, `SYSTEM.md`
 
 ### 2026-04-06 — fix(frontend): correct landing-page home CTA role resolution
 

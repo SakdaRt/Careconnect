@@ -1,6 +1,17 @@
 # คู่มือการติดตั้งระบบ CareConnect
 
-> เอกสารฉบับนี้อธิบายขั้นตอนการติดตั้งระบบ CareConnect ตั้งแต่ความต้องการของระบบ การดาวน์โหลดซอร์สโค้ด การตั้งค่า จนถึงการรันระบบให้พร้อมใช้งาน
+> เอกสารฉบับนี้อธิบายวิธีขึ้นระบบ CareConnect บน server สเปคเดียวกับเครื่องที่ใช้งานอยู่จริงในปัจจุบัน โดยเน้น Docker Compose เป็นหลัก และอธิบายการตั้งค่า `.env` ตาม source of truth จากไฟล์คอนฟิกและโค้ดใน repository
+
+> **Baseline ที่ยืนยันแล้วกับเครื่องจริง (2026-04-06)**
+>
+> - Ubuntu 22.04.5 LTS
+> - Docker 28.4.0
+> - Docker Compose v2.39.1
+> - 4 vCPU, RAM 3.8 GiB, ดิสก์ 49 GiB
+> - stack ที่ใช้อยู่จริงตอนนี้คือ `docker-compose.yml` (development profile)
+> - public access ปัจจุบันใช้ Cloudflare Tunnel ชี้เข้า `http://localhost:5173`
+
+> **ข้อสรุปสำคัญ**: ถ้าต้องการขึ้นระบบให้เหมือน server ปัจจุบัน ให้ใช้ Docker Compose ก่อนเป็นอันดับแรก ไม่ควรอิงการติดตั้ง Node.js บน host โดยตรง เพราะ package ของโปรเจคต้องการ `node >= 20` และ `npm >= 10`
 
 ---
 
@@ -24,106 +35,97 @@
 
 ## 1. ภาพรวมระบบ
 
-CareConnect เป็นเว็บแอปพลิเคชันแบบ Two-sided Marketplace สำหรับเชื่อมต่อผู้ว่าจ้างกับผู้ดูแลผู้สูงอายุในประเทศไทย ระบบประกอบด้วย 4 ส่วนหลัก:
+CareConnect เป็นเว็บแอปพลิเคชันแบบ Two-sided Marketplace สำหรับเชื่อมต่อผู้ว่าจ้างกับผู้ดูแลผู้สูงอายุในประเทศไทย โดยระบบที่ใช้งานอยู่จริงในปัจจุบันรันผ่าน Docker Compose และเปิด public access ด้วย Cloudflare Tunnel
+
+### Topology ที่ใช้อยู่จริงบน server ปัจจุบัน
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Client (Web Browser)                       │
-│               Hirer  /  Caregiver  /  Admin                     │
-└──────────┬──────────────────────────────────────┬───────────────┘
-           │ HTTPS                                │ WSS (Socket.IO)
-           ▼                                      ▼
-┌─────────────────────────┐      ┌────────────────────────────────┐
-│   Frontend Container    │      │      Backend Container         │
-│   React 18 + Vite       │─────▶│      Express.js + Socket.IO    │
-│   TailwindCSS           │proxy │      JWT Auth + Joi Validation │
-│   Port 5173 (dev)       │/api  │      Port 3000                 │
-│   Port 80   (prod)      │      │                                │
-└─────────────────────────┘      └───────┬──────────┬─────────────┘
-                                         │          │
-                           ┌─────────────┘          └──────────────┐
-                           ▼                                       ▼
-               ┌───────────────────┐               ┌───────────────────────┐
-               │  PostgreSQL 15    │               │  Mock Provider        │
-               │  Port 5432        │               │  (Payment/SMS/KYC)    │
-               └───────────────────┘               │  Port 4000            │
-                                                   └───────────────────────┘
+Internet / Browser
+        │
+        ▼
+Cloudflare Tunnel
+        │
+        ▼
+Frontend container (Vite dev server :5173)
+        │  proxy /api, /socket.io, /uploads
+        ▼
+Backend container (Express + Socket.IO :3000)
+        │
+        ├── PostgreSQL 15 (:5432)
+        └── Mock Provider (:4000)
+
+Optional tool:
+pgAdmin (:5050)
 ```
 
 | ส่วนประกอบ | เทคโนโลยี | หน้าที่ |
 |---|---|---|
-| **Frontend** | React 18, TypeScript, Tailwind CSS, Vite | ส่วนติดต่อผู้ใช้ (UI) |
-| **Backend** | Node.js (ESM), Express, Socket.IO | API Server, Business Logic, Real-time Chat |
-| **Database** | PostgreSQL 15 | จัดเก็บข้อมูลทั้งหมด (41 tables) |
-| **Mock Provider** | Node.js, Express | จำลอง Third-party Services (Payment, SMS, KYC) |
+| **Frontend** | React 18, TypeScript, Tailwind CSS, Vite | หน้าเว็บและ Vite proxy สำหรับ `/api`, `/socket.io`, `/uploads` |
+| **Backend** | Node.js (ESM), Express, Socket.IO, Joi | REST API, business logic, websocket, env validation |
+| **Database** | PostgreSQL 15 | ฐานข้อมูลหลักของระบบ |
+| **Mock Provider** | Node.js, Express | จำลอง payment, SMS, KYC และ bank transfer ใน development |
+| **Cloudflare Tunnel** | cloudflared systemd service | เปิด public URL มายัง `http://localhost:5173` |
+
+### Service และพอร์ตหลัก
+
+| Service | Compose file ปัจจุบัน | Port | หมายเหตุ |
+|---|---|---|---|
+| `frontend` | `docker-compose.yml` | `5173` | Vite dev server + HMR |
+| `backend` | `docker-compose.yml` | `3000` | API + Socket.IO |
+| `postgres` | `docker-compose.yml` | `5432` | DB หลัก |
+| `mock-provider` | `docker-compose.yml` | `4000` | mock integrations |
+| `pgadmin` | `docker-compose.yml` | `5050` | optional UI สำหรับ DB |
+| `frontend` | `docker-compose.prod.yml` | `80` | production image + Nginx |
 
 ---
 
 ## 2. ความต้องการของระบบ
 
-### 2.1 ความต้องการด้านฮาร์ดแวร์
+### 2.1 สเปคที่แนะนำสำหรับ server แบบเดียวกับเครื่องปัจจุบัน
 
-#### สำหรับการพัฒนา (Development)
-
-| รายการ | ข้อกำหนดขั้นต่ำ | ข้อกำหนดที่แนะนำ |
+| รายการ | ค่า baseline ที่ยืนยันแล้ว | คำแนะนำ |
 |---|---|---|
-| **CPU** | 2 Cores (x86_64 / ARM64) | 4 Cores ขึ้นไป |
-| **RAM** | 4 GB | 8 GB ขึ้นไป |
-| **พื้นที่ดิสก์** | 10 GB ว่าง | 20 GB ว่าง (รวม Docker images) |
-| **เครือข่าย** | อินเทอร์เน็ตสำหรับดาวน์โหลด dependencies | Broadband |
+| **OS** | Ubuntu 22.04.5 LTS | แนะนำ Ubuntu 22.04 LTS หรือใหม่กว่า |
+| **CPU** | 4 vCPU | อย่างน้อย 2 vCPU |
+| **RAM** | 3.8 GiB | อย่างน้อย 4 GiB |
+| **Disk** | 49 GiB (ว่าง ~16 GiB) | ควรเหลืออย่างน้อย 15-20 GiB สำหรับ images, volumes, uploads |
+| **Network** | outbound internet | ใช้ pull images, clone repo, และเชื่อม provider ภายนอก |
 
-#### สำหรับ Production
+### 2.2 ซอฟต์แวร์ที่ต้องมี
 
-| รายการ | ข้อกำหนดขั้นต่ำ | ข้อกำหนดที่แนะนำ |
+#### สำหรับ path ที่แนะนำและตรงกับเครื่องจริง
+
+| ซอฟต์แวร์ | เวอร์ชันที่แนะนำ | หมายเหตุ |
 |---|---|---|
-| **CPU** | 2 vCPU | 4 vCPU ขึ้นไป |
-| **RAM** | 4 GB | 8 GB ขึ้นไป |
-| **พื้นที่ดิสก์** | 20 GB SSD | 50 GB SSD (รองรับ uploads + DB growth) |
-| **เครือข่าย** | Static IP หรือ Domain Name | HTTPS Certificate + Reverse Proxy |
+| **Docker Engine** | 28.x หรือใหม่กว่า | ใช้งานจริงอยู่ที่ `28.4.0` |
+| **Docker Compose plugin** | v2.39.x หรือใหม่กว่า | ใช้งานจริงอยู่ที่ `v2.39.1` |
+| **Git** | 2.30+ | สำหรับ clone source |
 
-> **หมายเหตุ**: จากผลการทดสอบ Load Test ระบบรองรับได้ถึง 1,000 concurrent users โดยไม่มี HTTP error และทำงานได้ดีที่สุดที่ ≤ 200 concurrent users (p95 < 1s)
-
-### 2.2 ความต้องการด้านซอฟต์แวร์
-
-#### วิธีที่ 1: ติดตั้งผ่าน Docker (แนะนำ)
+#### สำหรับ path manual เท่านั้น
 
 | ซอฟต์แวร์ | เวอร์ชันขั้นต่ำ | หมายเหตุ |
 |---|---|---|
-| **Docker Engine** | 24.0+ | [ดาวน์โหลด](https://docs.docker.com/get-docker/) |
-| **Docker Compose** | v2.20+ | มาพร้อมกับ Docker Desktop |
-| **Git** | 2.30+ | สำหรับ clone repository |
+| **Node.js** | `>=20.0.0` | ตรงกับ `package.json` ของ backend/frontend/mock-provider |
+| **npm** | `>=10.0.0` | ตรงกับ `package.json` |
+| **PostgreSQL** | 15+ | ต้องตั้ง schema/migration เอง |
 
-> **สำหรับ Windows**: ติดตั้ง [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/) ซึ่งรวม Docker Engine + Docker Compose + WSL2 ไว้ในชุดเดียว
-
-> **สำหรับ macOS**: ติดตั้ง [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
-
-> **สำหรับ Linux**: ติดตั้ง [Docker Engine](https://docs.docker.com/engine/install/) + [Docker Compose Plugin](https://docs.docker.com/compose/install/linux/)
-
-#### วิธีที่ 2: ติดตั้งแบบ Manual (ไม่ใช้ Docker)
-
-| ซอฟต์แวร์ | เวอร์ชันขั้นต่ำ | หมายเหตุ |
-|---|---|---|
-| **Node.js** | 20.0.0+ (LTS) | [ดาวน์โหลด](https://nodejs.org/) |
-| **npm** | 10.0.0+ | มาพร้อมกับ Node.js |
-| **PostgreSQL** | 15+ | [ดาวน์โหลด](https://www.postgresql.org/download/) |
-| **Git** | 2.30+ | สำหรับ clone repository |
-
-#### ซอฟต์แวร์เสริม (ไม่บังคับ)
-
-| ซอฟต์แวร์ | หน้าที่ |
-|---|---|
-| **pgAdmin 4** | เครื่องมือจัดการฐานข้อมูล (มาพร้อม Docker Compose) |
-| **VS Code** | Code Editor แนะนำ |
-| **Postman / Insomnia** | ทดสอบ API |
+> **สำคัญ**: host ของ server ปัจจุบันยังเป็น Node.js `v12.22.9` และ npm `8.5.1` จึงไม่ใช่ baseline ที่ควรใช้สำหรับ manual install
 
 ### 2.3 ระบบปฏิบัติการที่รองรับ
 
-| ระบบปฏิบัติการ | สถานะ |
+| ระบบปฏิบัติการ | สถานะ | หมายเหตุ |
+|---|---|---|
+| **Ubuntu 22.04+ / Debian 12+** | ✅ แนะนำ | ตรงกับ server ปัจจุบันที่สุด |
+| **Windows 10/11 + WSL2** | ✅ ใช้ได้ | เหมาะกับ development |
+| **macOS (Intel / Apple Silicon)** | ✅ ใช้ได้ | เหมาะกับ development |
+
+### 2.4 ซอฟต์แวร์เสริม
+
+| ซอฟต์แวร์ | หน้าที่ |
 |---|---|
-| **Windows 10/11** (64-bit) + WSL2 | ✅ รองรับเต็มรูปแบบ |
-| **macOS** (Intel / Apple Silicon) | ✅ รองรับเต็มรูปแบบ |
-| **Ubuntu 20.04+** / Debian 11+ | ✅ รองรับเต็มรูปแบบ |
-| **CentOS / RHEL 8+** | ✅ รองรับ |
+| **pgAdmin 4** | จัดการฐานข้อมูลผ่าน browser |
+| **Cloudflare Tunnel / cloudflared** | เปิด public access แบบไม่ต้องเปิดพอร์ตตรง |
+| **Make** | ใช้ shortcut จาก `Makefile` ได้ แต่ไม่จำเป็น |
 
 ---
 
@@ -139,759 +141,737 @@ git clone https://github.com/SakdaRt/Careconnect.git
 cd Careconnect
 ```
 
-### วิธีที่ 2: ดาวน์โหลดเป็นไฟล์ ZIP
+### วิธีที่ 2: คัดลอก source ขึ้น server โดยตรง
 
-1. เข้าไปที่หน้า Repository บน GitHub
-2. กดปุ่ม **Code** → **Download ZIP**
-3. แตกไฟล์ ZIP ไปยังตำแหน่งที่ต้องการ
-4. เปิด Terminal / Command Prompt แล้วเข้าสู่โฟลเดอร์ที่แตกไฟล์
+กรณีคุณมี source อยู่แล้ว ให้คัดลอกทั้งโฟลเดอร์ขึ้น server แล้วเข้าไปที่ root project
 
 ```bash
-cd path/to/careconnect
+cd /path/to/Careconnect
 ```
 
-### วิธีที่ 3: Upload Source Code (กรณีได้รับไฟล์โดยตรง)
+หลัง clone หรือ copy เสร็จ ให้ตรวจว่าไฟล์สำคัญเหล่านี้มีอยู่จริงก่อนเริ่มติดตั้ง
 
-1. คัดลอกโฟลเดอร์ซอร์สโค้ดทั้งหมดไปยัง Server หรือเครื่องที่ต้องการติดตั้ง
-2. ตรวจสอบให้แน่ใจว่าโครงสร้างไฟล์ครบถ้วน (ดูหัวข้อที่ 4)
+- `docker-compose.yml`
+- `docker-compose.prod.yml`
+- `.env.example`
+- `.env.production.example`
+- `frontend/vite.config.ts`
+- `backend/src/config/loadEnv.js`
+- `backend/scripts/migrate.js`
 
 ---
 
 ## 4. โครงสร้างโปรเจค
 
-ตรวจสอบว่าโฟลเดอร์โปรเจคมีโครงสร้างดังนี้:
+โฟลเดอร์ทั้งหมดมีขนาดค่อนข้างใหญ่ แต่สำหรับงานติดตั้ง/ตั้งค่า environment ให้โฟกัสไฟล์ต่อไปนี้เป็นหลัก
 
 ```
 careconnect/
-├── frontend/                    # React 18 + TypeScript + Tailwind CSS + Vite
-│   ├── src/                     # ซอร์สโค้ด Frontend
-│   │   ├── pages/               # หน้าต่างๆ แบ่งตาม role
-│   │   ├── components/          # UI components
-│   │   ├── layouts/             # MainLayout, AdminLayout
-│   │   ├── contexts/            # AuthContext
-│   │   ├── services/            # api.ts, appApi.ts
-│   │   └── router.tsx           # Route definitions
-│   ├── package.json             # Frontend dependencies
-│   ├── vite.config.ts           # Vite configuration
-│   ├── Dockerfile               # Production Dockerfile
-│   ├── Dockerfile.dev           # Development Dockerfile
-│   ├── nginx.conf               # Nginx config (production)
-│   └── tsconfig.json            # TypeScript config
-│
-├── backend/                     # Node.js + Express + PostgreSQL
-│   ├── src/
-│   │   ├── controllers/         # Request handlers
-│   │   ├── services/            # Business logic
-│   │   ├── models/              # Database queries
-│   │   ├── routes/              # API route definitions (17 files)
-│   │   ├── middleware/          # auth.js (JWT + policy gates)
-│   │   ├── utils/               # db.js, errors.js, risk.js, validation.js + 5 more
-│   │   ├── workers/             # trustLevelWorker.js, noShowWorker.js
-│   │   ├── sockets/             # chatSocket.js, realtimeHub.js
-│   │   ├── seeds/               # demoSeed.js, mockData.js + 3 more
-│   │   └── server.js            # Entry point
-│   ├── database/
-│   │   └── migrations/          # SQL migration files (23 files)
-│   ├── scripts/
-│   │   └── migrate.js           # Migration runner
-│   ├── tests/                   # Jest test files
-│   ├── package.json             # Backend dependencies
-│   ├── Dockerfile               # Production Dockerfile
-│   └── Dockerfile.dev           # Development Dockerfile
-│
-├── mock-provider/               # Mock third-party services
-│   ├── src/
-│   │   └── server.js            # Mock Payment/SMS/KYC server
-│   ├── package.json
-│   └── Dockerfile.dev
-│
+├── docker-compose.yml                # stack หลักที่ server ปัจจุบันใช้งานอยู่
+├── docker-compose.override.yml       # dev hot-reload overrides
+├── docker-compose.prod.yml           # production compose แยกอีกชุด
+├── Makefile                          # shortcut commands สำหรับ compose
+├── .env.example                      # template สำหรับ development/root env
+├── .env.production.example           # template สำหรับ production env
 ├── database/
-│   ├── schema.sql               # Master DB schema (41 tables, ~1,143 lines)
-│   └── migrations/              # Schema migrations (15 files, applied by Docker entrypoint)
-│
-├── load-tests/                  # k6 load/smoke/soak test scripts
-│
-├── docker-compose.yml           # Development environment (หลัก)
-├── docker-compose.override.yml  # Development overrides (hot-reload)
-├── docker-compose.prod.yml      # Production environment
-├── docker-compose.test.yml      # Test environment
-├── Makefile                     # Docker shortcut commands (make dev, make prod, etc.)
-├── .env.example                 # ตัวอย่าง environment variables
-├── SYSTEM.md                    # System documentation
-├── PROGRESS.md                  # Progress log
-├── DEVELOPER_GUIDE.md           # คู่มือนักพัฒนา
-└── INSTALLATION.md              # คู่มือนี้
+│   └── schema.sql                    # schema เริ่มต้นที่ postgres import ครั้งแรก
+├── backend/
+│   ├── src/config/loadEnv.js         # กติกาการโหลด env + default/fallback
+│   ├── src/server.js                 # env validation + server bootstrap
+│   ├── scripts/migrate.js            # migrate/status/bootstrap
+│   ├── Dockerfile.dev                # backend dev image
+│   └── Dockerfile                    # backend prod image
+├── frontend/
+│   ├── vite.config.ts                # dev proxy, HMR, VITE_* env
+│   ├── Dockerfile.dev                # frontend dev image
+│   ├── Dockerfile                    # frontend prod image
+│   └── nginx.conf                    # production reverse proxy ใน container
+├── mock-provider/
+│   └── Dockerfile.dev                # mock provider dev image
+├── SYSTEM.md                         # architectural source of truth
+├── DEVELOPER_GUIDE.md                # คู่มือนักพัฒนา
+└── INSTALLATION.md                   # คู่มือนี้
 ```
 
 ---
 
 ## 5. การติดตั้งแบบ Docker (แนะนำ)
 
-วิธีนี้เป็นวิธีที่ง่ายและรวดเร็วที่สุด เพราะ Docker จะจัดการ dependencies ทั้งหมดให้โดยอัตโนมัติ
+หัวข้อนี้คือ path ที่ตรงกับ server ปัจจุบันที่สุด และเป็นวิธีที่ควรใช้ถ้าต้องการขึ้นระบบให้เหมือนเครื่องจริง
 
-### ขั้นตอนที่ 1: ตรวจสอบ Docker
+### 5.1 ติดตั้ง Docker บน Ubuntu 22.04
 
 ```bash
-# ตรวจสอบว่า Docker ติดตั้งแล้ว
-docker --version
-# ตัวอย่างผลลัพธ์: Docker version 24.0.7, build afdd53b
+sudo apt-get update
+sudo apt-get install -y ca-certificates curl gnupg git
 
-# ตรวจสอบ Docker Compose
-docker compose version
-# ตัวอย่างผลลัพธ์: Docker Compose version v2.23.3
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+sudo usermod -aG docker "$USER"
+newgrp docker
 ```
 
-### ขั้นตอนที่ 2: Build และเริ่มระบบ
+> ถ้า `newgrp docker` ไม่ทำงานตาม shell ที่ใช้อยู่ ให้ logout/login ใหม่หนึ่งครั้งก่อนเริ่มใช้คำสั่ง `docker`
+
+### 5.2 ตรวจสอบเวอร์ชัน
 
 ```bash
-# เข้าสู่โฟลเดอร์โปรเจค
-cd careconnect
+docker --version
+docker compose version
+git --version
+```
 
-# Build images และเริ่มทุก service (ครั้งแรกจะใช้เวลาประมาณ 3-5 นาที)
-# --build จะ rebuild images ใหม่ทุกครั้ง เพื่อให้ dependencies เป็นปัจจุบัน
+ค่าที่ตรงกับเครื่องจริงปัจจุบันคือ `Docker 28.4.0` และ `Docker Compose v2.39.1`
+
+### 5.3 เตรียม source และ `.env`
+
+```bash
+git clone https://github.com/SakdaRt/Careconnect.git
+cd Careconnect
+```
+
+คุณมี 2 ทางเลือก
+
+- **ขึ้นแบบ mock/default ก่อน**
+  - ยังไม่ต้องสร้าง `.env`
+  - `docker-compose.yml` และ `loadEnv.js` มีค่า default ให้ครบสำหรับ development
+
+- **ขึ้นแบบใกล้เคียงเครื่องจริงมากขึ้น**
+  - คัดลอก `.env.example` เป็น `.env`
+  - ใส่ค่าพวก `FRONTEND_URL`, `BACKEND_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, และ credentials ของ provider จริงตามที่ต้องการ
+
+```bash
+cp .env.example .env
+```
+
+รายละเอียดการกรอกค่าทั้งหมดอยู่ใน [หัวข้อที่ 7](#7-การกำหนดค่าตัวแปรสภาพแวดล้อม-environment-variables)
+
+### 5.4 เริ่มระบบ
+
+```bash
 docker compose up -d --build
 ```
 
-> **หมายเหตุ**: Database migrations จะรันอัตโนมัติทุกครั้งที่ backend container เริ่มทำงาน ไม่ต้องรันแยก
+สิ่งที่จะเกิดขึ้นตอน start ครั้งแรก
 
-Docker Compose จะสร้างและเริ่ม services ต่อไปนี้โดยอัตโนมัติ:
+- `postgres` import `database/schema.sql` อัตโนมัติถ้า volume ของฐานข้อมูลยังว่าง
+- `backend` รัน `npm run migrate && npm run dev` อัตโนมัติ
+- `frontend` เปิด Vite dev server ที่ port `5173`
+- `mock-provider` และ `pgadmin` ถูก start มาด้วย
 
-| Service | Container Name | Port | หน้าที่ |
-|---|---|---|---|
-| **postgres** | careconnect-postgres | 5432 | ฐานข้อมูล PostgreSQL 15 |
-| **backend** | careconnect-backend | 3000 | API Server (Express.js) |
-| **frontend** | careconnect-frontend | 5173 | Web UI (Vite dev server) |
-| **mock-provider** | careconnect-mock-provider | 4000 | Mock Payment/SMS/KYC |
-| **pgadmin** | careconnect-pgadmin | 5050 | เครื่องมือจัดการ DB (Optional) |
+> ถ้าคุณเคยรัน stack มาก่อนและต้องการฐานข้อมูลใหม่จริง ๆ ให้ใช้ `docker compose down -v` ก่อน แล้วค่อย `docker compose up -d --build` ใหม่ เพราะ `schema.sql` จะไม่ถูก import ซ้ำถ้า volume เดิมยังอยู่
 
-### ขั้นตอนที่ 3: ตรวจสอบสถานะ
+### 5.5 ตรวจสอบสถานะหลัง start
 
 ```bash
-# ดูสถานะ containers ทั้งหมด
 docker compose ps
-
-# ดู logs (ทุก service)
-docker compose logs -f
-
-# ดู logs เฉพาะ backend
 docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
-### ขั้นตอนที่ 4: Database Migrations (อัตโนมัติ)
-
-> **ไม่ต้องรัน migrations แยก** — Backend จะรัน migrations อัตโนมัติทุกครั้งที่ start (idempotent — รันซ้ำกี่ครั้งก็ไม่พัง)
-
-ถ้าต้องการตรวจสอบสถานะ:
+ตรวจสุขภาพหลักที่ควรผ่าน
 
 ```bash
-docker compose exec backend node scripts/migrate.js status
+curl http://localhost:3000/health
+curl http://localhost:4000/health
 ```
 
-### ขั้นตอนที่ 5: สร้างข้อมูลตัวอย่าง (ไม่บังคับ)
-
-```bash
-# สร้างข้อมูล demo สำหรับทดสอบ
-docker compose exec backend npm run seed:demo
-
-# ถ้าต้องการล้างข้อมูล demo แล้วสร้างใหม่
-docker compose exec backend npm run seed:demo:reset
-```
-
-### ขั้นตอนที่ 6: เปิดใช้งาน
-
-เปิดเว็บเบราว์เซอร์แล้วเข้าที่:
+### 5.6 เข้าใช้งานระบบ
 
 | URL | หน้าที่ |
 |---|---|
-| **http://localhost:5173** | หน้าเว็บ CareConnect |
-| **http://localhost:3000/health** | ตรวจสอบสถานะ Backend API |
-| **http://localhost:5050** | pgAdmin (จัดการฐานข้อมูล) |
-| **http://localhost:4000** | Mock Provider Dashboard |
+| `http://localhost:5173` | หน้าเว็บ CareConnect |
+| `http://localhost:3000/health` | health check ของ backend |
+| `http://localhost:4000/health` | health check ของ mock provider |
+| `http://localhost:5050` | pgAdmin |
 
-#### บัญชีผู้ดูแลระบบเริ่มต้น (Admin)
-
-| รายการ | ค่า |
-|---|---|
-| **Email** | admin@careconnect.com |
-| **Password** | Admin1234! |
-
-#### บัญชี pgAdmin เริ่มต้น
+ค่าดีฟอลต์ที่ใช้ได้ทันทีเมื่อไม่ได้ override ใน `.env`
 
 | รายการ | ค่า |
 |---|---|
-| **Email** | admin@careconnect.com |
-| **Password** | admin |
+| **Admin Email** | `admin@careconnect.com` |
+| **Admin Password** | `Admin1234!` |
+| **pgAdmin Email** | `admin@careconnect.com` |
+| **pgAdmin Password** | `admin` |
 
-เมื่อเข้า pgAdmin ให้เพิ่ม Server Connection ด้วยค่าดังนี้:
+> `PGADMIN_DEFAULT_EMAIL` และ `PGADMIN_DEFAULT_PASSWORD` ใน `.env.example` ยังไม่ถูกนำไปใช้โดย `docker-compose.yml` ปัจจุบัน เพราะ compose dev file hardcode ค่า pgAdmin ไว้ที่ `admin@careconnect.com` / `admin`
+
+ถ้าจะเพิ่ม PostgreSQL server ใน pgAdmin ให้ใช้ค่าต่อไปนี้
 
 | รายการ | ค่า |
 |---|---|
-| Host | postgres (ชื่อ Docker container) |
-| Port | 5432 |
-| Database | careconnect |
-| Username | careconnect |
-| Password | careconnect_dev_password |
+| Host | `postgres` |
+| Port | `5432` |
+| Database | `careconnect` |
+| Username | `careconnect` |
+| Password | `careconnect_dev_password` |
 
-### การหยุดระบบ
+### 5.7 คำสั่งดูแล stack ที่ใช้บ่อย
 
 ```bash
 # หยุดทุก service
 docker compose down
 
-# หยุดทุก service พร้อมลบข้อมูล (volumes)
+# หยุดพร้อมลบ volumes (ลบข้อมูล DB ด้วย)
 docker compose down -v
+
+# restart เฉพาะ backend
+docker compose restart backend
+
+# rebuild หลังมีการเปลี่ยน package/dependency
+docker compose up -d --build
 ```
 
 ---
 
 ## 6. การติดตั้งแบบ Manual (ไม่ใช้ Docker)
 
-### ขั้นตอนที่ 1: ตรวจสอบ Prerequisites
+เส้นทางนี้มีไว้สำหรับเครื่องที่พร้อมด้าน Node.js/PostgreSQL อยู่แล้วเท่านั้น และ **ไม่ใช่ path ที่ใช้งานจริงบน server ปัจจุบัน**
+
+### 6.1 เงื่อนไขก่อนเริ่ม
 
 ```bash
-# ตรวจสอบ Node.js (ต้อง v20+)
 node --version
-# ตัวอย่างผลลัพธ์: v20.11.0
-
-# ตรวจสอบ npm (ต้อง v10+)
 npm --version
-# ตัวอย่างผลลัพธ์: 10.2.4
-
-# ตรวจสอบ PostgreSQL
 psql --version
-# ตัวอย่างผลลัพธ์: psql (PostgreSQL) 15.5
 ```
 
-### ขั้นตอนที่ 2: ติดตั้ง PostgreSQL
+ต้องได้อย่างน้อย
 
-#### Windows
+- `node >= 20`
+- `npm >= 10`
+- `PostgreSQL >= 15`
 
-1. ดาวน์โหลด PostgreSQL 15+ จาก https://www.postgresql.org/download/windows/
-2. รัน installer และทำตามขั้นตอน
-3. ตั้ง password สำหรับ user `postgres`
-4. จดจำ port (ค่าเริ่มต้น: 5432)
-
-#### macOS
+### 6.2 ขั้นตอนแบบย่อ
 
 ```bash
-# ผ่าน Homebrew
-brew install postgresql@15
-brew services start postgresql@15
-```
-
-#### Ubuntu/Debian
-
-```bash
-sudo apt update
-sudo apt install postgresql-15 postgresql-client-15
-sudo systemctl start postgresql
-sudo systemctl enable postgresql
-```
-
-### ขั้นตอนที่ 3: สร้างฐานข้อมูล
-
-```bash
-# เข้าสู่ PostgreSQL shell
-sudo -u postgres psql    # Linux/macOS
-# หรือ
-psql -U postgres         # Windows
-
-# สร้างฐานข้อมูลและ user
-CREATE USER careconnect WITH PASSWORD 'careconnect_dev_password';
-CREATE DATABASE careconnect OWNER careconnect;
-GRANT ALL PRIVILEGES ON DATABASE careconnect TO careconnect;
-
-# ออกจาก psql
-\q
-```
-
-### ขั้นตอนที่ 4: นำเข้า Schema
-
-```bash
-# นำเข้า schema หลัก (41 tables)
-psql -U careconnect -d careconnect -f database/schema.sql
-```
-
-### ขั้นตอนที่ 5: ติดตั้ง Backend Dependencies
-
-```bash
-# เข้าโฟลเดอร์ backend
-cd backend
-
-# ติดตั้ง dependencies
-npm install
-
-# กลับไปโฟลเดอร์หลัก
-cd ..
-```
-
-> **หมายเหตุ (Windows)**: Package `bcrypt` และ `sharp` ต้องการ build tools เพิ่มเติม หากติดตั้งไม่สำเร็จ ให้รัน:
-> ```bash
-> npm install --global windows-build-tools
-> ```
-> หรือติดตั้ง Visual Studio Build Tools จาก https://visualstudio.microsoft.com/visual-cpp-build-tools/
-
-### ขั้นตอนที่ 6: ติดตั้ง Frontend Dependencies
-
-```bash
-# เข้าโฟลเดอร์ frontend
-cd frontend
-
-# ติดตั้ง dependencies
-npm install
-
-# กลับไปโฟลเดอร์หลัก
-cd ..
-```
-
-### ขั้นตอนที่ 7: ติดตั้ง Mock Provider Dependencies
-
-```bash
-# เข้าโฟลเดอร์ mock-provider
-cd mock-provider
-
-# ติดตั้ง dependencies
-npm install
-
-# กลับไปโฟลเดอร์หลัก
-cd ..
-```
-
-### ขั้นตอนที่ 8: กำหนดค่า Environment Variables
-
-ดูรายละเอียดเต็มที่ [หัวข้อที่ 7](#7-การกำหนดค่าตัวแปรสภาพแวดล้อม-environment-variables)
-
-สร้างไฟล์ `.env` ที่โฟลเดอร์ root ของโปรเจค:
-
-```bash
-# คัดลอกไฟล์ตัวอย่างแล้วแก้ไขค่าตามต้องการ
 cp .env.example .env
-# แก้ไข DATABASE_HOST=localhost (แทน postgres ที่ใช้ใน Docker)
 ```
 
-### ขั้นตอนที่ 9: รัน Database Migrations
+จากนั้นแก้ค่าอย่างน้อยดังนี้
+
+- `DATABASE_HOST=localhost`
+- `MOCK_PROVIDER_BASE_URL=http://localhost:4000`
+- `WEBHOOK_BASE_URL=http://localhost:3000`
+- `FRONTEND_URL=http://localhost:5173`
+- `BACKEND_URL=http://localhost:3000`
+
+นำเข้า schema และรัน migrations
 
 ```bash
-cd backend
-npm run migrate
-cd ..
+psql -U careconnect -d careconnect -f database/schema.sql
+
+cd backend && npm install && npm run migrate && cd ..
+cd frontend && npm install && cd ..
+cd mock-provider && npm install && cd ..
 ```
 
-### ขั้นตอนที่ 10: เริ่มระบบ
+เปิด 3 terminal เพื่อรันแต่ละ service
 
-เปิด 3 Terminal พร้อมกัน:
-
-**Terminal 1 — Mock Provider:**
 ```bash
-cd mock-provider
-npm run dev
-# Mock Provider จะรันที่ http://localhost:4000
+# Terminal 1
+cd mock-provider && npm run dev
+
+# Terminal 2
+cd backend && npm run dev
+
+# Terminal 3
+cd frontend && npm run dev
 ```
 
-**Terminal 2 — Backend:**
-```bash
-cd backend
-npm run dev
-# Backend จะรันที่ http://localhost:3000
-```
-
-**Terminal 3 — Frontend:**
-```bash
-cd frontend
-npm run dev
-# Frontend จะรันที่ http://localhost:5173
-```
+> ถ้าคุณใช้งานบน host เดียวกับ server ปัจจุบันจริง ๆ ให้กลับไปใช้ Docker Compose แทน เพราะ host Node/npm ยังต่ำกว่า requirement ของโปรเจค
 
 ---
 
 ## 7. การกำหนดค่าตัวแปรสภาพแวดล้อม (Environment Variables)
 
-### 7.1 สำหรับ Development (ไม่ใช้ Docker)
+### 7.1 ไฟล์ไหนถูกโหลด และลำดับความสำคัญเป็นอย่างไร
 
-สร้างไฟล์ `.env` ที่โฟลเดอร์ root ของโปรเจค (`careconnect/.env`):
-หากต้องการแยกค่าเฉพาะ mode เพิ่ม สามารถสร้าง `.env.development` หรือ `.env.production` เพิ่มได้ โดย backend จะโหลดต่อจาก `.env` อัตโนมัติเมื่อมีไฟล์นั้นอยู่
+**Backend (`backend/src/config/loadEnv.js`)**
 
-```env
-# ─── Server ───
-NODE_ENV=development
-TZ=Asia/Bangkok
-PORT=3000
-CORS_ORIGIN=http://localhost:5173
+1. ค่า env ที่ถูกส่งเข้ามาจาก shell หรือ `docker compose` มาก่อนแล้ว
+2. root `.env`
+3. `backend/.env` โดยไม่ override ค่าที่มีอยู่แล้ว
+4. root `.env.<NODE_ENV>`
+5. `backend/.env.<NODE_ENV>`
 
-# ─── Database ───
-DATABASE_HOST=localhost
-DATABASE_PORT=5432
-DATABASE_NAME=careconnect
-DATABASE_USER=careconnect
-DATABASE_PASSWORD=careconnect_dev_password
+ความหมายในทางปฏิบัติ
 
-# ─── JWT Authentication ───
-JWT_SECRET=careconnect_jwt_secret_dev_only
-JWT_EXPIRES_IN=7d
-JWT_REFRESH_EXPIRES_IN=30d
-WEBHOOK_SECRET=careconnect_webhook_secret_dev
+- ถ้าคุณใช้ Docker Compose ให้มองว่าไฟล์ root `.env` เป็นจุดตั้งค่าหลัก
+- ค่าใน `environment:` ของ compose จะมี priority สูงกว่าไฟล์ env ที่ backend โหลดภายใน container
+- ใน non-production ถ้าค่าไม่ครบ backend จะเติม default และ log เป็น `console.warn`
+- ใน production backend จะ validate env เข้มขึ้น และหยุด start ถ้าค่าที่จำเป็นหาย
 
-# ─── Providers ───
-MOCK_PROVIDER_BASE_URL=http://localhost:4000
-WEBHOOK_BASE_URL=http://localhost:3000
-PAYMENT_PROVIDER=mock
-SMS_PROVIDER=mock
-KYC_PROVIDER=mock
-BANK_TRANSFER_PROVIDER=mock
-EMAIL_PROVIDER=mock
-EMAIL_FROM=noreply@careconnect.local
-PUSH_PROVIDER=mock
+**Frontend (`frontend/vite.config.ts`)**
 
-# ─── Provider credentials (optional — dev จะ warn และ fallback mock ถ้าตั้ง provider จริงแต่ credential ไม่ครบ) ───
-STRIPE_PUBLISHABLE_KEY=pk_test_xxx
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_ACCOUNT_ID=acct_xxx
-SMSOK_API_URL=https://api.smsok.co/s
-SMSOK_API_KEY=your_api_key
-SMSOK_API_SECRET=your_api_secret
-SMSOK_SENDER=CareConnect
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
+- dev server โหลด `VITE_*` จาก root project และโฟลเดอร์ `frontend/`
+- เมื่อใช้ Docker Compose dev ค่า `VITE_*` ส่วนใหญ่ถูกส่งมาจาก `docker-compose.yml`
+- production frontend อ่าน `VITE_*` ตอน build image ผ่าน `docker-compose.prod.yml` และ `frontend/Dockerfile`
 
-# ─── File Storage / URLs ───
-UPLOAD_DIR=./uploads
-MAX_FILE_SIZE_MB=10
-FRONTEND_URL=http://localhost:5173
-BACKEND_URL=http://localhost:3000
+### 7.2 ทางลัดที่ควรรู้ก่อน
 
-# ─── Admin Account (สร้างอัตโนมัติตอน bootstrap) ───
-ADMIN_EMAIL=admin@careconnect.com
-ADMIN_PASSWORD=Admin1234!
+#### แบบเร็วที่สุดสำหรับขึ้นเครื่องใหม่
 
-# ─── Frontend (Vite) ───
-VITE_API_TARGET=http://localhost:3000
-VITE_API_URL=
-VITE_API_BASE_URL=
-VITE_SOCKET_URL=
-VITE_GOOGLE_MAPS_API_KEY=
-VITE_VAPID_PUBLIC_KEY=
+- **ไม่มี `.env` ก็รันได้** ถ้าใช้ `docker-compose.yml` และยอมรับ mock/default ทั้งหมด
+- วิธีนี้เหมาะกับการทดสอบ bring-up, ตรวจว่า stack ขึ้นได้, และพัฒนาในเครื่องภายใน
+
+#### แบบที่ใกล้เคียงเครื่องจริงมากขึ้น
+
+```bash
+cp .env.example .env
 ```
 
-> **หมายเหตุ**: เมื่อใช้ Docker Compose สำหรับ development ไม่จำเป็นต้องสร้างไฟล์ `.env` ก็รันได้ทันที เพราะ `docker-compose.yml` มีค่า default ให้แล้ว แต่ถ้าต้องการ override provider keys, admin credentials หรือ `VITE_*` บางตัว สามารถสร้าง `.env` เพิ่มได้
->
-> หาก `SMS_PROVIDER=mock`, `EMAIL_PROVIDER=mock` หรือ `PAYMENT_PROVIDER=mock` ใน development สามารถปล่อย credential ของ provider จริงว่างได้ และ backend จะ log `console.warn` เมื่อมีการ fallback/mock override
->
-> ใน development frontend จะแสดง toast รหัส OTP สำหรับทดสอบเมื่อ backend ส่ง `_dev_code` กลับมา แต่ production จะไม่แสดงข้อความนี้
+จากนั้นค่อยกรอกค่าเฉพาะที่จำเป็น เช่น URL สาธารณะ, secret, และ provider credentials
 
-### 7.2 ตัวแปรเพิ่มเติม (Optional)
-
-#### Google OAuth 2.0 (สำหรับ Sign in with Google)
-
-```env
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-FRONTEND_URL=http://localhost:5173
-BACKEND_URL=http://localhost:3000
-```
-
-#### Stripe Payment (สำหรับการเติมเงินจริง)
-
-```env
-PAYMENT_PROVIDER=stripe
-STRIPE_PUBLISHABLE_KEY=pk_test_xxxx
-STRIPE_SECRET_KEY=sk_test_xxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxx
-```
-
-#### SMS จริง (SMSOK Provider)
-
-```env
-SMS_PROVIDER=smsok
-SMSOK_API_URL=https://api.smsok.co/s
-SMSOK_API_KEY=your_api_key
-SMSOK_API_SECRET=your_api_secret
-SMSOK_SENDER=CareConnect
-```
-
-#### Email จริง (SMTP)
-
-```env
-EMAIL_PROVIDER=smtp
-EMAIL_FROM=noreply@yourdomain.com
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
-```
-
-#### Frontend integrations (ถ้าเปิดใช้จริง)
-
-```env
-VITE_GOOGLE_MAPS_API_KEY=your_google_maps_browser_key
-VITE_VAPID_PUBLIC_KEY=your_web_push_public_key
-```
-
-### 7.3 สำหรับ Production
-
-คัดลอกไฟล์ template ก่อน:
+#### สำหรับ production compose
 
 ```bash
 cp .env.production.example .env.production
 ```
 
-จากนั้นแก้ค่าใน `.env.production` ให้ครบ แล้วจึงรัน `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`
+### 7.3 ตัวแปรหลักที่ควรรู้ก่อนกรอก `.env`
 
-ตัวอย่างค่าหลักใน `.env.production`:
+| Key | ตัวอย่างค่า | ต้องกรอกเมื่อไหร่ | ใช้ทำอะไร | ถ้าไม่กรอก |
+|---|---|---|---|---|
+| `NODE_ENV` | `development` | manual path หรือ production file | กำหนดโหมดของ backend | non-production fallback เป็นโหมดปัจจุบัน |
+| `TZ` | `Asia/Bangkok` | ถ้าต้องการ timezone อื่น | timezone ของ container/process | default `Asia/Bangkok` |
+| `PORT` | `3000` | ถ้าจะเปลี่ยนพอร์ต backend | port ที่ backend listen | dev compose default `3000` |
+| `CORS_ORIGIN` | `https://careconnect.example.com` | เมื่อเปิดผ่าน public hostname หรือมี frontend คนละ origin | ใช้กับ CORS/Socket.IO | dev compose default `http://localhost:5173`, prod compose default `*` |
+| `DATABASE_HOST` | `postgres` | Docker / custom network / manual | hostname ของ PostgreSQL | dev compose inject `postgres`, manual ใช้ `localhost` |
+| `DATABASE_PORT` | `5432` | เมื่อ DB ไม่ได้อยู่พอร์ตมาตรฐาน | พอร์ตฐานข้อมูล | default `5432` |
+| `DATABASE_NAME` | `careconnect` | ถ้าใช้ชื่อ DB อื่น | ชื่อฐานข้อมูล | default `careconnect` |
+| `DATABASE_USER` | `careconnect` | ถ้าใช้ user อื่น | DB username | default `careconnect` |
+| `DATABASE_PASSWORD` | `careconnect_dev_password` หรือ strong password | production หรือ custom DB | DB password | dev fallback มี, production ต้องตั้งเอง |
+| `JWT_SECRET` | random string ยาว | ถ้าเครื่องเข้าถึงได้จากภายนอก หรือ production | ใช้เซ็น JWT | dev fallback มีแต่ไม่ปลอดภัย |
+| `JWT_EXPIRES_IN` | `7d` หรือ `15m` | เมื่อต้องการปรับอายุ access token | อายุ access token | dev default `7d`, prod default `15m` |
+| `JWT_REFRESH_EXPIRES_IN` | `30d` หรือ `7d` | เมื่อต้องการปรับอายุ refresh token | อายุ refresh token | dev default `30d`, prod default `7d` |
+| `WEBHOOK_SECRET` | random string ยาว | ถ้าใช้ webhook/mock provider/production | ใช้ตรวจ webhook payload | dev fallback มีแต่ไม่ควรใช้บน public server |
+| `FRONTEND_URL` | `https://careconnect.example.com` | ถ้ามี public URL, Google OAuth, payment redirect | base URL ฝั่งหน้าเว็บ | default `http://localhost:5173` |
+| `BACKEND_URL` | `https://careconnect.example.com` | ถ้ามี public URL หรือ backend อยู่หลัง reverse proxy | base URL ฝั่ง backend และ fallback สำหรับ absolute backend links | default `http://localhost:3000` |
+| `ADMIN_EMAIL` | `admin@careconnect.example.com` | ถ้าต้องการเปลี่ยน admin bootstrap | email admin เริ่มต้น | dev default `admin@careconnect.com` |
+| `ADMIN_PASSWORD` | strong password | ถ้าเครื่องเข้าถึงได้จากภายนอก หรือ production | รหัสผ่าน admin bootstrap | dev default `Admin1234!` |
+| `UPLOAD_DIR` | `/app/uploads` | ถ้าต้องการ path อื่น | เก็บไฟล์ upload | Docker dev default `/app/uploads`, manual fallback `./uploads` |
+| `MAX_FILE_SIZE_MB` | `10` | ถ้าต้องการปรับขนาดไฟล์ | จำกัดขนาด upload | default `10` |
 
-```env
-NODE_ENV=production
-TZ=Asia/Bangkok
-HTTP_PORT=80
+> **ข้อควรจำ**: ในเครื่องที่เปิด public access อยู่จริง ควร override อย่างน้อย `JWT_SECRET`, `WEBHOOK_SECRET`, `ADMIN_PASSWORD`, `FRONTEND_URL`, `BACKEND_URL`, และ `CORS_ORIGIN` แม้จะยังใช้ dev compose อยู่ก็ตาม
 
-POSTGRES_DB=careconnect
-POSTGRES_USER=careconnect
-POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>
+> **ไม่ต้องตั้ง `GOOGLE_CALLBACK_URL`**: โค้ดปัจจุบันไม่ได้อ่านค่านี้แล้ว โดย callback URL ควรถูกตั้งใน Google Console เป็น `${FRONTEND_URL}/api/auth/google/callback` หรือ public origin ที่ผู้ใช้เข้าเว็บจริงตามด้วย `/api/auth/google/callback`
 
-CORS_ORIGIN=https://yourdomain.com
-FRONTEND_URL=https://yourdomain.com
-BACKEND_URL=https://yourdomain.com
+### 7.4 ตัวแปร provider และพฤติกรรม fallback
 
-JWT_SECRET=<RANDOM_JWT_SECRET_64_CHARS>
-JWT_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
-WEBHOOK_SECRET=<RANDOM_WEBHOOK_SECRET>
+#### Payment
 
-PAYMENT_PROVIDER=stripe
-STRIPE_PUBLISHABLE_KEY=pk_live_xxxx
-STRIPE_SECRET_KEY=sk_live_xxxx
-STRIPE_WEBHOOK_SECRET=whsec_xxxx
-STRIPE_ACCOUNT_ID=acct_xxxx
+- `PAYMENT_PROVIDER=mock` ใช้ mock payment ทันที
+- `PAYMENT_PROVIDER=stripe` ต้องมีอย่างน้อย
+  - `STRIPE_SECRET_KEY`
+  - `STRIPE_WEBHOOK_SECRET`
+- `STRIPE_PUBLISHABLE_KEY` และ `STRIPE_ACCOUNT_ID` แนะนำให้ตั้งเมื่อใช้ Stripe จริง
+- ใน non-production ถ้าตั้ง `PAYMENT_PROVIDER=stripe` แต่คีย์ไม่ครบ backend จะ log `console.warn` และ fallback กลับไป `mock`
 
-SMS_PROVIDER=smsok
-SMSOK_API_URL=https://api.smsok.co/s
-SMSOK_API_KEY=your_api_key
-SMSOK_API_SECRET=your_api_secret
-SMSOK_SENDER=CareConnect
+#### SMS
 
-EMAIL_PROVIDER=smtp
-EMAIL_FROM=noreply@yourdomain.com
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=your_email@gmail.com
-SMTP_PASS=your_app_password
+- `SMS_PROVIDER=mock` ใช้ OTP mock
+- `SMS_PROVIDER=smsok` ต้องมี
+  - `SMSOK_API_URL`
+  - `SMSOK_API_KEY`
+  - `SMSOK_API_SECRET`
+- `SMSOK_SENDER` แนะนำให้ตั้งเป็นชื่อผู้ส่งที่ provider รองรับ
+- ถ้าค่าไม่ครบใน non-production ระบบจะ fallback กลับไป `mock`
 
-PUSH_PROVIDER=mock
-KYC_PROVIDER=mock
-BANK_TRANSFER_PROVIDER=mock
+#### Email
 
-GOOGLE_CLIENT_ID=your_production_client_id
-GOOGLE_CLIENT_SECRET=your_production_client_secret
+- `EMAIL_PROVIDER=mock` ไม่ต้องมี SMTP credential
+- `EMAIL_PROVIDER=smtp` ต้องมี
+  - `EMAIL_FROM`
+  - `SMTP_HOST`
+  - `SMTP_PORT`
+  - `SMTP_USER`
+  - `SMTP_PASS`
+- ถ้าค่าไม่ครบใน non-production ระบบจะ fallback กลับไป `mock`
 
-ADMIN_EMAIL=admin@yourdomain.com
-ADMIN_PASSWORD=<STRONG_ADMIN_PASSWORD>
+#### Google OAuth
 
-UPLOAD_DIR=/app/uploads
-MAX_FILE_SIZE_MB=10
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
 
-VITE_API_URL=
-VITE_API_BASE_URL=
-VITE_SOCKET_URL=
-VITE_GOOGLE_MAPS_API_KEY=
-VITE_VAPID_PUBLIC_KEY=
+ให้ตั้งเมื่อจะเปิดปุ่ม Sign in with Google จริง และเพิ่ม callback URL ใน Google Console เป็น
+
+```text
+<FRONTEND_URL>/api/auth/google/callback
 ```
 
-> **⚠️ สำคัญ**: ห้ามใช้ค่า default ใน production! ต้องเปลี่ยนรหัสผ่านและ secret keys ทั้งหมด
->
-> production จะตรวจ env เข้มขึ้นตอน backend start และ fail-fast ถ้า missing secrets ของ provider ที่เลือกใช้งานจริง
->
-> frontend production build จะอ่าน `VITE_*` จาก `.env.production` ผ่าน `docker compose --env-file .env.production -f docker-compose.prod.yml build`
->
-> production จะไม่คืน `_dev_code` จาก API และ frontend production build จะไม่ render OTP debug toast
+#### ตัวแปร provider อื่น ๆ
+
+| Key | ค่าแนะนำสำหรับ dev | หมายเหตุ |
+|---|---|---|
+| `PUSH_PROVIDER` | `mock` | ถ้ายังไม่เปิด push จริงให้คง mock |
+| `KYC_PROVIDER` | `mock` | dev fallback เป็น mock |
+| `BANK_TRANSFER_PROVIDER` | `mock` | dev fallback เป็น mock |
+| `MOCK_PROVIDER_BASE_URL` | `http://mock-provider:4000` | สำหรับ Docker dev |
+| `WEBHOOK_BASE_URL` | `http://backend:3000` | base URL ที่ระบบใช้ประกอบ callback ภายใน network |
+| `BACKEND_WEBHOOK_URL` | `http://backend:3000/api/webhooks` | ใช้โดย mock-provider container |
+| `MOCK_PAYMENT_CALLBACK_URL` | `http://backend:3000/api/webhooks/payment` | ใช้โดย mock payment flow |
+
+> สำหรับ development หากค่า optional ไม่ครบ ระบบควรแสดงเป็น **backend console warnings** แทนการแจ้งเตือนบนหน้าจอผู้ใช้
+
+### 7.5 `VITE_*` และค่าที่เกี่ยวกับ public/tunnel access
+
+| Key | ค่าแนะนำ | ใช้เมื่อไหร่ | หมายเหตุ |
+|---|---|---|---|
+| `VITE_API_TARGET` | `http://backend:3000` | Docker dev | ให้ชี้ไป internal hostname ของ backend ใน network เดียวกัน |
+| `VITE_DEV_PORT` | `5173` | ถ้าจะเปลี่ยน port dev server | ส่วนใหญ่ไม่ต้องแก้ |
+| `VITE_PUBLIC_HOST` | `careconnect.example.com` | เมื่อเปิด dev server ผ่าน public hostname/tunnel | ใช้ตั้งค่า HMR client |
+| `VITE_PUBLIC_PROTOCOL` | `wss` | เมื่อ public host อยู่หลัง HTTPS/Cloudflare Tunnel | ใช้กับ HMR websocket ไม่ใช่ URL หน้าเว็บ |
+| `VITE_PUBLIC_PORT` | เว้นว่าง หรือ `443` | เมื่อ public port ไม่ใช่ค่าปกติ | โดยทั่วไปใช้ `VITE_PUBLIC_HMR_PORT` แทน |
+| `VITE_PUBLIC_HMR_PORT` | `443` | เมื่อใช้ tunnel/HTTPS public host | แนะนำให้ตั้งถ้า browser เข้าเว็บผ่าน HTTPS |
+| `VITE_USE_POLLING` | `true` หรือ `false` | แก้ปัญหา hot-reload บน WSL/network filesystem | default `false` |
+| `VITE_POLL_INTERVAL` | `300` | เมื่อเปิด polling | หน่วย ms |
+| `VITE_API_URL` | เว้นว่างได้ | production build เฉพาะบาง integration | build-time only |
+| `VITE_API_BASE_URL` | เว้นว่างได้ | production build | build-time only |
+| `VITE_SOCKET_URL` | เว้นว่างได้ | production build | build-time only |
+| `VITE_GOOGLE_MAPS_API_KEY` | browser key | เมื่อเปิด Google Maps บน frontend | build-time only |
+| `VITE_VAPID_PUBLIC_KEY` | public VAPID key | เมื่อเปิด web push | build-time only |
+
+ตัวอย่าง `.env` สำหรับเครื่องที่ต้องการเปิด public access ผ่าน tunnel แบบเดียวกับ server ปัจจุบัน
+
+```env
+FRONTEND_URL=https://careconnect.example.com
+BACKEND_URL=https://careconnect.example.com
+CORS_ORIGIN=https://careconnect.example.com
+
+VITE_API_TARGET=http://backend:3000
+VITE_PUBLIC_HOST=careconnect.example.com
+VITE_PUBLIC_PROTOCOL=wss
+VITE_PUBLIC_HMR_PORT=443
+```
+
+### 7.6 ตัวแปร mock และ seed สำหรับ development
+
+| Key | ค่า default | ใช้ทำอะไร |
+|---|---|---|
+| `MOCK_PAYMENT_AUTO_SUCCESS` | `true` | ให้ mock payment สำเร็จอัตโนมัติ |
+| `MOCK_PAYMENT_SUCCESS_DELAY_MS` | `3000` | delay ก่อน webhook success |
+| `MOCK_SMS_OTP_CODE` | `123456` | OTP สำหรับ SMS mock |
+| `MOCK_EMAIL_OTP_CODE` | `123456` | OTP สำหรับ email mock |
+| `MOCK_KYC_AUTO_APPROVE` | `true` | อนุมัติ KYC mock อัตโนมัติ |
+| `MOCK_KYC_APPROVAL_DELAY_MS` | `5000` | delay ก่อน approve KYC |
+| `SEED_MOCK_CAREGIVERS` | `true` | สร้าง mock caregivers ตอน backend start |
+| `SEED_MOCK_JOBS` | `true` | สร้าง mock hirers/jobs ตอน backend start |
+
+ถ้าไม่ต้องการ auto seed ให้ตั้งค่าเหล่านี้เป็น `false`
+
+### 7.7 `.env.production` ที่ต้องกรอกจริง
+
+```bash
+cp .env.production.example .env.production
+```
+
+ค่าที่ `docker-compose.prod.yml` และ backend validation ต้องมีแน่ ๆ
+
+- `POSTGRES_PASSWORD`
+- `JWT_SECRET`
+- `WEBHOOK_SECRET`
+- `PAYMENT_PROVIDER`
+- `SMS_PROVIDER`
+- `EMAIL_PROVIDER`
+- `PUSH_PROVIDER`
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `FRONTEND_URL`
+- `BACKEND_URL`
+
+ถ้าคุณเลือก provider จริง ต้องกรอก credential ตาม provider นั้นด้วย เช่น
+
+- `PAYMENT_PROVIDER=stripe` ต้องมี `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`
+- `SMS_PROVIDER=smsok` ต้องมี `SMSOK_API_URL`, `SMSOK_API_KEY`, `SMSOK_API_SECRET`
+- `EMAIL_PROVIDER=smtp` ต้องมี `EMAIL_FROM`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`
+
+ตัวแปร `VITE_*` ใน production เป็น **build-time values** หมายความว่าแก้ `.env.production` แล้วต้อง rebuild frontend image ใหม่ด้วยคำสั่ง `docker compose --env-file .env.production -f docker-compose.prod.yml build frontend`
 
 ---
 
 ## 8. การตั้งค่าฐานข้อมูล
 
-### 8.1 Schema เริ่มต้น
+### 8.1 Schema เริ่มต้นใน stack ปัจจุบัน
 
-ระบบใช้ฐานข้อมูล PostgreSQL 15 ประกอบด้วย 41 tables โดย schema หลักอยู่ที่ `database/schema.sql`
+ฐานข้อมูลหลักอยู่ที่ `database/schema.sql`
 
-**เมื่อใช้ Docker**: Schema จะถูกนำเข้าโดยอัตโนมัติตอน container เริ่มทำงานครั้งแรก ผ่าน Docker entrypoint initdb:
+ใน `docker-compose.yml` ปัจจุบัน `postgres` mount ไฟล์นี้เข้า `/docker-entrypoint-initdb.d/01-schema.sql` ทำให้ PostgreSQL import schema อัตโนมัติ **เฉพาะตอนที่ volume `postgres_data` ยังว่าง**
 
-```yaml
-volumes:
-  - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-```
+ผลลัพธ์ที่ควรเข้าใจ
 
-**เมื่อไม่ใช้ Docker**: นำเข้าด้วยคำสั่ง:
+- start ครั้งแรกบนเครื่องใหม่: schema ถูก import ให้อัตโนมัติ
+- start ครั้งถัดไป: PostgreSQL ใช้ข้อมูลเดิมใน volume และจะไม่ import `schema.sql` ซ้ำ
+- ถ้าต้องการเริ่มฐานข้อมูลใหม่จริง ๆ: ใช้ `docker compose down -v` ก่อน
+
+สำหรับ manual path ให้ import เองด้วยคำสั่ง
 
 ```bash
 psql -U careconnect -d careconnect -f database/schema.sql
 ```
 
-### 8.2 Database Migrations
+### 8.2 Migrations ทำงานอย่างไร
 
-ระบบมี migration files 23 ไฟล์ อยู่ที่ `backend/database/migrations/` ใช้สำหรับปรับปรุง schema เพิ่มเติมหลังจาก schema หลัก
+Migrations ของ backend อยู่ที่ `backend/database/migrations/` และถูกรันโดย `backend/scripts/migrate.js`
 
-> **หมายเหตุ**: เมื่อใช้ Docker — migrations จะรันอัตโนมัติทุกครั้งที่ backend container เริ่มทำงาน ไม่จำเป็นต้องรันเองแยก
+พฤติกรรมในแต่ละโหมด
 
-```bash
-# ดูสถานะ migrations
-cd backend
-npm run migrate:status
+- **Docker development ปัจจุบัน**: `backend` รัน `npm run migrate && npm run dev` ทุกครั้งที่ container start
+- **Production compose**: มี service `migrate` แยก profile ไว้ให้รันเอง
+- **Manual**: ต้องรัน `npm run migrate` เอง
 
-# รัน pending migrations
-npm run migrate
-
-# Bootstrap schema ใหม่ทั้งหมด (กรณี DB ว่าง)
-npm run migrate:bootstrap
-```
-
-**เมื่อใช้ Docker**:
+คำสั่งที่ใช้บ่อย
 
 ```bash
-# รัน migrations ผ่าน Docker (migrate service ใช้ profile)
+# ดูสถานะ migration จาก backend container
+docker compose exec backend node scripts/migrate.js status
+
+# รัน pending migrations ผ่าน migrate profile
 docker compose --profile migrate run --rm migrate
 
-# ดูสถานะ migrations
-docker compose exec backend node scripts/migrate.js status
+# Bootstrap schema ผ่าน backend script (ใช้เมื่อ DB ว่างและไม่ได้พึ่ง initdb)
+docker compose exec backend npm run migrate:bootstrap
 ```
 
-### 8.3 ข้อมูลตัวอย่าง (Demo Seed)
+> ใน dev stack ปกติ **ไม่ต้อง** รัน `migrate` แยกหลัง `docker compose up -d --build` เว้นแต่คุณต้องการ debug migration เอง
 
-ระบบมีสคริปต์สร้างข้อมูลสาธิตครบทุก flow:
+### 8.3 Mock data และ demo seed
+
+มีข้อมูลตัวอย่างอยู่ 2 ชั้น
+
+#### Auto seed ตอน backend start
+
+- ควบคุมด้วย `SEED_MOCK_CAREGIVERS` และ `SEED_MOCK_JOBS`
+- ค่า default ใน dev compose คือ `true`
+- ถ้าต้องการปิด ให้ตั้งเป็น `false` ใน `.env`
+
+รหัสผ่าน default ของ auto-seeded mock users ถ้าไม่ได้ override มีดังนี้
+
+- caregivers: `DemoCare123!`
+- hirers/jobs: `DemoHirer123!`
+
+#### Demo seed แบบเต็มชุด
 
 ```bash
-# สร้างข้อมูล demo
-npm run seed:demo          # Manual
-# หรือ
-docker compose exec backend npm run seed:demo  # Docker
-
-# ล้างและสร้างใหม่
-npm run seed:demo:reset
+docker compose exec backend npm run seed:demo
+docker compose exec backend npm run seed:demo:reset
 ```
 
-บัญชี demo ใช้ email pattern `*@demo.careconnect.local` รหัสผ่าน: `Demo1234!`
+ชุด demo นี้จะสร้างบัญชี pattern `*@demo.careconnect.local` โดยใช้รหัสผ่าน `Demo1234!`
 
 ---
 
 ## 9. การรันระบบสำหรับพัฒนา (Development)
 
-### 9.1 ด้วย Docker Compose (แนะนำ)
+### 9.1 คำสั่งประจำวันสำหรับ dev stack
 
 ```bash
-# เริ่มทุก service (migrations จะรันอัตโนมัติก่อน backend start)
+# start ปกติ
 docker compose up -d
 
-# ดู logs แบบ real-time
+# start พร้อม rebuild เมื่อ package เปลี่ยน
+docker compose up -d --build
+
+# ดู logs รวม
 docker compose logs -f
+
+# เข้า shell ใน backend/frontend
+docker compose exec backend sh
+docker compose exec frontend sh
 ```
 
-> **สำคัญ**: ถ้า dependencies มีการเปลี่ยนแปลง (เช่น เพิ่ม package ใหม่ใน package.json) ต้อง rebuild images ก่อน:
-> ```bash
-> docker compose up -d --build
-> ```
+### 9.2 สิ่งที่ควรคาดหวังใน development mode
 
-**คุณสมบัติ Development Mode:**
-- **Hot Reload**: แก้ไขโค้ดแล้วเห็นผลทันที (ทั้ง frontend และ backend)
-- **Volume Mounts**: ซอร์สโค้ดถูก mount เข้า container โดยตรง
-- **pgAdmin**: เครื่องมือจัดการ DB พร้อมใช้ที่ http://localhost:5050
-- **Mock OTP**: OTP code คงที่ = `123456` (ไม่ต้องรับ SMS/Email จริง)
-- **Mock Payment**: ชำระเงินสำเร็จโดยอัตโนมัติ
-- **Mock KYC**: KYC อนุมัติอัตโนมัติ
-- **Auto Top-up**: ถ้ายอดเงินไม่พอตอน publish job ระบบจะเติมให้อัตโนมัติ
+- frontend และ backend ใช้ volume mount จึง hot-reload ได้
+- frontend dev server อยู่ที่ `http://localhost:5173`
+- backend health check อยู่ที่ `http://localhost:3000/health`
+- mock-provider health check อยู่ที่ `http://localhost:4000/health`
+- pgAdmin อยู่ที่ `http://localhost:5050`
+- `MOCK_SMS_OTP_CODE` และ `MOCK_EMAIL_OTP_CODE` default เป็น `123456`
+- mock payment auto success default หลังประมาณ `3000ms`
+- mock KYC auto approve default หลังประมาณ `5000ms`
 
-### 9.2 แบบ Manual
+### 9.3 เช็กว่าระบบพร้อมใช้งาน
 
-เปิด 3 Terminal:
+1. เปิด `http://localhost:5173`
+2. เปิด `http://localhost:3000/health`
+3. เปิด `http://localhost:4000/health`
+4. login ด้วย `admin@careconnect.com` / `Admin1234!` หรือค่าที่คุณ override เอง
+
+### 9.4 Public access แบบเดียวกับ server ปัจจุบันด้วย Cloudflare Tunnel
+
+หัวข้อนี้เป็น **optional** แต่ตรงกับวิธีที่ server ปัจจุบันใช้งานอยู่จริง
+
+#### ขั้นที่ 1: ตั้งค่า `.env` ให้รองรับ public hostname
+
+```env
+FRONTEND_URL=https://careconnect.example.com
+BACKEND_URL=https://careconnect.example.com
+CORS_ORIGIN=https://careconnect.example.com
+
+VITE_API_TARGET=http://backend:3000
+VITE_PUBLIC_HOST=careconnect.example.com
+VITE_PUBLIC_PROTOCOL=wss
+VITE_PUBLIC_HMR_PORT=443
+```
+
+จากนั้น restart frontend และ backend
 
 ```bash
-# Terminal 1: Mock Provider
-cd mock-provider && npm run dev
-
-# Terminal 2: Backend
-cd backend && npm run dev
-
-# Terminal 3: Frontend
-cd frontend && npm run dev
+docker compose up -d --build frontend backend
 ```
 
-### 9.3 ทดสอบว่าระบบทำงานได้
+#### ขั้นที่ 2: ติดตั้ง `cloudflared`
 
-1. เปิด http://localhost:5173 — ต้องเห็นหน้า Landing Page
-2. เปิด http://localhost:3000/health — ต้องเห็น JSON `{ "status": "ok" }`
-3. ลงทะเบียนผู้ใช้ใหม่ผ่านหน้าเว็บ
-4. Login ด้วย Admin: `admin@careconnect.com` / `Admin1234!`
+```bash
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
+```
+
+#### ขั้นที่ 3: สร้าง tunnel ใน Cloudflare
+
+- สร้าง tunnel ผ่าน Cloudflare Dashboard
+- ตั้ง public hostname ของคุณให้ชี้เข้า service URL `http://localhost:5173`
+- คัดลอก tunnel token ที่ได้จาก dashboard
+
+> ถ้าคุณใช้ production compose แทน dev compose ให้เปลี่ยน target เป็น `http://localhost:80`
+
+#### ขั้นที่ 4: สร้าง systemd service
+
+```bash
+sudo tee /etc/systemd/system/cloudflared.service >/dev/null <<'EOF'
+[Unit]
+Description=Cloudflare Tunnel for CareConnect
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/cloudflared --no-autoupdate tunnel run --token <CLOUDFLARE_TUNNEL_TOKEN>
+Restart=always
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now cloudflared
+sudo systemctl status cloudflared --no-pager
+```
+
+> ตรวจสอบให้แน่ใจว่า `Restart=always` สะกดถูกต้อง และกำหนด `RestartSec=5s` เพื่อให้ service ฟื้นตัวเองได้เมื่อ network มีปัญหาชั่วคราว
+
+#### ขั้นที่ 5: ตรวจสอบ logs
+
+```bash
+journalctl -u cloudflared -n 50 --no-pager
+```
+
+เมื่อทุกอย่างถูกต้อง browser ภายนอกจะเข้า public hostname ของคุณได้ และ traffic จะถูก tunnel ไปยัง `http://localhost:5173`
 
 ---
 
 ## 10. การรันระบบสำหรับ Production
 
-### 10.1 เตรียมไฟล์ .env
+### 10.1 สิ่งที่ควรเข้าใจก่อน
 
-คัดลอกไฟล์ `/.env.production.example` เป็น `.env.production` ที่ root ของโปรเจค แล้วกรอกค่าจริงทั้งหมดก่อน deploy
+`docker-compose.prod.yml` เป็นเส้นทาง production ที่โปรเจครองรับ แต่ **ไม่ใช่ compose file ที่ server ปัจจุบันเปิด public อยู่ตอนนี้**
 
-### 10.2 Build และ Deploy
+จุดต่างหลักคือ
+
+- frontend ใช้ production image และ serve ผ่าน Nginx ที่ port `80`
+- ไม่มี `mock-provider` และ `pgadmin`
+- backend ใช้ production Dockerfile
+- ค่า env หลายตัวถูกบังคับให้ต้องมีจริง
+
+### 10.2 เตรียม `.env.production`
 
 ```bash
-# Build production images
+cp .env.production.example .env.production
+```
+
+จากนั้นกรอกค่าตามหัวข้อ `7.7`
+
+### 10.3 Deploy ครั้งแรกบนเครื่องใหม่หรือฐานข้อมูลว่าง
+
+```bash
+# 1) build images
 docker compose --env-file .env.production -f docker-compose.prod.yml build
 
-# รัน migrations (บังคับครั้งแรก และหลังเปลี่ยน schema)
-# หมายเหตุ: production compose ไม่ได้ mount schema.sql เข้า initdb เหมือน dev
-# ครั้งแรกให้รัน bootstrap เพื่อสร้าง schema + migrations ทั้งหมด:
-#   docker compose --env-file .env.production -f docker-compose.prod.yml run --rm backend npm run migrate:bootstrap
-# ครั้งถัดไปรัน migrate ปกติ:
+# 2) start เฉพาะ postgres ก่อน
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d postgres
+
+# 3) bootstrap schema ครั้งแรก
+docker compose --env-file .env.production -f docker-compose.prod.yml run --rm backend npm run migrate:bootstrap
+
+# 4) apply pending migrations
 docker compose --env-file .env.production -f docker-compose.prod.yml --profile migrate run --rm migrate
 
-# เริ่มระบบ production
+# 5) start application services
 docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
-### 10.3 ความแตกต่างระหว่าง Development และ Production
-
-| รายการ | Development | Production |
-|---|---|---|
-| **Frontend** | Vite Dev Server (port 5173) | Nginx + Static Build (port 80) |
-| **Backend** | nodemon (hot-reload) | node (production) |
-| **JWT Expiry** | 7 วัน | 15 นาที |
-| **Mock Provider** | ✅ มี | ❌ ไม่มี |
-| **pgAdmin** | ✅ มี | ❌ ไม่มี |
-| **Source Volumes** | ✅ Mount (hot-reload) | ❌ Copy into image |
-| **DB Password** | ค่า default | **ต้องตั้งค่าเอง** |
-| **JWT Secret** | ค่า default | **ต้องตั้งค่าเอง** |
-
-### 10.4 Production Frontend (Nginx)
-
-ใน production frontend จะถูก build เป็น static files แล้ว serve ผ่าน Nginx ซึ่งทำหน้าที่:
-- Serve static files (React SPA)
-- Reverse proxy `/api/*` → Backend container (port 3000)
-- Reverse proxy `/socket.io/*` → Backend container (WebSocket)
-- Reverse proxy `/uploads/*` → Backend container (uploaded files)
-- Gzip compression
-- Cache static assets (1 year)
-- Security headers (X-Frame-Options, X-Content-Type-Options, X-XSS-Protection)
-
-### 10.5 SSL/HTTPS (แนะนำสำหรับ Production)
-
-สำหรับ production ควรใช้ reverse proxy ด้านหน้า (เช่น Nginx, Caddy, Traefik) ที่จัดการ SSL certificate:
+### 10.4 Deploy ครั้งถัดไป
 
 ```bash
-# ตัวอย่าง: ใช้ Caddy เป็น reverse proxy
-# Caddyfile
-yourdomain.com {
-    reverse_proxy localhost:80
-}
+docker compose --env-file .env.production -f docker-compose.prod.yml build
+docker compose --env-file .env.production -f docker-compose.prod.yml --profile migrate run --rm migrate
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d
 ```
 
-หรือใช้บริการ Cloud ที่จัดการ SSL ให้ เช่น AWS ALB, Cloudflare, DigitalOcean App Platform
+### 10.5 สิ่งที่ frontend production image ทำให้โดยอัตโนมัติ
+
+`frontend/nginx.conf` จะ
+
+- serve React static files
+- proxy `/api/` ไป `backend:3000`
+- proxy `/health` ไป `backend:3000/health`
+- proxy `/uploads/` ไป backend
+- proxy `/socket.io/` แบบ websocket
+- เปิด gzip, cache assets, และ security headers พื้นฐาน
+
+### 10.6 ความแตกต่างระหว่าง Development และ Production
+
+| รายการ | Development (`docker-compose.yml`) | Production (`docker-compose.prod.yml`) |
+|---|---|---|
+| Frontend | Vite dev server `:5173` | Nginx static site `:80` |
+| Backend | `Dockerfile.dev` + `npm run dev` | `Dockerfile` + `node src/server.js` |
+| PostgreSQL schema | import `database/schema.sql` ครั้งแรกผ่าน initdb | ต้อง bootstrap/migrate เอง |
+| Mock Provider | ✅ มี | ❌ ไม่มี |
+| pgAdmin | ✅ มี | ❌ ไม่มี |
+| Source mount | ✅ มี | ❌ ไม่มี |
+| `VITE_*` | ใช้ runtime/dev server | ใช้ตอน build image |
+| Public access แบบเดียวกับเครื่องจริง | เหมาะกับ Cloudflare Tunnel → `localhost:5173` | ถ้าจะใช้ tunnel ให้ชี้ไป `localhost:80` |
+
+### 10.7 HTTPS/Reverse Proxy
+
+ถ้าจะเปิด production จริง ควรมี HTTPS ด้านหน้าเสมอ เช่น
+
+- Cloudflare Tunnel
+- Nginx
+- Caddy
+- Traefik
+
+ถ้าใช้ reverse proxy ภายนอก ให้ชี้ไป `http://localhost:80`
 
 ---
 
 ## 11. การทดสอบระบบ
 
 ### 11.1 Backend Unit/Integration Tests
+
+บน server ปัจจุบัน host Node.js ยังเป็น `v12` จึงควรใช้ container หรือเครื่องที่มี `node >= 20` สำหรับการ verify
 
 ```bash
 # รันทั้งหมด (พร้อม coverage)
@@ -915,6 +895,13 @@ npm run test:e2e-smoke
 docker compose -f docker-compose.test.yml up --build --abort-on-container-exit backend-test
 ```
 
+หรือถ้าคุณต้องการใช้ dev container ที่รันอยู่แล้ว:
+
+```bash
+docker compose exec backend npm test
+docker compose exec backend npm run test:integration
+```
+
 ### 11.2 Frontend Tests (Vitest + Playwright)
 
 ```bash
@@ -934,6 +921,12 @@ npm run test:e2e:headed
 
 # E2E tests ผ่าน Docker
 npm run test:e2e:docker
+```
+
+ถ้า host ยังไม่ใช่ Node.js 20+ ให้ใช้ container สำหรับ frontend unit tests ก่อน:
+
+```bash
+docker compose exec frontend npm test
 ```
 
 ### 11.3 Load Tests (k6)
@@ -1000,12 +993,22 @@ docker inspect careconnect-postgres | grep -A 10 Health
 VITE_USE_POLLING=true
 ```
 
+ถ้าเข้าเว็บผ่าน public hostname/tunnel แล้ว HMR หลุด ให้เพิ่มด้วย:
+
+```env
+VITE_PUBLIC_HOST=careconnect.example.com
+VITE_PUBLIC_PROTOCOL=wss
+VITE_PUBLIC_HMR_PORT=443
+```
+
 ### ปัญหา: Permission denied ตอน upload ไฟล์
 
 ```bash
-# สร้างโฟลเดอร์ uploads และตั้ง permissions
-mkdir -p backend/uploads/avatars backend/uploads/jobs backend/uploads/chat backend/uploads/disputes
-chmod -R 777 backend/uploads  # เฉพาะ development เท่านั้น
+# ตรวจสิทธิ์ใน volume ที่ backend ใช้อยู่จริง
+docker compose exec backend sh -c 'ls -ld /app/uploads && ls -l /app'
+
+# ถ้าจำเป็นให้ปรับ owner/permission ภายใน container
+docker compose exec backend sh -c 'mkdir -p /app/uploads && chmod -R 775 /app/uploads'
 ```
 
 ### ปัญหา: Migrations ไม่ทำงาน
@@ -1020,6 +1023,26 @@ docker compose exec backend node -e "
   const pool = new pg.Pool({host:'postgres',database:'careconnect',user:'careconnect',password:'careconnect_dev_password'});
   pool.query('SELECT NOW()').then(r => { console.log('Connected:', r.rows[0]); pool.end(); });
 "
+```
+
+### ปัญหา: เปิด public URL ผ่าน Cloudflare Tunnel ไม่ได้
+
+```bash
+# ตรวจสถานะ service
+sudo systemctl status cloudflared --no-pager
+
+# ดู logs ล่าสุด
+journalctl -u cloudflared -n 50 --no-pager
+
+# ตรวจว่าชุด service มี Restart=always และ RestartSec=5s
+sudo systemctl cat cloudflared
+```
+
+ถ้า service file ถูกแก้ไขแล้ว อย่าลืม reload
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart cloudflared
 ```
 
 ### การ Reset ระบบทั้งหมด (ลบข้อมูลทั้งหมด)
@@ -1049,4 +1072,4 @@ docker compose up -d --build
 ---
 
 > **จัดทำโดย**: ทีมพัฒนา CareConnect
-> **อัพเดทล่าสุด**: 2026-04-05
+> **อัพเดทล่าสุด**: 2026-04-06

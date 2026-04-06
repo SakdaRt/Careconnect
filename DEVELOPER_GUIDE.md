@@ -1,7 +1,7 @@
 # CareConnect — คู่มือนักพัฒนาโปรแกรม (Developer Guide)
 
 > เอกสารอ้างอิงสำหรับนักพัฒนา — อธิบายโครงสร้างโปรแกรม, โมดูล, โปรแกรมย่อย, Input/Output, และ Flowchart
-> อัพเดทล่าสุด: 2026-04-05
+> อัพเดทล่าสุด: 2026-04-06
 
 ---
 
@@ -24,6 +24,17 @@
 
 **CareConnect** เป็น Two-sided Marketplace สำหรับบริการดูแลผู้สูงอายุในประเทศไทย เชื่อมต่อ **ผู้ว่าจ้าง (Hirer)** กับ **ผู้ดูแล (Caregiver)** โดยมี **ผู้ดูแลระบบ (Admin)** ควบคุม
 
+### Runtime baseline ที่ยืนยันแล้วกับเครื่องใช้งานจริง
+
+| รายการ | ค่า |
+|-------|-----|
+| **OS** | Ubuntu 22.04.5 LTS |
+| **Docker** | 28.4.0 |
+| **Docker Compose** | v2.39.1 |
+| **Host Node/npm** | v12.22.9 / 8.5.1 |
+| **Current live stack** | `docker-compose.yml` (development profile) |
+| **Public access path** | Cloudflare Tunnel → `http://localhost:5173` |
+
 ### เทคโนโลยีที่ใช้ (Tech Stack)
 
 | Layer | เทคโนโลยี |
@@ -31,7 +42,7 @@
 | **Frontend** | React 18, TypeScript, Tailwind CSS, Vite, react-hot-toast, Lucide Icons |
 | **Backend** | Node.js (ESM), Express.js, Socket.IO, Joi Validation, JWT Auth |
 | **Database** | PostgreSQL 15 (41 tables, Double-entry Ledger) |
-| **DevOps** | Docker, Docker Compose, node-cron |
+| **DevOps** | Docker, Docker Compose, cloudflared (optional public access), node-cron |
 | **Testing** | Jest (backend), Vitest (frontend), Playwright (E2E), k6 (load test) |
 | **External** | Stripe (payment), Google OAuth, SMSOK (SMS), Nodemailer (email) |
 
@@ -51,17 +62,18 @@
 ## 2. สถาปัตยกรรมระบบ (Architecture Diagram)
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Client (Web Browser)                         │
-│                  Hirer  /  Caregiver  /  Admin                      │
-└──────────┬──────────────────────────────────────┬───────────────────┘
-           │ HTTPS (REST API)                     │ WSS (Socket.IO)
-           ▼                                      ▼
+Browser / Public URL
+        │
+        ├── direct local access      → http://localhost:5173
+        └── optional public access   → Cloudflare Tunnel → http://localhost:5173
+                                         (current live path)
+                                                │
+                                                ▼
 ┌─────────────────────────┐      ┌────────────────────────────────────┐
 │   Frontend Container    │      │       Backend Container            │
 │   React 18 + Vite       │─────▶│       Express.js + Socket.IO       │
-│   TypeScript + Tailwind │proxy │       JWT Auth + Joi Validation    │
-│   Port 5173             │/api  │       Port 3000                    │
+│   Port 5173 (current)   │proxy │       Port 3000                    │
+│   Port 80 (prod build)  │/api  │       JWT + Joi validation         │
 └─────────────────────────┘      └───────┬──────────────┬─────────────┘
                                          │              │
                            ┌─────────────┘              └──────────────┐
@@ -83,15 +95,17 @@
 ### Data Flow (การไหลของข้อมูล)
 
 ```
-User Browser ──HTTP──▶ Frontend (React) ──/api proxy──▶ Backend (Express)
-                                                              │
-                                                    ┌─────────┼──────────┐
-                                                    ▼         ▼          ▼
-                                               PostgreSQL  File System  External APIs
-                                               (pg pool)  (/uploads)  (Stripe/SMS/KYC)
+User Browser ──HTTP/HTTPS──▶ Frontend (Vite/Nginx)
+                                 │
+                                 └── /api, /socket.io, /uploads proxy ──▶ Backend (Express)
+                                                                                 │
+                                                                       ┌─────────┼──────────┐
+                                                                       ▼         ▼          ▼
+                                                                  PostgreSQL  File System  External APIs
+                                                                  (pg pool)  (/uploads)  (Stripe/SMS/KYC)
 ```
 
-### ระบบ 4 ส่วนหลัก
+### Runtime components ที่สำคัญ
 
 | ส่วน | Port | หน้าที่ |
 |------|------|---------|
@@ -99,6 +113,8 @@ User Browser ──HTTP──▶ Frontend (React) ──/api proxy──▶ Back
 | **Backend** | 3000 | Business logic, REST API, WebSocket, JWT auth, cron jobs |
 | **PostgreSQL** | 5432 | เก็บข้อมูลทั้งหมด (41 tables), constraints, triggers |
 | **Mock Provider** | 4000 | จำลอง external services (Payment, SMS, KYC) สำหรับ dev |
+| **pgAdmin** | 5050 | เครื่องมือช่วยจัดการฐานข้อมูลใน dev stack |
+| **Cloudflare Tunnel** | 443/HTTPS ภายนอก | public ingress ที่ชี้เข้า `localhost:5173` ในเครื่องจริง |
 
 ---
 
@@ -225,7 +241,7 @@ careconnect/
 │   └── package.json
 │
 ├── database/                         # ── Database Schema ──
-│   ├── schema.sql                   # Master schema (41 tables, 1143 lines)
+│   ├── schema.sql                   # Master schema (41 tables, 1474 lines)
 │   └── migrations/ (15 ไฟล์)        # Incremental migrations
 │
 ├── mock-provider/                    # ── Mock External Services ──
@@ -303,7 +319,12 @@ Request Flow (Top-Down):
 | Cron Jobs | `*/5 * * * *` — no-show scan + auto-approve checkouts |
 | Graceful Shutdown | จัดการ SIGTERM/SIGINT — ปิด server + DB pool |
 
-**Input**: Environment variables (`.env`, optional `.env.development`, `.env.production`; frontend Docker build รับ `VITE_*` ผ่าน compose build args)
+**Input**:
+- runtime env จาก shell หรือ compose `environment:`
+- root `.env` และ `backend/.env`
+- optional overlays `.env.<mode>` และ `backend/.env.<mode>`
+- frontend dev โหลด `VITE_*` จาก root/`frontend/`
+- frontend prod รับ `VITE_*` ผ่าน compose build args
 **Output**: HTTP server listening on `PORT` (default 3000)
 
 ---
@@ -1105,7 +1126,7 @@ ApiClient Class:
 ### 6.1 ภาพรวม
 
 - **Database**: PostgreSQL 15
-- **Schema**: `database/schema.sql` (1,143 บรรทัด, 41 tables)
+- **Schema**: `database/schema.sql` (1,474 บรรทัด, 41 tables)
 - **Migrations (schema)**: `database/migrations/` (15 ไฟล์ incremental)
 - **Migrations (backend)**: `backend/database/migrations/` (23 ไฟล์ — รันอัตโนมัติตอน backend start)
 - **Pattern**: Double-entry Ledger สำหรับระบบการเงิน
@@ -1987,46 +2008,73 @@ Phase 5: CANCEL (5 Sub-cases)
 
  ### 10.6 Docker Compose Services
 
- ```
- Development (docker-compose.yml):
-   - postgres      : 5432
-   - migrate       : profile "migrate", command npm run migrate
-   - backend       : 3000, depends_on postgres + mock-provider,
-                     command sh -c "npm run migrate && npm run dev"
-   - mock-provider : 4000
-   - frontend      : 5173, depends_on backend
-   - pgadmin       : 5050, optional
+| Mode | Service | Port | รายละเอียด |
+|------|---------|------|-------------|
+| **Development** | `postgres` | `5432` | import `database/schema.sql` ครั้งแรกเมื่อ volume ว่าง |
+| **Development** | `migrate` | profile only | `npm run migrate` ใช้เมื่ออยากรันแยกเอง |
+| **Development** | `backend` | `3000` | `sh -c "npm run migrate && npm run dev"`, depends on `postgres` + `mock-provider` |
+| **Development** | `mock-provider` | `4000` | mock payment/SMS/KYC/webhook |
+| **Development** | `frontend` | `5173` | Vite dev server, proxy ไป `backend`, รองรับ `VITE_PUBLIC_*` สำหรับ public HMR |
+| **Development** | `pgadmin` | `5050` | optional DB UI |
+| **Production** | `postgres` | internal | ใช้ volume persistent, ไม่มี initdb schema mount |
+| **Production** | `migrate` | profile only | รัน `npm run migrate` แยกจาก app startup |
+| **Production** | `backend` | expose `3000` | ใช้ production Dockerfile และ env แบบ fail-fast |
+| **Production** | `frontend` | `${HTTP_PORT:-80}:80` | Nginx serve static files และ proxy `/api`, `/health`, `/uploads`, `/socket.io` |
 
- Production (docker-compose.prod.yml):
-   - postgres      : internal service
-   - migrate       : profile "migrate", command npm run migrate
-   - backend       : expose 3000, depends_on postgres
-   - frontend      : ${HTTP_PORT:-80}:80, depends_on backend
- ```
+> Current live server ณ ตอนนี้ใช้ **development compose + Cloudflare Tunnel ไปที่ `localhost:5173`** ไม่ได้ใช้ `docker-compose.prod.yml` เป็น public path หลัก
 
- ## ภาคผนวก
+### 10.7 Environment Responsibilities
+
+- **`docker-compose.yml`**
+  - ให้ค่า default ที่เหมาะกับ dev stack ปัจจุบัน เช่น `DATABASE_HOST=postgres`, `MOCK_PROVIDER_BASE_URL=http://mock-provider:4000`, `UPLOAD_DIR=/app/uploads`, `WEBHOOK_BASE_URL=http://backend:3000`, `VITE_API_TARGET=http://backend:3000`
+  - ทำให้ dev stack ขึ้นได้แม้ไม่มี root `.env`
+
+- **`backend/src/config/loadEnv.js`**
+  - โหลด env จาก root `.env` → `backend/.env` → overlays ตาม `NODE_ENV`
+  - non-production เติม default และ fallback providers เป็น `mock` พร้อม `console.warn`
+  - production ปล่อยให้ `server.js` validate แบบ fail-fast
+
+- **`docker-compose.prod.yml`**
+  - บังคับให้ใส่ secrets สำคัญและ provider selectors หลายตัวผ่าน `${VAR:?required}`
+  - แยกการรัน migrations ออกเป็น profile `migrate`
+  - expose frontend ผ่าน `${HTTP_PORT:-80}:80`
+
+- **`frontend/Dockerfile` + `docker-compose.prod.yml` build args**
+  - `VITE_API_URL`, `VITE_API_BASE_URL`, `VITE_SOCKET_URL`, `VITE_GOOGLE_MAPS_API_KEY`, `VITE_VAPID_PUBLIC_KEY` ถูกอ่านตอน build image เท่านั้น
+  - เปลี่ยนค่าแล้วต้อง rebuild frontend image ใหม่
+
+- **`VITE_PUBLIC_*`**
+  - มีผลหลักกับ dev server/HMR เมื่อ frontend ถูกเปิดผ่าน public hostname หรือตัวกลางอย่าง Cloudflare Tunnel
+  - ค่าที่ใช้บ่อยกับเครื่องจริงคือ `VITE_PUBLIC_HOST=<public-host>`, `VITE_PUBLIC_PROTOCOL=wss`, `VITE_PUBLIC_HMR_PORT=443`
+
+## ภาคผนวก
 
  ### A. คำสั่งเริ่มต้นใช้งาน (Quick Start)
 
- ```bash
- # 1. Clone + setup
- git clone <repo-url>
- cd careconnect
- cp .env.example .env
+```bash
+# 1. Clone + setup
+git clone <repo-url>
+cd Careconnect
 
- # 2. Start all services
- docker compose up -d
+# 2. .env เป็น optional ถ้าจะขึ้นแบบ mock/default ก่อน
+# cp .env.example .env
 
- # 3. Migrations รันอัตโนมัติตอน backend start (ไม่ต้องรันเอง)
+# 3. Start all services
+docker compose up -d --build
 
- # 4. (Optional) Seed demo data
- docker compose exec backend npm run seed:demo
+# 4. Migrations รันอัตโนมัติตอน backend start (ไม่ต้องรันเอง)
 
- # 5. Access
- # Frontend: http://localhost:5173
- # Backend:  http://localhost:3000
- # Mock:     http://localhost:4000
- ```
+# 5. (Optional) Seed demo data
+docker compose exec backend npm run seed:demo
+
+# 6. Access
+# Frontend: http://localhost:5173
+# Backend:  http://localhost:3000/health
+# Mock:     http://localhost:4000/health
+# pgAdmin:  http://localhost:5050
+```
+
+เมื่อต้องการ public access แบบเดียวกับเครื่องจริง ให้ตั้งอย่างน้อย `FRONTEND_URL`, `BACKEND_URL`, `CORS_ORIGIN`, `VITE_PUBLIC_HOST`, `VITE_PUBLIC_PROTOCOL=wss`, `VITE_PUBLIC_HMR_PORT=443` แล้วจึงผูก Cloudflare Tunnel ไปที่ `http://localhost:5173`
 
  ### B. สรุปจำนวนไฟล์ทั้งหมด
 
@@ -2066,5 +2114,5 @@ Phase 5: CANCEL (5 Sub-cases)
 
 ---
 
- > เอกสารนี้สร้างโดย AI Assistant เมื่อ 2026-04-05
- > อ้างอิงจาก source code จริงของโปรเจค CareConnect
+> เอกสารนี้สร้างโดย AI Assistant เมื่อ 2026-04-06
+> อ้างอิงจาก source code จริงของโปรเจค CareConnect
