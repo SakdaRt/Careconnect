@@ -38,6 +38,7 @@ import { autoApproveExpiredCheckouts } from "./services/jobService.js";
 
 const providerString = Joi.string().trim().lowercase();
 const optionalProviderString = providerString.allow("");
+const optionalPaymentProviderString = providerString.valid("mock", "stripe").allow("");
 const optionalSecretString = Joi.string().allow("");
 const smtpPortSchema = Joi.number().integer().min(1).max(65535);
 
@@ -114,7 +115,11 @@ const envSchema = Joi.object({
   TZ: Joi.string(),
   MOCK_PROVIDER_URL: Joi.string(),
   MOCK_PROVIDER_BASE_URL: Joi.string(),
-  PAYMENT_PROVIDER: Joi.string(),
+  PAYMENT_PROVIDER: providerString.valid("mock", "stripe").when("NODE_ENV", {
+    is: "production",
+    then: Joi.required(),
+    otherwise: optionalPaymentProviderString,
+  }),
   STRIPE_PUBLISHABLE_KEY: Joi.string().allow(""),
   STRIPE_SECRET_KEY: Joi.string().when("PAYMENT_PROVIDER", {
     is: "stripe",
@@ -162,8 +167,12 @@ const { error: envError } = envSchema.validate(process.env, {
 });
 if (envError) {
   const details = envError.details.map((detail) => detail.message).join(", ");
-  console.error(`[Backend] Environment validation failed: ${details}`);
-  process.exit(1);
+  if (process.env.NODE_ENV === "production") {
+    console.error(`[Backend] Environment validation failed: ${details}`);
+    process.exit(1);
+  }
+
+  console.warn(`[Backend] Environment validation warnings (${process.env.NODE_ENV || "development"}): ${details}`);
 }
 
 const app = express();

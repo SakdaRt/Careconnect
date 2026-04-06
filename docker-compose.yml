@@ -72,30 +72,31 @@ services:
     restart: unless-stopped
     environment:
       NODE_ENV: development
-      PORT: 3000
+      PORT: ${PORT:-3000}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
 
       # Database
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_NAME: careconnect
-      DATABASE_USER: careconnect
-      DATABASE_PASSWORD: careconnect_dev_password
+      DATABASE_HOST: ${DATABASE_HOST:-postgres}
+      DATABASE_PORT: ${DATABASE_PORT:-5432}
+      DATABASE_NAME: ${DATABASE_NAME:-careconnect}
+      DATABASE_USER: ${DATABASE_USER:-careconnect}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-careconnect_dev_password}
 
       # JWT
-      JWT_SECRET: careconnect_jwt_secret_dev_only
-      JWT_EXPIRES_IN: 7d
-      JWT_REFRESH_EXPIRES_IN: 30d
+      JWT_SECRET: ${JWT_SECRET:-careconnect_jwt_secret_dev_only}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-30d}
 
       # Mock Provider URLs
-      MOCK_PROVIDER_BASE_URL: http://mock-provider:4000
+      MOCK_PROVIDER_BASE_URL: ${MOCK_PROVIDER_BASE_URL:-http://mock-provider:4000}
       PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-mock}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       STRIPE_ACCOUNT_ID: ${STRIPE_ACCOUNT_ID:-}
       SMS_PROVIDER: ${SMS_PROVIDER:-mock}
-      KYC_PROVIDER: mock
-      BANK_TRANSFER_PROVIDER: mock
+      KYC_PROVIDER: ${KYC_PROVIDER:-mock}
+      BANK_TRANSFER_PROVIDER: ${BANK_TRANSFER_PROVIDER:-mock}
 
       # SMS - SMSOK
       SMSOK_API_URL: ${SMSOK_API_URL:-https://api.smsok.co/s}
@@ -105,11 +106,11 @@ services:
 
       # Webhooks (backend receives from mock provider)
       WEBHOOK_BASE_URL: http://backend:3000
-      WEBHOOK_SECRET: careconnect_webhook_secret_dev
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-careconnect_webhook_secret_dev}
 
       # File Storage
-      UPLOAD_DIR: /app/uploads
-      MAX_FILE_SIZE_MB: 10
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/uploads}
+      MAX_FILE_SIZE_MB: ${MAX_FILE_SIZE_MB:-10}
 
       # Email
       EMAIL_PROVIDER: ${EMAIL_PROVIDER:-mock}
@@ -121,23 +122,25 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
 
       # Push Notifications (FCM - configure later)
-      PUSH_PROVIDER: mock
+      PUSH_PROVIDER: ${PUSH_PROVIDER:-mock}
 
       # Timezone
-      TZ: Asia/Bangkok
+      TZ: ${TZ:-Asia/Bangkok}
 
       # Admin bootstrap
-      ADMIN_EMAIL: admin@careconnect.com
-      ADMIN_PASSWORD: Admin1234!
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@careconnect.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Admin1234!}
+      SEED_MOCK_CAREGIVERS: ${SEED_MOCK_CAREGIVERS:-true}
+      SEED_MOCK_JOBS: ${SEED_MOCK_JOBS:-true}
 
       # Google OAuth 2.0
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:3000/api/auth/google/callback}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      BACKEND_URL: ${BACKEND_URL:-http://localhost:3000}
 
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:${PORT:-3000}"
     volumes:
       - ./backend:/app
       - backend_node_modules:/app/node_modules
@@ -166,13 +169,15 @@ services:
       PORT: 4000
 
       # Webhook target (mock provider sends to backend)
-      BACKEND_WEBHOOK_URL: http://backend:3000/api/webhooks
-      WEBHOOK_SECRET: careconnect_webhook_secret_dev
+      BACKEND_WEBHOOK_URL: ${BACKEND_WEBHOOK_URL:-http://backend:3000/api/webhooks}
+      MOCK_PAYMENT_CALLBACK_URL: ${MOCK_PAYMENT_CALLBACK_URL:-http://backend:3000/api/webhooks/payment}
+      WEBHOOK_SECRET: ${WEBHOOK_SECRET:-careconnect_webhook_secret_dev}
 
       # Mock behavior settings
-      MOCK_PAYMENT_AUTO_SUCCESS: true
-      MOCK_PAYMENT_SUCCESS_DELAY_MS: 3000
-      MOCK_SMS_OTP_CODE: "123456"
+      MOCK_PAYMENT_AUTO_SUCCESS: ${MOCK_PAYMENT_AUTO_SUCCESS:-true}
+      MOCK_PAYMENT_SUCCESS_DELAY_MS: ${MOCK_PAYMENT_SUCCESS_DELAY_MS:-3000}
+      MOCK_SMS_OTP_CODE: ${MOCK_SMS_OTP_CODE:-123456}
+      MOCK_EMAIL_OTP_CODE: ${MOCK_EMAIL_OTP_CODE:-123456}
       MOCK_KYC_AUTO_APPROVE: true
       MOCK_KYC_APPROVAL_DELAY_MS: 5000
 
@@ -201,15 +206,23 @@ services:
     environment:
       NODE_ENV: development
       # Vite proxy target (Docker internal hostname)
-      VITE_API_TARGET: http://backend:3000
+      VITE_API_TARGET: ${VITE_API_TARGET:-http://backend:3000}
+      VITE_API_URL: ${VITE_API_URL:-}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+      VITE_SOCKET_URL: ${VITE_SOCKET_URL:-}
+      VITE_GOOGLE_MAPS_API_KEY: ${VITE_GOOGLE_MAPS_API_KEY:-}
+      VITE_VAPID_PUBLIC_KEY: ${VITE_VAPID_PUBLIC_KEY:-}
+      VITE_DEV_PORT: ${VITE_DEV_PORT:-5173}
       # External/tunnel access for Vite HMR (opt-in via shell/.env only)
       VITE_PUBLIC_HOST: ${VITE_PUBLIC_HOST:-}
       VITE_PUBLIC_PROTOCOL: ${VITE_PUBLIC_PROTOCOL:-}
       VITE_PUBLIC_PORT: ${VITE_PUBLIC_PORT:-}
+      VITE_PUBLIC_HMR_PORT: ${VITE_PUBLIC_HMR_PORT:-}
       # Polling file watcher is opt-in to avoid hot-reload loops on some machines
       VITE_USE_POLLING: ${VITE_USE_POLLING:-false}
+      VITE_POLL_INTERVAL: ${VITE_POLL_INTERVAL:-300}
     ports:
-      - "5173:5173"
+      - "${VITE_DEV_PORT:-5173}:${VITE_DEV_PORT:-5173}"
     volumes:
       - ./frontend:/app
       - /app/node_modules

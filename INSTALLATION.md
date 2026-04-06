@@ -509,13 +509,13 @@ npm run dev
 ### 7.1 สำหรับ Development (ไม่ใช้ Docker)
 
 สร้างไฟล์ `.env` ที่โฟลเดอร์ root ของโปรเจค (`careconnect/.env`):
-หากต้องการแยกค่าเฉพาะ mode เพิ่ม สามารถสร้าง `.env.development` หรือ `.env.production` เพิ่มได้ โดย backend และ Vite จะโหลดต่อจาก `.env` อัตโนมัติเมื่อมีไฟล์นั้นอยู่
+หากต้องการแยกค่าเฉพาะ mode เพิ่ม สามารถสร้าง `.env.development` หรือ `.env.production` เพิ่มได้ โดย backend จะโหลดต่อจาก `.env` อัตโนมัติเมื่อมีไฟล์นั้นอยู่
 
 ```env
 # ─── Server ───
 NODE_ENV=development
-PORT=3000
 TZ=Asia/Bangkok
+PORT=3000
 CORS_ORIGIN=http://localhost:5173
 
 # ─── Database ───
@@ -529,38 +529,39 @@ DATABASE_PASSWORD=careconnect_dev_password
 JWT_SECRET=careconnect_jwt_secret_dev_only
 JWT_EXPIRES_IN=7d
 JWT_REFRESH_EXPIRES_IN=30d
+WEBHOOK_SECRET=careconnect_webhook_secret_dev
 
 # ─── Providers ───
 MOCK_PROVIDER_BASE_URL=http://localhost:4000
+WEBHOOK_BASE_URL=http://localhost:3000
 PAYMENT_PROVIDER=mock
 SMS_PROVIDER=mock
 KYC_PROVIDER=mock
 BANK_TRANSFER_PROVIDER=mock
 EMAIL_PROVIDER=mock
+EMAIL_FROM=noreply@careconnect.local
 PUSH_PROVIDER=mock
 
-# ─── Stripe (optional — ใช้เมื่อ PAYMENT_PROVIDER=stripe) ───
+# ─── Provider credentials (optional — dev จะ warn และ fallback mock ถ้าตั้ง provider จริงแต่ credential ไม่ครบ) ───
 STRIPE_PUBLISHABLE_KEY=pk_test_xxx
 STRIPE_SECRET_KEY=sk_test_xxx
 STRIPE_WEBHOOK_SECRET=whsec_xxx
 STRIPE_ACCOUNT_ID=acct_xxx
-
-# ─── SMSOK (optional — ใช้เมื่อ SMS_PROVIDER=smsok) ───
 SMSOK_API_URL=https://api.smsok.co/s
 SMSOK_API_KEY=your_api_key
 SMSOK_API_SECRET=your_api_secret
 SMSOK_SENDER=CareConnect
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
 
-# ─── Webhooks ───
-WEBHOOK_BASE_URL=http://localhost:3000
-WEBHOOK_SECRET=careconnect_webhook_secret_dev
-
-# ─── File Storage ───
+# ─── File Storage / URLs ───
 UPLOAD_DIR=./uploads
 MAX_FILE_SIZE_MB=10
-
-# ─── Email (mock mode — ไม่ต้องตั้งค่าจริง) ───
-EMAIL_FROM=noreply@careconnect.local
+FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3000
 
 # ─── Admin Account (สร้างอัตโนมัติตอน bootstrap) ───
 ADMIN_EMAIL=admin@careconnect.com
@@ -568,11 +569,16 @@ ADMIN_PASSWORD=Admin1234!
 
 # ─── Frontend (Vite) ───
 VITE_API_TARGET=http://localhost:3000
+VITE_API_URL=
+VITE_API_BASE_URL=
+VITE_SOCKET_URL=
+VITE_GOOGLE_MAPS_API_KEY=
+VITE_VAPID_PUBLIC_KEY=
 ```
 
-> **หมายเหตุ**: เมื่อใช้ Docker Compose ไม่จำเป็นต้องสร้างไฟล์ `.env` เพราะค่าทั้งหมดถูกกำหนดไว้ใน `docker-compose.yml` แล้ว แต่สามารถสร้างไฟล์ `.env`, `.env.development` หรือ `.env.production` เพื่อ override ค่าบางตัวได้ตาม environment ที่ใช้งาน
+> **หมายเหตุ**: เมื่อใช้ Docker Compose สำหรับ development ไม่จำเป็นต้องสร้างไฟล์ `.env` ก็รันได้ทันที เพราะ `docker-compose.yml` มีค่า default ให้แล้ว แต่ถ้าต้องการ override provider keys, admin credentials หรือ `VITE_*` บางตัว สามารถสร้าง `.env` เพิ่มได้
 >
-> หาก `SMS_PROVIDER=mock` หรือ `EMAIL_PROVIDER=mock` ใน development สามารถปล่อย `SMSOK_*` และ `SMTP_*` ว่างได้
+> หาก `SMS_PROVIDER=mock`, `EMAIL_PROVIDER=mock` หรือ `PAYMENT_PROVIDER=mock` ใน development สามารถปล่อย credential ของ provider จริงว่างได้ และ backend จะ log `console.warn` เมื่อมีการ fallback/mock override
 >
 > ใน development frontend จะแสดง toast รหัส OTP สำหรับทดสอบเมื่อ backend ส่ง `_dev_code` กลับมา แต่ production จะไม่แสดงข้อความนี้
 
@@ -583,8 +589,8 @@ VITE_API_TARGET=http://localhost:3000
 ```env
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_CALLBACK_URL=http://localhost:3000/api/auth/google/callback
 FRONTEND_URL=http://localhost:5173
+BACKEND_URL=http://localhost:3000
 ```
 
 #### Stripe Payment (สำหรับการเติมเงินจริง)
@@ -618,22 +624,43 @@ SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 ```
 
-### 7.3 สำหรับ Production
-
-สร้างไฟล์ `.env.production` สำหรับ production หรือใช้ `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`:
+#### Frontend integrations (ถ้าเปิดใช้จริง)
 
 ```env
-# ─── Database (เปลี่ยนรหัสผ่านเป็นค่าที่ปลอดภัย!) ───
+VITE_GOOGLE_MAPS_API_KEY=your_google_maps_browser_key
+VITE_VAPID_PUBLIC_KEY=your_web_push_public_key
+```
+
+### 7.3 สำหรับ Production
+
+คัดลอกไฟล์ template ก่อน:
+
+```bash
+cp .env.production.example .env.production
+```
+
+จากนั้นแก้ค่าใน `.env.production` ให้ครบ แล้วจึงรัน `docker compose --env-file .env.production -f docker-compose.prod.yml up -d`
+
+ตัวอย่างค่าหลักใน `.env.production`:
+
+```env
+NODE_ENV=production
+TZ=Asia/Bangkok
+HTTP_PORT=80
+
 POSTGRES_DB=careconnect
 POSTGRES_USER=careconnect
 POSTGRES_PASSWORD=<STRONG_PASSWORD_HERE>
 
-# ─── JWT (ใช้ random string ยาว 64+ ตัวอักษร) ───
+CORS_ORIGIN=https://yourdomain.com
+FRONTEND_URL=https://yourdomain.com
+BACKEND_URL=https://yourdomain.com
+
 JWT_SECRET=<RANDOM_JWT_SECRET_64_CHARS>
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
+WEBHOOK_SECRET=<RANDOM_WEBHOOK_SECRET>
 
-# ─── Providers (ตั้งค่าตาม provider ที่ใช้จริง) ───
 PAYMENT_PROVIDER=stripe
 STRIPE_PUBLISHABLE_KEY=pk_live_xxxx
 STRIPE_SECRET_KEY=sk_live_xxxx
@@ -654,24 +681,31 @@ SMTP_SECURE=false
 SMTP_USER=your_email@gmail.com
 SMTP_PASS=your_app_password
 
+PUSH_PROVIDER=mock
 KYC_PROVIDER=mock
 BANK_TRANSFER_PROVIDER=mock
-PUSH_PROVIDER=mock
 
-# ─── Google OAuth ───
 GOOGLE_CLIENT_ID=your_production_client_id
 GOOGLE_CLIENT_SECRET=your_production_client_secret
-GOOGLE_CALLBACK_URL=https://yourdomain.com/api/auth/google/callback
-FRONTEND_URL=https://yourdomain.com
-BACKEND_URL=https://yourdomain.com
 
-# ─── Port ───
-HTTP_PORT=80
+ADMIN_EMAIL=admin@yourdomain.com
+ADMIN_PASSWORD=<STRONG_ADMIN_PASSWORD>
+
+UPLOAD_DIR=/app/uploads
+MAX_FILE_SIZE_MB=10
+
+VITE_API_URL=
+VITE_API_BASE_URL=
+VITE_SOCKET_URL=
+VITE_GOOGLE_MAPS_API_KEY=
+VITE_VAPID_PUBLIC_KEY=
 ```
 
 > **⚠️ สำคัญ**: ห้ามใช้ค่า default ใน production! ต้องเปลี่ยนรหัสผ่านและ secret keys ทั้งหมด
 >
-> production จะตรวจ env เข้มขึ้นตอน backend start โดยเฉพาะ `SMS_PROVIDER`, `EMAIL_PROVIDER`, `PUSH_PROVIDER` และ secrets ของ provider ที่เลือกใช้งานจริง
+> production จะตรวจ env เข้มขึ้นตอน backend start และ fail-fast ถ้า missing secrets ของ provider ที่เลือกใช้งานจริง
+>
+> frontend production build จะอ่าน `VITE_*` จาก `.env.production` ผ่าน `docker compose --env-file .env.production -f docker-compose.prod.yml build`
 >
 > production จะไม่คืน `_dev_code` จาก API และ frontend production build จะไม่ render OTP debug toast
 
@@ -796,7 +830,7 @@ cd frontend && npm run dev
 
 ### 10.1 เตรียมไฟล์ .env
 
-สร้างไฟล์ `.env.production` ที่ root ของโปรเจค ดูตัวอย่างที่ [หัวข้อ 7.3](#73-สำหรับ-production)
+คัดลอกไฟล์ `/.env.production.example` เป็น `.env.production` ที่ root ของโปรเจค แล้วกรอกค่าจริงทั้งหมดก่อน deploy
 
 ### 10.2 Build และ Deploy
 

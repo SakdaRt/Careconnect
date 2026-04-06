@@ -38,6 +38,7 @@ describe('Wallet Safety', () => {
   beforeEach(() => {
     fakeClient.query.mockReset();
     mockQuery.mockReset();
+    Wallet.getOrCreateWallet.mockReset();
   });
 
   // ===========================================================================
@@ -271,6 +272,47 @@ describe('Wallet Safety', () => {
       await expect(
         walletService.initiateWithdrawal('u-1', 'caregiver', 500, 'ba-1')
       ).rejects.toMatchObject({ status: 400, message: expect.stringContaining('Insufficient') });
+    });
+  });
+
+  describe('Topup provider selection', () => {
+    it('creates a mock payment link when PAYMENT_PROVIDER=mock', async () => {
+      const originalPaymentProvider = process.env.PAYMENT_PROVIDER;
+      process.env.PAYMENT_PROVIDER = 'mock';
+
+      Wallet.getOrCreateWallet.mockResolvedValue({ id: 'wallet-1', wallet_type: 'hirer' });
+      mockQuery
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] });
+
+      const providerSpy = jest.spyOn(walletService, 'initiatePaymentWithProvider').mockResolvedValue({
+        payment_url: 'http://mock-provider:4000/payment/mock/topup-1',
+        qr_code: 'mock_qr_topup-1',
+      });
+
+      try {
+        const result = await walletService.initiateTopup('user-1', 'hirer', 500, 'stripe', 'http://localhost:5173');
+
+        expect(providerSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            amount: 500,
+            payment_method: 'payment_link',
+          })
+        );
+        expect(String(mockQuery.mock.calls[0][0])).toContain('INSERT INTO topup_intents');
+        expect(String(mockQuery.mock.calls[1][0])).toContain('UPDATE topup_intents');
+        expect(result.status).toBe('pending');
+        expect(result.payment_method).toBe('payment_link');
+        expect(result.payment_url).toBe('http://mock-provider:4000/payment/mock/topup-1');
+        expect(result.qr_code).toBe('mock_qr_topup-1');
+      } finally {
+        providerSpy.mockRestore();
+        if (originalPaymentProvider === undefined) {
+          delete process.env.PAYMENT_PROVIDER;
+        } else {
+          process.env.PAYMENT_PROVIDER = originalPaymentProvider;
+        }
+      }
     });
   });
 

@@ -1,6 +1,8 @@
 # Careconnect Docker Commands
 .PHONY: help dev prod clean migrate logs
 
+PROD_ENV_FILE ?= .env.production
+
 # Default target
 help:
 	@echo "Careconnect Docker Commands:"
@@ -46,19 +48,19 @@ dev-restart:
 # Production environment
 prod:
 	@echo "Starting production environment..."
-	docker-compose -f docker-compose.prod.yml up -d
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml up -d
 	@echo "Production environment started!"
 	@echo "Frontend: http://localhost"
 	@echo "Backend: http://localhost:3000"
 
 prod-stop:
 	@echo "Stopping production environment..."
-	docker-compose -f docker-compose.prod.yml down
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml down
 	@echo "Production environment stopped!"
 
 prod-restart:
 	@echo "Restarting production environment..."
-	docker-compose -f docker-compose.prod.yml restart
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml restart
 	@echo "Production environment restarted!"
 
 # Migrations
@@ -69,7 +71,7 @@ migrate-dev:
 
 migrate-prod:
 	@echo "Running migrations in production..."
-	docker-compose -f docker-compose.prod.yml --profile migrate up migrate
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml --profile migrate up migrate
 	@echo "Production migrations completed!"
 
 # Logs
@@ -80,13 +82,13 @@ logs-dev:
 	docker-compose logs -f
 
 logs-prod:
-	docker-compose -f docker-compose.prod.yml logs -f
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml logs -f
 
 # Cleanup
 clean:
 	@echo "Cleaning up Docker..."
 	docker-compose down -v --remove-orphans
-	docker-compose -f docker-compose.prod.yml down -v --remove-orphans
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml down -v --remove-orphans
 	docker system prune -f
 	@echo "Cleanup completed!"
 
@@ -98,5 +100,5 @@ build-dev:
 
 build-prod:
 	@echo "Building production images..."
-	docker-compose -f docker-compose.prod.yml build
+	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml build
 	@echo "Production build completed!"

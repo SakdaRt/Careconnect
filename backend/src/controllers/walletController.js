@@ -98,7 +98,7 @@ const walletController = {
         userId,
         role,
         parseInt(amount),
-        payment_method || 'stripe',
+        payment_method || 'payment_link',
         frontendBaseUrl
       );
 

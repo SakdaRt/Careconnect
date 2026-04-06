@@ -103,7 +103,6 @@ export default function CaregiverMyJobsPage() {
   const [disputeJobId, setDisputeJobId] = useState<string | null>(null);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [checkoutJobId, setCheckoutJobId] = useState<string | null>(null);
-  const [checkoutIsEarly, setCheckoutIsEarly] = useState(false);
   const [checkoutType, setCheckoutType] = useState<'normal' | 'special'>('normal');
   const [checkoutNote, setCheckoutNote] = useState('');
   const [checkoutPreset, setCheckoutPreset] = useState('');
@@ -308,7 +307,6 @@ export default function CaregiverMyJobsPage() {
 
   const handleOpenSpecialCheckout = (job: CaregiverAssignedJob) => {
     setCheckoutJobId(job.id);
-    setCheckoutIsEarly(true);
     setCheckoutType('special');
     setCheckoutNote('');
     setCheckoutPreset('');
@@ -320,7 +318,6 @@ export default function CaregiverMyJobsPage() {
   const resetCheckoutModal = () => {
     setCheckoutOpen(false);
     setCheckoutJobId(null);
-    setCheckoutIsEarly(false);
     setCheckoutType('normal');
     setCheckoutNote('');
     setCheckoutPreset('');
@@ -330,7 +327,6 @@ export default function CaregiverMyJobsPage() {
 
   const handleOpenCheckout = (job: CaregiverAssignedJob) => {
     setCheckoutJobId(job.id);
-    setCheckoutIsEarly(true);
     setCheckoutType('normal');
     setCheckoutNote('');
     setCheckoutPreset('');

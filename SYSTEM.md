@@ -1,7 +1,7 @@
 # CareConnect — System Documentation
 
 > Source of truth สำหรับ architecture, database, API, UML ทั้งหมด
-> อัพเดทล่าสุด: 2026-03-31
+> อัพเดทล่าสุด: 2026-04-06
 
 ---
 
@@ -164,7 +164,10 @@ Hardcoded ใน `backend/src/utils/depositTier.js` — MVP: hirer only, caregiv
 ```
 Phase 1: Top-up
   Hirer ── POST /wallet/topup ──► topup_intent (pending)
-  Stripe Checkout ──► /api/webhooks/stripe ──► topup_intent (succeeded)
+  accepted payment_method = payment_link | dynamic_qr | stripe(alias)
+  backend normalize stripe -> payment_link ก่อน persist
+  PAYMENT_PROVIDER=mock ──► /api/webhooks/payment หรือ /wallet/topup/:id/confirm ──► topup_intent (succeeded)
+  PAYMENT_PROVIDER=stripe ──► /api/webhooks/stripe ──► topup_intent (succeeded)
   → credit hirer wallet.available_balance
   → INSERT ledger (type=credit, ref=topup)
 
@@ -737,19 +740,20 @@ User              Frontend                   Backend              Google
  │◄── redirect /select-role or /home ───────────│                    │
 ```
 
-### 6.8 Top-up Flow (Stripe Checkout)
+### 6.8 Top-up Flow (Provider-aware)
 
 ```
-Hirer             Frontend                   Backend                   Stripe
+Hirer             Frontend                   Backend                Payment Provider
  │                    │                          │                        │
  │─ เติมเงิน ────────►│                          │                        │
  │                    │─ POST /wallet/topup ────►│                        │
- │                    │                          │─ create checkout session►│
- │                    │                          │─ INSERT topup_intent ─►│
- │                    │◄── payment_url (session) │                        │
- │─ เปิดหน้า checkout ────────────────────────────────────────────────►│
- │─ ชำระเงินสำเร็จ ───────────────────────────────────────────────────►│
- │                    │                          │◄── webhook /stripe ───│
+ │                    │                          │ normalize method       │
+ │                    │                          │ (stripe->payment_link) │
+ │                    │                          │─ create intent / start payment ─►│
+ │                    │◄── payment_url / qr_code │                        │
+ │─ เปิดหน้าชำระเงิน ────────────────────────────────────────────────►│
+ │                    │                          │◄── webhook (provider) ─│
+ │─ หรือกดยืนยัน top-up ─►│─ POST /wallet/topup/:id/confirm ───────────►│
  │                    │                          │─ UPDATE intent=succeeded►│
  │                    │                          │─ credit wallet ───────►│
  │                    │                          │─ INSERT ledger ───────►│
@@ -897,7 +901,7 @@ GET    /api/wallet/balance                              ดูยอดเงิ
 GET    /api/wallet/transactions                         ประวัติ transaction (paginated)
 GET    /api/wallet/bank-accounts                        ดูบัญชีธนาคาร
 POST   /api/wallet/bank-accounts                        เพิ่มบัญชีธนาคาร
-POST   /api/wallet/topup                                เติมเงิน (amount, payment_method)
+POST   /api/wallet/topup                                เติมเงิน (amount, payment_method=payment_link|dynamic_qr|stripe(alias))
 GET    /api/wallet/topup/pending                        ดู pending top-ups
 GET    /api/wallet/topup/:topupId                       ดูสถานะ top-up
 POST   /api/wallet/topup/:topupId/confirm               ยืนยัน top-up manual
@@ -1101,97 +1105,97 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 ```
 
 ---
-
 ## 9. Environment Variables
 
-### Backend (Root `.env`)
+### Backend (`.env` for dev, `.env.production` for deploy)
 
-> Source of truth: `/home/careconnect/Careconnect/.env`
-> Loader: `backend/src/config/loadEnv.js` (โหลด root `.env` และ `backend/.env` ก่อน แล้วค่อย overlay optional `.env.<NODE_ENV>` / `backend/.env.<NODE_ENV>` โดยไม่ override env ที่ inject จากภายนอก)
-> Validation: `backend/src/server.js` ใช้ Joi validate env ตอน startup; `NODE_ENV=production` บังคับ core secrets และ provider-specific vars ตาม provider ที่เลือกใช้จริง
+> Source of truth templates: `/home/careconnect/Careconnect/.env.example` และ `/home/careconnect/Careconnect/.env.production.example`
+> Loader: `backend/src/config/loadEnv.js` โหลด root `.env` และ `backend/.env` ก่อน แล้วค่อย overlay optional `.env.<NODE_ENV>` / `backend/.env.<NODE_ENV>` โดยไม่ override env ที่ inject จากภายนอก
+> Validation: `backend/src/server.js` ใช้ Joi validate env ตอน startup; dev/test จะเติม default ที่ปลอดภัยสำหรับ local พร้อม `console.warn` และ fallback provider เป็น `mock`, ส่วน production จะ fail-fast ถ้าขาดค่า required
+> Docker note: ใน `docker-compose.yml` / `docker-compose.prod.yml` ค่า env ถูก inject เข้า container โดยตรง ดังนั้น root `.env` ถูกอ่านโดย Docker Compose ฝั่ง host เป็นหลัก ไม่ใช่จาก path ใน container
 
 ```env
 NODE_ENV=development
+TZ=Asia/Bangkok
 PORT=3000
-CORS_ORIGIN=*
+CORS_ORIGIN=http://localhost:5173
 
-# Database (docker-compose sets these; DATABASE_URL for local dev)
-DATABASE_HOST=postgres
+DATABASE_HOST=localhost
 DATABASE_PORT=5432
 DATABASE_NAME=careconnect
 DATABASE_USER=careconnect
 DATABASE_PASSWORD=careconnect_dev_password
 
-# Auth
-JWT_SECRET=your_jwt_secret
+JWT_SECRET=careconnect_jwt_secret_dev_only
 JWT_EXPIRES_IN=7d
 JWT_REFRESH_EXPIRES_IN=30d
+WEBHOOK_SECRET=careconnect_webhook_secret_dev
 
-# Google OAuth
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-# GOOGLE_CALLBACK_URL ไม่ใช้แล้ว — derive จาก request origin อัตโนมัติ
-# FRONTEND_URL/BACKEND_URL เป็น fallback เท่านั้น (ถ้าไม่มี origin/referer/x-forwarded-host)
 FRONTEND_URL=http://localhost:5173
 BACKEND_URL=http://localhost:3000
 
-# Providers (Stripe sandbox in dev)
-MOCK_PROVIDER_BASE_URL=http://mock-provider:4000
-PAYMENT_PROVIDER=stripe
-STRIPE_PUBLISHABLE_KEY=pk_test_xxx
-STRIPE_SECRET_KEY=sk_test_xxx
-STRIPE_WEBHOOK_SECRET=whsec_xxx
-STRIPE_ACCOUNT_ID=acct_xxx
+MOCK_PROVIDER_BASE_URL=http://localhost:4000
+WEBHOOK_BASE_URL=http://localhost:3000
+BACKEND_WEBHOOK_URL=http://localhost:3000/api/webhooks
+MOCK_PAYMENT_CALLBACK_URL=http://localhost:3000/api/webhooks/payment
+
+PAYMENT_PROVIDER=mock
 SMS_PROVIDER=mock
+EMAIL_PROVIDER=mock
+EMAIL_FROM=noreply@careconnect.local
+PUSH_PROVIDER=mock
 KYC_PROVIDER=mock
 BANK_TRANSFER_PROVIDER=mock
-WEBHOOK_BASE_URL=http://backend:3000
-WEBHOOK_SECRET=your_webhook_secret
 
-# SMS - SMSOK (production)
-# Note: dev/test ใช้ SMS_PROVIDER=mock และปล่อย SMSOK_* ว่างได้
-# ถ้าเลือก SMS_PROVIDER=smsok ต้องตั้ง SMSOK_* ให้ครบ; production startup จะ fail ถ้าขาดค่า required
-# ถ้า SMSOK ส่งไม่สำเร็จ runtime จะ fallback mock และ OTP ไม่ถูกลบ; `_dev_code` จะมีเฉพาะ dev mode และ production controllers จะ omit/strip ออก
+STRIPE_PUBLISHABLE_KEY=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_ACCOUNT_ID=
+
 SMSOK_API_URL=https://api.smsok.co/s
 SMSOK_API_KEY=
 SMSOK_API_SECRET=
 SMSOK_SENDER=CareConnect
 
-# Email (production)
-# Note: dev/test ใช้ EMAIL_PROVIDER=mock และปล่อย SMTP_* ว่างได้; ถ้าเลือก smtp ต้องตั้ง SMTP_* ให้ครบ และถ้า SMTP ส่งไม่สำเร็จ runtime จะ fallback mock โดยไม่ลบ OTP
-EMAIL_PROVIDER=mock
-EMAIL_FROM=noreply@careconnect.local
 SMTP_HOST=
 SMTP_PORT=587
+SMTP_SECURE=false
 SMTP_USER=
 SMTP_PASS=
 
-# File Storage
-UPLOAD_DIR=/app/uploads
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+UPLOAD_DIR=./uploads
 MAX_FILE_SIZE_MB=10
 
-# Admin bootstrap
 ADMIN_EMAIL=admin@careconnect.com
 ADMIN_PASSWORD=Admin1234!
 
-# Mock seeding (dev only, default: true)
 SEED_MOCK_CAREGIVERS=true
 SEED_MOCK_JOBS=true
 ```
 
 ### Frontend (`VITE_*`)
 
-> Vite config จะ merge env จาก 2 แหล่ง (ลำดับหลังทับลำดับแรก)
->
-> 1) root: `/home/careconnect/Careconnect/.env`
-> 2) frontend local: `/home/careconnect/Careconnect/frontend/.env.local`
+> Local non-Docker: `frontend/vite.config.ts` merge env จาก root `.env` และ `frontend/.env.local`
+> Docker development: `docker-compose.yml` inject `VITE_*` เข้า frontend container โดยตรง
+> Docker production: `docker-compose.prod.yml` ส่ง `VITE_*` เข้า `frontend/Dockerfile` ผ่าน build args ก่อน `npm run build`
 
 ```env
-VITE_API_TARGET=http://backend:3000
+VITE_API_TARGET=http://localhost:3000
+VITE_API_URL=
+VITE_API_BASE_URL=
+VITE_SOCKET_URL=
+VITE_GOOGLE_MAPS_API_KEY=
+VITE_VAPID_PUBLIC_KEY=
+VITE_DEV_PORT=5173
 VITE_PUBLIC_HOST=
 VITE_PUBLIC_PROTOCOL=
 VITE_PUBLIC_PORT=
-VITE_GOOGLE_MAPS_API_KEY=
+VITE_PUBLIC_HMR_PORT=
+VITE_USE_POLLING=false
+VITE_POLL_INTERVAL=300
 ```
 
 ### Playwright E2E (`docker-compose.test.yml` profile `e2e`)
@@ -1210,8 +1214,10 @@ VITE_API_TARGET=http://host.docker.internal:3000
 
 ```env
 BACKEND_WEBHOOK_URL=http://backend:3000/api/webhooks
+MOCK_PAYMENT_CALLBACK_URL=http://backend:3000/api/webhooks/payment
 MOCK_PAYMENT_AUTO_SUCCESS=true
 MOCK_SMS_OTP_CODE=123456
+MOCK_EMAIL_OTP_CODE=123456
 MOCK_KYC_AUTO_APPROVE=true
 ```
 

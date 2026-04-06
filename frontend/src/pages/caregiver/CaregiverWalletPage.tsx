@@ -152,7 +152,7 @@ export default function CaregiverWalletPage() {
 
     setSubmittingTopup(true);
     try {
-      const res = await appApi.topUpWallet(value, 'stripe');
+      const res = await appApi.topUpWallet(value, 'payment_link');
       if (!res.success) {
         toast.error(res.error || 'เติมเงินไม่สำเร็จ');
         return;
@@ -352,7 +352,7 @@ export default function CaregiverWalletPage() {
                 </div>
                 <div className="flex gap-2 mt-4">
                   <Button variant="primary" size="sm" onClick={() => setShowTopupModal(true)}>
-                    ไปหน้า Stripe Checkout
+                    ไปหน้าชำระเงิน
                   </Button>
                   <Button
                     variant="outline"
@@ -382,7 +382,7 @@ export default function CaregiverWalletPage() {
                 />
                 <div className="sm:self-end">
                   <Button variant="primary" loading={submittingTopup} onClick={handleTopUp}>
-                    เติมเงินผ่าน Stripe
+                    เติมเงิน
                   </Button>
                 </div>
               </div>
@@ -659,11 +659,11 @@ export default function CaregiverWalletPage() {
           {activePaymentUrl && (
             <div>
               <Button variant="outline" onClick={() => window.open(activePaymentUrl, '_blank')}>
-                เปิด Stripe Checkout
+                เปิดหน้าชำระเงิน
               </Button>
             </div>
           )}
-          {!activePaymentUrl && <div className="text-xs text-red-600">ไม่พบลิงก์ Stripe Checkout สำหรับรายการนี้</div>}
+          {!activePaymentUrl && <div className="text-xs text-red-600">ไม่พบลิงก์ชำระเงินสำหรับรายการนี้</div>}
         </div>
       </Modal>
     </MainLayout>

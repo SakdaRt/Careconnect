@@ -247,7 +247,7 @@ export const walletSchemas = {
   
   topup: Joi.object({
     amount: Joi.number().positive().required(),
-    payment_method: Joi.string().valid('stripe').required(),
+    payment_method: Joi.string().valid('payment_link', 'dynamic_qr', 'stripe').default('payment_link'),
   }),
   
   withdraw: Joi.object({

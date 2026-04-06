@@ -295,7 +295,7 @@ Request Flow (Top-Down):
 
 | โมดูลย่อย | หน้าที่ |
 |-----------|---------|
-| Environment Validation | ตรวจสอบ env vars ด้วย Joi schema ก่อน start และบังคับ provider-specific secrets ใน production |
+| Environment Validation | dev/test เติม default + warn/fallback mock ให้ optional integrations, production ตรวจ env แบบ fail-fast ด้วย Joi |
 | Express Setup | cors, helmet, morgan, JSON parser, static files |
 | Route Mounting | mount 17 route files ไปที่ `/api/*` paths |
 | Socket.IO Setup | สร้าง HTTP server + Socket.IO, init chat socket |
@@ -303,7 +303,7 @@ Request Flow (Top-Down):
 | Cron Jobs | `*/5 * * * *` — no-show scan + auto-approve checkouts |
 | Graceful Shutdown | จัดการ SIGTERM/SIGINT — ปิด server + DB pool |
 
-**Input**: Environment variables (`.env`, optional `.env.development`, `.env.production`)
+**Input**: Environment variables (`.env`, optional `.env.development`, `.env.production`; frontend Docker build รับ `VITE_*` ผ่าน compose build args)
 **Output**: HTTP server listening on `PORT` (default 3000)
 
 ---
@@ -1138,7 +1138,7 @@ ApiClient Class:
 │  │job_assignments│                                                      │
 │  │(caregiver)    │                                                      │
 │  └───────────────┘                                                      │
-└──────────────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 6.3 ตาราง 41 ตาราง (จัดกลุ่ม)
@@ -1516,7 +1516,7 @@ Phase 4: CHECKOUT (Settlement)
   └─ UPDATE jobs (final amounts, settlement_mode='normal')
 
 Phase 5: CANCEL (5 Sub-cases)
-  ┌─────────────────────────────────────────────────────────────┐
+  ┌─────────────────────────────────────────────────────┐
   │ Case B: Before accept                                       │
   │   hirer.held -= cost → hirer.available += cost             │
   │                                                             │
@@ -1536,7 +1536,7 @@ Phase 5: CANCEL (5 Sub-cases)
   │ Case F: CG no-show (auto, 30min grace)                     │
   │   escrow → hirer: full refund (amount + deposit)           │
   │   CG trust penalty: -20 score                              │
-  └─────────────────────────────────────────────────────────────┘
+  └─────────────────────────────────────────────────────┘
 ```
 
 ### 8.4 Trust Level & Score Flow
@@ -1668,6 +1668,7 @@ Phase 5: CANCEL (5 Sub-cases)
    │                         │                     │   UPDATE trust_level  │
    │                         │                     │   → L2                │
    │                         │                     │                        │
+   │                         │                     │                        │
    │◀── notification ────────│◀── 200 OK ──────────│                        │
 ```
 
@@ -1781,7 +1782,7 @@ Phase 5: CANCEL (5 Sub-cases)
   │                                                      │
   │  ✓ Pages เรียก api.ts สำหรับทุก backend call         │
   │  ✓ Components เป็น stateless (props-driven)          │
-  │  ✓ Context จัดการ global state                       │
+  │  │  Context จัดการ global state                       │
   │  ✗ Components ห้ามเรียก API โดยตรง (ยกเว้น TopBar)   │
   │  ✗ Utils ห้าม import React                           │
   └──────────────────────────────────────────────────────┘
@@ -2058,11 +2059,12 @@ Phase 5: CANCEL (5 Sub-cases)
  | เอกสาร | ที่อยู่ | คำอธิบาย |
  |--------|--------|----------|
  | **SYSTEM.md** | `/SYSTEM.md` | Architectural reference (source of truth) |
- | **PROGRESS.md** | `/PROGRESS.md` | สถานะการพัฒนาปัจจุบัน + git log |
- | **Schema** | `/database/schema.sql` | Database schema (41 tables) |
- | **.env.example** | `/.env.example` | Environment variables template |
+| **PROGRESS.md** | `/PROGRESS.md` | สถานะการพัฒนาปัจจุบัน + git log |
+| **Schema** | `/database/schema.sql` | Database schema (41 tables) |
+| **.env.example** | `/.env.example` | Environment variables template |
+| **.env.production.example** | `/.env.production.example` | Production environment template |
 
- ---
+---
 
  > เอกสารนี้สร้างโดย AI Assistant เมื่อ 2026-04-05
  > อ้างอิงจาก source code จริงของโปรเจค CareConnect

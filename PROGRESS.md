@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(infra): กู้ cloudflared tunnel ให้กลับมาเข้าเว็บจากภายนอกได้)
+> อัพเดทล่าสุด: 2026-04-06 (fix(wallet): align top-up payment_method contract + restore frontend typecheck, refactor(container): container-based verification)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -69,6 +69,9 @@ careconnect/
 - [x] Mode-aware env loading — รองรับ `.env` + optional `.env.development` / `.env.production`
 - [x] Production env validation — require provider-specific secrets ตาม provider ที่เลือกใช้จริง
 - [x] OTP debug safety — backend ส่ง/strip `_dev_code` เฉพาะ dev และ frontend toast แสดงเฉพาะ dev build
+- [x] Development env fallback — optional integrations ที่ config ไม่ครบจะ warn ใน console และ fallback เป็น `mock`
+- [x] Mock top-up flow สำหรับ development — `PAYMENT_PROVIDER=mock` ใช้งานได้จริงทั้ง backend + wallet UI
+- [x] Frontend production build รับ `VITE_*` ผ่าน Docker build args จาก `.env.production`
 
 ### Trust Level System
 
@@ -185,6 +188,7 @@ careconnect/
 - [x] Caregiver availability calendar
 - [x] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (rebuild Docker image แก้ได้)
 - [ ] ทำ IaC/เอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (เช่น restart policy)
+- [ ] ล้างค่า legacy `GOOGLE_CALLBACK_URL` ออกจาก env/secret จริงของเครื่อง deploy หลัง rollout template ใหม่เสร็จ
 
 ### Low Priority
 
@@ -212,6 +216,9 @@ careconnect/
 | `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
 | `frontend/src/layouts/MainLayout.tsx`     | Layout หลัก (TopBar + BottomBar)                |
 | `frontend/src/layouts/AdminLayout.tsx`    | Layout admin (sidebar)                          |
+| `.env.example`                            | Development env template (mock-first defaults)  |
+| `.env.production.example`                 | Production env template (deploy checklist)      |
+| `docker-compose.prod.yml`                 | Production compose + frontend Vite build args   |
 | `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
 | `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
@@ -235,6 +242,28 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-06 — fix(wallet): align top-up payment_method contract + restore frontend typecheck
+
+- fix(validation): `backend/src/utils/validation.js` — `walletSchemas.topup.payment_method` รับ method จริงของระบบ (`payment_link`, `dynamic_qr`) และยังยอมรับ legacy alias `stripe` ระหว่างช่วงเปลี่ยนผ่าน พร้อม default เป็น `payment_link`
+- fix(controller/ui): `backend/src/controllers/walletController.js`, `frontend/src/pages/hirer/HirerWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverWalletPage.tsx` — เปลี่ยน default/request จาก alias `stripe` ไปใช้ canonical `payment_link` ให้ตรงกับ DB contract (`topup_intents.method`)
+- test(backend): `backend/tests/integration/wallet.test.js` — เพิ่ม coverage สำหรับ `POST /api/wallet/topup` ทั้งกรณีส่ง `payment_link` ตรง ๆ และกรณี legacy alias `stripe` ที่ต้อง persist เป็น `payment_link` พร้อมบังคับ `PAYMENT_PROVIDER=mock` ใน suite เพื่อให้ route-level assertion เสถียรไม่ขึ้นกับ env ของ container
+- chore(frontend): `frontend/src/pages/caregiver/CaregiverMyJobsPage.tsx`, `frontend/src/pages/shared/ChatRoomPage.tsx` — ลบ state `checkoutIsEarly` ที่ไม่ถูกใช้งานแล้ว เพื่อให้ TypeScript check กลับมาผ่าน
+- verify(container): `docker exec careconnect-backend node --input-type=module ...` ยืนยัน schema รับทั้ง canonical/defaulted/legacy alias ได้, `docker exec careconnect-backend node --experimental-vm-modules ./node_modules/jest/bin/jest.js --runInBand src/services/__tests__/walletService.safety.test.js --coverage=false` ผ่าน, และ `docker exec careconnect-frontend npm exec tsc -- --noEmit` ผ่าน
+- note(env): host CLI ปัจจุบันคือ `node v12.22.9` / `npm 8.5.1` แต่ `backend/package.json` และ `frontend/package.json` require `node >= 20`, ดังนั้น direct host-side Jest/TypeScript verification อาจ fail ได้แม้โค้ดปกติ — ใช้ container verification แทนจนกว่าจะอัปเกรด host runtime
+- **files**: `backend/src/utils/validation.js`, `backend/src/controllers/walletController.js`, `backend/tests/integration/wallet.test.js`, `frontend/src/pages/hirer/HirerWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverMyJobsPage.tsx`, `frontend/src/pages/shared/ChatRoomPage.tsx`, `PROGRESS.md`
+
+### 2026-04-06 — refactor(env): split dev/prod env templates + make mock top-up work in development
+
+- refactor(env): แยก root templates ชัดเจนเป็น `.env.example` (development) และ `.env.production.example` (production); คง `.env.prod.example` ไว้เป็น deprecated pointer เพื่อไม่ให้ reference เก่าพังทันที
+- feat(backend): `backend/src/config/loadEnv.js` — dev/test เติม default ที่ปลอดภัยสำหรับ local, log `console.warn`, และ fallback `PAYMENT_PROVIDER` / `SMS_PROVIDER` / `EMAIL_PROVIDER` กลับ `mock` เมื่อ credentials ไม่ครบ
+- feat(backend): `backend/src/server.js` — non-production env validation เปลี่ยนเป็น warning-only, แต่ production ยัง fail-fast ตามเดิม
+- feat(wallet): `backend/src/services/walletService.js` + `backend/src/services/__tests__/walletService.safety.test.js` — `PAYMENT_PROVIDER=mock` ใช้ initiate top-up ได้จริงและมี test coverage
+- refactor(frontend): `frontend/src/pages/hirer/HirerWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverWalletPage.tsx` — wording top-up/button/modal เปลี่ยนเป็นกลางกับ provider ไม่ผูกกับ Stripe โดยตรง
+- chore(docker): `docker-compose.yml`, `docker-compose.prod.yml`, `frontend/Dockerfile`, `Makefile` — dev compose honor host `.env` overrides มากขึ้น, production ใช้ `.env.production`, และ frontend production build รับ `VITE_*` ผ่าน build args
+- docs: `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `SYSTEM.md` — sync env conventions ใหม่, เอา `GOOGLE_CALLBACK_URL` ออกจาก docs หลัก, และอธิบาย build/runtime loading paths ให้ตรงกับโค้ด
+- verify: `npm test -- --runInBand backend/src/services/__tests__/walletService.safety.test.js` ผ่าน (exit 0) และ `npm exec tsc -- --noEmit` ใน `frontend/` ผ่าน (exit 0)
+- **files**: `.env.example`, `.env.production.example`, `.env.prod.example`, `docker-compose.yml`, `docker-compose.prod.yml`, `frontend/Dockerfile`, `Makefile`, `backend/src/config/loadEnv.js`, `backend/src/server.js`, `backend/src/services/walletService.js`, `backend/src/services/__tests__/walletService.safety.test.js`, `frontend/src/pages/hirer/HirerWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverWalletPage.tsx`, `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `SYSTEM.md`
 
 ### 2026-04-06 — fix(infra): กู้ cloudflared tunnel ให้กลับมาเข้าเว็บจากภายนอกได้
 

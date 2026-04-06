@@ -4,7 +4,7 @@
  */
 
 import request from 'supertest';
-import { beforeAll, describe, it, expect } from '@jest/globals';
+import { afterAll, beforeAll, beforeEach, describe, it, expect } from '@jest/globals';
 import app from '../../src/server.js';
 import { pool } from '../../src/utils/db.js';
 import { 
@@ -18,6 +18,7 @@ describe('Wallet Integration Tests', () => {
   let testUser;
   let bankAccountId;
   let withdrawalId;
+  const originalPaymentProvider = process.env.PAYMENT_PROVIDER;
 
   beforeAll(async () => {
     testUser = await createTestUser({ 
@@ -29,6 +30,19 @@ describe('Wallet Integration Tests', () => {
     await createTestWallet(testUser.id, 5000);
 
     userToken = await generateTestToken(testUser.id);
+  });
+
+  beforeEach(() => {
+    process.env.PAYMENT_PROVIDER = 'mock';
+  });
+
+  afterAll(() => {
+    if (originalPaymentProvider === undefined) {
+      delete process.env.PAYMENT_PROVIDER;
+      return;
+    }
+
+    process.env.PAYMENT_PROVIDER = originalPaymentProvider;
   });
 
   const ensureUserTrustLevel = async (trustLevel = 'L2') => {
@@ -51,6 +65,67 @@ describe('Wallet Integration Tests', () => {
       expect(response.body).toHaveProperty('available_balance', 5000);
       expect(response.body).toHaveProperty('held_balance', 0);
       expect(response.body).toHaveProperty('total_balance', 5000);
+    });
+
+    it('should initiate top-up with canonical payment_link method', async () => {
+      const response = await request(app)
+        .post('/api/wallet/topup')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          amount: 500,
+          payment_method: 'payment_link',
+        })
+        .expect(201);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('topup_id');
+      expect(response.body).toHaveProperty('payment_method', 'payment_link');
+      expect(response.body).toHaveProperty('status', 'pending');
+
+      const stored = await pool.query(
+        `SELECT method, provider_name, payment_link_url
+         FROM topup_intents
+         WHERE id = $1`,
+        [response.body.topup_id]
+      );
+
+      expect(stored.rows[0]).toEqual(
+        expect.objectContaining({
+          method: 'payment_link',
+          provider_name: 'mock',
+        })
+      );
+      expect(String(stored.rows[0].payment_link_url || '')).toContain(response.body.topup_id);
+    });
+
+    it('should accept legacy stripe alias and persist payment_link method', async () => {
+      const response = await request(app)
+        .post('/api/wallet/topup')
+        .set('Authorization', `Bearer ${userToken}`)
+        .send({
+          amount: 750,
+          payment_method: 'stripe',
+        })
+        .expect(201);
+
+      expect(response.body).toHaveProperty('success', true);
+      expect(response.body).toHaveProperty('topup_id');
+      expect(response.body).toHaveProperty('payment_method', 'payment_link');
+      expect(response.body).toHaveProperty('status', 'pending');
+
+      const stored = await pool.query(
+        `SELECT method, provider_name
+         FROM topup_intents
+         WHERE id = $1`,
+        [response.body.topup_id]
+      );
+
+      expect(stored.rows[0]).toEqual(
+        expect.objectContaining({
+          method: 'payment_link',
+          provider_name: 'mock',
+        })
+      );
     });
 
     it('should add bank account for withdrawal', async () => {

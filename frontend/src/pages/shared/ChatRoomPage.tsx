@@ -80,7 +80,6 @@ export default function ChatRoomPage() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [disputeOpen, setDisputeOpen] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [checkoutIsEarly, setCheckoutIsEarly] = useState(false);
   const [checkoutType, setCheckoutType] = useState<'normal' | 'special'>('normal');
   const [checkoutNote, setCheckoutNote] = useState('');
   const [checkoutPreset, setCheckoutPreset] = useState('');
@@ -296,7 +295,6 @@ export default function ChatRoomPage() {
   };
 
   const handleOpenCheckout = () => {
-    setCheckoutIsEarly(true);
     setCheckoutType('normal');
     setCheckoutNote('');
     setCheckoutPreset('');
@@ -306,7 +304,6 @@ export default function ChatRoomPage() {
   };
 
   const handleOpenSpecialCheckout = () => {
-    setCheckoutIsEarly(true);
     setCheckoutType('special');
     setCheckoutNote('');
     setCheckoutPreset('');

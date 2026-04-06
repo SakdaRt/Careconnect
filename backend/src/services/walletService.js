@@ -16,6 +16,8 @@ const getStripeClient = () => {
   return new Stripe(process.env.STRIPE_SECRET_KEY);
 };
 
+const getPaymentProvider = () => String(process.env.PAYMENT_PROVIDER || 'mock').toLowerCase();
+
 /**
  * Wallet Service
  * Handles business logic for wallet operations
@@ -220,17 +222,77 @@ class WalletService {
 
     const walletType = role === 'hirer' ? 'hirer' : 'caregiver';
     const wallet = await Wallet.getOrCreateWallet(userId, walletType);
-    const paymentProvider = String(process.env.PAYMENT_PROVIDER || 'stripe').toLowerCase();
-
-    if (paymentProvider !== 'stripe') {
-      throw { status: 400, message: 'Top-up provider is not set to stripe' };
-    }
-
-    const stripe = getStripeClient();
+    const paymentProvider = getPaymentProvider();
     const topupId = uuidv4();
     const effectiveFrontendUrl = String(frontendBaseUrl || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
     const walletPath = role === 'hirer' ? '/hirer/wallet' : '/caregiver/wallet';
     const expiresAtEpoch = Math.floor(Date.now() / 1000) + 30 * 60;
+    const expiresAt = new Date(expiresAtEpoch * 1000);
+    const persistedMethod = paymentMethod === 'stripe' ? 'payment_link' : (paymentMethod || 'payment_link');
+
+    if (paymentProvider === 'mock') {
+      await query(
+        `INSERT INTO topup_intents (
+           id,
+           user_id,
+           amount,
+           currency,
+           method,
+           provider_name,
+           provider_payment_id,
+           status,
+           payment_link_url,
+           qr_payload,
+           expires_at,
+           created_at,
+           updated_at
+         ) VALUES (
+           $1, $2, $3, 'THB', $4, 'mock', NULL, 'pending', NULL, NULL, $5, NOW(), NOW()
+         )`,
+        [
+          topupId,
+          userId,
+          amount,
+          persistedMethod,
+          expiresAt,
+        ]
+      );
+
+      const providerResponse = await this.initiatePaymentWithProvider({
+        id: topupId,
+        amount,
+        payment_method: persistedMethod,
+      });
+
+      await query(
+        `UPDATE topup_intents
+         SET payment_link_url = $2,
+             qr_payload = $3,
+             updated_at = NOW()
+         WHERE id = $1`,
+        [
+          topupId,
+          providerResponse.payment_url || null,
+          providerResponse.qr_code || null,
+        ]
+      );
+
+      return {
+        topup_id: topupId,
+        amount,
+        payment_method: persistedMethod,
+        status: 'pending',
+        payment_url: providerResponse.payment_url || null,
+        qr_code: providerResponse.qr_code || null,
+        expires_at: expiresAt.toISOString(),
+      };
+    }
+
+    if (paymentProvider !== 'stripe') {
+      throw { status: 400, message: `Unsupported top-up provider: ${paymentProvider}` };
+    }
+
+    const stripe = getStripeClient();
 
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -255,9 +317,6 @@ class WalletService {
       cancel_url: `${effectiveFrontendUrl}${walletPath}?topup=cancel&topup_id=${topupId}`,
       expires_at: expiresAtEpoch,
     });
-
-    const expiresAt = new Date(expiresAtEpoch * 1000);
-    const persistedMethod = paymentMethod === 'stripe' ? 'payment_link' : paymentMethod;
 
     return await transaction(async (client) => {
       await client.query(
@@ -292,7 +351,7 @@ class WalletService {
       return {
         topup_id: topupId,
         amount,
-        payment_method: paymentMethod || 'stripe',
+        payment_method: persistedMethod,
         status: 'pending',
         payment_url: checkoutSession.url || null,
         expires_at: expiresAt.toISOString(),
