@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-03-31 (fix(ui): JobDetailPage badge มอบหมายให้ผู้ดูแล)
+> อัพเดทล่าสุด: 2026-04-06 (fix(infra): กู้ cloudflared tunnel ให้กลับมาเข้าเว็บจากภายนอกได้)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -178,6 +178,7 @@ careconnect/
 - [x] Push notification (PWA)
 - [x] Caregiver availability calendar
 - [x] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (rebuild Docker image แก้ได้)
+- [ ] ทำ IaC/เอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (เช่น restart policy)
 
 ### Low Priority
 
@@ -223,6 +224,12 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-06 — fix(infra): กู้ cloudflared tunnel ให้กลับมาเข้าเว็บจากภายนอกได้
+
+- **root cause**: service `cloudflared` บน host อยู่สถานะ `failed` หลังเจอ DNS timeout ระหว่าง lookup Cloudflare edge (`_v2-origintunneld._tcp.argotunnel.com`) และไม่ auto-restart เพราะ systemd unit `/etc/systemd/system/cloudflared.service` ตั้ง `Restart=alway` (typo) ทำให้ systemd parse ไม่ได้และ fallback เป็น `Restart=no`
+- fix(runtime): สร้าง systemd drop-in `/etc/systemd/system/cloudflared.service.d/restart.conf` ตั้ง `Restart=always` + `RestartSec=5s` เพื่อกู้ service ทันที, จากนั้นแก้ unit หลัก `/etc/systemd/system/cloudflared.service` จาก `Restart=alway` → `Restart=always`, `daemon-reload` และ restart service
+- verify(runtime): `cloudflared` register tunnel connections ได้อีกครั้ง, remote ingress config ชี้ `careconnect.kmitl.site` → `http://localhost:5173`, local checks ที่ `127.0.0.1:80` และ `127.0.0.1:5173` ตอบ `200`, และ public URL `https://careconnect.kmitl.site` ตอบ `HTTP 200`
 
 ### 2026-03-31 — fix(ui): JobDetailPage badge มอบหมายให้ผู้ดูแล ไม่แสดง
 
