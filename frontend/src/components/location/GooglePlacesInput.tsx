@@ -372,7 +372,7 @@ className={`flex-1 min-w-0 px-4 py-2 border rounded-lg ${hasPinnedLocation ? 'bg
       )}
       {error ? <div className="text-sm text-red-600">{error}</div> : null}
       {!apiKey ? (
-        <div className="text-xs text-gray-500">ตั้งค่า VITE_GOOGLE_MAPS_API_KEY ในไฟล์ .env.local เพื่อเปิดใช้ Google Places</div>
+        <div className="text-xs text-gray-500">ตั้งค่า VITE_GOOGLE_MAPS_API_KEY ในไฟล์ .env เพื่อเปิดใช้ Google Places</div>
       ) : null}
       {apiKey && showMap ? (
         <div className="w-full h-64 rounded-lg border border-gray-200" ref={mapRef} />

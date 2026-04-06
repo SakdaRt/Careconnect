@@ -111,6 +111,8 @@ export default function GuestRegisterPage() {
       startCooldown();
       setStep('otp');
     } catch (error: any) {
+      const msg = error?.message || 'ไม่สามารถสร้างบัญชีได้ กรุณาลองใหม่อีกครั้ง';
+      setErrors({ general: msg });
       logOtpEvent('email', 'Registration failed before OTP step', error, 'error');
     } finally {
       setLoading(false);
@@ -281,6 +283,12 @@ export default function GuestRegisterPage() {
               error={errors.confirmPassword}
               required
             />
+
+            {errors.general && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                {errors.general}
+              </div>
+            )}
 
             <Button
               variant="primary"

@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(system): แก้ dev override ให้รัน migrate อัตโนมัติ + adoption logic)
+> อัพเดทล่าสุด: 2026-04-06 (fix(ui): แสดง error message เมื่อสมัครบัญชีไม่สำเร็จ)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -253,6 +253,14 @@ careconnect/
 ## Git Log (งานล่าสุด)
 
 > หมายเหตุ: entries ด้านล่างเป็นประวัติการทำงานตามช่วงเวลา จึงอาจอ้างอิง counts, paths, หรือ runtime values ตามสภาพของวันนั้น ๆ ไม่ใช่สถานะล่าสุดเสมอไป ให้ใช้ `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, และ `SYSTEM.md` เป็น reference ปัจจุบัน
+
+### 2026-04-06 — fix(ui): แสดง error message เมื่อสมัครบัญชีไม่สำเร็จ + แก้ fallback text Google Maps
+
+- fix(frontend): `frontend/src/pages/auth/MemberRegisterPage.tsx` — เพิ่ม `setErrors({ general: msg })` ใน catch block ของ `handleCreateAccount` + แสดงกล่อง error สีแดงเหนือปุ่มสร้างบัญชี เพื่อให้ user เห็นข้อความเช่น "เบอร์โทรนี้ถูกใช้งานแล้ว" แทนที่จะกดแล้วไม่เกิดอะไรขึ้น
+- fix(frontend): `frontend/src/pages/auth/GuestRegisterPage.tsx` — แก้เหมือนกันสำหรับหน้า email register
+- fix(frontend): `frontend/src/components/location/GooglePlacesInput.tsx` — แก้ข้อความ fallback จาก ".env.local" เป็น ".env" ให้ตรงกับ Docker dev stack
+- verify(tsc): `npx tsc --noEmit` ผ่าน (0 errors)
+- **files**: `MemberRegisterPage.tsx`, `GuestRegisterPage.tsx`, `GooglePlacesInput.tsx`
 
 ### 2026-04-06 — fix(system): แก้ dev override ให้รัน migrate อัตโนมัติ + adoption logic
 
