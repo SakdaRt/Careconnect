@@ -991,7 +991,7 @@ GET    /api/admin/stats                          System statistics
 GET    /api/admin/health                         Health check
 POST   /api/admin/trust/recalculate              คำนวณ trust level ทุก user
 POST   /api/admin/trust/recalculate/:userId      คำนวณ trust level user เดียว
-GET    /api/admin/users                          ดู user list (q, role, status)
+GET    /api/admin/users                          ดู user list (q, role, status, reg_type)
 GET    /api/admin/users/:id                      ดู user detail
 POST   /api/admin/users/:id/status               เปลี่ยน user status
 PATCH  /api/admin/users/:id/edit                 แก้ไข user (trust, verify, note)

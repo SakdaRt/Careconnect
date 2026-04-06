@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(auth): make SMS/OTP frontend notifications log-only)
+> อัพเดทล่าสุด: 2026-04-06 (fix(admin): restore phone search on AdminUsersPage)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -222,6 +222,7 @@ careconnect/
 | `.env.production.example`                 | Production env template (deploy checklist)      |
 | `docker-compose.prod.yml`                 | Production compose + frontend Vite build args   |
 | `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
+| `backend/src/controllers/adminUserController.js` | Admin user list/detail, filters, status, ban, wallet lookup |
 | `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
 | `backend/src/services/authService.js`     | Register, login, token logic                    |
 | `backend/src/services/jobService.js`      | Job business logic                              |
@@ -244,6 +245,14 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-06 — fix(admin): restore phone search on AdminUsersPage
+
+- fix(backend): `backend/src/controllers/adminUserController.js` — แก้ `reg_type=phone` ให้หมายถึง user ที่มี `phone_number` จริง ไม่ใช่จำกัดเฉพาะบัญชีที่ไม่มีอีเมล ทำให้ค้นด้วยเลขบางส่วนบนหน้าแอดมินเจอ user ที่มีทั้งอีเมลและเบอร์ได้อีกครั้ง
+- fix(validation): `backend/src/routes/adminRoutes.js` — เพิ่ม query validation ของ `reg_type` สำหรับ `GET /api/admin/users` ให้รองรับเฉพาะ `email` และ `phone`
+- test(backend): `backend/src/controllers/__tests__/adminUserController.test.js` — เพิ่ม regression test สำหรับเคสค้นหาเบอร์โทรของ user ที่มีทั้ง email + phone และเคส error path
+- verify(container): `docker exec careconnect-backend node --experimental-vm-modules ./node_modules/jest/bin/jest.js src/controllers/__tests__/adminUserController.test.js --runInBand --coverage=false` ผ่าน (2 tests)
+- **files**: `backend/src/controllers/adminUserController.js`, `backend/src/routes/adminRoutes.js`, `backend/src/controllers/__tests__/adminUserController.test.js`, `PROGRESS.md`, `SYSTEM.md`
 
 ### 2026-04-06 — fix(auth): make SMS/OTP frontend notifications log-only
 

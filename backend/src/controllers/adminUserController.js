@@ -53,7 +53,7 @@ export const listUsers = async (req, res) => {
     if (regType === 'email') {
       where.push(`u.email IS NOT NULL AND u.email <> ''`);
     } else if (regType === 'phone') {
-      where.push(`(u.email IS NULL OR u.email = '') AND u.phone_number IS NOT NULL AND u.phone_number <> ''`);
+      where.push(`u.phone_number IS NOT NULL AND u.phone_number <> ''`);
     }
     if (q) {
       values.push(`%${q}%`);
