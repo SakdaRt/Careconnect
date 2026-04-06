@@ -99,7 +99,7 @@ export default function RegisterTypePage() {
                   </div>
                   <div className="flex items-start gap-2 text-sm text-gray-700">
                     <span className="text-green-600 mt-0.5">✓</span>
-                    <span>ยืนยันตัวตนด้วย OTP ผ่าน SMS</span>
+                    <span>ยืนยันบัญชีด้วยรหัสยืนยัน</span>
                   </div>
                 </div>
               </div>

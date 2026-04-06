@@ -42,7 +42,7 @@ import {
   isConfiguredDisplayName,
   toDisplayNameFromFullName,
 } from "../../utils/profileName";
-import { showDevOtpToast } from "../../utils/otpDebug";
+import { logOtpEvent, showDevOtpToast } from "../../utils/otpDebug";
 
 function roleLabel(role: string) {
   if (role === "hirer") return "ผู้ว่าจ้าง";
@@ -89,16 +89,13 @@ export default function ProfilePage() {
   const [emailOtpCode, setEmailOtpCode] = useState("");
   const [emailOtpId, setEmailOtpId] = useState("");
   const [emailOtpLoading, setEmailOtpLoading] = useState(false);
-  const [emailOtpError, setEmailOtpError] = useState("");
   const [emailError, setEmailError] = useState("");
   const [emailResendCooldown, setEmailResendCooldown] = useState(0);
-  const [emailOtpSecondsLeft, setEmailOtpSecondsLeft] = useState(5 * 60);
   const emailCooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [phoneValue, setPhoneValue] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [otpId, setOtpId] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-  const [otpError, setOtpError] = useState("");
   const [phoneError, setPhoneError] = useState("");
 
   // Caregiver certification documents
@@ -116,15 +113,6 @@ export default function ProfilePage() {
     expiry_date: "",
   });
   const [avatarUploading, setAvatarUploading] = useState(false);
-
-  useEffect(() => {
-    if (!emailOtpId) return;
-    setEmailOtpSecondsLeft(5 * 60);
-    const interval = setInterval(() => {
-      setEmailOtpSecondsLeft((s) => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [emailOtpId]);
 
   const startEmailCooldown = () => {
     setEmailResendCooldown(60);
@@ -183,20 +171,18 @@ export default function ProfilePage() {
 
     setEmailOtpLoading(true);
     setEmailError("");
-    setEmailOtpError("");
     try {
       const response = await appApi.sendEmailOtp(emailValue.trim());
       if (!response.success || !response.data) {
-        toast.error(response.error || "ส่งรหัส OTP ไม่สำเร็จ");
+        logOtpEvent("email", "Failed to send OTP", { error: response.error || "Failed to send OTP" }, "warn");
         return;
       }
       setEmailOtpId(response.data.otp_id);
-      if (!showDevOtpToast(response.data, "email")) {
-        toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบอีเมล");
-      }
+      showDevOtpToast(response.data, "email");
+      logOtpEvent("email", "Sent OTP", { otpId: response.data.otp_id });
       startEmailCooldown();
     } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาด");
+      logOtpEvent("email", "Unexpected send OTP error", error, "error");
     } finally {
       setEmailOtpLoading(false);
     }
@@ -204,7 +190,6 @@ export default function ProfilePage() {
 
   const handleResendEmailOtp = async () => {
     setEmailOtpLoading(true);
-    setEmailOtpError("");
     try {
       if (!emailOtpId) {
         await handleSendEmailOtp();
@@ -212,17 +197,16 @@ export default function ProfilePage() {
       }
       const response = await appApi.resendOtp(emailOtpId);
       if (!response.success || !response.data) {
-        toast.error(response.error || "ส่งรหัส OTP ใหม่ไม่สำเร็จ");
+        logOtpEvent("email", "Failed to resend OTP", { error: response.error || "Failed to resend OTP" }, "warn");
         return;
       }
       setEmailOtpId(response.data.otp_id);
       setEmailOtpCode("");
       startEmailCooldown();
-      if (!showDevOtpToast(response.data, "email")) {
-        toast.success("ส่งรหัส OTP ใหม่แล้ว");
-      }
+      showDevOtpToast(response.data, "email");
+      logOtpEvent("email", "Resent OTP", { otpId: response.data.otp_id });
     } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด");
+      logOtpEvent("email", "Unexpected resend OTP error", error, "error");
     } finally {
       setEmailOtpLoading(false);
     }
@@ -230,28 +214,27 @@ export default function ProfilePage() {
 
   const handleVerifyEmailOtp = async () => {
     if (emailOtpCode.length !== 6) {
-      setEmailOtpError("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
+      logOtpEvent("email", "OTP entry rejected due to invalid length", { length: emailOtpCode.length }, "warn");
       return;
     }
     if (!emailOtpId) {
-      toast.error("ไม่พบรหัส OTP สำหรับยืนยัน");
+      logOtpEvent("email", "OTP verification requested without otpId", undefined, "warn");
       return;
     }
 
     setEmailOtpLoading(true);
-    setEmailOtpError("");
     try {
       const response = await appApi.verifyEmailOtp(emailOtpId, emailOtpCode);
       if (!response.success) {
-        toast.error(response.error || "รหัส OTP ไม่ถูกต้อง");
+        logOtpEvent("email", "OTP verification failed", { error: response.error || "OTP verification failed" }, "warn");
         return;
       }
       await refreshUser();
       setEmailOtpId("");
       setEmailOtpCode("");
-      toast.success("ยืนยันอีเมลสำเร็จ");
+      logOtpEvent("email", "OTP verified successfully");
     } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาด");
+      logOtpEvent("email", "OTP verification request error", error, "error");
     } finally {
       setEmailOtpLoading(false);
     }
@@ -265,19 +248,17 @@ export default function ProfilePage() {
 
     setOtpLoading(true);
     setPhoneError("");
-    setOtpError("");
     try {
       const response = await appApi.sendPhoneOtp(phoneValue.trim());
       if (!response.success || !response.data) {
-        toast.error(response.error || "ส่งรหัส OTP ไม่สำเร็จ");
+        logOtpEvent("sms", "Failed to send OTP", { error: response.error || "Failed to send OTP" }, "warn");
         return;
       }
       setOtpId(response.data.otp_id);
-      if (!showDevOtpToast(response.data, "sms")) {
-        toast.success("ส่งรหัส OTP แล้ว กรุณาตรวจสอบ SMS");
-      }
+      showDevOtpToast(response.data, "sms");
+      logOtpEvent("sms", "Sent OTP", { otpId: response.data.otp_id });
     } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาด");
+      logOtpEvent("sms", "Unexpected send OTP error", error, "error");
     } finally {
       setOtpLoading(false);
     }
@@ -285,7 +266,6 @@ export default function ProfilePage() {
 
   const handleResendOtp = async () => {
     setOtpLoading(true);
-    setOtpError("");
     try {
       if (!otpId) {
         await handleSendPhoneOtp();
@@ -293,16 +273,15 @@ export default function ProfilePage() {
       }
       const response = await appApi.resendOtp(otpId);
       if (!response.success || !response.data) {
-        toast.error(response.error || "ส่งรหัส OTP ใหม่ไม่สำเร็จ");
+        logOtpEvent("sms", "Failed to resend OTP", { error: response.error || "Failed to resend OTP" }, "warn");
         return;
       }
       setOtpId(response.data.otp_id);
       setOtpCode("");
-      if (!showDevOtpToast(response.data, "sms")) {
-        toast.success("ส่งรหัส OTP ใหม่แล้ว");
-      }
+      showDevOtpToast(response.data, "sms");
+      logOtpEvent("sms", "Resent OTP", { otpId: response.data.otp_id });
     } catch (error: any) {
-      toast.error("เกิดข้อผิดพลาด");
+      logOtpEvent("sms", "Unexpected resend OTP error", error, "error");
     } finally {
       setOtpLoading(false);
     }
@@ -310,28 +289,27 @@ export default function ProfilePage() {
 
   const handleVerifyOtp = async () => {
     if (otpCode.length !== 6) {
-      setOtpError("กรุณากรอกรหัส OTP ให้ครบ 6 หลัก");
+      logOtpEvent("sms", "OTP entry rejected due to invalid length", { length: otpCode.length }, "warn");
       return;
     }
     if (!otpId) {
-      toast.error("ไม่พบรหัส OTP สำหรับยืนยัน");
+      logOtpEvent("sms", "OTP verification requested without otpId", undefined, "warn");
       return;
     }
 
     setOtpLoading(true);
-    setOtpError("");
     try {
       const response = await appApi.verifyOtp(otpId, otpCode);
       if (!response.success) {
-        toast.error(response.error || "รหัส OTP ไม่ถูกต้อง");
+        logOtpEvent("sms", "OTP verification failed", { error: response.error || "OTP verification failed" }, "warn");
         return;
       }
       await refreshUser();
       setOtpId("");
       setOtpCode("");
-      toast.success("ยืนยันเบอร์โทรสำเร็จ");
+      logOtpEvent("sms", "OTP verified successfully");
     } catch (error: any) {
-      toast.error(error.message || "เกิดข้อผิดพลาด");
+      logOtpEvent("sms", "OTP verification request error", error, "error");
     } finally {
       setOtpLoading(false);
     }
@@ -1519,22 +1497,17 @@ export default function ProfilePage() {
                       disabled={emailOtpId ? emailResendCooldown > 0 : false}
                       onClick={emailOtpId ? handleResendEmailOtp : handleSendEmailOtp}
                     >
-                      {emailOtpId
-                        ? emailResendCooldown > 0
-                          ? `ส่งใหม่ได้ใน ${emailResendCooldown} วิ`
-                          : 'ส่งรหัส OTP ใหม่'
-                        : 'ส่งรหัส OTP'}
+                      {emailOtpId ? 'ส่งรหัสใหม่' : 'ส่งรหัส'}
                     </Button>
                   </div>
                   {emailOtpId && (
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-700">
-                        รหัส OTP
+                        รหัสยืนยัน
                       </label>
                       <OTPInput
                         value={emailOtpCode}
                         onChange={setEmailOtpCode}
-                        error={emailOtpError}
                       />
                       <Button
                         variant="primary"
@@ -1543,13 +1516,6 @@ export default function ProfilePage() {
                       >
                         ยืนยันอีเมล
                       </Button>
-                      <p
-                        className={`text-xs text-center ${emailOtpSecondsLeft <= 60 ? "text-red-500" : "text-gray-500"}`}
-                      >
-                        {emailOtpSecondsLeft > 0
-                          ? `รหัสหมดอายุใน ${Math.floor(emailOtpSecondsLeft / 60)}:${String(emailOtpSecondsLeft % 60).padStart(2, "0")} นาที`
-                          : "รหัส OTP หมดอายุแล้ว"}
-                      </p>
                     </div>
                   )}
                 </div>
@@ -1571,18 +1537,17 @@ export default function ProfilePage() {
                       loading={otpLoading}
                       onClick={otpId ? handleResendOtp : handleSendPhoneOtp}
                     >
-                      {otpId ? 'ส่งรหัส OTP ใหม่' : 'ส่งรหัส OTP'}
+                      {otpId ? 'ส่งรหัสใหม่' : 'ส่งรหัส'}
                     </Button>
                   </div>
                   {otpId && (
                     <div className="space-y-2">
                       <label className="block text-sm font-semibold text-gray-700">
-                        รหัส OTP
+                        รหัสยืนยัน
                       </label>
                       <OTPInput
                         value={otpCode}
                         onChange={setOtpCode}
-                        error={otpError}
                       />
                       <Button
                         variant="primary"

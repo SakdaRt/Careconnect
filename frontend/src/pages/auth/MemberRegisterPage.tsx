@@ -3,11 +3,10 @@ import { useState, useRef, useEffect } from 'react';
 import { Phone, ArrowLeft } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button, PhoneInput, OTPInput, PasswordInput } from '../../components/ui';
-import toast from 'react-hot-toast';
 import api from '../../services/api';
 import { useAuth } from '../../contexts';
 import { setScopedStorageItem } from '../../utils/authStorage';
-import { showDevOtpToast } from '../../utils/otpDebug';
+import { logOtpEvent, showDevOtpToast } from '../../utils/otpDebug';
 
 type Step = 'phone' | 'otp' | 'password';
 
@@ -27,7 +26,6 @@ export default function MemberRegisterPage() {
   const [otpId, setOtpId] = useState('');
 
   const [otpTimerKey, setOtpTimerKey] = useState(0);
-  const [otpSecondsLeft, setOtpSecondsLeft] = useState(5 * 60);
   const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef(step);
   const verifiedRef = useRef(false);
@@ -60,15 +58,6 @@ export default function MemberRegisterPage() {
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
-  }, [step, otpTimerKey]);
-
-  useEffect(() => {
-    if (step !== 'otp') return;
-    setOtpSecondsLeft(5 * 60);
-    const interval = setInterval(() => {
-      setOtpSecondsLeft(s => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
   }, [step, otpTimerKey]);
 
   const handleCancelRegistration = async () => {
@@ -106,11 +95,11 @@ export default function MemberRegisterPage() {
   // Step 2: OTP verification
   const handleVerifyOTP = async () => {
     if (formData.otp.length !== 6) {
-      setErrors({ otp: 'กรุณากรอกรหัส OTP ให้ครบ 6 หลัก' });
+      logOtpEvent('sms', 'OTP entry rejected due to invalid length', { length: formData.otp.length }, 'warn');
       return;
     }
     if (!otpId) {
-      toast.error('ไม่พบรหัส OTP สำหรับยืนยัน');
+      logOtpEvent('sms', 'OTP verification requested without otpId', undefined, 'warn');
       return;
     }
 
@@ -118,7 +107,7 @@ export default function MemberRegisterPage() {
     try {
       const response = await api.verifyOtp(otpId, formData.otp);
       if (!response.success) {
-        toast.error(response.error || 'รหัส OTP ไม่ถูกต้อง');
+        logOtpEvent('sms', 'OTP verification failed', { error: response.error || 'OTP verification failed' }, 'warn');
         return;
       }
       verifiedRef.current = true;
@@ -126,16 +115,16 @@ export default function MemberRegisterPage() {
       if (response.data?.registered && response.data?.accessToken) {
         api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
         await refreshUser();
-        toast.success('ลงทะเบียนสำเร็จ!');
+        logOtpEvent('sms', 'Registration completed after OTP verification');
       } else {
         await refreshUser();
-        toast.success('ยืนยันเบอร์โทรสำเร็จ');
+        logOtpEvent('sms', 'OTP verified successfully');
       }
 
       setScopedStorageItem('pendingRole', selectedRole || 'hirer');
       navigate('/register/consent', { replace: true });
     } catch (error: any) {
-      toast.error(error.message || 'เกิดข้อผิดพลาด');
+      logOtpEvent('sms', 'OTP verification request error', error, 'error');
     } finally {
       setLoading(false);
     }
@@ -147,29 +136,27 @@ export default function MemberRegisterPage() {
       if (!otpId) {
         const response = await api.sendPhoneOtp();
         if (!response.success || !response.data) {
-          toast.error(response.error || 'ส่งรหัส OTP ไม่สำเร็จ');
+          logOtpEvent('sms', 'Failed to send OTP', { error: response.error || 'Failed to send OTP' }, 'warn');
           return;
         }
         setOtpId(response.data.otp_id);
         setOtpTimerKey(k => k + 1);
-        if (!showDevOtpToast(response.data, 'sms')) {
-          toast.success('ส่งรหัส OTP แล้ว');
-        }
+        showDevOtpToast(response.data, 'sms');
+        logOtpEvent('sms', 'Sent OTP', { otpId: response.data.otp_id });
         return;
       }
       const response = await api.resendOtp(otpId);
       if (!response.success || !response.data) {
-        toast.error(response.error || 'ส่งรหัส OTP ใหม่ไม่สำเร็จ');
+        logOtpEvent('sms', 'Failed to resend OTP', { error: response.error || 'Failed to resend OTP' }, 'warn');
         return;
       }
       setOtpId(response.data.otp_id);
       setFormData({ ...formData, otp: '' });
       setOtpTimerKey(k => k + 1);
-      if (!showDevOtpToast(response.data, 'sms')) {
-        toast.success('ส่งรหัส OTP ใหม่แล้ว');
-      }
+      showDevOtpToast(response.data, 'sms');
+      logOtpEvent('sms', 'Resent OTP', { otpId: response.data.otp_id });
     } catch (error: any) {
-      toast.error('เกิดข้อผิดพลาด');
+      logOtpEvent('sms', 'Unexpected resend OTP error', error, 'error');
     } finally {
       setLoading(false);
     }
@@ -206,12 +193,11 @@ export default function MemberRegisterPage() {
     try {
       const result = await registerMember(formData.phone, formData.password, selectedRole || 'hirer');
       setOtpId(result.otp_id);
-      if (!showDevOtpToast(result, 'sms')) {
-        toast.success('ส่งรหัส OTP ไปที่เบอร์โทรแล้ว กรุณายืนยัน');
-      }
+      showDevOtpToast(result, 'sms');
+      logOtpEvent('sms', 'Sent registration OTP', { otpId: result.otp_id });
       setStep('otp');
     } catch (error: any) {
-      toast.error(error.message || 'เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง');
+      logOtpEvent('sms', 'Registration failed before OTP step', error, 'error');
     } finally {
       setLoading(false);
     }
@@ -328,22 +314,13 @@ export default function MemberRegisterPage() {
         {/* Step 2: OTP */}
         {step === 'otp' && (
           <div className="space-y-4">
-            <div className="text-center mb-6">
-              <p className="text-gray-600">
-                เราได้ส่งรหัส OTP ไปยัง
-                <br />
-                <span className="font-semibold text-gray-900">{formData.phone}</span>
-              </p>
-            </div>
-
             <div>
               <label htmlFor="otp-0" className="block text-sm font-semibold text-gray-700 mb-2 text-center">
-                รหัส OTP <span className="text-red-500">*</span>
+                รหัสยืนยัน <span className="text-red-500">*</span>
               </label>
               <OTPInput
                 value={formData.otp}
                 onChange={(value) => setFormData({ ...formData, otp: value })}
-                error={errors.otp}
               />
             </div>
 
@@ -354,7 +331,7 @@ export default function MemberRegisterPage() {
               loading={loading}
               onClick={handleVerifyOTP}
             >
-              ยืนยันรหัส OTP
+              ยืนยันรหัส
             </Button>
 
             <div className="text-center">
@@ -366,25 +343,12 @@ export default function MemberRegisterPage() {
                 ไม่ได้รับรหัส? ส่งใหม่อีกครั้ง
               </button>
             </div>
-
-            <p className={`text-xs text-center ${otpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
-              {otpSecondsLeft > 0
-                ? `รหัสหมดอายุใน ${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, '0')} นาที`
-                : 'รหัส OTP หมดอายุแล้ว'}
-            </p>
           </div>
         )}
 
         {/* Step 3: Password */}
         {step === 'password' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg mb-6">
-              <Phone className="w-5 h-5 text-blue-600" />
-              <p className="text-sm text-blue-900">
-                <strong>เบอร์โทร:</strong> {formData.phone} — จะยืนยันด้วย OTP ในขั้นตอนถัดไป
-              </p>
-            </div>
-
             <div className="space-y-3">
               <p className="text-sm font-semibold text-gray-700">เลือกบทบาทที่จะเริ่มต้นใช้งาน</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

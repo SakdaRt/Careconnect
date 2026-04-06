@@ -1,13 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
-import { Mail, ArrowLeft, Shield } from 'lucide-react';
+import { Mail, ArrowLeft } from 'lucide-react';
 import { AuthLayout } from '../../layouts';
 import { Button, Input, OTPInput, PasswordInput } from '../../components/ui';
 import { useAuth } from '../../contexts';
 import api from '../../services/api';
-import toast from 'react-hot-toast';
 import { setScopedStorageItem } from '../../utils/authStorage';
-import { showDevOtpToast } from '../../utils/otpDebug';
+import { logOtpEvent, showDevOtpToast } from '../../utils/otpDebug';
 
 type Step = 'credentials' | 'otp';
 
@@ -26,7 +25,6 @@ export default function GuestRegisterPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [resendCooldown, setResendCooldown] = useState(0);
   const [otpTimerKey, setOtpTimerKey] = useState(0);
-  const [otpSecondsLeft, setOtpSecondsLeft] = useState(5 * 60);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const otpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const stepRef = useRef<Step>('credentials');
@@ -47,20 +45,11 @@ export default function GuestRegisterPage() {
     if (step !== 'otp') return;
     const timer = setTimeout(() => {
       if (verifiedRef.current) return;
-      toast.error('รหัส OTP หมดอายุ กรุณาสมัครใหม่อีกครั้ง');
+      logOtpEvent('email', 'OTP expired; redirecting to registration', undefined, 'warn');
       navigate('/register', { replace: true });
     }, 5 * 60 * 1000);
     otpTimerRef.current = timer;
     return () => clearTimeout(timer);
-  }, [step, otpTimerKey]);
-
-  useEffect(() => {
-    if (step !== 'otp') return;
-    setOtpSecondsLeft(5 * 60);
-    const interval = setInterval(() => {
-      setOtpSecondsLeft(s => (s > 0 ? s - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
   }, [step, otpTimerKey]);
 
   const handleCancelRegistration = async () => {
@@ -117,13 +106,12 @@ export default function GuestRegisterPage() {
     try {
       const result = await registerGuest(formData.email, formData.password, 'hirer');
       setOtpId(result.otp_id);
-      if (!showDevOtpToast(result, 'email')) {
-        toast.success('ส่งรหัส OTP ไปที่อีเมลแล้ว กรุณายืนยันเพื่อสร้างบัญชี');
-      }
+      showDevOtpToast(result, 'email');
+      logOtpEvent('email', 'Sent registration OTP', { otpId: result.otp_id });
       startCooldown();
       setStep('otp');
     } catch (error: any) {
-      toast.error(error.message || 'ลงทะเบียนไม่สำเร็จ');
+      logOtpEvent('email', 'Registration failed before OTP step', error, 'error');
     } finally {
       setLoading(false);
     }
@@ -132,7 +120,7 @@ export default function GuestRegisterPage() {
   // Step 2: OTP verification
   const handleVerifyOTP = async () => {
     if (formData.otp.length !== 6) {
-      setErrors({ otp: 'กรุณากรอกรหัส OTP ให้ครบ 6 หลัก' });
+      logOtpEvent('email', 'OTP entry rejected due to invalid length', { length: formData.otp.length }, 'warn');
       return;
     }
 
@@ -141,7 +129,7 @@ export default function GuestRegisterPage() {
       const response = await api.verifyOtp(otpId, formData.otp);
 
       if (!response.success) {
-        toast.error(response.error || 'รหัส OTP ไม่ถูกต้อง');
+        logOtpEvent('email', 'OTP verification failed', { error: response.error || 'OTP verification failed' }, 'warn');
         return;
       }
 
@@ -150,16 +138,16 @@ export default function GuestRegisterPage() {
       if (response.data?.registered && response.data?.accessToken) {
         api.setSessionTokens(response.data.accessToken, response.data.refreshToken);
         await refreshUser();
-        toast.success('ลงทะเบียนสำเร็จ!');
+        logOtpEvent('email', 'Registration completed after OTP verification');
         setScopedStorageItem('pendingRole', 'hirer');
         navigate('/register/consent', { replace: true });
       } else {
         await refreshUser();
-        toast.success('ยืนยันอีเมลสำเร็จ!');
+        logOtpEvent('email', 'OTP verified successfully');
         navigate('/register/consent', { replace: true });
       }
     } catch (error: any) {
-      toast.error(error.message || 'Verification failed');
+      logOtpEvent('email', 'OTP verification request error', error, 'error');
     } finally {
       setLoading(false);
     }
@@ -171,13 +159,12 @@ export default function GuestRegisterPage() {
       if (!otpId) {
         const response = await api.sendEmailOtp();
         if (!response.success || !response.data) {
-          toast.error(response.error || 'ส่งรหัสยืนยันไม่สำเร็จ');
+          logOtpEvent('email', 'Failed to send OTP', { error: response.error || 'Failed to send OTP' }, 'warn');
           return;
         }
         setOtpId(response.data.otp_id);
-        if (!showDevOtpToast(response.data, 'email')) {
-          toast.success('OTP sent to your email');
-        }
+        showDevOtpToast(response.data, 'email');
+        logOtpEvent('email', 'Sent OTP', { otpId: response.data.otp_id });
         startCooldown();
         return;
       }
@@ -185,7 +172,7 @@ export default function GuestRegisterPage() {
       const response = await api.resendOtp(otpId);
 
       if (!response.success || !response.data) {
-        toast.error(response.error || 'Failed to resend OTP');
+        logOtpEvent('email', 'Failed to resend OTP', { error: response.error || 'Failed to resend OTP' }, 'warn');
         return;
       }
 
@@ -193,11 +180,10 @@ export default function GuestRegisterPage() {
       setFormData({ ...formData, otp: '' });
       setOtpTimerKey(k => k + 1);
       startCooldown();
-      if (!showDevOtpToast(response.data, 'email')) {
-        toast.success('New OTP sent');
-      }
+      showDevOtpToast(response.data, 'email');
+      logOtpEvent('email', 'Resent OTP', { otpId: response.data.otp_id });
     } catch (error: any) {
-      toast.error('Failed to resend OTP');
+      logOtpEvent('email', 'Unexpected resend OTP error', error, 'error');
     } finally {
       setLoading(false);
     }
@@ -315,32 +301,16 @@ export default function GuestRegisterPage() {
           </div>
         )}
 
-        {/* Step 2: OTP */}
+        {/* Step 2: Verification */}
         {step === 'otp' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
-              <Shield className="w-5 h-5 text-green-600" />
-              <p className="text-sm text-green-900">
-                <strong>สร้างบัญชีแล้ว!</strong> ยืนยันอีเมลเพื่อเปิดใช้งานเพิ่มเติม
-              </p>
-            </div>
-
-            <div className="text-center mb-6">
-              <p className="text-gray-600">
-                เราได้ส่งรหัสยืนยันไปยัง
-                <br />
-                <span className="font-semibold text-gray-900">{formData.email}</span>
-              </p>
-            </div>
-
             <div>
               <label htmlFor="otp-0" className="block text-sm font-semibold text-gray-700 mb-2 text-center">
-                รหัส OTP <span className="text-red-500">*</span>
+                รหัสยืนยัน <span className="text-red-500">*</span>
               </label>
               <OTPInput
                 value={formData.otp}
                 onChange={(value) => setFormData({ ...formData, otp: value })}
-                error={errors.otp}
               />
             </div>
 
@@ -360,15 +330,9 @@ export default function GuestRegisterPage() {
                 disabled={loading || resendCooldown > 0}
                 className={resendCooldown > 0 ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-700'}
               >
-                {resendCooldown > 0 ? `ส่งใหม่ได้ใน ${resendCooldown} วินาที` : 'ไม่ได้รับรหัส? ส่งใหม่อีกครั้ง'}
+                ส่งใหม่อีกครั้ง
               </button>
             </div>
-
-            <p className={`text-xs text-center ${otpSecondsLeft <= 60 ? 'text-red-500' : 'text-gray-500'}`}>
-              {otpSecondsLeft > 0
-                ? `รหัสหมดอายุใน ${Math.floor(otpSecondsLeft / 60)}:${String(otpSecondsLeft % 60).padStart(2, '0')} นาที`
-                : 'รหัส OTP หมดอายุแล้ว'}
-            </p>
 
           </div>
         )}

@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(wallet): align top-up payment_method contract + restore frontend typecheck, refactor(container): container-based verification)
+> อัพเดทล่าสุด: 2026-04-06 (fix(auth): make SMS/OTP frontend notifications log-only)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -68,7 +68,7 @@ careconnect/
 
 - [x] Mode-aware env loading — รองรับ `.env` + optional `.env.development` / `.env.production`
 - [x] Production env validation — require provider-specific secrets ตาม provider ที่เลือกใช้จริง
-- [x] OTP debug safety — backend ส่ง/strip `_dev_code` เฉพาะ dev และ frontend toast แสดงเฉพาะ dev build
+- [x] OTP debug safety — backend ส่ง/strip `_dev_code` เฉพาะ dev และ frontend log debug code ลง console เท่านั้น (ไม่แสดงบนหน้าจอ)
 - [x] Development env fallback — optional integrations ที่ config ไม่ครบจะ warn ใน console และ fallback เป็น `mock`
 - [x] Mock top-up flow สำหรับ development — `PAYMENT_PROVIDER=mock` ใช้งานได้จริงทั้ง backend + wallet UI
 - [x] Frontend production build รับ `VITE_*` ผ่าน Docker build args จาก `.env.production`
@@ -168,6 +168,7 @@ careconnect/
 - [x] aria-hidden ทุก decorative icon
 - [x] text-gray-400 → text-gray-500+ ทุก readable text
 - [x] OTP label htmlFor เชื่อม input
+- [x] Auth/profile verification UI ไม่แสดง SMS/OTP notifications บนหน้าจอ — ใช้ log-only + wording กลาง (`รหัสยืนยัน`, `ส่งรหัส`)
 
 ---
 
@@ -187,6 +188,7 @@ careconnect/
 - [x] Push notification (PWA)
 - [x] Caregiver availability calendar
 - [x] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (rebuild Docker image แก้ได้)
+- [ ] เพิ่ม targeted frontend tests สำหรับ guest/member/profile verification flows ที่ตอนนี้ยังพึ่ง typecheck + manual review เป็นหลัก
 - [ ] ทำ IaC/เอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (เช่น restart policy)
 - [ ] ล้างค่า legacy `GOOGLE_CALLBACK_URL` ออกจาก env/secret จริงของเครื่อง deploy หลัง rollout template ใหม่เสร็จ
 
@@ -210,7 +212,7 @@ careconnect/
 | `frontend/src/router.tsx`                 | Route definitions + guards                      |
 | `frontend/src/routerGuards.tsx`           | RequireAuth, RequireRole, RequirePolicy, RequireProfile, RequireAdmin |
 | `frontend/src/contexts/AuthContext.tsx`   | Global auth state                               |
-| `frontend/src/utils/otpDebug.ts`          | helper กลางสำหรับแสดง OTP debug toast เฉพาะ dev build |
+| `frontend/src/utils/otpDebug.ts`          | helper กลางสำหรับ log OTP debug/events ไป console โดยไม่แสดงบนหน้าจอ |
 | `frontend/src/services/api.ts`            | fetch-based ApiClient + API methods             |
 | `frontend/src/services/appApi.ts`         | App-specific API (favorites, etc.)              |
 | `frontend/src/components/ui/`             | Button, Input, Modal, Badge, Avatar, Card, etc. |
@@ -242,6 +244,15 @@ careconnect/
 ---
 
 ## Git Log (งานล่าสุด)
+
+### 2026-04-06 — fix(auth): make SMS/OTP frontend notifications log-only
+
+- refactor(frontend): `frontend/src/utils/otpDebug.ts` — เปลี่ยน `_dev_code` debug helper จาก dev toast เป็น `console` logging (`logOtpEvent`, `showDevOtpToast`) เพื่อไม่ให้ OTP/SMS messages โผล่บนหน้าจอ
+- fix(frontend): `frontend/src/pages/auth/GuestRegisterPage.tsx`, `frontend/src/pages/auth/MemberRegisterPage.tsx`, `frontend/src/pages/shared/ProfilePage.tsx` — ลบ OTP/SMS toasts, expiry/countdown/helper banners และย้าย send/resend/verify events ไป log-only
+- fix(frontend): `frontend/src/pages/auth/RegisterTypePage.tsx`, `frontend/src/pages/public/FAQPage.tsx` — เปลี่ยน wording user-facing จาก `OTP`/`SMS` เป็นคำกลาง เช่น `รหัสยืนยัน`, `ส่งรหัส`, `ส่งรหัสใหม่`
+- verify(container): `docker exec careconnect-frontend npm exec tsc -- --noEmit` ผ่าน และ `docker exec careconnect-frontend npx vitest run src/__tests__/navigation.webNavigation.test.tsx -t "Register type navigation"` ผ่าน (3 tests)
+- note(test): full frontend `vitest run --passWithNoTests` ยัง fail ใน suite อื่นนอก scope เดิม (`navigation.webNavigation.test.tsx` เคส admin settings + worker OOM) จึงใช้ targeted frontend test สำหรับ route ที่แตะจริงในการ verify รอบนี้
+- **files**: `frontend/src/utils/otpDebug.ts`, `frontend/src/pages/auth/GuestRegisterPage.tsx`, `frontend/src/pages/auth/MemberRegisterPage.tsx`, `frontend/src/pages/shared/ProfilePage.tsx`, `frontend/src/pages/auth/RegisterTypePage.tsx`, `frontend/src/pages/public/FAQPage.tsx`, `PROGRESS.md`
 
 ### 2026-04-06 — fix(wallet): align top-up payment_method contract + restore frontend typecheck
 
