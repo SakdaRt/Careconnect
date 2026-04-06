@@ -1025,6 +1025,9 @@ POST   /api/admin/disputes/:id/settle            settle dispute (refund, payout)
 /contact                       ContactPage
 ```
 
+> `LandingPage` เป็น public landing page ไม่ใช่ dashboard ของ role ใดโดยตรง
+> เมื่อ user login แล้ว CTA `เข้าหน้าหลัก (...)` จะ resolve ตาม role จริงจาก `user.role`/`activeRole`: `admin -> /admin/dashboard`, `caregiver -> /caregiver/jobs/feed`, `hirer -> /hirer/home`; ถ้ายังไม่มี role ที่ resolve ได้จะพาไป `/select-role`
+
 ### Auth (ไม่ต้อง login)
 
 ```

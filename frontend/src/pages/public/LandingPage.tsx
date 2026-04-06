@@ -37,8 +37,21 @@ export default function LandingPage() {
   const [caregivers, setCaregivers] = useState<FeaturedCaregiver[]>([]);
   const isLoggedIn = !!user;
 
-  const homePath = activeRole === 'caregiver' ? '/caregiver/jobs/feed' : '/hirer/home';
-  const roleName = activeRole === 'caregiver' ? 'ผู้ดูแล' : 'ผู้ว่าจ้าง';
+  const resolvedRole = user?.role === 'admin' ? 'admin' : activeRole;
+  const homePath = resolvedRole === 'admin'
+    ? '/admin/dashboard'
+    : resolvedRole === 'caregiver'
+      ? '/caregiver/jobs/feed'
+      : resolvedRole === 'hirer'
+        ? '/hirer/home'
+        : '/select-role';
+  const roleName = resolvedRole === 'admin'
+    ? 'แอดมิน'
+    : resolvedRole === 'caregiver'
+      ? 'ผู้ดูแล'
+      : resolvedRole === 'hirer'
+        ? 'ผู้ว่าจ้าง'
+        : 'เลือกบทบาท';
 
   const goHome = () => navigate(homePath);
 
