@@ -9,6 +9,9 @@ dotenv.config();
 const app = express();
 const payments = new Map();
 
+const PORT = process.env.PORT || 4000;
+const MOCK_PROVIDER_PUBLIC_URL = (process.env.MOCK_PROVIDER_PUBLIC_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -68,10 +71,9 @@ app.post('/payment/initiate', (req, res) => {
     created_at: new Date().toISOString(),
   });
 
-  const PORT = process.env.PORT || 4000;
   res.json({
     reference_id,
-    payment_url: `http://localhost:${PORT}/payment/mock/${reference_id}`,
+    payment_url: `${MOCK_PROVIDER_PUBLIC_URL}/payment/mock/${reference_id}`,
     qr_code: `mock_qr_${reference_id}`,
   });
 
@@ -296,7 +298,6 @@ app.use((req, res) => {
 });
 
 // Start server
-const PORT = process.env.PORT || 4000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Mock Provider] Server running on port ${PORT}`);
   console.log(`[Mock Provider] Environment: ${process.env.NODE_ENV}`);

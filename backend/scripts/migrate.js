@@ -203,7 +203,55 @@ async function runMigrations() {
     await createMigrationsTable();
     
     const allFiles = getMigrationFiles();
-    const appliedMigrations = await getAppliedMigrations();
+    let appliedMigrations = await getAppliedMigrations();
+
+    const hasOnlyBootstrapMarker = appliedMigrations.length === 1 && appliedMigrations[0] === 'bootstrap_initial_schema';
+
+    if ((appliedMigrations.length === 0 || hasOnlyBootstrapMarker) && allFiles.length > 0) {
+      const schemaProbe = await pool.query(`
+        SELECT
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS has_users,
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'jobs') AS has_jobs,
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'payments') AS has_payments,
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'caregiver_documents') AS has_caregiver_documents,
+          EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'topup_intents') AS has_topup_intents
+      `);
+
+      const probe = schemaProbe.rows[0] || {};
+      const hasImportedSchema = Boolean(
+        probe.has_users &&
+        probe.has_jobs &&
+        probe.has_payments &&
+        probe.has_caregiver_documents &&
+        probe.has_topup_intents
+      );
+
+      if (hasImportedSchema) {
+        const tableName = MIGRATIONS_TABLE.replace(/[^a-zA-Z0-9_]/g, '');
+        if (tableName !== MIGRATIONS_TABLE) {
+          throw new Error('Invalid table name');
+        }
+
+        console.log('🧩 Existing imported schema detected. Marking current migrations as applied...');
+        const unappliedFiles = allFiles.filter(file => !appliedMigrations.includes(file));
+        await pool.query('BEGIN');
+        try {
+          for (const filename of unappliedFiles) {
+            await pool.query(
+              `INSERT INTO "${tableName}" (filename) VALUES ($1) ON CONFLICT (filename) DO NOTHING`,
+              [filename]
+            );
+          }
+          await pool.query('COMMIT');
+        } catch (error) {
+          await pool.query('ROLLBACK');
+          throw error;
+        }
+
+        appliedMigrations = await getAppliedMigrations();
+        console.log(`✅ Marked ${unappliedFiles.length} migrations as applied for imported schema`);
+      }
+    }
     
     // Find pending migrations
     const pendingMigrations = allFiles.filter(file => !appliedMigrations.includes(file));

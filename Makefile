@@ -1,7 +1,8 @@
 # Careconnect Docker Commands
-.PHONY: help dev prod clean migrate logs
+.PHONY: help dev prod quickstart quickstart-stop quickstart-restart clean migrate logs logs-quickstart build-quickstart
 
 PROD_ENV_FILE ?= .env.production
+QUICKSTART_ENV_FILE ?= .env.quickstart.example
 
 # Default target
 help:
@@ -12,6 +13,13 @@ help:
 	@echo "  make dev-stop     - Stop development environment"
 	@echo "  make dev-restart  - Restart development environment"
 	@echo "  make migrate-dev  - Run migrations in development"
+	@echo ""
+	@echo "Quickstart:"
+	@echo "  make quickstart         - Build and start ready-to-run quickstart stack"
+	@echo "  make quickstart-stop    - Stop quickstart stack"
+	@echo "  make quickstart-restart - Restart quickstart stack"
+	@echo "  make logs-quickstart    - Show quickstart logs"
+	@echo "  make build-quickstart   - Build quickstart images only"
 	@echo ""
 	@echo "Production:"
 	@echo "  make prod         - Start production environment"
@@ -44,6 +52,23 @@ dev-restart:
 	@echo "Restarting development environment..."
 	docker-compose restart
 	@echo "Development environment restarted!"
+
+quickstart:
+	@echo "Starting quickstart environment..."
+	docker compose --env-file $(QUICKSTART_ENV_FILE) -f docker-compose.quickstart.yml up -d --build
+	@echo "Quickstart environment started!"
+	@echo "Frontend: http://localhost:8080"
+	@echo "Mock Payment: http://localhost:4001"
+
+quickstart-stop:
+	@echo "Stopping quickstart environment..."
+	docker compose --env-file $(QUICKSTART_ENV_FILE) -f docker-compose.quickstart.yml down
+	@echo "Quickstart environment stopped!"
+
+quickstart-restart:
+	@echo "Restarting quickstart environment..."
+	docker compose --env-file $(QUICKSTART_ENV_FILE) -f docker-compose.quickstart.yml restart
+	@echo "Quickstart environment restarted!"
 
 # Production environment
 prod:
@@ -81,6 +106,9 @@ logs:
 logs-dev:
 	docker-compose logs -f
 
+logs-quickstart:
+	docker compose --env-file $(QUICKSTART_ENV_FILE) -f docker-compose.quickstart.yml logs -f
+
 logs-prod:
 	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml logs -f
 
@@ -88,6 +116,7 @@ logs-prod:
 clean:
 	@echo "Cleaning up Docker..."
 	docker-compose down -v --remove-orphans
+	docker compose --env-file $(QUICKSTART_ENV_FILE) -f docker-compose.quickstart.yml down -v --remove-orphans
 	docker compose --env-file $(PROD_ENV_FILE) -f docker-compose.prod.yml down -v --remove-orphans
 	docker system prune -f
 	@echo "Cleanup completed!"
@@ -97,6 +126,11 @@ build-dev:
 	@echo "Building development images..."
 	docker-compose build
 	@echo "Development build completed!"
+
+build-quickstart:
+	@echo "Building quickstart images..."
+	docker compose --env-file $(QUICKSTART_ENV_FILE) -f docker-compose.quickstart.yml build
+	@echo "Quickstart build completed!"
 
 build-prod:
 	@echo "Building production images..."

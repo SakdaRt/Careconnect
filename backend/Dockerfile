@@ -1,13 +1,17 @@
 # Backend Dockerfile
-FROM node:20-alpine
+FROM node:20-bookworm-slim
 
 WORKDIR /app
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy source code
 COPY . .

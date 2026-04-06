@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (docs(runtime): refresh installation + developer deployment guides)
+> อัพเดทล่าสุด: 2026-04-06 (fix(infra): make quickstart stack boot successfully)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -45,6 +45,7 @@ careconnect/
 ├── docker-compose.override.yml (auto-merge กับ dev สำหรับ hot-reload)
 ├── docker-compose.test.yml    (test environment — port 5433)
 ├── docker-compose.prod.yml    (production — ไม่มี dev tools)
+├── docker-compose.quickstart.yml (ready-to-run local/demo image stack — postgres + migrate + backend + mock-provider + frontend, web 8080, mock payment 4001)
 ├── PROGRESS.md        (ไฟล์นี้ — ความคืบหน้า)
 ├── SYSTEM.md          (source of truth — ERD, API, UML, page map)
 └── .windsurfrules     (กฎ AI)
@@ -73,6 +74,7 @@ careconnect/
 - [x] Mock top-up flow สำหรับ development — `PAYMENT_PROVIDER=mock` ใช้งานได้จริงทั้ง backend + wallet UI
 - [x] Frontend production build รับ `VITE_*` ผ่าน Docker build args จาก `.env.production`
 - [x] Docker-first installation/docs sync กับ runtime ปัจจุบันของเครื่องจริง (Ubuntu 22.04 + dev compose + Cloudflare Tunnel → `localhost:5173`)
+- [x] Quickstart image stack แบบ mock-first — `docker-compose.quickstart.yml` + `.env.quickstart.example` สำหรับ local/demo ที่ build แล้วเปิดเว็บผ่าน `:8080` ได้ทันที
 
 ### Trust Level System
 
@@ -189,6 +191,7 @@ careconnect/
 - [x] Push notification (PWA)
 - [x] Caregiver availability calendar
 - [x] ติดตั้ง/ซิงก์ dependency `react-easy-crop` ใน frontend/container ให้ตรงกัน (rebuild Docker image แก้ได้)
+- [ ] smoke test `docker-compose.quickstart.yml` แบบเต็มรอบบนเครื่อง clean (build + login/register + top-up mock + uploads)
 - [ ] เพิ่ม targeted frontend tests สำหรับ guest/member/profile verification flows ที่ตอนนี้ยังพึ่ง typecheck + manual review เป็นหลัก
 - [x] เขียนเอกสาร bootstrap สำหรับ `cloudflared` systemd service เพื่อลด config drift บนเครื่องจริง (ครอบคลุม `Restart=always` / `RestartSec=5s`)
 - [ ] ล้างค่า legacy `GOOGLE_CALLBACK_URL` ออกจาก env/secret จริงของเครื่อง deploy หลัง rollout template ใหม่เสร็จ
@@ -223,9 +226,13 @@ careconnect/
 | `frontend/src/layouts/AdminLayout.tsx`    | Layout admin (sidebar)                          |
 | `.env.example`                            | Development env template (mock-first defaults)  |
 | `.env.production.example`                 | Production env template (deploy checklist)      |
+| `.env.quickstart.example`                 | Quickstart env template สำหรับ ready-to-run local/demo stack |
 | `INSTALLATION.md`                         | Docker-first server bring-up, env setup, Cloudflare Tunnel, production deploy |
 | `DEVELOPER_GUIDE.md`                      | Runtime topology, env responsibilities, compose service map, quick start |
 | `docker-compose.prod.yml`                 | Production compose + frontend Vite build args   |
+| `docker-compose.quickstart.yml`           | Quickstart compose ที่ build images + postgres + backend + mock-provider + frontend สำหรับรันได้ทันที |
+| `backend/Dockerfile`                      | Ready-to-run backend image สำหรับ prod/quickstart path |
+| `backend/scripts/migrate.js`              | Migration runner + imported-schema adoption สำหรับ quickstart/schema bootstrap |
 | `backend/src/config/loadEnv.js`           | โหลด `.env` + optional `.env.<mode>` overlays โดยไม่ override external env |
 | `backend/src/controllers/adminUserController.js` | Admin user list/detail, filters, status, ban, wallet lookup |
 | `backend/src/middleware/auth.js`          | JWT verify + policy gates                       |
@@ -247,11 +254,35 @@ careconnect/
 
 > หมายเหตุ: entries ด้านล่างเป็นประวัติการทำงานตามช่วงเวลา จึงอาจอ้างอิง counts, paths, หรือ runtime values ตามสภาพของวันนั้น ๆ ไม่ใช่สถานะล่าสุดเสมอไป ให้ใช้ `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, และ `SYSTEM.md` เป็น reference ปัจจุบัน
 
+### 2026-04-06 — fix(infra): make quickstart stack boot successfully
+
+- fix(migrate): `backend/scripts/migrate.js` — ถ้า `schema_migrations` ยังว่างหรือมีแค่ `bootstrap_initial_schema` แต่ DB มีตารางหลักจาก `database/schema.sql` อยู่แล้ว จะ mark migration files ปัจจุบันเป็น applied เพื่อหลีกเลี่ยงการ replay historical migrations ทับ schema ล่าสุด
+- fix(compose): `docker-compose.quickstart.yml` — quickstart postgres กลับมา bootstrap จาก `database/schema.sql` บน volume ใหม่ และยังใช้ one-shot `migrate` service ก่อน start `backend`
+- fix(image): `backend/Dockerfile` — เปลี่ยน backend ready-to-run image เป็น `node:20-bookworm-slim` เพื่อแก้ `bcrypt` crash (`SIGSEGV`) ที่เกิดใน quickstart/prod image path บน Alpine
+- verify(image): `docker run --rm --entrypoint node careconnect-backend:quickstart --input-type=module -e "import bcrypt from 'bcrypt'; const hash = await bcrypt.hash('quickstart-oneoff', 10); console.log(hash.length);"` ผ่าน (exit 0, length 60)
+- verify(runtime): `docker compose --env-file .env.quickstart.example -f docker-compose.quickstart.yml up -d --build` ผ่าน, `curl -i http://127.0.0.1:8080/health` ได้ `200 OK`, `curl -i http://127.0.0.1:8080/` ได้ landing page `200 OK`, และ `curl -i http://127.0.0.1:4001/health` ได้ `200 OK`
+- note(scope): quickstart stack ที่ verify แล้วตอนนี้ครอบคลุม health + landing page + mock provider health; full smoke flow (login/register/top-up/upload) ยังอยู่ใน TODO แยก
+- **files**: `backend/scripts/migrate.js`, `backend/Dockerfile`, `docker-compose.quickstart.yml`, `PROGRESS.md`, `SYSTEM.md`
+
+### 2026-04-06 — feat(infra): add quickstart image stack
+
+- feat(infra): `docker-compose.quickstart.yml` — เพิ่ม ready-to-run local/demo stack ที่ build image ของ `frontend`, `backend`, `mock-provider` แล้วรันร่วมกับ PostgreSQL โดย frontend เปิดที่ `:8080` และ mock payment page เปิดที่ `:4001`
+- feat(env): `.env.quickstart.example` — เพิ่ม quickstart env template แบบ mock-first พร้อม default admin credentials, webhook secret, และ seeding flags สำหรับเปิดใช้งานทันที
+- feat(mock-provider): `mock-provider/src/server.js` — เพิ่ม `MOCK_PROVIDER_PUBLIC_URL` เพื่อให้ mock payment link ออก host URL ที่กำหนดได้ แยกจาก internal container port
+- chore(dx): `Makefile` — เพิ่ม `quickstart`, `quickstart-stop`, `quickstart-restart`, `logs-quickstart`, และ `build-quickstart`
+- verify(config): `docker compose --env-file .env.quickstart.example -f docker-compose.quickstart.yml config --quiet` ผ่าน
+- note(scope): quickstart stack นี้ตั้งใจสำหรับ local/demo พร้อม mock providers; production deployment หลักยังใช้ `docker-compose.prod.yml`
+- **files**: `docker-compose.quickstart.yml`, `.env.quickstart.example`, `mock-provider/src/server.js`, `Makefile`, `PROGRESS.md`, `SYSTEM.md`
+
 ### 2026-04-06 — docs(runtime): refresh installation + developer deployment guides
 
 - docs(INSTALLATION): `INSTALLATION.md` — rewrite ให้ยึด current live baseline ของเครื่องจริง (Ubuntu 22.04.5, Docker 28.4.0, Docker Compose v2.39.1, live stack = `docker-compose.yml` + Cloudflare Tunnel → `localhost:5173`) และเปลี่ยน flow หลักเป็น Docker-first แทน host Node workflow
 - docs(env): อธิบาย source of truth ของ env loading ตาม `backend/src/config/loadEnv.js`, `docker-compose.yml`, `docker-compose.prod.yml`, `frontend/vite.config.ts`; แยก required/optional/fallback keys, `VITE_PUBLIC_*` สำหรับ tunnel/HMR, และพฤติกรรม fallback เป็น `console.warn`
 - docs(deploy): เพิ่มขั้นตอน schema bootstrap/migrations, Cloudflare Tunnel systemd service (`Restart=always`, `RestartSec=5s`), production compose first deploy vs subsequent deploy, และแนวทาง verification ผ่าน container เพราะ host Node/npm ยังต่ำกว่า engines ของโปรเจค
+- docs: `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `SYSTEM.md` — sync env conventions ใหม่, เอา `GOOGLE_CALLBACK_URL` ออกจาก docs หลัก, และอธิบาย build/runtime loading paths ให้ตรงกับโค้ด
+- verify: `npm test -- --runInBand backend/src/services/__tests__/walletService.safety.test.js` ผ่าน (exit 0) และ `npm exec tsc -- --noEmit` ใน `frontend/` ผ่าน (exit 0)
+- note(env): host CLI ปัจจุบันคือ `node v12.22.9` / `npm 8.5.1` แต่ `backend/package.json` และ `frontend/package.json` require `node >= 20`, ดังนั้น direct host-side Jest/TypeScript verification อาจ fail ได้แม้โค้ดปกติ — ใช้ container verification แทนจนกว่าจะอัปเกรด host runtime
+- **files**: `.env.example`, `.env.production.example`, `.env.prod.example`, `docker-compose.yml`, `docker-compose.prod.yml`, `frontend/Dockerfile`, `Makefile`, `backend/src/config/loadEnv.js`, `backend/src/server.js`, `backend/src/services/walletService.js`, `backend/src/services/__tests__/walletService.safety.test.js`, `frontend/src/pages/hirer/HirerWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverWalletPage.tsx`, `frontend/src/pages/caregiver/CaregiverMyJobsPage.tsx`, `frontend/src/pages/shared/ChatRoomPage.tsx`, `PROGRESS.md`
 - docs(DEVELOPER_GUIDE): sync runtime baseline, compose service map, env responsibilities, quick start, และ current live public path ให้ตรงกับ runtime ปัจจุบัน
 - verify(code): cross-check commands / ports / env keys กับ `.env.example`, `.env.production.example`, `docker-compose.yml`, `docker-compose.prod.yml`, `docker-compose.test.yml`, `frontend/Dockerfile`, `frontend/vite.config.ts`, `backend/src/config/loadEnv.js`, `backend/src/server.js`, และ `backend/src/controllers/authController.js`
 - **files**: `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, `PROGRESS.md`, `SYSTEM.md`
