@@ -1,6 +1,6 @@
 # CareConnect — Progress Log
 
-> อัพเดทล่าสุด: 2026-04-06 (fix(infra): make quickstart stack boot successfully)
+> อัพเดทล่าสุด: 2026-04-06 (fix(system): แก้ dev override ให้รัน migrate อัตโนมัติ + adoption logic)
 > AI ต้องอ่านไฟล์นี้ก่อนเริ่มทำงานทุกครั้ง
 
 ---
@@ -253,6 +253,14 @@ careconnect/
 ## Git Log (งานล่าสุด)
 
 > หมายเหตุ: entries ด้านล่างเป็นประวัติการทำงานตามช่วงเวลา จึงอาจอ้างอิง counts, paths, หรือ runtime values ตามสภาพของวันนั้น ๆ ไม่ใช่สถานะล่าสุดเสมอไป ให้ใช้ `INSTALLATION.md`, `DEVELOPER_GUIDE.md`, และ `SYSTEM.md` เป็น reference ปัจจุบัน
+
+### 2026-04-06 — fix(system): แก้ dev override ให้รัน migrate อัตโนมัติ + adoption logic
+
+- fix(compose): `docker-compose.override.yml` — เพิ่ม `npm run migrate` กลับเข้า backend command ที่ถูก override ออกไป ทำให้ dev stack รัน migrations อัตโนมัติก่อน start dev server อีกครั้ง
+- fix(migrate): `backend/scripts/migrate.js` — แก้ adoption logic ให้ครอบคลุมกรณี DB ที่มี migrations applied บางส่วนแล้ว (เช่นจาก schema.sql bootstrap) โดยเปลี่ยนเงื่อนไขจาก `appliedMigrations.length === 0` เป็น `hasPendingMigrations` เพื่อให้ probe imported schema ทุกครั้งที่ยังมี pending migrations
+- docs(INSTALLATION): `INSTALLATION.md` — อัปเดต 4 จุดให้ตรงกับ runtime จริง: (1) override file description, (2) backend command มาจาก override, (3) migration behavior ใน dev, (4) note เรื่องลบ override file
+- verify(runtime): หลังแก้ — `docker compose up -d --build backend` ผ่าน, migration status = 23 applied / 0 pending, health checks ทุก service ผ่าน
+- **files**: `docker-compose.override.yml`, `backend/scripts/migrate.js`, `INSTALLATION.md`
 
 ### 2026-04-06 — fix(infra): make quickstart stack boot successfully
 

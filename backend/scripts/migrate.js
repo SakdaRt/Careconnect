@@ -206,8 +206,9 @@ async function runMigrations() {
     let appliedMigrations = await getAppliedMigrations();
 
     const hasOnlyBootstrapMarker = appliedMigrations.length === 1 && appliedMigrations[0] === 'bootstrap_initial_schema';
+    const hasPendingMigrations = allFiles.some(f => !appliedMigrations.includes(f));
 
-    if ((appliedMigrations.length === 0 || hasOnlyBootstrapMarker) && allFiles.length > 0) {
+    if (hasPendingMigrations && allFiles.length > 0) {
       const schemaProbe = await pool.query(`
         SELECT
           EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'users') AS has_users,

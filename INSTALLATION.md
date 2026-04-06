@@ -168,7 +168,7 @@ cd /path/to/Careconnect
 ```
 careconnect/
 ├── docker-compose.yml                # stack หลักที่ server ปัจจุบันใช้งานอยู่
-├── docker-compose.override.yml       # dev hot-reload overrides
+├── docker-compose.override.yml       # dev overrides: volume mounts, npm install + migrate + dev command
 ├── docker-compose.prod.yml           # production compose แยกอีกชุด
 ├── Makefile                          # shortcut commands สำหรับ compose
 ├── .env.example                      # template สำหรับ development/root env
@@ -265,7 +265,7 @@ docker compose up -d --build
 สิ่งที่จะเกิดขึ้นตอน start ครั้งแรก
 
 - `postgres` import `database/schema.sql` อัตโนมัติถ้า volume ของฐานข้อมูลยังว่าง
-- `backend` รัน `npm run migrate && npm run dev` อัตโนมัติ
+- `backend` รัน `npm install && npm run migrate && npm run dev` อัตโนมัติ (command จริงมาจาก `docker-compose.override.yml`)
 - `frontend` เปิด Vite dev server ที่ port `5173`
 - `mock-provider` และ `pgadmin` ถูก start มาด้วย
 
@@ -626,7 +626,7 @@ Migrations ของ backend อยู่ที่ `backend/database/migrations/
 
 พฤติกรรมในแต่ละโหมด
 
-- **Docker development ปัจจุบัน**: `backend` รัน `npm run migrate && npm run dev` ทุกครั้งที่ container start
+- **Docker development ปัจจุบัน**: `backend` รัน `npm install && npm run migrate && npm run dev` ทุกครั้งที่ container start (command มาจาก `docker-compose.override.yml` ที่ override ค่าใน `docker-compose.yml`)
 - **Production compose**: มี service `migrate` แยก profile ไว้ให้รันเอง
 - **Manual**: ต้องรัน `npm run migrate` เอง
 
@@ -643,7 +643,9 @@ docker compose --profile migrate run --rm migrate
 docker compose exec backend npm run migrate:bootstrap
 ```
 
-> ใน dev stack ปกติ **ไม่ต้อง** รัน `migrate` แยกหลัง `docker compose up -d --build` เว้นแต่คุณต้องการ debug migration เอง
+> ใน dev stack ปกติ **ไม่ต้อง** รัน `migrate` แยกหลัง `docker compose up -d --build` เพราะ `docker-compose.override.yml` สั่งให้ backend รัน migrate ให้อัตโนมัติก่อน start dev server
+>
+> **หมายเหตุ**: ถ้าคุณลบหรือ rename `docker-compose.override.yml` ออก backend จะใช้ command จาก `docker-compose.yml` แทน ซึ่งก็ยังมี `npm run migrate` อยู่เช่นกัน
 
 ### 8.3 Mock data และ demo seed
 

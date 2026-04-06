@@ -1261,7 +1261,7 @@ MOCK_KYC_AUTO_APPROVE=true
 | **Auto-complete overdue jobs**               | getCaregiverJobs auto-checkout jobs ที่เลยเวลา                         |
 | **Dev auto-topup**                           | publishJob เติมเงินอัตโนมัติ (dev only) ถ้ายอดไม่พอ                    |
 | **L3 hysteresis**                            | ลง L2 เมื่อ score < 75 (ไม่ใช่ 80) ป้องกันการสั่นไหว                   |
-| **Quickstart bootstrap = schema import + migration adoption** | local/demo stack import `database/schema.sql` บน DB ใหม่ แล้วให้ one-shot `migrate` mark migration files ปัจจุบันเพื่อไม่ replay historical migrations ทับ schema ล่าสุด |
+| **Schema import + migration adoption** | ทั้ง dev stack และ quickstart stack import `database/schema.sql` บน DB volume ใหม่; `migrate.js` จะ probe ว่า DB มี authoritative tables ครบหรือไม่ทุกครั้งที่มี pending migrations (ไม่จำกัดเฉพาะ `appliedMigrations.length === 0`) แล้ว mark unapplied migration files เป็น applied เพื่อไม่ replay historical migrations ทับ schema ล่าสุด |
 | **Ready-to-run backend image uses Debian slim** | quickstart/prod image path ใช้ `node:20-bookworm-slim` เพื่อหลีกเลี่ยง `bcrypt` `SIGSEGV` ที่เจอบน Alpine runtime |
 
 ---
